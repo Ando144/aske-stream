@@ -1,4 +1,4 @@
-import type { Playlist, Station, Track, TrackSource } from '@aske/shared';
+import type { Playlist, Station, Track, TrackKind, TrackSource } from '@aske/shared';
 
 /** Statement that marks the library as changed; append it to every write batch. */
 export const bumpVersion = (db: D1Database) =>
@@ -24,6 +24,7 @@ export interface TrackRow {
   mime: string;
   audio_key: string;
   cover_key: string | null;
+  kind: TrackKind | null;
   source: TrackSource | null;
   source_ref: string | null;
   liked_at: number | null;
@@ -40,6 +41,7 @@ export const toTrack = (r: TrackRow): Track => ({
   sizeBytes: r.size_bytes,
   bitrateKbps: r.bitrate_kbps,
   hasCover: r.cover_key !== null,
+  kind: r.kind ?? 'music',
   source: r.source,
   sourceRef: r.source_ref,
   likedAt: r.liked_at,

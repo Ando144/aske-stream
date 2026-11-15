@@ -11,6 +11,9 @@ export type EpochMs = number;
 
 export type TrackSource = 'youtube' | 'file';
 
+/** Music goes to the library; podcasts (talk, long videos) get their own section. */
+export type TrackKind = 'music' | 'podcast';
+
 export interface Track {
   id: string;
   title: string;
@@ -20,6 +23,7 @@ export interface Track {
   sizeBytes: number;
   bitrateKbps: number | null;
   hasCover: boolean;
+  kind: TrackKind;
   source: TrackSource | null;
   /** Origin identifier, e.g. the YouTube video id. Used to avoid duplicates. */
   sourceRef: string | null;
@@ -101,6 +105,7 @@ export interface IngestMetadata {
   bitrateKbps: number | null;
   source: TrackSource;
   sourceRef: string | null;
+  kind?: TrackKind;
 }
 
 export interface ApiError {

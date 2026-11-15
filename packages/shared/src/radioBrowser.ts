@@ -111,11 +111,11 @@ interface RbStation {
 const httpsOrEmpty = (u: string | undefined) => (u && u.startsWith('https://') ? u : '');
 
 export function mapStation(s: RbStation): CatalogStation | null {
-  const streamUrl = s.url_resolved?.startsWith('https://')
-    ? s.url_resolved
-    : s.url?.startsWith('https://')
-      ? s.url
-      : '';
+  // Prefer an https URL; keep http-only stations too (they play in the Android app).
+  const candidates = [s.url_resolved, s.url].filter(
+    (u): u is string => !!u && /^https?:\/\//.test(u),
+  );
+  const streamUrl = candidates.find((u) => u.startsWith('https://')) ?? candidates[0] ?? '';
   if (!streamUrl || !s.stationuuid || s.lastcheckok === 0) return null;
   return {
     rbUuid: s.stationuuid,
@@ -147,19 +147,40 @@ export interface CatalogQuery {
 }
 
 export async function searchStations(q: CatalogQuery): Promise<CatalogStation[]> {
-  const params = new URLSearchParams({
-    hidebroken: 'true',
-    is_https: 'true',
-    offset: String(q.offset),
-    limit: String(q.limit),
-    order: q.order === 'trend' ? 'clicktrend' : q.order,
-    reverse: q.order === 'name' ? 'false' : 'true',
-  });
-  if (q.name) params.set('name', q.name);
-  if (q.country) params.set('countrycode', q.country);
-  if (q.tag) params.set('tag', q.tag);
-  const data = (await rbFetch('/json/stations/search', params, 15 * 60)) as RbStation[];
-  return data.map(mapStation).filter((s): s is CatalogStation => s !== null);
+  const base = () =>
+    new URLSearchParams({
+      hidebroken: 'true',
+      offset: String(q.offset),
+      limit: String(q.limit),
+      order: q.order === 'trend' ? 'clicktrend' : q.order,
+      reverse: q.order === 'name' ? 'false' : 'true',
+    });
+  const withFilters = (params: URLSearchParams) => {
+    if (q.country) params.set('countrycode', q.country);
+    if (q.tag) params.set('tag', q.tag);
+    return params;
+  };
+  const requests: Promise<unknown>[] = [];
+  const byName = withFilters(base());
+  if (q.name) byName.set('name', q.name);
+  requests.push(rbFetch('/json/stations/search', byName, 15 * 60));
+  // "eitb" or "rock" may be a tag rather than part of the name: search both.
+  if (q.name && !q.tag) {
+    const byTag = withFilters(base());
+    byTag.set('tag', q.name.toLowerCase());
+    requests.push(rbFetch('/json/stations/search', byTag, 15 * 60).catch(() => []));
+  }
+  const pages = (await Promise.all(requests)) as RbStation[][];
+  const seen = new Set<string>();
+  const out: CatalogStation[] = [];
+  for (const st of pages.flat()) {
+    const mapped = mapStation(st);
+    if (mapped && !seen.has(mapped.rbUuid)) {
+      seen.add(mapped.rbUuid);
+      out.push(mapped);
+    }
+  }
+  return out;
 }
 
 export async function listTags(limit: number): Promise<CatalogTag[]> {

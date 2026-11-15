@@ -7,22 +7,22 @@ import { newId } from '../lib/ids';
 import { assertId, notFound, RB_UUID_PATTERN, readJson } from '../lib/http';
 
 /**
- * The PWA is served over HTTPS, and browsers block or auto-upgrade plain
- * HTTP media. Accepting only HTTPS streams avoids stations that can never play.
+ * http:// streams are accepted: the Android app can play them, and the web app
+ * first tries the https:// variant (many servers support both).
  */
-const httpsUrl = z
+const streamUrl = z
   .string()
   .trim()
   .max(LIMITS.urlMax)
   .url()
-  .refine((u) => u.startsWith('https://'), 'Only https:// streams can play in the app');
+  .refine((u) => /^https?:\/\//.test(u), 'Stream URL must start with http:// or https://');
 
 const optionalUrl = z.string().trim().max(LIMITS.urlMax).default('');
 
 const SaveStation = z.object({
   rbUuid: z.string().regex(RB_UUID_PATTERN).nullable().default(null),
   name: z.string().trim().min(1).max(LIMITS.nameMax),
-  streamUrl: httpsUrl,
+  streamUrl,
   homepage: optionalUrl,
   favicon: optionalUrl,
   countryCode: z.string().trim().max(8).default(''),

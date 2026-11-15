@@ -277,12 +277,12 @@ async function main() {
     state.playlistId = pl.id;
   });
 
-  await step('stations: custom https only, like/unlike, catalog upsert', async () => {
-    const http = await api('/api/stations', {
+  await step('stations: custom URLs, like/unlike, catalog upsert', async () => {
+    const ftp = await api('/api/stations', {
       method: 'POST',
-      json: { name: 'Plain', streamUrl: 'http://example.com/live' },
+      json: { name: 'Plain', streamUrl: 'ftp://example.com/live' },
     });
-    assert.equal(http.status, 400);
+    assert.equal(ftp.status, 400);
     const custom = await json(
       await api('/api/stations', {
         method: 'POST',

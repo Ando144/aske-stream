@@ -18,6 +18,7 @@ const Metadata = z.object({
   bitrateKbps: z.number().int().positive().max(2000).nullable().default(null),
   source: z.enum(['youtube', 'file']),
   sourceRef: z.string().trim().min(1).max(200).nullable().default(null),
+  kind: z.enum(['music', 'podcast']).default('music'),
 });
 
 const ExistsQuery = z.object({
@@ -126,9 +127,9 @@ export const ingestRoutes = new Hono<AppEnv>()
         db
           .prepare(
             `INSERT INTO tracks (id, title, artist, album, duration_ms, size_bytes, bitrate_kbps,
-                                 mime, audio_key, cover_key, source, source_ref, liked_at,
+                                 mime, audio_key, cover_key, source, source_ref, kind, liked_at,
                                  created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?) RETURNING *`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?) RETURNING *`,
           )
           .bind(
             id,
@@ -143,6 +144,7 @@ export const ingestRoutes = new Hono<AppEnv>()
             cover ? coverKey(id) : null,
             m.source,
             m.sourceRef,
+            m.kind,
             now,
             now,
           ),

@@ -78,8 +78,13 @@ describe('Radio Browser mapping', () => {
     });
   });
 
-  it('drops stations that cannot play over https or failed their last check', () => {
-    expect(mapStation({ ...base, url: 'http://a', url_resolved: 'http://b' })).toBeNull();
+  it('keeps http-only stations (Android app) and drops broken ones', () => {
+    expect(mapStation({ ...base, url: 'http://a', url_resolved: 'http://b' })?.streamUrl).toBe(
+      'http://b',
+    );
+    expect(mapStation({ ...base, url: 'https://a', url_resolved: 'http://b' })?.streamUrl).toBe(
+      'https://a',
+    );
     expect(mapStation({ ...base, lastcheckok: 0 })).toBeNull();
   });
 });

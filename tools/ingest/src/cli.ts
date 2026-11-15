@@ -51,6 +51,7 @@ Options:
                      default lossless remux of YouTube's Opus stream.
   --artist <name>    Override the artist (local files)
   --album <name>     Override the album
+  --podcast          Save as podcast episodes (Podcasts section) instead of music
   --dry-run          Convert only, do not upload (keeps files in ./.ingest-out)
   -h, --help         Show this help
 
@@ -171,6 +172,7 @@ async function main() {
       artist: { type: 'string' },
       album: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
+      podcast: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
@@ -224,6 +226,7 @@ async function main() {
         const workDir = join(tmpRoot, String(i));
         await mkdir(workDir, { recursive: true });
         const result = await processJob(job, workDir, mode, values);
+        result.meta.kind = values.podcast ? 'podcast' : 'music';
 
         if (
           cfg &&

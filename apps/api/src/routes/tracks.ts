@@ -11,6 +11,7 @@ const PatchTrack = z
     artist: z.string().trim().max(LIMITS.titleMax),
     album: z.string().trim().max(LIMITS.titleMax),
     liked: z.boolean(),
+    kind: z.enum(['music', 'podcast']),
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
@@ -24,7 +25,7 @@ export const trackRoutes = new Hono<AppEnv>()
 
     const sets: string[] = ['updated_at = ?'];
     const args: unknown[] = [now];
-    for (const field of ['title', 'artist', 'album'] as const) {
+    for (const field of ['title', 'artist', 'album', 'kind'] as const) {
       if (body[field] !== undefined) {
         sets.push(`${field} = ?`);
         args.push(body[field]);

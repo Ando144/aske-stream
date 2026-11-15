@@ -7,8 +7,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-BG = (14, 15, 17, 255)
-ACCENT = (61, 220, 151, 255)
+BG = (20, 17, 15, 255)
+ACCENT = (242, 169, 59, 255)
 # (x, y, height) of each bar on a 64x64 grid, matching favicon.svg
 BARS = [(13, 26, 12), (23, 18, 28), (33, 12, 40), (43, 22, 20)]
 
