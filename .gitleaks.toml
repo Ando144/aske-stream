@@ -1,0 +1,8 @@
+# Secret scanning config for CI. Extends the default rules and only
+# allow-lists the well-known *development* key used by local dev and tests.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local development / test fixtures"
+regexes = ['''local-dev-access-key-change-me-0123456789''', '''smoke-test-access-key-0123456789''', '''test-access-key-0123456789abcdef''']

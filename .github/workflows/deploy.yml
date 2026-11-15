@@ -1,0 +1,48 @@
+# Optional: deploy from GitHub instead of your PC.
+# Add two repository secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   token with "Edit Cloudflare Workers" + D1 + R2 permissions
+#   CLOUDFLARE_ACCOUNT_ID  your account id
+# The ACCESS_KEY secret lives in Cloudflare (set once with `wrangler secret put`), never here.
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check configuration
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets first."
+            exit 1
+          fi
+          if grep -q '00000000-0000-0000-0000-000000000000' apps/api/wrangler.jsonc; then
+            echo "::error::Run 'npm run cf:setup' once locally and commit apps/api/wrangler.jsonc."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run db:migrate:remote
+      - run: npm run deploy -w @aske/api
