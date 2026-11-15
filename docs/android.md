@@ -48,7 +48,7 @@ are blocked and it would not be the owner's own traffic).
 | Covers         | Video thumbnail (maxres, then hq), centre-cropped to a square JPEG in a canvas                                                                                                                                                                            |
 | Metadata       | Same cleanup rules as the CLI (`metadataFromYoutube`: "Artist - Title (Official Video)" → artist + title; YouTube Music fields when present)                                                                                                              |
 | Background     | `DownloadService` (`dataSync` foreground service) with a progress notification whose texts come from the web side (user's language)                                                                                                                       |
-| Size           | One APK per processor type (Python is ~15 MB each): `aske-stream-X.apk` (arm64, nearly all phones), `aske-stream-X-armv7.apk` (old 32-bit phones). The updater picks the right one                                                                        |
+| Size           | One APK per processor type (Python is ~15 MB each): `aske-stream-X.apk` (arm64, nearly all phones), `aske-stream-armv7-X.apk` (old 32-bit phones). The updater picks the right one                                                                        |
 
 "Send to phone": on the computer (Cloudflare library) the Download screen
 searches through the Worker (`/api/youtube/search`) and stores picks in D1

@@ -44,7 +44,7 @@ describe('GitHub release → update info', () => {
     const two = {
       ...release,
       assets: [
-        { name: 'aske-stream-0.3.0-armv7.apk', browser_download_url: 'https://x/v7.apk', size: 1 },
+        { name: 'aske-stream-armv7-0.3.0.apk', browser_download_url: 'https://x/v7.apk', size: 1 },
         { name: 'aske-stream-0.3.0.apk', browser_download_url: 'https://x/arm64.apk', size: 2 },
       ],
     };
