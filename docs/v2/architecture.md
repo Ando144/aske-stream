@@ -102,3 +102,8 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 6   | Cloudflare guided setup inside the app (+ QR pairing)                               |             |
 | 7   | Hub: shared playlists and in-person Jams                                            |             |
 | 8   | Telemetry (opt-in) and admin dashboard                                              |             |
+
+Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
+two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,
+speed, back 15 / forward 30 s), data saver, http radio stations, warm theme with three palettes
+and light/dark mode.

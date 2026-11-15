@@ -1,5 +1,6 @@
-import { useDeferredValue, useMemo, useState } from 'react';
-import { Library, Play, Search, Shuffle, WifiOff } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { CircleCheck, Library, Play, Search, Settings, Shuffle, WifiOff } from 'lucide-react';
+import { Link, useSearch } from 'wouter';
 import { songCount, useT } from '../i18n';
 import { formatLongDuration, normalizeText } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
@@ -26,10 +27,21 @@ export function LibraryView() {
   const [sort, setSort] = useState<Sort>(() => loadValue<Sort>('library-sort', 'recent'));
   const deferredQuery = useDeferredValue(query);
   const home = useSetup((s) => s.config?.home);
+  const selecting = useUi((s) => s.selection !== null);
+  const target = useUi((s) => s.selectionTarget);
+  const playlists = useLibrary((s) => s.playlists);
+  const search = useSearch();
+
+  // "Add songs" from a playlist opens the library in picking mode: ?addTo=<playlistId>
+  useEffect(() => {
+    const addTo = new URLSearchParams(search).get('addTo');
+    const pl = addTo ? playlists.find((p) => p.id === addTo) : undefined;
+    if (pl) useUi.getState().startSelection(undefined, { playlistId: pl.id, name: pl.name });
+  }, [search, playlists]);
 
   const tracks = useMemo(() => {
     const q = normalizeText(deferredQuery.trim());
-    let list = all;
+    let list = all.filter((tr) => tr.kind !== 'podcast');
     if (filter === 'liked') list = list.filter((tr) => tr.likedAt !== null);
     if (filter === 'downloaded') list = list.filter((tr) => entries[tr.id]);
     if (q) {
@@ -54,9 +66,15 @@ export function LibraryView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('library.title')}</h1>
-        {home === 'device' && <ImportButton />}
+        <div className="row">
+          {home === 'device' && <ImportButton />}
+          <Link href="/settings" className="icon-btn mobile-only" aria-label={t('common.settings')}>
+            <Settings size={22} />
+          </Link>
+        </div>
       </header>
 
+      {target && <div className="banner accent">{t('select.pickHint', { name: target.name })}</div>}
       {!online && (
         <div className="banner">
           <WifiOff size={18} /> {t('common.offlineBanner')}
@@ -120,6 +138,17 @@ export function LibraryView() {
             </button>
             <button className="btn" onClick={() => play(null, true)} disabled={!ids.length}>
               <Shuffle size={18} /> {t('common.shuffle')}
+            </button>
+            <button
+              className={`icon-btn${selecting ? ' on' : ''}`}
+              onClick={() =>
+                selecting ? useUi.getState().endSelection() : useUi.getState().startSelection()
+              }
+              aria-label={t('select.start')}
+              title={t('select.start')}
+              disabled={!ids.length}
+            >
+              <CircleCheck size={22} />
             </button>
             <span className="grow" />
             <select

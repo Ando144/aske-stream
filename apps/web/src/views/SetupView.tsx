@@ -80,7 +80,7 @@ export function SetupView() {
                   <ul>
                     {list(`setup.${id}.cons` as MessageKey).map((c) => (
                       <li key={c}>
-                        <TriangleAlert size={16} color="#f4d38b" /> {c}
+                        <TriangleAlert size={16} color="var(--warn-text)" /> {c}
                       </li>
                     ))}
                   </ul>

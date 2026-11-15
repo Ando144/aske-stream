@@ -58,3 +58,30 @@ export function insertAfter(
   const tail = queue.slice(index + 1).filter((id) => !ids.includes(id));
   return [...head, ...ids, ...tail];
 }
+
+/** Moves one item (drag & drop). */
+export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
+  const next = [...items];
+  const [item] = next.splice(from, 1);
+  if (item === undefined) return [...items];
+  next.splice(Math.max(0, Math.min(to, next.length)), 0, item);
+  return next;
+}
+
+/**
+ * Data saver: songs that play without mobile data (stored on the device or
+ * already in the offline cache) go first, then the ones that must stream.
+ * Order inside each group is kept, or shuffled when shuffle is on.
+ */
+export function orderForDataSaver(
+  ids: readonly string[],
+  isAvailableOffline: (id: string) => boolean,
+  shuffle: boolean,
+  random: () => number = Math.random,
+): string[] {
+  const local = ids.filter(isAvailableOffline);
+  const remote = ids.filter((id) => !isAvailableOffline(id));
+  return shuffle
+    ? [...shuffled(local, random), ...shuffled(remote, random)]
+    : [...local, ...remote];
+}

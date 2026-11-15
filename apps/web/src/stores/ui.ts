@@ -31,6 +31,12 @@ interface UiState {
   confirm: ConfirmRequest | null;
   prompt: PromptRequest | null;
   online: boolean;
+  /** Multi-select mode: selected track ids, or null when not selecting. */
+  selection: string[] | null;
+  /** When picking songs for a playlist ("Add songs"). */
+  selectionTarget: { playlistId: string; name: string } | null;
+  /** Ids of the list currently on screen, for "Select all". */
+  visibleIds: string[];
 
   toast: (message: string, tone?: Toast['tone']) => void;
   dismissToast: (id: number) => void;
@@ -39,6 +45,11 @@ interface UiState {
   closePlaylistSheet: () => void;
   openTrackMenu: (trackId: string, playlistId?: string) => void;
   closeTrackMenu: () => void;
+  startSelection: (firstId?: string, target?: UiState['selectionTarget']) => void;
+  toggleSelected: (id: string) => void;
+  selectAll: () => void;
+  endSelection: () => void;
+  setVisibleIds: (ids: string[]) => void;
 }
 
 let toastId = 0;
@@ -48,6 +59,9 @@ export const useUi = create<UiState>((set, get) => ({
   nowPlayingOpen: false,
   playlistSheet: null,
   trackMenu: null,
+  selection: null,
+  selectionTarget: null,
+  visibleIds: [],
   confirm: null,
   prompt: null,
   online: navigator.onLine,
@@ -63,6 +77,19 @@ export const useUi = create<UiState>((set, get) => ({
   closePlaylistSheet: () => set({ playlistSheet: null }),
   openTrackMenu: (trackId, playlistId) => set({ trackMenu: { trackId, playlistId } }),
   closeTrackMenu: () => set({ trackMenu: null }),
+  startSelection: (firstId, target = null) =>
+    set({ selection: firstId ? [firstId] : [], selectionTarget: target }),
+  toggleSelected: (id) => {
+    const sel = get().selection ?? [];
+    set({ selection: sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id] });
+  },
+  selectAll: () => {
+    const sel = get().selection ?? [];
+    const all = get().visibleIds;
+    set({ selection: sel.length === all.length ? [] : [...all] });
+  },
+  endSelection: () => set({ selection: null, selectionTarget: null }),
+  setVisibleIds: (visibleIds) => set({ visibleIds }),
 }));
 
 /** Promise-based confirm dialog rendered by <Dialogs />. */

@@ -21,6 +21,9 @@ interface LibraryState {
   /** Adds (or replaces) songs in memory after an import/download. */
   upsertTracks: (tracks: LocalTrack[]) => void;
   toggleLike: (trackId: string) => Promise<void>;
+  likeMany: (trackIds: string[]) => Promise<void>;
+  setKind: (trackId: string, kind: 'music' | 'podcast') => Promise<void>;
+  reorderPlaylist: (id: string, trackIds: string[]) => Promise<void>;
   deleteTrack: (trackId: string) => Promise<void>;
   createPlaylist: (name: string, trackIds?: string[]) => Promise<Playlist | null>;
   renamePlaylist: (id: string, name: string) => Promise<void>;
@@ -128,6 +131,46 @@ export const useLibrary = create<LibraryState>((set, get) => {
           tracks: { ...s.tracks, [trackId]: { ...track, likedAt: liked ? Date.now() : null } },
         }),
         () => getHome().updateTrack(trackId, { liked }),
+      ).catch(() => undefined);
+    },
+
+    async likeMany(trackIds) {
+      const now = Date.now();
+      const todo = trackIds.filter((id) => get().tracks[id]?.likedAt === null);
+      await mutate(
+        (s) => ({
+          tracks: Object.fromEntries(
+            Object.entries(s.tracks).map(([id, tr]) => [
+              id,
+              todo.includes(id) ? { ...tr, likedAt: now } : tr,
+            ]),
+          ),
+        }),
+        async () => {
+          for (const id of todo) await getHome().updateTrack(id, { liked: true });
+        },
+      )
+        .then(() => toast(t('toast.likedMany', { count: trackIds.length })))
+        .catch(() => undefined);
+    },
+
+    async setKind(trackId, kind) {
+      const track = get().tracks[trackId];
+      if (!track) return;
+      await mutate(
+        (s) => ({ tracks: { ...s.tracks, [trackId]: { ...track, kind } } }),
+        () => getHome().updateTrack(trackId, { kind }),
+      )
+        .then(() =>
+          toast(kind === 'podcast' ? t('toast.movedToPodcasts') : t('toast.movedToMusic')),
+        )
+        .catch(() => undefined);
+    },
+
+    async reorderPlaylist(id, trackIds) {
+      await mutate(
+        (s) => ({ playlists: s.playlists.map((p) => (p.id === id ? { ...p, trackIds } : p)) }),
+        () => getHome().reorderPlaylist(id, trackIds),
       ).catch(() => undefined);
     },
 

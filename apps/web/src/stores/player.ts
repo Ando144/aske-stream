@@ -1,28 +1,37 @@
 import { create } from 'zustand';
 import type Hls from 'hls.js';
-import { resolveAudio, resolveCoverDataUrl } from '../storage/media';
 import { t } from '../i18n';
 import { loadValue, savePref } from '../lib/storage';
 import {
   insertAfter,
+  moveItem,
   nextIndex,
+  orderForDataSaver,
   previousIndex,
   reshuffleForNextLap,
   shuffleKeepingFirst,
   type RepeatMode,
 } from '../player/queue';
+import { resolveAudio, resolveCoverDataUrl } from '../storage/media';
 import { useLibrary } from './library';
-import { catalog } from './radio';
 import { LISTENED_THRESHOLD, setProtectedProvider, useOffline } from './offline';
+import { resumePosition, usePodcasts } from './podcasts';
+import { usePrefs } from './prefs';
+import { catalog } from './radio';
 import { toast } from './ui';
 
 /**
  * Playback engine + state.
  *
  * One <audio> element lives for the whole app session. Using a plain media
- * element (no Web Audio graph) is what lets Android keep playing with the
- * screen off and show the lock-screen / notification controls through the
- * Media Session API.
+ * element (no Web Audio graph) is what keeps audio alive in the background on
+ * mobile and gives lock-screen controls through the Media Session API.
+ *
+ * Two lists, like a real music app:
+ *  - `queue`   — songs the user explicitly queued ("Add to queue", swipe).
+ *                They always play first and are consumed as they play.
+ *  - `context` — the list you pressed play on (library, playlist…), possibly
+ *                shuffled; `index` is the position of the current/last song.
  */
 
 export interface RadioItem {
@@ -42,11 +51,14 @@ export interface PlayContext {
 
 interface PlayerState {
   mode: 'idle' | 'track' | 'radio';
+  currentId: string | null;
+  fromQueue: boolean;
   queue: string[];
-  /** Queue order before shuffling, restored when shuffle is turned off. */
+  context: string[];
+  /** Context order before shuffling, restored when shuffle is turned off. */
   original: string[];
   index: number;
-  context: PlayContext | null;
+  contextInfo: PlayContext | null;
   shuffle: boolean;
   repeat: RepeatMode;
   isPlaying: boolean;
@@ -55,6 +67,7 @@ interface PlayerState {
   duration: number;
   volume: number;
   muted: boolean;
+  rate: number;
   station: RadioItem | null;
   stationList: RadioItem[];
 
@@ -63,7 +76,8 @@ interface PlayerState {
     startId?: string | null,
     opts?: { shuffle?: boolean; context?: PlayContext },
   ) => void;
-  playAt: (index: number) => void;
+  playAt: (contextIndex: number) => void;
+  playFromQueue: (queueIndex: number) => void;
   togglePlay: () => void;
   pause: () => void;
   next: () => void;
@@ -72,10 +86,17 @@ interface PlayerState {
   seekBy: (delta: number) => void;
   setVolume: (volume: number) => void;
   toggleMute: () => void;
+  setRate: (rate: number) => void;
   toggleShuffle: () => void;
   cycleRepeat: () => void;
   playNext: (ids: string[]) => void;
   addToQueue: (ids: string[]) => void;
+  removeFromQueue: (queueIndex: number) => void;
+  clearQueue: () => void;
+  moveInQueue: (from: number, to: number) => void;
+  /** Indices relative to the "Next from…" list (context after the current song). */
+  moveUpcoming: (from: number, to: number) => void;
+  removeUpcoming: (upcomingIndex: number) => void;
   playStation: (station: RadioItem, list?: RadioItem[]) => void;
 }
 
@@ -87,23 +108,33 @@ let loadSeq = 0;
 let pendingSeek: number | null = null;
 let listenedMarked = false;
 let consecutiveErrors = 0;
+let triedHttpsUpgrade = false;
 
 interface Saved {
+  currentId: string | null;
+  fromQueue: boolean;
   queue: string[];
+  context: string[];
   original: string[];
   index: number;
   shuffle: boolean;
   repeat: RepeatMode;
   position: number;
-  context: PlayContext | null;
+  contextInfo: PlayContext | null;
 }
-const saved = loadValue<Saved | null>('player', null);
+const saved = loadValue<Saved | null>('player-v2', null);
 const savedVolume = loadValue<{ volume: number; muted: boolean }>('volume', {
   volume: 1,
   muted: false,
 });
 audio.volume = savedVolume.volume;
 audio.muted = savedVolume.muted;
+
+const isPodcast = (id: string | null) =>
+  !!id && useLibrary.getState().tracks[id]?.kind === 'podcast';
+
+const availableOffline = (id: string) =>
+  !!useLibrary.getState().tracks[id]?.locations.device || !!useOffline.getState().entries[id];
 
 /** Engine internals the media-element listeners below need to call. */
 const engine = {
@@ -112,19 +143,20 @@ const engine = {
 };
 
 export const usePlayer = create<PlayerState>((set, get) => {
-  const currentId = () => (get().mode === 'track' ? (get().queue[get().index] ?? null) : null);
-
   function persist() {
     const s = get();
     if (s.mode === 'radio') return;
-    savePref('player', {
+    savePref('player-v2', {
+      currentId: s.currentId,
+      fromQueue: s.fromQueue,
       queue: s.queue,
+      context: s.context,
       original: s.original,
       index: s.index,
       shuffle: s.shuffle,
       repeat: s.repeat,
       position: audio.currentTime || s.position,
-      context: s.context,
+      contextInfo: s.contextInfo,
     } satisfies Saved);
   }
 
@@ -146,23 +178,19 @@ export const usePlayer = create<PlayerState>((set, get) => {
     return resolveAudio(track, !!useOffline.getState().entries[trackId]);
   }
 
-  /** Loads queue[index]; skips forward over songs that cannot play offline. */
+  /** Loads `currentId`; if it cannot play offline, moves on to the next playable song. */
   async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
     const seq = ++loadSeq;
-    const { queue } = get();
-    let index = get().index;
     let src: string | null = null;
-    for (let tries = 0; tries < queue.length; tries++) {
-      const id = queue[index];
+    for (let tries = 0; tries < get().context.length + get().queue.length + 1; tries++) {
+      const id = get().currentId;
       if (id) src = await sourceFor(id);
       if (seq !== loadSeq) {
         if (src?.startsWith('blob:')) URL.revokeObjectURL(src);
         return;
       }
       if (src) break;
-      const ni = nextIndex(queue.length, index, 'all');
-      if (ni === null) break;
-      index = ni;
+      if (!step(false)) break;
       startAt = 0;
     }
     if (!src) {
@@ -174,42 +202,79 @@ export const usePlayer = create<PlayerState>((set, get) => {
     resetSource();
     if (src.startsWith('blob:')) objectUrl = src;
     listenedMarked = false;
+    const id = get().currentId!;
+    const podcast = isPodcast(id);
+    if (podcast && startAt === 0) startAt = resumePosition(id);
     pendingSeek = startAt > 0 ? startAt : null;
-    set({ index, mode: 'track', station: null, position: startAt, duration: 0 });
+    const rate = podcast ? usePodcasts.getState().rate : 1;
+    set({ mode: 'track', station: null, position: startAt, duration: 0, rate });
     audio.src = src;
+    audio.playbackRate = rate;
+    audio.defaultPlaybackRate = rate;
     updateMediaSession();
     persist();
     useOffline.getState().scheduleRun(5000);
-    if (autoplay) {
-      audio.play().catch(() => set({ isPlaying: false }));
-    }
+    if (autoplay) audio.play().catch(() => set({ isPlaying: false }));
   }
 
-  async function startRadio(item: RadioItem) {
+  /**
+   * Moves the cursor to the next song without loading it.
+   * Returns false at the end of everything (repeat off).
+   */
+  function step(userAction: boolean): boolean {
+    const s = get();
+    if (s.queue.length) {
+      set({ currentId: s.queue[0]!, queue: s.queue.slice(1), fromQueue: true });
+      return true;
+    }
+    const ni = nextIndex(
+      s.context.length,
+      s.index,
+      s.repeat === 'off' && userAction ? 'off' : s.repeat,
+    );
+    if (ni === null) return false;
+    if (ni === 0 && s.shuffle && s.context.length > 1) {
+      const context = reshuffleForNextLap(s.original, s.context[s.index] ?? null);
+      set({ context, index: 0, currentId: context[0]!, fromQueue: false });
+      return true;
+    }
+    set({ index: ni, currentId: s.context[ni]!, fromQueue: false });
+    return true;
+  }
+
+  async function startRadio(item: RadioItem, forceUrl?: string) {
     if (!navigator.onLine) {
       toast(t('radio.offline'), 'error');
       return;
     }
     const seq = ++loadSeq;
     resetSource();
-    set({ mode: 'radio', station: item, position: 0, duration: 0, buffering: true });
-    const isHls = item.hls || /\.m3u8(\?|$)/i.test(item.streamUrl);
+    let url = forceUrl ?? item.streamUrl;
+    // Web apps served over HTTPS cannot play http:// streams; try the https variant first.
+    triedHttpsUpgrade = false;
+    if (!forceUrl && url.startsWith('http://') && location.protocol === 'https:') {
+      url = `https://${url.slice('http://'.length)}`;
+      triedHttpsUpgrade = true;
+    }
+    set({ mode: 'radio', station: item, position: 0, duration: 0, buffering: true, rate: 1 });
+    audio.playbackRate = 1;
+    const isHls = item.hls || /\.m3u8(\?|$)/i.test(url);
     if (isHls && !audio.canPlayType('application/vnd.apple.mpegurl')) {
       const { default: HlsLib } = await import('hls.js/light');
       if (seq !== loadSeq) return;
       if (HlsLib.isSupported()) {
         hls = new HlsLib({ enableWorker: true, lowLatencyMode: false });
-        hls.loadSource(item.streamUrl);
+        hls.loadSource(url);
         hls.attachMedia(audio);
       } else {
-        audio.src = item.streamUrl;
+        audio.src = url;
       }
     } else {
-      audio.src = item.streamUrl;
+      audio.src = url;
     }
     updateMediaSession();
     audio.play().catch(() => set({ isPlaying: false, buffering: false }));
-    if (item.rbUuid) void catalog.click(item.rbUuid);
+    if (item.rbUuid && !forceUrl) void catalog.click(item.rbUuid);
   }
 
   function advance(auto: boolean) {
@@ -221,32 +286,35 @@ export const usePlayer = create<PlayerState>((set, get) => {
       return;
     }
     if (s.mode !== 'track') return;
-    const ni = nextIndex(s.queue.length, s.index, s.repeat);
-    if (ni === null) {
+    if (!step(!auto)) {
       if (auto) {
-        // End of the queue: stop on the last song, ready to replay.
         audio.pause();
         audio.currentTime = 0;
         set({ isPlaying: false, position: 0 });
       }
       return;
     }
-    if (ni === 0 && s.shuffle && s.queue.length > 1) {
-      set({ queue: reshuffleForNextLap(s.original, s.queue[s.index] ?? null) });
-    }
-    set({ index: ni });
     void loadCurrent(true);
   }
 
   engine.advance = advance;
   engine.persist = persist;
+  (engine as typeof engine & { retryRadio?: () => boolean }).retryRadio = () => {
+    const st = get().station;
+    if (!st || !triedHttpsUpgrade) return false;
+    void startRadio(st, st.streamUrl);
+    return true;
+  };
 
   return {
-    mode: saved?.queue.length ? 'track' : 'idle',
+    mode: saved?.currentId ? 'track' : 'idle',
+    currentId: saved?.currentId ?? null,
+    fromQueue: saved?.fromQueue ?? false,
     queue: saved?.queue ?? [],
-    original: saved?.original ?? saved?.queue ?? [],
+    context: saved?.context ?? [],
+    original: saved?.original ?? saved?.context ?? [],
     index: saved?.index ?? 0,
-    context: saved?.context ?? null,
+    contextInfo: saved?.contextInfo ?? null,
     shuffle: saved?.shuffle ?? false,
     repeat: saved?.repeat ?? 'off',
     isPlaying: false,
@@ -255,30 +323,47 @@ export const usePlayer = create<PlayerState>((set, get) => {
     duration: 0,
     volume: savedVolume.volume,
     muted: savedVolume.muted,
+    rate: 1,
     station: null,
     stationList: [],
 
     playTracks(ids, startId = null, opts = {}) {
       if (!ids.length) return;
       const shuffle = opts.shuffle ?? get().shuffle;
-      const first = startId ?? (shuffle ? null : ids[0]!);
-      const queue = shuffle ? shuffleKeepingFirst(ids, first) : [...ids];
-      const index = first ? Math.max(0, queue.indexOf(first)) : 0;
+      let context: string[];
+      if (!startId && usePrefs.getState().dataSaver && navigator.onLine) {
+        context = orderForDataSaver(ids, availableOffline, shuffle);
+      } else {
+        const first = startId ?? (shuffle ? null : ids[0]!);
+        context = shuffle ? shuffleKeepingFirst(ids, first) : [...ids];
+      }
+      const index = startId ? Math.max(0, context.indexOf(startId)) : 0;
       consecutiveErrors = 0;
       set({
-        queue,
+        context,
         original: [...ids],
         index,
+        currentId: context[index]!,
+        fromQueue: false,
         shuffle,
-        context: opts.context ?? null,
+        contextInfo: opts.context ?? null,
         mode: 'track',
       });
       void loadCurrent(true);
     },
 
-    playAt(index) {
-      if (index < 0 || index >= get().queue.length) return;
-      set({ index });
+    playAt(contextIndex) {
+      const id = get().context[contextIndex];
+      if (!id) return;
+      set({ index: contextIndex, currentId: id, fromQueue: false });
+      void loadCurrent(true);
+    },
+
+    playFromQueue(queueIndex) {
+      const queue = [...get().queue];
+      const [id] = queue.splice(queueIndex, 1);
+      if (!id) return;
+      set({ queue, currentId: id, fromQueue: true, mode: 'track' });
       void loadCurrent(true);
     },
 
@@ -308,11 +393,13 @@ export const usePlayer = create<PlayerState>((set, get) => {
         if (list.length > 1) void startRadio(list[(i - 1 + list.length) % list.length]!);
         return;
       }
-      if (audio.currentTime > 3) {
+      if (audio.currentTime > 3 || !s.context.length) {
         audio.currentTime = 0;
         return;
       }
-      set({ index: previousIndex(s.queue.length, s.index, s.repeat) });
+      // From a queued song, "previous" returns to where the list was.
+      const index = s.fromQueue ? s.index : previousIndex(s.context.length, s.index, s.repeat);
+      set({ index, currentId: s.context[index]!, fromQueue: false });
       void loadCurrent(true);
     },
 
@@ -340,15 +427,22 @@ export const usePlayer = create<PlayerState>((set, get) => {
       audio.muted = !audio.muted;
     },
 
+    setRate(rate) {
+      audio.playbackRate = rate;
+      audio.defaultPlaybackRate = rate;
+      if (isPodcast(get().currentId)) usePodcasts.getState().setRate(rate);
+      set({ rate });
+    },
+
     toggleShuffle() {
       const s = get();
-      const id = currentId();
+      const anchor = s.context[s.index] ?? null;
       if (!s.shuffle) {
-        const queue = shuffleKeepingFirst(s.original, id);
-        set({ shuffle: true, queue, index: id ? queue.indexOf(id) : 0 });
+        const context = shuffleKeepingFirst(s.original, anchor);
+        set({ shuffle: true, context, index: anchor ? context.indexOf(anchor) : 0 });
       } else {
-        const index = id ? Math.max(0, s.original.indexOf(id)) : 0;
-        set({ shuffle: false, queue: [...s.original], index });
+        const index = anchor ? Math.max(0, s.original.indexOf(anchor)) : 0;
+        set({ shuffle: false, context: [...s.original], index });
       }
       persist();
     },
@@ -361,29 +455,62 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
     playNext(ids) {
       const s = get();
-      if (s.mode !== 'track' || !s.queue.length) {
+      if (s.mode !== 'track' || !s.currentId) {
         get().playTracks(ids);
         return;
       }
-      const original = [...s.original, ...ids.filter((id) => !s.original.includes(id))];
-      set({ queue: insertAfter(s.queue, s.index, ids), original });
+      set({ queue: insertAfter(s.queue, -1, ids) });
       persist();
       toast(t('toast.playNext'));
     },
 
     addToQueue(ids) {
       const s = get();
-      if (s.mode !== 'track' || !s.queue.length) {
+      if (s.mode !== 'track' || !s.currentId) {
         get().playTracks(ids);
         return;
       }
-      const fresh = ids.filter((id) => !s.queue.slice(s.index + 1).includes(id));
-      set({
-        queue: [...s.queue, ...fresh],
-        original: [...s.original, ...fresh.filter((id) => !s.original.includes(id))],
-      });
+      set({ queue: [...s.queue, ...ids] });
       persist();
-      toast(t('toast.addedToQueue'));
+      toast(
+        ids.length === 1
+          ? t('toast.addedToQueue')
+          : t('toast.addedManyToQueue', { count: ids.length }),
+      );
+    },
+
+    removeFromQueue(queueIndex) {
+      set({ queue: get().queue.filter((_, i) => i !== queueIndex) });
+      persist();
+    },
+
+    clearQueue() {
+      set({ queue: [] });
+      persist();
+    },
+
+    moveInQueue(from, to) {
+      set({ queue: moveItem(get().queue, from, to) });
+      persist();
+    },
+
+    moveUpcoming(from, to) {
+      const s = get();
+      const base = s.index + 1;
+      const context = moveItem(s.context, base + from, base + to);
+      set(s.shuffle ? { context } : { context, original: [...context] });
+      persist();
+    },
+
+    removeUpcoming(upcomingIndex) {
+      const s = get();
+      const at = s.index + 1 + upcomingIndex;
+      const id = s.context[at];
+      const context = s.context.filter((_, i) => i !== at);
+      const oi = id ? s.original.indexOf(id) : -1;
+      const original = oi >= 0 ? s.original.filter((_, i) => i !== oi) : s.original;
+      set({ context, original });
+      persist();
     },
 
     playStation(station, list) {
@@ -397,15 +524,20 @@ export const usePlayer = create<PlayerState>((set, get) => {
 /* ---------- Media element events → store ---------- */
 
 let lastPositionUpdate = 0;
+let lastPodcastSave = 0;
 audio.addEventListener('timeupdate', () => {
   const now = performance.now();
   const s = usePlayer.getState();
-  if (s.mode === 'track' && !listenedMarked && audio.duration > 0) {
+  const id = s.currentId;
+  if (s.mode === 'track' && id && !listenedMarked && audio.duration > 0) {
     if (audio.currentTime / audio.duration >= LISTENED_THRESHOLD) {
       listenedMarked = true;
-      const id = s.queue[s.index];
-      if (id) void useOffline.getState().markListened(id);
+      void useOffline.getState().markListened(id);
     }
+  }
+  if (s.mode === 'track' && id && isPodcast(id) && now - lastPodcastSave > 5000) {
+    lastPodcastSave = now;
+    usePodcasts.getState().save(id, audio.currentTime, audio.duration || 0);
   }
   if (now - lastPositionUpdate < 250) return;
   lastPositionUpdate = now;
@@ -434,11 +566,17 @@ audio.addEventListener('waiting', () => usePlayer.setState({ buffering: true }))
 audio.addEventListener('pause', () => {
   usePlayer.setState({ isPlaying: false, buffering: false });
   setPlaybackState('paused');
+  const s = usePlayer.getState();
+  if (s.mode === 'track' && isPodcast(s.currentId)) {
+    usePodcasts.getState().save(s.currentId!, audio.currentTime, audio.duration || 0);
+  }
   engine.persist();
 });
 audio.addEventListener('ended', () => {
   const s = usePlayer.getState();
   if (s.mode !== 'track') return;
+  if (isPodcast(s.currentId))
+    usePodcasts.getState().save(s.currentId!, audio.duration, audio.duration);
   if (s.repeat === 'one') {
     audio.currentTime = 0;
     listenedMarked = false;
@@ -454,14 +592,21 @@ audio.addEventListener('volumechange', () => {
 audio.addEventListener('error', () => {
   const s = usePlayer.getState();
   if (!audio.src && !hls) return;
-  usePlayer.setState({ isPlaying: false, buffering: false });
   if (s.mode === 'radio') {
-    toast(t('radio.streamError'), 'error');
+    // The https:// variant of an http:// stream failed: try the original once.
+    const retry = (engine as typeof engine & { retryRadio?: () => boolean }).retryRadio;
+    if (retry?.()) return;
+    usePlayer.setState({ isPlaying: false, buffering: false });
+    toast(
+      s.station?.streamUrl.startsWith('http://') ? t('radio.httpOnly') : t('radio.streamError'),
+      'error',
+    );
     return;
   }
+  usePlayer.setState({ isPlaying: false, buffering: false });
   toast(t('toast.playbackError'), 'error');
-  // Skip broken songs, but never loop forever over a fully broken queue.
-  if (++consecutiveErrors < 3 && s.queue.length > 1) {
+  // Skip broken songs, but never loop forever over a fully broken list.
+  if (++consecutiveErrors < 3 && s.context.length + s.queue.length > 1) {
     setTimeout(() => engine.advance(true), 1200);
   }
 });
@@ -515,8 +660,7 @@ function updateMediaSession() {
     }
     return;
   }
-  const id = s.queue[s.index];
-  const track = id ? useLibrary.getState().tracks[id] : undefined;
+  const track = s.currentId ? useLibrary.getState().tracks[s.currentId] : undefined;
   if (!track) return;
   session.metadata = new MediaMetadata({
     title: track.title,
@@ -524,26 +668,25 @@ function updateMediaSession() {
     album: track.album,
     artwork: FALLBACK_ART,
   });
-  setSeekHandlers();
+  setSeekHandlers(track.kind === 'podcast' ? 15 : 10);
   if (track.hasCover) {
     void resolveCoverDataUrl(track).then((src) => {
-      const current = usePlayer.getState();
-      if (src && current.queue[current.index] === track.id && session.metadata) {
+      if (src && usePlayer.getState().currentId === track.id && session.metadata) {
         session.metadata.artwork = [{ src, sizes: '512x512', type: 'image/jpeg' }];
       }
     });
   }
 }
 
-function setSeekHandlers() {
+function setSeekHandlers(step = 10) {
   if (!hasMediaSession) return;
   const session = navigator.mediaSession;
   const player = () => usePlayer.getState();
   session.setActionHandler('seekto', (d) => {
     if (d.seekTime !== undefined) player().seek(d.seekTime);
   });
-  session.setActionHandler('seekbackward', (d) => player().seekBy(-(d.seekOffset ?? 10)));
-  session.setActionHandler('seekforward', (d) => player().seekBy(d.seekOffset ?? 10));
+  session.setActionHandler('seekbackward', (d) => player().seekBy(-(d.seekOffset ?? step)));
+  session.setActionHandler('seekforward', (d) => player().seekBy(d.seekOffset ?? step * 2));
 }
 
 if (hasMediaSession) {
@@ -571,15 +714,14 @@ setProtectedProvider(() => {
   const s = usePlayer.getState();
   const ids = new Set<string>();
   if (s.mode === 'track') {
-    const cur = s.queue[s.index];
-    const nxt = s.queue[s.index + 1];
-    if (cur) ids.add(cur);
-    if (nxt) ids.add(nxt);
+    if (s.currentId) ids.add(s.currentId);
+    const nextId = s.queue[0] ?? s.context[s.index + 1];
+    if (nextId) ids.add(nextId);
   }
   return ids;
 });
 
 /** For the UI: the track currently loaded in the player. */
 export function useCurrentTrackId(): string | null {
-  return usePlayer((s) => (s.mode === 'track' ? (s.queue[s.index] ?? null) : null));
+  return usePlayer((s) => (s.mode === 'track' ? s.currentId : null));
 }

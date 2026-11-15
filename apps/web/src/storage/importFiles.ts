@@ -84,6 +84,7 @@ export async function importFiles(
         sizeBytes: file.size,
         bitrateKbps: Math.round((file.size * 8) / durationMs) || null,
         hasCover: false,
+        kind: 'music',
         source: 'file',
         sourceRef: hash,
         likedAt: null,

@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Cloud, ExternalLink, Globe, HardDrive, LogOut, Smartphone } from 'lucide-react';
+import {
+  Cloud,
+  ExternalLink,
+  Globe,
+  HardDrive,
+  LogOut,
+  Palette,
+  Smartphone,
+  SunMoon,
+} from 'lucide-react';
+import { usePrefs } from '../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
 import { useSetup } from '../stores/setup';
 import { confirmDialog } from '../stores/ui';
@@ -12,6 +22,7 @@ export function SettingsView() {
   const setLanguage = useI18n((s) => s.setLanguage);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const home = useSetup((s) => s.config?.home);
+  const prefs = usePrefs();
 
   useEffect(() => {
     navigator.storage
@@ -44,6 +55,71 @@ export function SettingsView() {
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      <h2 className="section-title">{t('settings.appearance')}</h2>
+      <div className="panel">
+        <div className="setting">
+          <SunMoon size={20} className="muted" />
+          <span className="grow">{t('settings.theme')}</span>
+          <div className="segmented" role="radiogroup" aria-label={t('settings.theme')}>
+            {(['system', 'dark', 'light'] as const).map((mode) => (
+              <button
+                key={mode}
+                role="radio"
+                aria-checked={prefs.theme === mode}
+                className={prefs.theme === mode ? 'active' : ''}
+                onClick={() => prefs.set({ theme: mode })}
+              >
+                {t(
+                  mode === 'system'
+                    ? 'settings.themeSystem'
+                    : mode === 'dark'
+                      ? 'settings.themeDark'
+                      : 'settings.themeLight',
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="setting">
+          <Palette size={20} className="muted" />
+          <span className="grow">{t('settings.palette')}</span>
+          <div className="swatches" role="radiogroup" aria-label={t('settings.palette')}>
+            {(['amber', 'terracotta', 'olive'] as const).map((p) => (
+              <button
+                key={p}
+                role="radio"
+                aria-checked={prefs.palette === p}
+                className={`swatch swatch-${p}${prefs.palette === p ? ' active' : ''}`}
+                onClick={() => prefs.set({ palette: p })}
+              >
+                <span aria-hidden />
+                {t(`palette.${p}` as const)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <h2 className="section-title">{t('settings.playback')}</h2>
+      <div className="panel">
+        <div className="setting">
+          <label className="grow" htmlFor="data-saver">
+            <div>{t('settings.dataSaver')}</div>
+            <div className="faint small">{t('settings.dataSaverHint')}</div>
+          </label>
+          <span className="toggle">
+            <input
+              id="data-saver"
+              type="checkbox"
+              role="switch"
+              checked={prefs.dataSaver}
+              onChange={(e) => prefs.set({ dataSaver: e.target.checked })}
+            />
+            <span />
+          </span>
         </div>
       </div>
 

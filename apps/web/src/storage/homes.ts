@@ -18,6 +18,7 @@ export function newLocalId(): string {
 
 const fromRemote = (t: Track): LocalTrack => ({
   ...t,
+  kind: t.kind ?? 'music',
   locations: { cloudflare: t.id },
   mime: 'audio/ogg',
 });
@@ -40,6 +41,7 @@ export const cloudflareHome: LibraryHome = {
   deletePlaylist: (id) => api.deletePlaylist(id),
   addToPlaylist: (id, ids) => api.addToPlaylist(id, ids),
   removeFromPlaylist: (id, trackId) => api.removeFromPlaylist(id, trackId),
+  reorderPlaylist: (id, trackIds) => api.reorderPlaylist(id, trackIds),
   listStations: () => api.stations(),
   saveStation: (s) => api.saveStation(s),
   updateStation: (id, patch) => api.updateStation(id, patch),
@@ -145,6 +147,15 @@ export const deviceHome: LibraryHome & {
     return putPlaylist({ ...pl, trackIds: pl.trackIds.filter((t) => t !== trackId) });
   },
 
+  async reorderPlaylist(id, trackIds) {
+    const pl = await getPlaylist(id);
+    const same = new Set(pl.trackIds);
+    if (trackIds.length !== same.size || !trackIds.every((t) => same.has(t))) {
+      throw new Error('trackIds must contain the same tracks');
+    }
+    return putPlaylist({ ...pl, trackIds });
+  },
+
   async listStations() {
     return (await getDb()).getAll('stations');
   },
@@ -171,9 +182,7 @@ export const deviceHome: LibraryHome & {
       likedAt: input.liked === false ? null : (existing?.likedAt ?? now),
       createdAt: existing?.createdAt ?? now,
     };
-    if (!station.streamUrl.startsWith('https://')) {
-      throw new Error('Only https:// streams can play in the app');
-    }
+    if (!/^https?:\/\//.test(station.streamUrl)) throw new Error('Invalid stream URL');
     await db.put('stations', station);
     return station;
   },

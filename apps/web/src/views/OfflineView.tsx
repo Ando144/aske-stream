@@ -113,7 +113,7 @@ export function OfflineView() {
           </span>
         </div>
         {pinnedMs > quotaMs && (
-          <p className="small" style={{ color: '#f4d38b' }}>
+          <p className="small" style={{ color: 'var(--warn-text)' }}>
             {t('offline.pinnedOverQuota')}
           </p>
         )}

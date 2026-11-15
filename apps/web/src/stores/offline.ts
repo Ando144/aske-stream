@@ -160,7 +160,10 @@ export const useOffline = create<OfflineState>((set, get) => {
         // Only cloud songs rotate: songs stored on the device are always available offline.
         const tracks = lib.order
           .map((id) => lib.tracks[id])
-          .filter((tr) => !!tr && !!tr.locations.cloudflare && !tr.locations.device)
+          .filter(
+            (tr) =>
+              !!tr && !!tr.locations.cloudflare && !tr.locations.device && tr.kind !== 'podcast',
+          )
           .map((tr) => ({ id: tr!.id, durationMs: tr!.durationMs }));
 
         const plan = planRotation({

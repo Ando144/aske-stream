@@ -106,7 +106,7 @@ export const api = {
 
   updateTrack: (
     id: string,
-    patch: Partial<Pick<Track, 'title' | 'artist' | 'album'>> & { liked?: boolean },
+    patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'kind'>> & { liked?: boolean },
   ) => json<Track>(`/api/tracks/${id}`, { method: 'PATCH', json: patch }),
   deleteTrack: (id: string) => json<void>(`/api/tracks/${id}`, { method: 'DELETE' }),
 

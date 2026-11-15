@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowDownToLine,
   ChevronLeft,
   CircleCheck,
   Heart,
+  ArrowUpDown,
   Pencil,
+  Plus,
   Play,
   Shuffle,
   Trash2,
@@ -17,10 +19,15 @@ import { useAllTracks, useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { usePlayer } from '../stores/player';
 import { confirmDialog, promptDialog } from '../stores/ui';
+import { Cover } from '../components/Cover';
+import { SortableList } from '../components/Sortable';
 import { TrackList } from '../components/TrackList';
+import { moveItem } from '../player/queue';
+import { useUi } from '../stores/ui';
 import { PlaylistArt } from './PlaylistsView';
 
 export function PlaylistView({ id, liked = false }: { id?: string; liked?: boolean }) {
+  const [reordering, setReordering] = useState(false);
   const t = useT();
   const [, navigate] = useLocation();
   const allTracks = useAllTracks();
@@ -31,7 +38,7 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
   const tracks: Track[] = useMemo(() => {
     if (liked) {
       return allTracks
-        .filter((tr) => tr.likedAt !== null)
+        .filter((tr) => tr.likedAt !== null && tr.kind !== 'podcast')
         .sort((a, b) => (b.likedAt ?? 0) - (a.likedAt ?? 0));
     }
     return (playlist?.trackIds ?? []).map((tid) => trackMap[tid]).filter((tr): tr is Track => !!tr);
@@ -48,7 +55,8 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
   const title = liked ? t('liked.title') : playlist!.name;
   const ids = tracks.map((tr) => tr.id);
   const totalMs = tracks.reduce((sum, tr) => sum + tr.durationMs, 0);
-  const allDownloaded = ids.length > 0 && ids.every((tid) => entries[tid]?.mode === 'pinned');
+  const cloudIds = tracks.filter((tr) => !tr.locations.device).map((tr) => tr.id);
+  const allDownloaded = ids.length > 0 && cloudIds.every((tid) => entries[tid]?.mode === 'pinned');
   const context = { label: title, path: liked ? '/liked' : `/playlist/${id}` };
   const play = (startId: string | null, shuffle?: boolean) =>
     usePlayer.getState().playTracks(ids, startId, { shuffle, context });
@@ -116,7 +124,7 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
         </button>
         <button
           className={`icon-btn${allDownloaded ? ' on' : ''}`}
-          onClick={() => void useOffline.getState().pin(ids)}
+          onClick={() => void useOffline.getState().pin(cloudIds)}
           disabled={!ids.length || allDownloaded}
           aria-label={allDownloaded ? t('playlists.downloaded') : t('playlists.download')}
           title={allDownloaded ? t('playlists.downloaded') : t('playlists.download')}
@@ -126,6 +134,15 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
         {!liked && (
           <>
             <span className="grow" />
+            <button
+              className={`icon-btn${reordering ? ' on' : ''}`}
+              onClick={() => setReordering(!reordering)}
+              disabled={tracks.length < 2}
+              aria-label={reordering ? t('playlists.reorderDone') : t('playlists.reorder')}
+              title={reordering ? t('playlists.reorderDone') : t('playlists.reorder')}
+            >
+              <ArrowUpDown size={20} />
+            </button>
             <button
               className="icon-btn"
               onClick={() => void rename()}
@@ -144,7 +161,39 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
         )}
       </div>
 
-      {tracks.length === 0 ? (
+      {!liked && (
+        <div className="row wrap" style={{ marginBottom: 10 }}>
+          <button className="btn small" onClick={() => navigate(`/?addTo=${id}`)}>
+            <Plus size={16} /> {t('playlists.addSongs')}
+          </button>
+          {tracks.length > 0 && (
+            <button className="btn small" onClick={() => useUi.getState().startSelection()}>
+              <CircleCheck size={16} /> {t('select.start')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {reordering ? (
+        <SortableList
+          items={tracks}
+          keyOf={(tr) => tr.id}
+          handleLabel={t('queue.drag')}
+          onMove={(from, to) =>
+            void useLibrary.getState().reorderPlaylist(id!, moveItem(ids, from, to))
+          }
+          render={(tr, _i, handle) => (
+            <div className="queue-item">
+              {handle}
+              <Cover trackId={tr.id} hasCover={tr.hasCover} size={40} />
+              <div className="grow">
+                <div className="track-title small">{tr.title}</div>
+                <div className="muted small ellipsis">{tr.artist}</div>
+              </div>
+            </div>
+          )}
+        />
+      ) : tracks.length === 0 ? (
         <p className="empty">{liked ? t('liked.empty') : t('playlists.emptyPlaylist')}</p>
       ) : (
         <TrackList

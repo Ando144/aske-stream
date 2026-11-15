@@ -1,4 +1,4 @@
-import { ArrowDownToLine, Heart, Library, ListMusic, Radio, Settings } from 'lucide-react';
+import { ArrowDownToLine, Heart, Library, ListMusic, Mic, Radio, Settings } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useT, type MessageKey } from '../i18n';
 import { useLibrary } from '../stores/library';
@@ -6,9 +6,14 @@ import { useLibrary } from '../stores/library';
 const ITEMS: { to: string; key: MessageKey; Icon: typeof Library }[] = [
   { to: '/', key: 'nav.library', Icon: Library },
   { to: '/playlists', key: 'nav.playlists', Icon: ListMusic },
+  { to: '/podcasts', key: 'nav.podcasts', Icon: Mic },
   { to: '/radio', key: 'nav.radio', Icon: Radio },
   { to: '/offline', key: 'nav.offline', Icon: ArrowDownToLine },
-  { to: '/settings', key: 'nav.settings', Icon: Settings },
+];
+/** On phones Settings is the gear in the Library header; the sidebar lists it too. */
+const SIDEBAR_ITEMS = [
+  ...ITEMS,
+  { to: '/settings', key: 'nav.settings' as MessageKey, Icon: Settings },
 ];
 
 function isActive(location: string, to: string) {
@@ -50,7 +55,7 @@ export function Sidebar() {
         <img src="/favicon.svg" alt="" />
         {t('app.name')}
       </div>
-      {ITEMS.map(({ to, key, Icon }) => (
+      {SIDEBAR_ITEMS.map(({ to, key, Icon }) => (
         <Link key={to} href={to} className={`side-link${isActive(location, to) ? ' active' : ''}`}>
           <Icon size={20} />
           {t(key)}
@@ -59,7 +64,7 @@ export function Sidebar() {
       <div className="side-heading">{t('nav.playlists')}</div>
       <Link href="/liked" className={`side-playlist${location === '/liked' ? ' active' : ''}`}>
         <span className="row">
-          <Heart size={14} fill="currentColor" color="#9f7cf0" /> {t('liked.title')}
+          <Heart size={14} fill="currentColor" color="var(--accent)" /> {t('liked.title')}
         </span>
       </Link>
       {playlists.map((pl) => (

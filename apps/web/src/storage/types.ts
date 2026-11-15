@@ -26,7 +26,9 @@ export interface LibrarySnapshot {
   etag: string;
 }
 
-export type TrackPatch = Partial<Pick<Track, 'title' | 'artist' | 'album'>> & { liked?: boolean };
+export type TrackPatch = Partial<Pick<Track, 'title' | 'artist' | 'album' | 'kind'>> & {
+  liked?: boolean;
+};
 export type StationInput = Partial<Station> & { name: string; streamUrl: string; liked?: boolean };
 
 /**
@@ -44,6 +46,8 @@ export interface LibraryHome {
   deletePlaylist(id: string): Promise<void>;
   addToPlaylist(id: string, trackIds: string[]): Promise<Playlist>;
   removeFromPlaylist(id: string, trackId: string): Promise<Playlist>;
+  /** New order; must contain the same songs. */
+  reorderPlaylist(id: string, trackIds: string[]): Promise<Playlist>;
   listStations(): Promise<Station[]>;
   saveStation(station: StationInput): Promise<Station>;
   updateStation(id: string, patch: { liked?: boolean; name?: string }): Promise<Station>;

@@ -7,11 +7,15 @@ import {
   ListStart,
   ListX,
   Smartphone,
+  CircleCheck,
+  Mic,
+  Music,
   Trash2,
 } from 'lucide-react';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
+import { usePodcasts } from '../stores/podcasts';
 import { usePlayer } from '../stores/player';
 import { confirmDialog, useUi } from '../stores/ui';
 import { Cover } from './Cover';
@@ -27,6 +31,7 @@ export function TrackMenu() {
   );
   const offlineMode = useOffline((s) => (menu ? s.entries[menu.trackId]?.mode : undefined));
   const t = useT();
+  const finished = usePodcasts((s) => (menu ? !!s.progress[menu.trackId]?.finished : false));
 
   if (!menu || !track) return null;
   const liked = track.likedAt !== null;
@@ -95,6 +100,27 @@ export function TrackMenu() {
           <ArrowDownToLine size={20} /> {t('track.download')}
         </button>
       )}
+      {track.kind === 'podcast' && (
+        <button
+          className="menu-item"
+          onClick={run(() => usePodcasts.getState().setFinished(track.id, !finished))}
+        >
+          <CircleCheck size={20} />{' '}
+          {finished ? t('podcasts.markUnplayed') : t('podcasts.markPlayed')}
+        </button>
+      )}
+      <button
+        className="menu-item"
+        onClick={run(
+          () =>
+            void useLibrary
+              .getState()
+              .setKind(track.id, track.kind === 'podcast' ? 'music' : 'podcast'),
+        )}
+      >
+        {track.kind === 'podcast' ? <Music size={20} /> : <Mic size={20} />}
+        {track.kind === 'podcast' ? t('track.toMusic') : t('track.toPodcasts')}
+      </button>
       <button
         className="menu-item danger"
         onClick={run(async () => {

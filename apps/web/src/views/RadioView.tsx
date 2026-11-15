@@ -311,7 +311,7 @@ function AddStationSheet({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
-  const valid = name.trim() && /^https:\/\/\S+$/.test(url.trim());
+  const valid = name.trim() && /^https?:\/\/\S+$/.test(url.trim());
 
   return (
     <Sheet className="dialog" label={t('radio.addCustom')} onClose={onClose}>

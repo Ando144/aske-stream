@@ -49,3 +49,25 @@ describe('navigation', () => {
     expect(insertAfter(['a', 'b'], 1, ['x', 'y'])).toEqual(['a', 'b', 'x', 'y']);
   });
 });
+
+describe('queue editing and data saver', () => {
+  it('moves items for drag & drop', async () => {
+    const { moveItem } = await import('../src/player/queue');
+    expect(moveItem(['a', 'b', 'c', 'd'], 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+    expect(moveItem(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
+    expect(moveItem(['a'], 3, 0)).toEqual(['a']);
+  });
+
+  it('plays songs available offline first, keeping or shuffling order inside each group', async () => {
+    const { orderForDataSaver } = await import('../src/player/queue');
+    const local = new Set(['b', 'd']);
+    expect(orderForDataSaver(['a', 'b', 'c', 'd'], (id) => local.has(id), false)).toEqual([
+      'b',
+      'd',
+      'a',
+      'c',
+    ]);
+    const shuffledOrder = orderForDataSaver(['a', 'b', 'c', 'd'], (id) => local.has(id), true);
+    expect(new Set(shuffledOrder.slice(0, 2))).toEqual(local);
+  });
+});

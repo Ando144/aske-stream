@@ -5,6 +5,8 @@ import {
   Play,
   Repeat,
   Repeat1,
+  RotateCcw,
+  RotateCw,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -15,6 +17,7 @@ import { useT } from '../../i18n';
 import { formatTime } from '../../lib/format';
 import { useLibrary } from '../../stores/library';
 import { useCurrentTrackId, usePlayer } from '../../stores/player';
+import { PODCAST_RATES } from '../../stores/podcasts';
 
 export function PlayPauseButton({
   size = 22,
@@ -56,6 +59,12 @@ export function TransportControls({ big = false }: { big?: boolean }) {
   const p = usePlayer.getState();
   const icon = big ? 26 : 20;
   const isRadio = mode === 'radio';
+  const podcast = useLibrary((s) => {
+    const id = usePlayer.getState().currentId;
+    return mode === 'track' && !!id && s.tracks[id]?.kind === 'podcast';
+  });
+  usePlayer((s) => s.currentId); // re-render when the song changes
+  if (podcast) return <PodcastControls big={big} />;
 
   const repeatLabel =
     repeat === 'one'
@@ -176,6 +185,35 @@ export function VolumeControl() {
         aria-label={t('player.volume')}
         onChange={(e) => p.setVolume(Number(e.target.value))}
       />
+    </div>
+  );
+}
+
+/** Podcasts: speed, back 15 s, forward 30 s instead of shuffle/repeat. */
+function PodcastControls({ big }: { big: boolean }) {
+  const t = useT();
+  const rate = usePlayer((s) => s.rate);
+  const p = usePlayer.getState();
+  const icon = big ? 26 : 20;
+  const nextRate = () => {
+    const i = PODCAST_RATES.indexOf(rate);
+    p.setRate(PODCAST_RATES[(i + 1) % PODCAST_RATES.length] ?? 1);
+  };
+  return (
+    <div className={`controls${big ? ' np-controls' : ''}`}>
+      <button className="btn small rate-btn" onClick={nextRate} aria-label={t('podcasts.speed')}>
+        {rate.toString().replace('.', ',')}×
+      </button>
+      <button className="icon-btn" onClick={() => p.seekBy(-15)} aria-label={t('podcasts.back')}>
+        <RotateCcw size={icon} />
+      </button>
+      <PlayPauseButton size={big ? 30 : 20} />
+      <button className="icon-btn" onClick={() => p.seekBy(30)} aria-label={t('podcasts.forward')}>
+        <RotateCw size={icon} />
+      </button>
+      <button className="icon-btn" onClick={p.next} aria-label={t('player.next')}>
+        <SkipForward size={icon} fill="currentColor" />
+      </button>
     </div>
   );
 }

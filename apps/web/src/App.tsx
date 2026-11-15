@@ -21,6 +21,9 @@ import { PlaylistsView } from './views/PlaylistsView';
 import { PlaylistView } from './views/PlaylistView';
 import { RadioView } from './views/RadioView';
 import { SettingsView } from './views/SettingsView';
+import { PodcastsView } from './views/PodcastsView';
+import { SelectionBar } from './components/SelectionBar';
+import { useUi } from './stores/ui';
 
 export function App() {
   const status = useSetup((s) => s.status);
@@ -85,6 +88,8 @@ function Shell() {
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
+    // Leaving a screen ends multi-select (except the playlist "Add songs" picker).
+    if (!useUi.getState().selectionTarget) useUi.getState().endSelection();
   }, [location]);
 
   return (
@@ -98,6 +103,7 @@ function Shell() {
           <Route path="/playlist/:id">
             {(params) => <PlaylistView key={params.id} id={params.id} />}
           </Route>
+          <Route path="/podcasts" component={PodcastsView} />
           <Route path="/radio" component={RadioView} />
           <Route path="/offline" component={OfflineView} />
           <Route path="/settings" component={SettingsView} />
@@ -113,6 +119,7 @@ function Shell() {
       <TrackMenu />
       <AddToPlaylistSheet />
       <Dialogs />
+      <SelectionBar />
       <Toasts />
     </div>
   );
