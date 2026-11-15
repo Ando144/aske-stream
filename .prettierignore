@@ -5,3 +5,5 @@ dev-dist
 package-lock.json
 apps/web/public
 *.sql
+dist-android
+apps/mobile/android

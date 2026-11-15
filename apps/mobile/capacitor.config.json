@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.ando144.askestream",
+  "appName": "Aske Stream",
+  "webDir": "../web/dist-android",
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#14110f"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css"
+    }
+  }
+}

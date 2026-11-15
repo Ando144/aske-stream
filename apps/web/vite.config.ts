@@ -5,13 +5,16 @@ import pkg from '../../package.json' with { type: 'json' };
 
 const API_TARGET = process.env.ASKE_API_URL ?? 'http://127.0.0.1:8787';
 
-export default defineConfig({
+// `vite build --mode android` builds the copy bundled inside the Android app:
+// no service worker there (the app ships its files itself and updates as a whole).
+export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
   plugins: [
     react(),
     VitePWA({
+      disable: mode === 'android',
       registerType: 'autoUpdate',
       injectRegister: 'script-defer',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
@@ -72,8 +75,10 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: mode === 'android' ? 'dist-android' : 'dist',
     target: 'es2022',
-    sourcemap: true,
+    // The Android app ships its files inside the APK: no source maps there.
+    sourcemap: mode !== 'android',
     chunkSizeWarningLimit: 600,
   },
-});
+}));

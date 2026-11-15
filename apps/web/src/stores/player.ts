@@ -19,6 +19,9 @@ import { resumePosition, usePodcasts } from './podcasts';
 import { usePrefs } from './prefs';
 import { catalog } from './radio';
 import { toast } from './ui';
+import { AskeNative } from '../native/askeNative';
+import { mediaControls } from '../native/mediaControls';
+import { isNative } from '../native/platform';
 
 /**
  * Playback engine + state.
@@ -618,92 +621,96 @@ setInterval(() => {
 
 /* ---------- Media Session (lock screen & notification controls) ---------- */
 
-const hasMediaSession = 'mediaSession' in navigator;
+const controls = mediaControls;
 const FALLBACK_ART = [{ src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }];
 
-function setPlaybackState(state: MediaSessionPlaybackState) {
-  if (hasMediaSession) navigator.mediaSession.playbackState = state;
+function setPlaybackState(state: 'none' | 'paused' | 'playing') {
+  controls?.setPlaybackState(state);
+  if (isNative) keepAwake(state === 'playing');
+}
+
+/** Wake/Wi-Fi locks in the Android app; released a bit later so track changes don't flap. */
+let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+let awake = false;
+function keepAwake(playing: boolean) {
+  clearTimeout(releaseTimer);
+  if (playing) {
+    if (!awake) void AskeNative.keepAwake({ playing: true }).catch(() => undefined);
+    awake = true;
+    return;
+  }
+  releaseTimer = setTimeout(() => {
+    awake = false;
+    void AskeNative.keepAwake({ playing: false }).catch(() => undefined);
+  }, 10_000);
 }
 
 let lastPositionState = 0;
 function updatePositionState() {
-  if (!hasMediaSession || usePlayer.getState().mode !== 'track') return;
+  if (!controls || usePlayer.getState().mode !== 'track') return;
   const now = performance.now();
   if (now - lastPositionState < 1000) return;
   lastPositionState = now;
   const d = audio.duration;
   if (!Number.isFinite(d) || d <= 0) return;
-  try {
-    navigator.mediaSession.setPositionState({
-      duration: d,
-      playbackRate: audio.playbackRate,
-      position: Math.min(audio.currentTime, d),
-    });
-  } catch {
-    // ignore transient invalid states while switching sources
-  }
+  controls.setPositionState({
+    duration: d,
+    playbackRate: audio.playbackRate,
+    position: Math.min(audio.currentTime, d),
+  });
 }
 
 function updateMediaSession() {
-  if (!hasMediaSession) return;
+  if (!controls) return;
   const s = usePlayer.getState();
-  const session = navigator.mediaSession;
   if (s.mode === 'radio' && s.station) {
-    session.metadata = new MediaMetadata({
+    controls.setMetadata({
       title: s.station.name,
       artist: t('player.live'),
       album: t('player.radio'),
       artwork: s.station.favicon ? [{ src: s.station.favicon }] : FALLBACK_ART,
     });
     for (const action of ['seekto', 'seekbackward', 'seekforward'] as const) {
-      session.setActionHandler(action, null);
+      controls.setActionHandler(action, null);
     }
     return;
   }
   const track = s.currentId ? useLibrary.getState().tracks[s.currentId] : undefined;
   if (!track) return;
-  session.metadata = new MediaMetadata({
-    title: track.title,
-    artist: track.artist,
-    album: track.album,
-    artwork: FALLBACK_ART,
-  });
+  const info = { title: track.title, artist: track.artist, album: track.album };
+  controls.setMetadata({ ...info, artwork: FALLBACK_ART });
   setSeekHandlers(track.kind === 'podcast' ? 15 : 10);
   if (track.hasCover) {
     void resolveCoverDataUrl(track).then((src) => {
-      if (src && usePlayer.getState().currentId === track.id && session.metadata) {
-        session.metadata.artwork = [{ src, sizes: '512x512', type: 'image/jpeg' }];
+      if (src && usePlayer.getState().currentId === track.id) {
+        controls.setMetadata({
+          ...info,
+          artwork: [{ src, sizes: '512x512', type: 'image/jpeg' }],
+        });
       }
     });
   }
 }
 
 function setSeekHandlers(step = 10) {
-  if (!hasMediaSession) return;
-  const session = navigator.mediaSession;
+  if (!controls) return;
   const player = () => usePlayer.getState();
-  session.setActionHandler('seekto', (d) => {
-    if (d.seekTime !== undefined) player().seek(d.seekTime);
+  controls.setActionHandler('seekto', (d) => {
+    if (d.seekTime !== undefined && d.seekTime !== null) player().seek(d.seekTime);
   });
-  session.setActionHandler('seekbackward', (d) => player().seekBy(-(d.seekOffset ?? step)));
-  session.setActionHandler('seekforward', (d) => player().seekBy(d.seekOffset ?? step * 2));
+  controls.setActionHandler('seekbackward', (d) => player().seekBy(-(d.seekOffset ?? step)));
+  controls.setActionHandler('seekforward', (d) => player().seekBy(d.seekOffset ?? step * 2));
 }
 
-if (hasMediaSession) {
-  const session = navigator.mediaSession;
+if (controls) {
   const player = () => usePlayer.getState();
-  const safe = (action: MediaSessionAction, handler: MediaSessionActionHandler) => {
-    try {
-      session.setActionHandler(action, handler);
-    } catch {
-      // action not supported by this browser
-    }
-  };
-  safe('play', () => player().togglePlay());
-  safe('pause', () => player().pause());
-  safe('stop', () => player().pause());
-  safe('previoustrack', () => player().previous());
-  safe('nexttrack', () => player().next());
+  controls.setActionHandler('play', () => {
+    if (!player().isPlaying) player().togglePlay();
+  });
+  controls.setActionHandler('pause', () => player().pause());
+  controls.setActionHandler('stop', () => player().pause());
+  controls.setActionHandler('previoustrack', () => player().previous());
+  controls.setActionHandler('nexttrack', () => player().next());
   setSeekHandlers();
 }
 

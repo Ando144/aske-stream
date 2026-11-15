@@ -162,6 +162,30 @@ export const es: Messages = {
   'settings.unpair': 'Desconectar de Cloudflare',
   'settings.unpairConfirm':
     '¿Desconectar este dispositivo de tu Cloudflare? Tu música sigue guardada allí y las descargas se mantienen, pero para volver a conectarte necesitarás la clave de acceso.',
+  'settings.app': 'Aplicación',
+  'android.title': 'App para Android',
+  'android.text':
+    'En un móvil Android puedes instalar la app: sigue sonando con la pantalla apagada, muestra los controles en la pantalla de bloqueo y se actualiza desde aquí mismo.',
+  'android.download': 'Descargar la app (archivo APK)',
+  'update.version': 'Versión instalada: {version}',
+  'update.check': 'Buscar actualizaciones',
+  'update.checking': 'Buscando actualizaciones…',
+  'update.upToDate': 'Tienes la versión más reciente.',
+  'update.howItWorks': 'La app mira sola cada día si hay una versión nueva y te avisa.',
+  'update.available': 'Hay una versión nueva: {version}',
+  'update.whatsNew': 'Ver novedades',
+  'update.explain':
+    'Se descarga un archivo de {size}. Después Android te preguntará si quieres instalar la actualización: pulsa «Actualizar». Tu música, tus playlists y tus ajustes se mantienen.',
+  'update.install': 'Actualizar ahora',
+  'update.downloading': 'Descargando la actualización… {percent}',
+  'update.permissionText':
+    'Falta un permiso. Android solo deja instalar actualizaciones que no vienen de Play Store si tú lo permites, y se pide una sola vez. Pulsa «Dar permiso», activa «Permitir de esta fuente» y vuelve a la app con el botón Atrás: la actualización seguirá sola.',
+  'update.permissionButton': 'Dar permiso',
+  'update.retry': 'Volver a intentarlo',
+  'update.error': 'No se pudo comprobar o descargar: {error}',
+  'update.noReleases': 'todavía no hay ninguna versión publicada',
+  'update.toast':
+    'Hay una versión nueva de la app ({version}). Puedes actualizarla en Ajustes → Aplicación.',
   'settings.about': 'Acerca de',
   'settings.aboutText':
     'Aske Stream es una nube musical autoalojada y de código abierto construida sobre Cloudflare Workers, D1 y R2.',

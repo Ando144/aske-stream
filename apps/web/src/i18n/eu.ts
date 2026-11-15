@@ -161,6 +161,31 @@ export const eu: Messages = {
   'settings.unpair': 'Deskonektatu Cloudflaretik',
   'settings.unpairConfirm':
     'Gailu hau zure Cloudflaretik deskonektatu? Zure musika han gordeta jarraituko du eta deskargak mantenduko dira, baina berriro konektatzeko sarbide-gakoa beharko duzu.',
+  'settings.app': 'Aplikazioa',
+  'android.title': 'Android aplikazioa',
+  'android.text':
+    'Android mugikor batean aplikazioa instala dezakezu: pantaila itzalita ere jotzen jarraitzen du, blokeo-pantailan kontrolak erakusten ditu eta hemendik bertatik eguneratzen da.',
+  'android.download': 'Deskargatu aplikazioa (APK fitxategia)',
+  'update.version': 'Instalatutako bertsioa: {version}',
+  'update.check': 'Bilatu eguneraketak',
+  'update.checking': 'Eguneraketak bilatzen…',
+  'update.upToDate': 'Bertsio berriena duzu.',
+  'update.howItWorks':
+    'Aplikazioak egunero begiratzen du bertsio berririk dagoen eta abisatu egiten dizu.',
+  'update.available': 'Bertsio berri bat dago: {version}',
+  'update.whatsNew': 'Ikusi berritasunak',
+  'update.explain':
+    '{size}eko fitxategi bat deskargatzen da. Ondoren Androidek eguneraketa instalatu nahi duzun galdetuko dizu: sakatu «Eguneratu». Zure musika, zerrendak eta ezarpenak mantenduko dira.',
+  'update.install': 'Eguneratu orain',
+  'update.downloading': 'Eguneraketa deskargatzen… {percent}',
+  'update.permissionText':
+    'Baimen bat falta da. Androidek Play Storetik ez datozen eguneraketak zuk baimentzen badituzu bakarrik instalatzen ditu, eta behin bakarrik eskatzen da. Sakatu «Eman baimena», aktibatu «Baimendu iturburu honetatik» eta itzuli aplikaziora Atzera botoiarekin: eguneraketak bere kabuz jarraituko du.',
+  'update.permissionButton': 'Eman baimena',
+  'update.retry': 'Saiatu berriro',
+  'update.error': 'Ezin izan da egiaztatu edo deskargatu: {error}',
+  'update.noReleases': 'oraindik ez dago argitaratutako bertsiorik',
+  'update.toast':
+    'Aplikazioaren bertsio berri bat dago ({version}). Ezarpenak → Aplikazioa atalean egunera dezakezu.',
   'settings.about': 'Honi buruz',
   'settings.aboutText':
     'Aske Stream kode irekiko musika-hodei autoostatatua da, Cloudflare Workers, D1 eta R2 gainean eraikia.',

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Aske Stream</string>
+    <string name="title_activity_main">Aske Stream</string>
+    <string name="package_name">io.github.ando144.askestream</string>
+    <string name="custom_url_scheme">io.github.ando144.askestream</string>
+</resources>

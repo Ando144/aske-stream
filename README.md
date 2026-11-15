@@ -110,12 +110,13 @@ npm run cf:setup
 aske-stream/
 ├─ apps/
 │  ├─ api/              Cloudflare Worker (Hono): routes, auth, R2 streaming, D1 migrations
-│  └─ web/              React PWA: views, player engine, offline engine, i18n (eu/es/en)
+│  ├─ web/              React PWA: views, player engine, offline engine, i18n (eu/es/en)
+│  └─ mobile/           Android app: the same web app in Capacitor + native plugins
 ├─ packages/shared/     Types shared by API, web and CLI
 ├─ tools/ingest/        CLI: YouTube / files → Opus → upload
 ├─ scripts/             dev, cf-setup, smoke (E2E) and icon scripts
 ├─ docs/                Architecture, deployment, offline cache, ingest, ADRs
-└─ .github/workflows/   CI (format, typecheck, tests, build, E2E, secret scan) and manual deploy
+└─ .github/workflows/   CI (format, typecheck, tests, build, E2E, secret scan), deploy, signed APK releases
 ```
 
 ## Quality
@@ -131,26 +132,26 @@ npm run test:e2e   # boots a real Worker with local D1/R2 and exercises the whol
 
 ## Configuration & secrets
 
-| Name                                            | Where                                 | Purpose                                                  |
-| ----------------------------------------------- | ------------------------------------- | -------------------------------------------------------- |
-| `ACCESS_KEY`                                    | Worker secret (`wrangler secret put`) | The single owner key. Rotate it to log every device out. |
-| `ASKE_URL`, `ASKE_ACCESS_KEY`                   | `.env` (git-ignored)                  | Used by the ingest CLI                                   |
-| `database_id`                                   | `apps/api/wrangler.jsonc`             | Your D1 id (not a secret)                                |
-| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub secrets (optional)             | Only for the manual deploy workflow                      |
+| Name                                                                 | Where                                             | Purpose                                                    |
+| -------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
+| `ACCESS_KEY`                                                         | Worker secret (`wrangler secret put`)             | The single owner key. Rotate it to log every device out.   |
+| `ASKE_URL`, `ASKE_ACCESS_KEY`                                        | `.env` (git-ignored)                              | Used by the ingest CLI                                     |
+| `database_id`                                                        | `apps/api/wrangler.jsonc`                         | Your D1 id (not a secret)                                  |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`                      | GitHub secrets (optional)                         | Only for the manual deploy workflow                        |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_*_PASSWORD`, `ANDROID_KEY_ALIAS` | GitHub secrets; `.secrets/` locally (git-ignored) | Signs the Android APK ([docs/android.md](docs/android.md)) |
 
 No credentials ever live in the repository: the bucket has no public access and no S3 keys exist — the Worker reaches R2 through a binding.
 
 ## Limitations
 
 - **iOS**: background audio in installed web apps is unreliable on iOS 26 (WebKit bugs). The app targets Android and desktop browsers.
-- **Offline rotation** runs while the app is open (on start, on reconnect, every 30 min, after songs). Browsers do not allow a PWA to download in the background when closed.
+- **Offline rotation** runs while the app is open or playing (on start, on reconnect, every 30 min, after songs). Browsers do not allow a PWA to download in the background when closed; in the Android app this is planned (see [docs/android.md](docs/android.md)).
 - **YouTube ingestion** relies on yt-dlp, which occasionally breaks until updated (`yt-dlp -U`). See [docs/ingest.md](docs/ingest.md), including the legal note.
 
 ## Roadmap
 
-- Drag-and-drop playlist reordering in the UI (the API already supports it)
-- Metadata editor and loudness normalisation (ReplayGain) during ingest
-- Native Android client (Kotlin + Media3) on top of the same API for background offline rotation
+See [docs/v2/architecture.md](docs/v2/architecture.md) for the v2 plan (Android app ✅, YouTube
+downloads in the app, Google Drive, guided setup, shared playlists and Jams).
 
 ## License
 

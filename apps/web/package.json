@@ -1,6 +1,6 @@
 {
   "name": "@aske/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Installable PWA: player, library, playlists, radio and smart offline cache.",
@@ -10,10 +10,14 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "icons": "python ../../scripts/make-icons.py public"
+    "icons": "python ../../scripts/make-icons.py public",
+    "build:android": "vite build --mode android"
   },
   "dependencies": {
     "@aske/shared": "*",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2",
+    "@capgo/capacitor-media-session": "^8.1.11",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

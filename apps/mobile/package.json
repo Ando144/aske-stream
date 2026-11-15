@@ -1,0 +1,23 @@
+{
+  "name": "@aske/mobile",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Android app: the same web app inside a native shell (Capacitor) with background playback and in-app updates.",
+  "scripts": {
+    "build:web": "npm run build:android -w @aske/web",
+    "sync": "npm run build:web && cap sync android",
+    "apk": "npm run sync && node scripts/gradle.mjs assembleRelease",
+    "apk:debug": "npm run sync && node scripts/gradle.mjs assembleDebug",
+    "icons": "python ../../scripts/make-android-icons.py android/app/src/main/res"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2",
+    "@capgo/capacitor-media-session": "^8.1.11"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}

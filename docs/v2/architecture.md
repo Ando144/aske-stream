@@ -49,9 +49,9 @@ flexibility with a fraction of the risk.
 | ---------------- | ------------------------------------------------------- | ----------------------------------------------------------------- |
 | Tech             | React PWA (v1)                                          | Same React code inside **Capacitor** + native plugins             |
 | YouTube download | ❌ → "Send to phone" queue                              | ✅ yt-dlp on the phone (`youtubedl-android`)                      |
-| Device storage   | Browser storage (OPFS) — import files from the computer | App files folder                                                  |
+| Device storage   | Browser storage (OPFS) — import files from the computer | App storage (OPFS inside the app, never evicted)                  |
 | Background audio | Browser                                                 | Native media service (lock screen, notification)                  |
-| Offline rotation | While open                                              | Also with the app closed (WorkManager)                            |
+| Offline rotation | While open                                              | While open or playing (with the app closed: planned, see below)   |
 | Updates          | Automatic (service worker)                              | In-app: app APK from GitHub Releases, yt-dlp engine from Settings |
 
 ## Connecting to Cloudflare from other origins
@@ -92,18 +92,26 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 
 ## Phases
 
-| #   | Phase                                                                               | Status      |
-| --- | ----------------------------------------------------------------------------------- | ----------- |
-| 1   | Storage layer: local library, home + destinations, device mode, device tokens       | in progress |
-| 2   | Android app (Capacitor): native audio, device files, in-app updater, CI APK builds  |             |
-| 3   | YouTube search & download (songs, playlists, queue, engine updates) + Send to phone |             |
-| 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere           |             |
-| 5   | Google Drive home & destination                                                     |             |
-| 6   | Cloudflare guided setup inside the app (+ QR pairing)                               |             |
-| 7   | Hub: shared playlists and in-person Jams                                            |             |
-| 8   | Telemetry (opt-in) and admin dashboard                                              |             |
+| #   | Phase                                                                               | Status |
+| --- | ----------------------------------------------------------------------------------- | ------ |
+| 1   | Storage layer: local library, home + destinations, device mode, device tokens       | ✅     |
+| 2   | Android app (Capacitor): native audio, device files, in-app updater, CI APK builds  | ✅     |
+| 3   | YouTube search & download (songs, playlists, queue, engine updates) + Send to phone |        |
+| 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere           |        |
+| 5   | Google Drive home & destination                                                     |        |
+| 6   | Cloudflare guided setup inside the app (+ QR pairing)                               |        |
+| 7   | Hub: shared playlists and in-person Jams                                            |        |
+| 8   | Telemetry (opt-in) and admin dashboard                                              |        |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
 two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,
-speed, back 15 / forward 30 s), data saver, http radio stations, warm theme with a single amber accent (light and dark)
-and light/dark mode.
+speed, back 15 / forward 30 s), data saver, http radio stations, a warm theme with a single
+amber accent (light and dark), Settings reachable from every screen, switching storage without
+re-entering the Cloudflare key, playlists of up to 1 000 songs.
+
+Phase 2 notes: playback stays in the WebView's `<audio>` (one code path with the web app);
+a native media session + `mediaPlayback` foreground service keeps it alive and provides the
+notification and lock-screen controls. Rotating the offline cache while the app is fully closed
+is not done yet: Android's background workers cannot reach the WebView's storage, so it needs
+the cache to move to native storage first (planned together with phase 3's native downloads).
+Details in [../android.md](../android.md).

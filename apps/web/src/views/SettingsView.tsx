@@ -4,8 +4,9 @@ import { usePrefs } from '../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
 import { useSetup } from '../stores/setup';
 import { confirmDialog } from '../stores/ui';
-
-const REPO_URL = 'https://github.com/Ando144/aske-stream';
+import { AppUpdatePanel } from '../components/AppUpdatePanel';
+import { REPO_URL } from '../config';
+import { isNative } from '../native/platform';
 
 export function SettingsView() {
   const t = useT();
@@ -99,15 +100,18 @@ export function SettingsView() {
 
       <h2 className="section-title">{t('settings.device')}</h2>
       <div className="panel">
-        <div className="setting">
-          <HardDrive size={20} className="muted" />
-          <div className="grow">
-            <div>{t('settings.persistent')}</div>
-            <div className="faint small">
-              {persisted ? t('settings.persistentOn') : t('settings.persistentOff')}
+        {/* In the Android app files live in the app's own storage: nothing to ask for. */}
+        {!isNative && (
+          <div className="setting">
+            <HardDrive size={20} className="muted" />
+            <div className="grow">
+              <div>{t('settings.persistent')}</div>
+              <div className="faint small">
+                {persisted ? t('settings.persistentOn') : t('settings.persistentOff')}
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <div className="setting">
           {home === 'cloudflare' ? (
             <Cloud size={20} className="muted" />
@@ -139,6 +143,9 @@ export function SettingsView() {
           </div>
         )}
       </div>
+
+      <h2 className="section-title">{t('settings.app')}</h2>
+      <AppUpdatePanel />
 
       <h2 className="section-title">{t('settings.about')}</h2>
       <div className="panel">

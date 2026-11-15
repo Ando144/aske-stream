@@ -3,6 +3,7 @@ node_modules/
 
 # Builds
 dist/
+dist-android/
 dev-dist/
 *.tsbuildinfo
 
@@ -14,6 +15,11 @@ dev-dist/
 .dev.vars.*
 !.dev.vars.example
 cookies.txt
+# Android signing key and its passwords (see docs/android.md)
+.secrets/
+*.keystore
+*.jks
+keystore.properties
 *.cookies
 
 # Cloudflare / Wrangler local state
@@ -43,3 +49,12 @@ desktop.ini
 *.mp3
 *.flac
 *.wav
+
+# Android build output (the android/ project itself is committed)
+apps/mobile/android/.gradle/
+apps/mobile/android/build/
+apps/mobile/android/app/build/
+apps/mobile/android/capacitor-cordova-android-plugins/build/
+apps/mobile/android/local.properties
+*.apk
+*.aab

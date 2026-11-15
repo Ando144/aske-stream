@@ -155,6 +155,30 @@ export const en = {
   'settings.unpair': 'Disconnect from Cloudflare',
   'settings.unpairConfirm':
     'Disconnect this device from your Cloudflare? Your music stays stored there and downloads are kept, but you will need the access key to connect again.',
+  'settings.app': 'App',
+  'android.title': 'Android app',
+  'android.text':
+    'On an Android phone you can install the app: it keeps playing with the screen off, shows controls on the lock screen and updates right from here.',
+  'android.download': 'Download the app (APK file)',
+  'update.version': 'Installed version: {version}',
+  'update.check': 'Check for updates',
+  'update.checking': 'Checking for updates…',
+  'update.upToDate': 'You have the latest version.',
+  'update.howItWorks': 'The app checks for a new version once a day and lets you know.',
+  'update.available': 'A new version is available: {version}',
+  'update.whatsNew': "See what's new",
+  'update.explain':
+    'A {size} file is downloaded. Then Android asks whether you want to install the update: tap “Update”. Your music, playlists and settings are kept.',
+  'update.install': 'Update now',
+  'update.downloading': 'Downloading the update… {percent}',
+  'update.permissionText':
+    'One permission is missing. Android only installs updates that do not come from the Play Store if you allow it, and it asks only once. Tap “Give permission”, turn on “Allow from this source” and come back with the Back button: the update continues by itself.',
+  'update.permissionButton': 'Give permission',
+  'update.retry': 'Try again',
+  'update.error': 'Could not check or download: {error}',
+  'update.noReleases': 'no version has been published yet',
+  'update.toast':
+    'A new version of the app is available ({version}). You can update it in Settings → App.',
   'settings.about': 'About',
   'settings.aboutText':
     'Aske Stream is an open-source, self-hosted music cloud built on Cloudflare Workers, D1 and R2.',
