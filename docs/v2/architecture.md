@@ -1,0 +1,104 @@
+# Aske Stream v2 — architecture
+
+v2 turns aske-stream from "a cloud you deploy" into **an app non-technical friends can install**,
+while keeping every v1 feature. This document is the reference for all v2 work.
+
+## Goals (agreed with the owner)
+
+- Everything v1 does keeps working (library, likes, playlists, radio, smart offline cache, web app, CLI).
+- **Android app (APK, no Play Store)** with an in-app **YouTube search & download** (songs and playlists).
+- **Choose where music is stored**: this device, Google Drive or Cloudflare — **per song and per playlist**.
+- **Downloads from the laptop**: technical users keep the CLI; everyone else uses
+  **"Send to phone"** — search on the desktop web app, the phone downloads it.
+- Downloader and app **update from inside the app** (no reinstall).
+- **In-person Jams**: one phone plays, friends join with a QR and add/vote songs.
+- **Admin panel**: anonymous install/active counts; per-person listening stats **only for those who opt in**.
+- iPhone: web app only (streaming from Drive/Cloudflare, joining Jams). No native iOS app.
+- **Everything explained in plain language** inside the app (eu/es/en): onboarding, help, empty states.
+
+## Core model: one _home_, many _destinations_
+
+```mermaid
+flowchart LR
+  subgraph App["App (web or Android)"]
+    L[("Local library<br/>IndexedDB")]
+  end
+  L <-- "metadata sync" --> H{{"Home<br/>(one per user)"}}
+  L -- "audio files" --> D1["📱 Device"]
+  L -- "audio files" --> D2["☁️ Google Drive"]
+  L -- "audio files" --> D3["🟠 Cloudflare R2"]
+```
+
+- **Home** = where the _library metadata_ lives (tracks, playlists, likes, saved stations).
+  One per user, chosen at onboarding: `device` (IndexedDB only), `drive` (a `library.json`
+  in the app's private Drive folder) or `cloudflare` (the v1 Worker + D1).
+- **Destinations** = where _audio files_ live. A song can be in one or several:
+  `track.locations = { device?, drive?, cloudflare? }`. "Save this playlist in Drive" just copies
+  the files of its songs there.
+- The app always works from the **local library** (instant, offline) and syncs with the home.
+- Playback source priority: device file → Cloudflare stream → Drive stream → offline cache.
+- The v1 **smart offline cache** keeps working for songs that are _not_ stored on the device.
+
+Why not mix _metadata_ across homes: keeping playlists consistent across three backends would need
+a conflict-resolving sync engine; one home + many file destinations gives the same user-visible
+flexibility with a fraction of the risk.
+
+## Platforms
+
+|                  | Web (desktop, iPhone)                                   | Android app                                                       |
+| ---------------- | ------------------------------------------------------- | ----------------------------------------------------------------- |
+| Tech             | React PWA (v1)                                          | Same React code inside **Capacitor** + native plugins             |
+| YouTube download | ❌ → "Send to phone" queue                              | ✅ yt-dlp on the phone (`youtubedl-android`)                      |
+| Device storage   | Browser storage (OPFS) — import files from the computer | App files folder                                                  |
+| Background audio | Browser                                                 | Native media service (lock screen, notification)                  |
+| Offline rotation | While open                                              | Also with the app closed (WorkManager)                            |
+| Updates          | Automatic (service worker)                              | In-app: app APK from GitHub Releases, yt-dlp engine from Settings |
+
+## Connecting to Cloudflare from other origins
+
+The Android app runs on its own origin, so v2 adds **device tokens**: pairing returns a signed
+token (same HMAC scheme as the cookie) that the app sends as `Authorization: Bearer …`. Media URLs
+accept `?t=<token>` because `<audio>` cannot send headers. CORS is enabled for the app origins.
+Pairing is done by **scanning a QR code** shown on the web app — nobody types a key.
+
+## Aske Hub (owner's Cloudflare)
+
+A small Worker on the owner's account that **never stores music**:
+
+- **Jams** — one Durable Object per Jam: queue, votes, who is connected (WebSocket).
+- **Shared playlists** — short links containing only song references (YouTube ids + titles); each
+  friend's app downloads the songs itself.
+- **Send to phone** relay for users whose home is not Cloudflare.
+- **Telemetry** — anonymous install/active pings; opt-in listening stats; admin dashboard.
+
+## Storage guide (shown in the app)
+
+Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-encoding).
+
+| Songs | Space    |
+| ----- | -------- |
+| 100   | ≈ 0.4 GB |
+| 500   | ≈ 2 GB   |
+| 1 000 | ≈ 4 GB   |
+| 2 500 | ≈ 10 GB  |
+
+|                  | 📱 This device     | ☁️ Google Drive                                         | 🟠 Cloudflare                              |
+| ---------------- | ------------------ | ------------------------------------------------------- | ------------------------------------------ |
+| Setup            | None               | Sign in with Google                                     | Guided, ~10 min, card required (free tier) |
+| Free space       | Phone's free space | 15 GB shared with Gmail/Photos (≈ 3 500 songs if empty) | 10 GB (≈ 2 500 songs)                      |
+| Listen on laptop | No                 | Yes                                                     | Yes (fastest)                              |
+| Lost phone       | Music lost         | Kept                                                    | Kept                                       |
+| Works offline    | Always             | Only cached songs                                       | Only cached songs                          |
+
+## Phases
+
+| #   | Phase                                                                               | Status      |
+| --- | ----------------------------------------------------------------------------------- | ----------- |
+| 1   | Storage layer: local library, home + destinations, device mode, device tokens       | in progress |
+| 2   | Android app (Capacitor): native audio, device files, in-app updater, CI APK builds  |             |
+| 3   | YouTube search & download (songs, playlists, queue, engine updates) + Send to phone |             |
+| 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere           |             |
+| 5   | Google Drive home & destination                                                     |             |
+| 6   | Cloudflare guided setup inside the app (+ QR pairing)                               |             |
+| 7   | Hub: shared playlists and in-person Jams                                            |             |
+| 8   | Telemetry (opt-in) and admin dashboard                                              |             |
