@@ -12,31 +12,35 @@ import { useLibrary } from './stores/library';
 import { useOffline } from './stores/offline';
 import { usePlayer } from './stores/player';
 import { useRadio } from './stores/radio';
-import { useSession } from './stores/session';
+import { useSetup } from './stores/setup';
 import { LibraryView } from './views/LibraryView';
 import { OfflineView } from './views/OfflineView';
 import { PairView } from './views/PairView';
+import { SetupView } from './views/SetupView';
 import { PlaylistsView } from './views/PlaylistsView';
 import { PlaylistView } from './views/PlaylistView';
 import { RadioView } from './views/RadioView';
 import { SettingsView } from './views/SettingsView';
 
 export function App() {
-  const status = useSession((s) => s.status);
+  const status = useSetup((s) => s.status);
+  const home = useSetup((s) => s.config?.home);
 
   useEffect(() => {
-    void useSession.getState().check();
+    void useSetup.getState().init();
   }, []);
 
-  if (status === 'checking') {
+  if (status === 'loading') {
     return (
       <div className="center-screen">
         <LoaderCircle className="spin" size={32} color="var(--accent)" />
       </div>
     );
   }
-  if (status === 'unpaired') return <PairView />;
-  return <Shell />;
+  if (status === 'choose') return <SetupView />;
+  if (status === 'pair') return <PairView />;
+  // Re-mount everything when the storage changes so no state leaks between libraries.
+  return <Shell key={home} />;
 }
 
 const SYNC_INTERVAL_MS = 30 * 60 * 1000;

@@ -10,7 +10,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
-import type { Track } from '@aske/shared';
+import type { LocalTrack as Track } from '../storage/types';
 import { songCount, useT } from '../i18n';
 import { formatLongDuration } from '../lib/format';
 import { useAllTracks, useLibrary } from '../stores/library';

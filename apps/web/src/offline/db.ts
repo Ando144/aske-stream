@@ -1,29 +1,41 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Library } from '@aske/shared';
+import type { Playlist, Station } from '@aske/shared';
+import type { LocalTrack, LibrarySnapshot } from '../storage/types';
 import type { OfflineEntry } from './planner';
 
 export interface CachedLibrary {
   etag: string;
-  library: Library;
+  library: Omit<LibrarySnapshot, 'etag'>;
   savedAt: number;
 }
 
 interface AskeDB extends DBSchema {
   kv: { key: string; value: unknown };
-  /** Tracks currently stored on this device. */
+  /** Cloud songs temporarily cached for offline use (smart rotation). */
   offline: { key: string; value: OfflineEntry };
-  /** Recently rotated-out tracks, so the next fill picks something different. */
+  /** Recently rotated-out songs, so the next fill picks something different. */
   evicted: { key: string; value: { trackId: string; evictedAt: number } };
+  /** Library of the "this device" home (v2). */
+  tracks: { key: string; value: LocalTrack };
+  playlists: { key: string; value: Playlist };
+  stations: { key: string; value: Station };
 }
 
 let dbPromise: Promise<IDBPDatabase<AskeDB>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<AskeDB>> {
-  dbPromise ??= openDB<AskeDB>('aske', 1, {
-    upgrade(db) {
-      db.createObjectStore('kv');
-      db.createObjectStore('offline', { keyPath: 'trackId' });
-      db.createObjectStore('evicted', { keyPath: 'trackId' });
+  dbPromise ??= openDB<AskeDB>('aske', 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        db.createObjectStore('kv');
+        db.createObjectStore('offline', { keyPath: 'trackId' });
+        db.createObjectStore('evicted', { keyPath: 'trackId' });
+      }
+      if (oldVersion < 2) {
+        db.createObjectStore('tracks', { keyPath: 'id' });
+        db.createObjectStore('playlists', { keyPath: 'id' });
+        db.createObjectStore('stations', { keyPath: 'id' });
+      }
     },
   });
   return dbPromise;

@@ -18,10 +18,20 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Where the Cloudflare instance lives. Same-origin web app: baseUrl '' and the
+ * HttpOnly cookie. Android app or another origin: absolute URL + device token.
+ */
+let target: { baseUrl: string; token: string | null } = { baseUrl: '', token: null };
+
+export function configureApi(baseUrl: string, token: string | null) {
+  target = { baseUrl: baseUrl.replace(/\/+$/, ''), token };
+}
+
 type Listener = () => void;
 const unauthorizedListeners = new Set<Listener>();
 
-/** Lets the session store react when the server forgets this device. */
+/** Lets the setup store react when the server forgets this device. */
 export function onUnauthorized(listener: Listener): () => void {
   unauthorizedListeners.add(listener);
   return () => unauthorizedListeners.delete(listener);
@@ -36,6 +46,7 @@ interface RequestOptions {
 
 async function request(path: string, opts: RequestOptions = {}): Promise<Response> {
   const headers = new Headers(opts.headers);
+  if (target.token) headers.set('Authorization', `Bearer ${target.token}`);
   let body: string | undefined;
   if (opts.json !== undefined) {
     headers.set('Content-Type', 'application/json');
@@ -43,11 +54,11 @@ async function request(path: string, opts: RequestOptions = {}): Promise<Respons
   }
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(target.baseUrl + path, {
       method: opts.method ?? 'GET',
       headers,
       body,
-      credentials: 'same-origin',
+      credentials: target.baseUrl ? 'omit' : 'same-origin',
       signal: opts.signal,
     });
   } catch (err) {
@@ -78,9 +89,10 @@ async function json<T>(path: string, opts?: RequestOptions): Promise<T> {
 }
 
 export const api = {
+  health: () => json<{ ok: boolean }>('/api/health'),
   status: () => json<{ paired: boolean }>('/api/auth/status'),
   pair: (key: string) =>
-    json<{ paired: boolean }>('/api/auth/pair', { method: 'POST', json: { key } }),
+    json<{ paired: boolean; token: string }>('/api/auth/pair', { method: 'POST', json: { key } }),
   logout: () => json<{ paired: boolean }>('/api/auth/logout', { method: 'POST' }),
 
   /** Returns `null` when the cached copy (identified by `etag`) is still current. */
@@ -140,5 +152,10 @@ export const api = {
     request(`/api/radio/click/${rbUuid}`, { method: 'POST' }).catch(() => undefined),
 };
 
-export const audioUrl = (trackId: string) => `/media/audio/${trackId}`;
-export const coverUrl = (trackId: string) => `/media/cover/${trackId}`;
+/** URL of a file on the Cloudflare instance; carries the device token when cross-origin. */
+export function mediaUrl(kind: 'audio' | 'cover', remoteId: string): string {
+  const url = `${target.baseUrl}/media/${kind}/${remoteId}`;
+  return target.token ? `${url}?t=${encodeURIComponent(target.token)}` : url;
+}
+
+export const mediaCredentials = (): RequestCredentials => (target.baseUrl ? 'omit' : 'same-origin');

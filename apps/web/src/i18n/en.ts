@@ -179,6 +179,57 @@ export const en = {
   'toast.notOffline': 'This song is not downloaded',
   'toast.playbackError': 'Could not play this song',
   'toast.stationSaved': 'Station saved',
+  'track.onDevice': 'Saved on this device',
+  'setup.title': 'Where should we keep your music?',
+  'setup.subtitle':
+    'Pick one option. You can change it later in Settings, and nothing is deleted when you do.',
+  'setup.recommended': 'Recommended',
+  'setup.pros': 'Advantages',
+  'setup.cons': 'Keep in mind',
+  'setup.choose': 'Use this option',
+  'setup.soon': 'Coming in a next version',
+  'setup.device.title': 'This device',
+  'setup.device.desc':
+    'Your music is saved inside the app, on this phone or computer. Nothing to set up.',
+  'setup.device.pros': 'No account and no setup|Plays without internet|Completely free',
+  'setup.device.cons':
+    "Uses this device's free space|Music is only on this device|If you lose the device or uninstall the app, the music is lost",
+  'setup.drive.title': 'Google Drive',
+  'setup.drive.desc':
+    'Your music is saved in your own Google Drive, in a private folder that only this app uses.',
+  'setup.drive.pros':
+    'Safe if you lose your phone|Listen on your laptop too|Just sign in with Google',
+  'setup.drive.cons':
+    '15 GB free, shared with Gmail and Google Photos|Needs internet, except for downloaded songs',
+  'setup.cloudflare.title': 'Cloudflare (advanced)',
+  'setup.cloudflare.desc':
+    "Your own private music server, on Cloudflare's free plan. Best if someone helps you set it up the first time.",
+  'setup.cloudflare.pros':
+    'Fastest playback, on every device|10 GB free (about 2,500 songs)|Smart offline rotation on your phone',
+  'setup.cloudflare.cons':
+    'About 10 minutes to set up, with a computer|Cloudflare asks for a card to activate the free plan (nothing is charged within 10 GB)',
+  'setup.sizeTitle': 'How much space does music take?',
+  'setup.sizeIntro': 'A typical song (3–4 minutes) takes about 4 MB.',
+  'setup.sizeSongs': '{songs} songs',
+  'setup.sizeNote': 'Tip: your phone shows its free space in Settings → Storage.',
+  'pair.urlLabel': 'Address of your Cloudflare app',
+  'pair.urlHint': 'It looks like https://aske-stream.your-name.workers.dev',
+  'pair.back': 'Choose another option',
+  'pair.notSetUp': "Don't have it set up yet? Follow the step-by-step guide.",
+  'library.import': 'Import files',
+  'library.importHint': 'Add songs you already have on this device (MP3, M4A, FLAC, OGG…).',
+  'library.emptyDevice':
+    'Your library is empty. Tap “Import files” to add songs from this device. Searching and downloading from YouTube comes with the Android app.',
+  'toast.importing': 'Importing {count} songs…',
+  'toast.imported': '{count} songs added',
+  'toast.importSkipped': '{count} were already in your library',
+  'toast.importFailed': '“{name}” could not be imported',
+  'offline.deviceHome':
+    'All your music is saved on this device, so it already plays without internet. The automatic rotation is for music stored in the cloud.',
+  'settings.storage': 'Where your music is stored',
+  'settings.storageChange': 'Change',
+  'settings.storageChangeConfirm':
+    'Change where your music is stored? Nothing is deleted: if you come back to this option later, your library will still be here.',
 } as const;
 
 export type MessageKey = keyof typeof en;

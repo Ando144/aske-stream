@@ -1,21 +1,25 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import type { Library, Playlist, Track } from '@aske/shared';
-import { api, ApiError } from '../api/client';
+import type { Playlist } from '@aske/shared';
+import { ApiError } from '../api/client';
 import { t } from '../i18n';
 import { kvGet, kvSet, type CachedLibrary } from '../offline/db';
+import type { LibrarySnapshot, LocalTrack } from '../storage/types';
+import { getHome, useSetup } from './setup';
 import { toast } from './ui';
 
 interface LibraryState {
   loaded: boolean;
   loading: boolean;
   error: string | null;
-  tracks: Record<string, Track>;
-  /** Track ids, newest first (server order). */
+  tracks: Record<string, LocalTrack>;
+  /** Track ids, newest first. */
   order: string[];
   playlists: Playlist[];
 
   load: () => Promise<void>;
+  /** Adds (or replaces) songs in memory after an import/download. */
+  upsertTracks: (tracks: LocalTrack[]) => void;
   toggleLike: (trackId: string) => Promise<void>;
   deleteTrack: (trackId: string) => Promise<void>;
   createPlaylist: (name: string, trackIds?: string[]) => Promise<Playlist | null>;
@@ -25,24 +29,24 @@ interface LibraryState {
   removeFromPlaylist: (id: string, trackId: string) => Promise<void>;
 }
 
-const CACHE_KEY = 'library';
+/** One cache per home, so switching storage never mixes libraries. */
+const cacheKey = () => `library:${useSetup.getState().config?.home ?? 'none'}`;
 
-function fromLibrary(library: Library) {
+function fromSnapshot(s: Omit<LibrarySnapshot, 'etag'>) {
   return {
-    tracks: Object.fromEntries(library.tracks.map((tr) => [tr.id, tr])),
-    order: library.tracks.map((tr) => tr.id),
-    playlists: library.playlists,
+    tracks: Object.fromEntries(s.tracks.map((tr) => [tr.id, tr])),
+    order: s.tracks.map((tr) => tr.id),
+    playlists: s.playlists,
   };
 }
 
-/** Writes the current in-memory state back to IndexedDB (keeps the old ETag stale on purpose). */
+/** Saves the in-memory state locally (with an empty ETag, so the next load revalidates). */
 async function persist(state: LibraryState, etag = '') {
-  const library: Library = {
-    version: -1,
+  const library = {
     tracks: state.order.map((id) => state.tracks[id]!).filter(Boolean),
     playlists: state.playlists,
   };
-  await kvSet(CACHE_KEY, { etag, library, savedAt: Date.now() } satisfies CachedLibrary);
+  await kvSet(cacheKey(), { etag, library, savedAt: Date.now() } satisfies CachedLibrary);
 }
 
 function reportError(err: unknown) {
@@ -81,17 +85,18 @@ export const useLibrary = create<LibraryState>((set, get) => {
     order: [],
     playlists: [],
 
-    /** Cache first (instant start, works offline), then revalidate with the ETag. */
+    /** Local copy first (instant start, works offline), then revalidate with the home. */
     async load() {
       if (get().loading) return;
       set({ loading: true, error: null });
-      const cached = await kvGet<CachedLibrary>(CACHE_KEY);
-      if (cached && !get().loaded) set({ ...fromLibrary(cached.library), loaded: true });
+      const cached = await kvGet<CachedLibrary>(cacheKey());
+      if (cached && !get().loaded) set({ ...fromSnapshot(cached.library), loaded: true });
       try {
-        const fresh = await api.library(cached?.etag || undefined);
+        const fresh = await getHome().load(cached?.etag || undefined);
         if (fresh) {
-          set({ ...fromLibrary(fresh.library), loaded: true });
-          await kvSet(CACHE_KEY, { ...fresh, savedAt: Date.now() } satisfies CachedLibrary);
+          const { etag, ...library } = fresh;
+          set({ ...fromSnapshot(library), loaded: true });
+          await kvSet(cacheKey(), { etag, library, savedAt: Date.now() } satisfies CachedLibrary);
         }
         set({ loading: false, loaded: true });
       } catch (err) {
@@ -103,6 +108,17 @@ export const useLibrary = create<LibraryState>((set, get) => {
       }
     },
 
+    upsertTracks(tracks) {
+      const map = { ...get().tracks };
+      const order = [...get().order];
+      for (const tr of tracks) {
+        if (!map[tr.id]) order.unshift(tr.id);
+        map[tr.id] = tr;
+      }
+      set({ tracks: map, order });
+      void persist(get());
+    },
+
     async toggleLike(trackId) {
       const track = get().tracks[trackId];
       if (!track) return;
@@ -111,13 +127,13 @@ export const useLibrary = create<LibraryState>((set, get) => {
         (s) => ({
           tracks: { ...s.tracks, [trackId]: { ...track, likedAt: liked ? Date.now() : null } },
         }),
-        () => api.updateTrack(trackId, { liked }),
+        () => getHome().updateTrack(trackId, { liked }),
       ).catch(() => undefined);
     },
 
     async deleteTrack(trackId) {
       try {
-        await api.deleteTrack(trackId);
+        await getHome().deleteTrack(trackId);
       } catch (err) {
         reportError(err);
         return;
@@ -137,7 +153,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
 
     async createPlaylist(name, trackIds = []) {
       try {
-        const pl = await api.createPlaylist(name, trackIds);
+        const pl = await getHome().createPlaylist(name, trackIds);
         set({ playlists: [...get().playlists, pl] });
         await persist(get());
         toast(
@@ -154,7 +170,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
 
     async renamePlaylist(id, name) {
       try {
-        replacePlaylist(await api.updatePlaylist(id, { name }));
+        replacePlaylist(await getHome().renamePlaylist(id, name));
         await persist(get());
       } catch (err) {
         reportError(err);
@@ -164,13 +180,13 @@ export const useLibrary = create<LibraryState>((set, get) => {
     async deletePlaylist(id) {
       await mutate(
         (s) => ({ playlists: s.playlists.filter((p) => p.id !== id) }),
-        () => api.deletePlaylist(id),
+        () => getHome().deletePlaylist(id),
       ).catch(() => undefined);
     },
 
     async addToPlaylist(id, trackIds) {
       try {
-        const pl = await api.addToPlaylist(id, trackIds);
+        const pl = await getHome().addToPlaylist(id, trackIds);
         replacePlaylist(pl);
         await persist(get());
         toast(t('toast.addedToPlaylist', { name: pl.name }));
@@ -187,7 +203,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
             p.id === id ? { ...p, trackIds: p.trackIds.filter((x) => x !== trackId) } : p,
           ),
         }),
-        () => api.removeFromPlaylist(id, trackId),
+        () => getHome().removeFromPlaylist(id, trackId),
       )
         .then(() => pl && toast(t('toast.removedFromPlaylist', { name: pl.name })))
         .catch(() => undefined);
@@ -196,11 +212,11 @@ export const useLibrary = create<LibraryState>((set, get) => {
 });
 
 /** Ordered tracks of the library (newest first), memoised per state change. */
-export function useAllTracks(): Track[] {
+export function useAllTracks(): LocalTrack[] {
   const order = useLibrary((s) => s.order);
   const tracks = useLibrary((s) => s.tracks);
   return useMemo(
-    () => order.map((id) => tracks[id]).filter((tr): tr is Track => !!tr),
+    () => order.map((id) => tracks[id]).filter((tr): tr is LocalTrack => !!tr),
     [order, tracks],
   );
 }

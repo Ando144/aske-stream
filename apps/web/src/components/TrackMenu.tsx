@@ -6,6 +6,7 @@ import {
   ListPlus,
   ListStart,
   ListX,
+  Smartphone,
   Trash2,
 } from 'lucide-react';
 import { useT } from '../i18n';
@@ -75,7 +76,11 @@ export function TrackMenu() {
           <ListX size={20} /> {t('track.removeFromPlaylist')}
         </button>
       )}
-      {offlineMode ? (
+      {track.locations.device ? (
+        <div className="menu-item" style={{ cursor: 'default' }}>
+          <Smartphone size={20} /> {t('track.onDevice')}
+        </div>
+      ) : offlineMode ? (
         <button
           className="menu-item"
           onClick={run(() => void useOffline.getState().unpin(track.id))}

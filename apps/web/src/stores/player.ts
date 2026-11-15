@@ -1,9 +1,8 @@
 import { create } from 'zustand';
 import type Hls from 'hls.js';
-import { api, audioUrl, coverUrl } from '../api/client';
+import { resolveAudio, resolveCoverDataUrl } from '../storage/media';
 import { t } from '../i18n';
 import { loadValue, savePref } from '../lib/storage';
-import { getAudioBlob } from '../offline/audioCache';
 import {
   insertAfter,
   nextIndex,
@@ -13,6 +12,7 @@ import {
   type RepeatMode,
 } from '../player/queue';
 import { useLibrary } from './library';
+import { catalog } from './radio';
 import { LISTENED_THRESHOLD, setProtectedProvider, useOffline } from './offline';
 import { toast } from './ui';
 
@@ -139,13 +139,11 @@ export const usePlayer = create<PlayerState>((set, get) => {
     }
   }
 
+  /** Device file → offline cache → cloud stream (see storage/media.ts). */
   async function sourceFor(trackId: string): Promise<string | null> {
-    if (!useLibrary.getState().tracks[trackId]) return null;
-    if (useOffline.getState().entries[trackId]) {
-      const blob = await getAudioBlob(trackId);
-      if (blob) return URL.createObjectURL(blob);
-    }
-    return navigator.onLine ? audioUrl(trackId) : null;
+    const track = useLibrary.getState().tracks[trackId];
+    if (!track) return null;
+    return resolveAudio(track, !!useOffline.getState().entries[trackId]);
   }
 
   /** Loads queue[index]; skips forward over songs that cannot play offline. */
@@ -211,7 +209,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     }
     updateMediaSession();
     audio.play().catch(() => set({ isPlaying: false, buffering: false }));
-    if (item.rbUuid) void api.countClick(item.rbUuid);
+    if (item.rbUuid) void catalog.click(item.rbUuid);
   }
 
   function advance(auto: boolean) {
@@ -501,23 +499,6 @@ function updatePositionState() {
   }
 }
 
-/** Covers are fetched with the session cookie and handed over as data: URLs. */
-async function coverDataUrl(trackId: string): Promise<string | null> {
-  try {
-    const res = await fetch(coverUrl(trackId), { credentials: 'same-origin' });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
-
 function updateMediaSession() {
   if (!hasMediaSession) return;
   const s = usePlayer.getState();
@@ -545,7 +526,7 @@ function updateMediaSession() {
   });
   setSeekHandlers();
   if (track.hasCover) {
-    void coverDataUrl(track.id).then((src) => {
+    void resolveCoverDataUrl(track).then((src) => {
       const current = usePlayer.getState();
       if (src && current.queue[current.index] === track.id && session.metadata) {
         session.metadata.artwork = [{ src, sizes: '512x512', type: 'image/jpeg' }];

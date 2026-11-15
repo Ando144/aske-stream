@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Globe, HardDrive, LogOut } from 'lucide-react';
+import { Cloud, ExternalLink, Globe, HardDrive, LogOut, Smartphone } from 'lucide-react';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
-import { useSession } from '../stores/session';
+import { useSetup } from '../stores/setup';
 import { confirmDialog } from '../stores/ui';
 
 const REPO_URL = 'https://github.com/Ando144/aske-stream';
@@ -11,6 +11,7 @@ export function SettingsView() {
   const language = useI18n((s) => s.language);
   const setLanguage = useI18n((s) => s.setLanguage);
   const [persisted, setPersisted] = useState<boolean | null>(null);
+  const home = useSetup((s) => s.config?.home);
 
   useEffect(() => {
     navigator.storage
@@ -58,17 +59,44 @@ export function SettingsView() {
           </div>
         </div>
         <div className="setting">
+          {home === 'cloudflare' ? (
+            <Cloud size={20} className="muted" />
+          ) : (
+            <Smartphone size={20} className="muted" />
+          )}
+          <div className="grow">
+            <div>{t('settings.storage')}</div>
+            <div className="faint small">
+              {home === 'cloudflare' ? t('setup.cloudflare.title') : t('setup.device.title')}
+            </div>
+          </div>
           <button
-            className="btn danger"
+            className="btn small"
             onClick={async () => {
-              if (await confirmDialog(t('settings.unpairConfirm'), t('settings.unpair'), true)) {
-                await useSession.getState().logout();
+              if (
+                await confirmDialog(t('settings.storageChangeConfirm'), t('settings.storageChange'))
+              ) {
+                await useSetup.getState().reset();
               }
             }}
           >
-            <LogOut size={18} /> {t('settings.unpair')}
+            {t('settings.storageChange')}
           </button>
         </div>
+        {home === 'cloudflare' && (
+          <div className="setting">
+            <button
+              className="btn danger"
+              onClick={async () => {
+                if (await confirmDialog(t('settings.unpairConfirm'), t('settings.unpair'), true)) {
+                  await useSetup.getState().reset();
+                }
+              }}
+            >
+              <LogOut size={18} /> {t('settings.unpair')}
+            </button>
+          </div>
+        )}
       </div>
 
       <h2 className="section-title">{t('settings.about')}</h2>

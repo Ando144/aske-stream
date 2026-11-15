@@ -4,7 +4,7 @@ import type { Playlist, Track } from '@aske/shared';
 import { songCount, useT } from '../i18n';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { promptDialog } from '../stores/ui';
-import { coverUrl } from '../api/client';
+import { Cover } from '../components/Cover';
 
 export function PlaylistsView() {
   const t = useT();
@@ -77,7 +77,7 @@ export function PlaylistArt({
     return (
       <div className="collection-art single" style={style}>
         {withCover[0] ? (
-          <img src={coverUrl(withCover[0])} alt="" loading="lazy" />
+          <Cover trackId={withCover[0]} hasCover size={0} className="" />
         ) : (
           <ListMusic size={size ? size * 0.42 : 56} />
         )}
@@ -87,7 +87,7 @@ export function PlaylistArt({
   return (
     <div className="collection-art" style={style}>
       {withCover.map((id) => (
-        <img key={id} src={coverUrl(id)} alt="" loading="lazy" />
+        <Cover key={id} trackId={id} hasCover size={0} className="" />
       ))}
     </div>
   );

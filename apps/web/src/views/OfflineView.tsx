@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { ArrowDownToLine, CircleMinus, RefreshCw } from 'lucide-react';
-import type { Track } from '@aske/shared';
+import type { LocalTrack as Track } from '../storage/types';
 import { useI18n, useT, type Translate } from '../i18n';
 import { formatBytes, formatLongDuration } from '../lib/format';
 import { isExpired } from '../offline/planner';
@@ -9,6 +9,7 @@ import { QUOTA_OPTIONS, ROTATE_OPTIONS, useOffline } from '../stores/offline';
 import { usePlayer } from '../stores/player';
 import { confirmDialog } from '../stores/ui';
 import { Cover } from '../components/Cover';
+import { useSetup } from '../stores/setup';
 
 const quotaLabel = (t: Translate, min: number) =>
   min >= 60 ? formatLongDuration(min * 60_000) : t('offline.minutes', { n: min });
@@ -33,6 +34,7 @@ export function OfflineView() {
   const lastRunAt = useOffline((s) => s.lastRunAt);
   const storageBytes = useOffline((s) => s.storageBytes);
   const tracks = useLibrary((s) => s.tracks);
+  const home = useSetup((s) => s.config?.home);
   const offline = useOffline.getState();
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export function OfflineView() {
         </button>
       </header>
       <p className="muted">{t('offline.subtitle')}</p>
+      {home === 'device' && <div className="banner">{t('offline.deviceHome')}</div>}
 
       <div className="panel">
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>

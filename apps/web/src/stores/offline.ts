@@ -90,7 +90,9 @@ export const useOffline = create<OfflineState>((set, get) => {
     if (!track) return null;
     set({ downloading: { ...get().downloading, [trackId]: true } });
     try {
-      const sizeBytes = await downloadAudio(trackId, track.hasCover);
+      const remoteId = track.locations.cloudflare;
+      if (!remoteId) throw new Error('Not stored in the cloud');
+      const sizeBytes = await downloadAudio(trackId, remoteId, track.hasCover);
       const entry: OfflineEntry = {
         trackId,
         mode,
@@ -145,7 +147,7 @@ export const useOffline = create<OfflineState>((set, get) => {
     /** One rotation pass: plan → delete → download → swap out expired songs. */
     async run() {
       const lib = useLibrary.getState();
-      if (get().running || !get().ready || !lib.loaded || lib.order.length === 0) return;
+      if (get().running || !get().ready || !lib.loaded) return;
       set({ running: true });
       try {
         const db = await getDb();
@@ -155,9 +157,10 @@ export const useOffline = create<OfflineState>((set, get) => {
         for (const row of evictedRows) {
           if (now - row.evictedAt > COOLDOWN_MS * 2) await db.delete('evicted', row.trackId);
         }
+        // Only cloud songs rotate: songs stored on the device are always available offline.
         const tracks = lib.order
           .map((id) => lib.tracks[id])
-          .filter((tr) => !!tr)
+          .filter((tr) => !!tr && !!tr.locations.cloudflare && !tr.locations.device)
           .map((tr) => ({ id: tr!.id, durationMs: tr!.durationMs }));
 
         const plan = planRotation({

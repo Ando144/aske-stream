@@ -7,7 +7,9 @@ import { useAllTracks, useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { usePlayer } from '../stores/player';
 import { useUi } from '../stores/ui';
+import { ImportButton } from '../components/ImportButton';
 import { TrackList } from '../components/TrackList';
+import { useSetup } from '../stores/setup';
 
 type Filter = 'all' | 'liked' | 'downloaded';
 type Sort = 'recent' | 'title' | 'artist';
@@ -23,6 +25,7 @@ export function LibraryView() {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>(() => loadValue<Sort>('library-sort', 'recent'));
   const deferredQuery = useDeferredValue(query);
+  const home = useSetup((s) => s.config?.home);
 
   const tracks = useMemo(() => {
     const q = normalizeText(deferredQuery.trim());
@@ -51,6 +54,7 @@ export function LibraryView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('library.title')}</h1>
+        {home === 'device' && <ImportButton />}
       </header>
 
       {!online && (
@@ -63,9 +67,13 @@ export function LibraryView() {
         <div className="empty">
           <Library size={40} />
           <h2>{t('library.empty')}</h2>
-          <p className="small">
-            <code>{t('library.emptyHint')}</code>
-          </p>
+          {home === 'device' ? (
+            <p className="small">{t('library.emptyDevice')}</p>
+          ) : (
+            <p className="small">
+              <code>{t('library.emptyHint')}</code>
+            </p>
+          )}
           {error && <p className="error-text">{error}</p>}
         </div>
       ) : (

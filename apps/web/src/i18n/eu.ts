@@ -185,4 +185,55 @@ export const eu: Messages = {
   'toast.notOffline': 'Abesti hau ez dago deskargatuta',
   'toast.playbackError': 'Ezin izan da abesti hau erreproduzitu',
   'toast.stationSaved': 'Irratia gordeta',
+  'track.onDevice': 'Gailu honetan gordeta',
+  'setup.title': 'Non gordeko dugu zure musika?',
+  'setup.subtitle': 'Aukeratu bat. Gero Ezarpenetan alda dezakezu, eta ez da ezer ezabatuko.',
+  'setup.recommended': 'Gomendatua',
+  'setup.pros': 'Abantailak',
+  'setup.cons': 'Kontuan izan',
+  'setup.choose': 'Erabili aukera hau',
+  'setup.soon': 'Hurrengo bertsio batean helduko da',
+  'setup.device.title': 'Gailu hau',
+  'setup.device.desc':
+    'Zure musika aplikazioaren barruan gordetzen da, mugikor edo ordenagailu honetan. Ez dago ezer konfiguratu beharrik.',
+  'setup.device.pros': 'Konturik eta konfiguraziorik gabe|Internetik gabe entzuten da|Guztiz doan',
+  'setup.device.cons':
+    'Gailu honetako lekua hartzen du|Musika gailu honetan bakarrik dago|Gailua galtzen baduzu edo aplikazioa desinstalatzen baduzu, musika galtzen da',
+  'setup.drive.title': 'Google Drive',
+  'setup.drive.desc':
+    'Zure musika zure Google Drive-n gordetzen da, aplikazio honek bakarrik erabiltzen duen karpeta pribatu batean.',
+  'setup.drive.pros':
+    'Seguru mugikorra galtzen baduzu|Ordenagailu eramangarrian ere entzun dezakezu|Google-rekin saioa hastea besterik ez',
+  'setup.drive.cons':
+    '15 GB doan, Gmail eta Google Argazkiekin partekatuta|Internet behar du, deskargatutako abestiak izan ezik',
+  'setup.cloudflare.title': 'Cloudflare (aurreratua)',
+  'setup.cloudflare.desc':
+    'Zure musika-zerbitzari pribatua, Cloudflare-ren doako planean. Ezin hobea lehen aldian norbaitek laguntzen badizu.',
+  'setup.cloudflare.pros':
+    'Erreprodukziorik azkarrena, gailu guztietan|10 GB doan (2.500 abesti inguru)|Lineaz kanpoko txandakatze adimenduna mugikorrean',
+  'setup.cloudflare.cons':
+    '10 minutu inguru konfiguratzeko, ordenagailu batekin|Cloudflare-k txartel bat eskatzen du doako plana aktibatzeko (ez du ezer kobratzen 10 GB-tik behera)',
+  'setup.sizeTitle': 'Zenbat leku hartzen du musikak?',
+  'setup.sizeIntro': 'Abesti arrunt batek (3–4 minutu) 4 MB inguru hartzen ditu.',
+  'setup.sizeSongs': '{songs} abesti',
+  'setup.sizeNote':
+    'Aholkua: zure mugikorrak leku librea erakusten du Ezarpenak → Biltegiratzea atalean.',
+  'pair.urlLabel': 'Zure Cloudflare aplikazioaren helbidea',
+  'pair.urlHint': 'Itxura hau du: https://aske-stream.zure-izena.workers.dev',
+  'pair.back': 'Beste aukera bat hautatu',
+  'pair.notSetUp': 'Oraindik ez duzu prestatuta? Jarraitu urratsez urratseko gida.',
+  'library.import': 'Inportatu fitxategiak',
+  'library.importHint': 'Gehitu gailu honetan dituzun abestiak (MP3, M4A, FLAC, OGG…).',
+  'library.emptyDevice':
+    'Zure liburutegia hutsik dago. Sakatu «Inportatu fitxategiak» gailu honetako abestiak gehitzeko. YouTube-n bilatzea eta deskargatzea Android aplikazioarekin iritsiko da.',
+  'toast.importing': '{count} abesti inportatzen…',
+  'toast.imported': '{count} abesti gehituta',
+  'toast.importSkipped': '{count} lehendik zeuden zure liburutegian',
+  'toast.importFailed': 'Ezin izan da «{name}» inportatu',
+  'offline.deviceHome':
+    'Zure musika guztia gailu honetan gordeta dago, beraz Internetik gabe entzuten da jada. Txandakatze automatikoa hodeian gordetako musikarentzat da.',
+  'settings.storage': 'Non gordetzen den zure musika',
+  'settings.storageChange': 'Aldatu',
+  'settings.storageChangeConfirm':
+    'Musika non gordetzen den aldatu? Ez da ezer ezabatzen: geroago aukera honetara itzultzen bazara, zure liburutegia hemen egongo da.',
 };

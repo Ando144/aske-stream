@@ -1,4 +1,4 @@
-import { audioUrl, coverUrl } from '../api/client';
+import { mediaCredentials, mediaUrl } from '../api/client';
 
 /**
  * Full audio files for offline playback live in Cache Storage (not
@@ -8,7 +8,9 @@ import { audioUrl, coverUrl } from '../api/client';
  */
 const AUDIO_CACHE = 'aske-audio-v1';
 
-const cacheKey = (trackId: string) => new Request(new URL(audioUrl(trackId), location.origin));
+/** Stable local key, independent of where the file came from or of any token. */
+const cacheKey = (trackId: string) =>
+  new Request(new URL(`/offline-audio/${trackId}`, location.origin));
 
 async function open(): Promise<Cache> {
   return caches.open(AUDIO_CACHE);
@@ -26,10 +28,11 @@ export async function listCachedAudio(): Promise<Set<string>> {
 /** Downloads the whole file and stores it. Returns its size in bytes. */
 export async function downloadAudio(
   trackId: string,
+  remoteId: string,
   hasCover: boolean,
   signal?: AbortSignal,
 ): Promise<number> {
-  const res = await fetch(audioUrl(trackId), { credentials: 'same-origin', signal });
+  const res = await fetch(mediaUrl('audio', remoteId), { credentials: mediaCredentials(), signal });
   if (res.status !== 200) throw new Error(`Download failed (${res.status})`);
   const blob = await res.blob();
   const headers = new Headers({
@@ -38,7 +41,9 @@ export async function downloadAudio(
   });
   await (await open()).put(cacheKey(trackId), new Response(blob, { status: 200, headers }));
   // Warm the cover cache too (the service worker stores it cache-first).
-  if (hasCover) fetch(coverUrl(trackId), { credentials: 'same-origin' }).catch(() => undefined);
+  if (hasCover) {
+    fetch(mediaUrl('cover', remoteId), { credentials: mediaCredentials() }).catch(() => undefined);
+  }
   return blob.size;
 }
 

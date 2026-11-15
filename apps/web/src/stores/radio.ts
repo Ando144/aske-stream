@@ -1,8 +1,15 @@
 import { create } from 'zustand';
-import type { CatalogStation, Station } from '@aske/shared';
+import type { CatalogCountry, CatalogStation, CatalogTag, Station } from '@aske/shared';
+import {
+  countClick as rbCountClick,
+  listCountries,
+  listTags,
+  searchStations,
+} from '@aske/shared/radio-browser';
 import { api, ApiError } from '../api/client';
 import { t } from '../i18n';
 import type { RadioItem } from './player';
+import { getHome, useSetup } from './setup';
 import { toast } from './ui';
 
 interface RadioState {
@@ -27,7 +34,7 @@ const sortStations = (list: Station[]) =>
 
 function reportError(err: unknown) {
   if (err instanceof ApiError && err.status === 0) toast(t('toast.offline'), 'error');
-  else toast(err instanceof ApiError ? err.message : t('toast.error'), 'error');
+  else toast(err instanceof Error ? err.message : t('toast.error'), 'error');
 }
 
 export const useRadio = create<RadioState>((set, get) => ({
@@ -36,7 +43,7 @@ export const useRadio = create<RadioState>((set, get) => ({
 
   async load() {
     try {
-      set({ stations: sortStations(await api.stations()), loaded: true });
+      set({ stations: sortStations(await getHome().listStations()), loaded: true });
     } catch {
       set({ loaded: true });
     }
@@ -46,10 +53,10 @@ export const useRadio = create<RadioState>((set, get) => ({
     const saved = get().stations.find((s) => s.rbUuid === cs.rbUuid);
     try {
       if (saved) {
-        await api.deleteStation(saved.id);
+        await getHome().deleteStation(saved.id);
         set({ stations: get().stations.filter((s) => s.id !== saved.id) });
       } else {
-        const station = await api.saveStation({ ...cs, liked: true });
+        const station = await getHome().saveStation({ ...cs, liked: true });
         set({ stations: sortStations([...get().stations, station]) });
       }
     } catch (err) {
@@ -60,11 +67,13 @@ export const useRadio = create<RadioState>((set, get) => ({
   async toggleLike(station) {
     try {
       if (!station.isCustom && station.likedAt !== null) {
-        await api.deleteStation(station.id);
+        await getHome().deleteStation(station.id);
         set({ stations: get().stations.filter((s) => s.id !== station.id) });
         return;
       }
-      const updated = await api.updateStation(station.id, { liked: station.likedAt === null });
+      const updated = await getHome().updateStation(station.id, {
+        liked: station.likedAt === null,
+      });
       set({
         stations: sortStations(get().stations.map((s) => (s.id === updated.id ? updated : s))),
       });
@@ -75,7 +84,7 @@ export const useRadio = create<RadioState>((set, get) => ({
 
   async addCustom(name, streamUrl) {
     try {
-      const station = await api.saveStation({ name, streamUrl, liked: true });
+      const station = await getHome().saveStation({ name, streamUrl, liked: true });
       set({ stations: sortStations([...get().stations, station]) });
       toast(t('toast.stationSaved'));
       return true;
@@ -87,7 +96,7 @@ export const useRadio = create<RadioState>((set, get) => ({
 
   async remove(id) {
     try {
-      await api.deleteStation(id);
+      await getHome().deleteStation(id);
       set({ stations: get().stations.filter((s) => s.id !== id) });
     } catch (err) {
       reportError(err);
@@ -119,3 +128,36 @@ export const catalogToItem = (s: CatalogStation): RadioItem => ({
   rbUuid: s.rbUuid,
   subtitle: describe(s.tags, s.countryCode, s.codec, s.bitrate),
 });
+
+/**
+ * Radio Browser catalog. With a Cloudflare home it goes through the Worker
+ * (cached, proper User-Agent); otherwise the app talks to the public
+ * directory directly, so radio works without any server of your own.
+ */
+const viaWorker = () => useSetup.getState().config?.home === 'cloudflare';
+
+export const catalog = {
+  search: (
+    q: {
+      q?: string;
+      country?: string;
+      tag?: string;
+      order: 'votes' | 'clickcount' | 'name' | 'trend';
+      offset: number;
+      limit: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<CatalogStation[]> =>
+    viaWorker()
+      ? api.catalog(q, signal)
+      : searchStations({
+          ...q,
+          name: q.q || undefined,
+          country: q.country || undefined,
+          tag: q.tag || undefined,
+        }),
+  tags: (): Promise<CatalogTag[]> => (viaWorker() ? api.catalogTags() : listTags(40)),
+  countries: (): Promise<CatalogCountry[]> =>
+    viaWorker() ? api.catalogCountries() : listCountries(),
+  click: (uuid: string) => (viaWorker() ? api.countClick(uuid) : rbCountClick(uuid)),
+};

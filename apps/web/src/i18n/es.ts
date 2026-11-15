@@ -187,4 +187,55 @@ export const es: Messages = {
   'toast.notOffline': 'Esta canción no está descargada',
   'toast.playbackError': 'No se ha podido reproducir esta canción',
   'toast.stationSaved': 'Emisora guardada',
+  'track.onDevice': 'Guardada en este dispositivo',
+  'setup.title': '¿Dónde guardamos tu música?',
+  'setup.subtitle':
+    'Elige una opción. Podrás cambiarla después en Ajustes y no se borrará nada al hacerlo.',
+  'setup.recommended': 'Recomendado',
+  'setup.pros': 'Ventajas',
+  'setup.cons': 'A tener en cuenta',
+  'setup.choose': 'Usar esta opción',
+  'setup.soon': 'Llegará en una próxima versión',
+  'setup.device.title': 'Este dispositivo',
+  'setup.device.desc':
+    'Tu música se guarda dentro de la app, en este móvil u ordenador. No hay que configurar nada.',
+  'setup.device.pros': 'Sin cuentas ni configuración|Suena sin internet|Totalmente gratis',
+  'setup.device.cons':
+    'Ocupa espacio de este dispositivo|La música solo está en este dispositivo|Si pierdes el dispositivo o desinstalas la app, se pierde la música',
+  'setup.drive.title': 'Google Drive',
+  'setup.drive.desc':
+    'Tu música se guarda en tu propio Google Drive, en una carpeta privada que solo usa esta app.',
+  'setup.drive.pros':
+    'A salvo si pierdes el móvil|También la escuchas en el portátil|Solo hay que iniciar sesión con Google',
+  'setup.drive.cons':
+    '15 GB gratis, compartidos con Gmail y Google Fotos|Necesita internet, salvo las canciones descargadas',
+  'setup.cloudflare.title': 'Cloudflare (avanzado)',
+  'setup.cloudflare.desc':
+    'Tu propio servidor de música privado, en el plan gratuito de Cloudflare. Ideal si alguien te ayuda a montarlo la primera vez.',
+  'setup.cloudflare.pros':
+    'La reproducción más rápida, en todos tus dispositivos|10 GB gratis (unas 2.500 canciones)|Rotación inteligente sin conexión en el móvil',
+  'setup.cloudflare.cons':
+    'Unos 10 minutos de configuración, con un ordenador|Cloudflare pide una tarjeta para activar el plan gratuito (no cobra nada dentro de los 10 GB)',
+  'setup.sizeTitle': '¿Cuánto ocupa la música?',
+  'setup.sizeIntro': 'Una canción normal (3–4 minutos) ocupa unos 4 MB.',
+  'setup.sizeSongs': '{songs} canciones',
+  'setup.sizeNote': 'Truco: tu móvil muestra el espacio libre en Ajustes → Almacenamiento.',
+  'pair.urlLabel': 'Dirección de tu app en Cloudflare',
+  'pair.urlHint': 'Tiene esta forma: https://aske-stream.tu-nombre.workers.dev',
+  'pair.back': 'Elegir otra opción',
+  'pair.notSetUp': '¿Aún no lo tienes montado? Sigue la guía paso a paso.',
+  'library.import': 'Importar archivos',
+  'library.importHint': 'Añade canciones que ya tengas en este dispositivo (MP3, M4A, FLAC, OGG…).',
+  'library.emptyDevice':
+    'Tu biblioteca está vacía. Pulsa «Importar archivos» para añadir canciones de este dispositivo. Buscar y descargar de YouTube llegará con la app de Android.',
+  'toast.importing': 'Importando {count} canciones…',
+  'toast.imported': '{count} canciones añadidas',
+  'toast.importSkipped': '{count} ya estaban en tu biblioteca',
+  'toast.importFailed': 'No se ha podido importar «{name}»',
+  'offline.deviceHome':
+    'Toda tu música está guardada en este dispositivo, así que ya suena sin internet. La rotación automática es para la música guardada en la nube.',
+  'settings.storage': 'Dónde se guarda tu música',
+  'settings.storageChange': 'Cambiar',
+  'settings.storageChangeConfirm':
+    '¿Cambiar dónde se guarda tu música? No se borra nada: si vuelves a esta opción más adelante, tu biblioteca seguirá aquí.',
 };

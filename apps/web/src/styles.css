@@ -1175,3 +1175,104 @@ input[type='range'] {
   color: var(--danger);
   font-size: 14px;
 }
+
+/* ---------- First-run storage choice ---------- */
+
+.setup {
+  width: 100%;
+  max-width: 980px;
+  text-align: center;
+  padding-bottom: 24px;
+}
+
+.setup > h1 {
+  margin: 10px 0 6px;
+}
+
+.setup-options {
+  display: grid;
+  gap: 14px;
+  margin: 22px 0;
+  text-align: left;
+}
+
+@media (min-width: 900px) {
+  .setup-options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.setup-option {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.setup-option h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.setup-option p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.setup-option.disabled {
+  opacity: 0.6;
+}
+
+.setup-option .btn {
+  margin-top: auto;
+}
+
+.setup-lists ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.setup-lists li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.setup-lists li svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.setup-sizes {
+  text-align: left;
+  margin-bottom: 16px;
+}
+
+.setup-sizes h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.setup-sizes table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.setup-sizes td {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.setup-sizes td:last-child {
+  text-align: right;
+  font-weight: 650;
+}

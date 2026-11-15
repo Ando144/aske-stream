@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { ArrowDownToLine, EllipsisVertical, Heart, LoaderCircle } from 'lucide-react';
-import type { Track } from '@aske/shared';
+import type { LocalTrack as Track } from '../storage/types';
 import { useT } from '../i18n';
 import { formatDuration } from '../lib/format';
 import { useLibrary } from '../stores/library';

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Heart, LoaderCircle, Plus, Radio as RadioIcon, Search, Trash2 } from 'lucide-react';
 import type { CatalogCountry, CatalogStation, CatalogTag, Station } from '@aske/shared';
-import { api } from '../api/client';
 import { useT } from '../i18n';
 import { loadValue, savePref } from '../lib/storage';
 import { usePlayer, type RadioItem } from '../stores/player';
-import { catalogToItem, stationToItem, useRadio } from '../stores/radio';
+import { catalog, catalogToItem, stationToItem, useRadio } from '../stores/radio';
 import { confirmDialog, useUi } from '../stores/ui';
 import { Sheet } from '../components/Sheet';
 
@@ -137,12 +136,12 @@ function Catalog({ playingKey }: { playingKey?: string }) {
 
   useEffect(() => {
     if (!online) return;
-    api
-      .catalogTags()
+    catalog
+      .tags()
       .then(setTags)
       .catch(() => undefined);
-    api
-      .catalogCountries()
+    catalog
+      .countries()
       .then(setCountries)
       .catch(() => undefined);
   }, [online]);
@@ -153,8 +152,8 @@ function Catalog({ playingKey }: { playingKey?: string }) {
     abortRef.current = controller;
     setLoading(true);
     setError(false);
-    api
-      .catalog(
+    catalog
+      .search(
         { q: query.trim(), country, tag, order, offset: nextOffset, limit: PAGE },
         controller.signal,
       )
