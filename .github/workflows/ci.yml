@@ -46,7 +46,11 @@ jobs:
       - name: End-to-end API test (wrangler dev + local D1/R2)
         run: npm run test:e2e
 
-      - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
+      # The CLI scans the full history, so it also works on the very first push
+      # (gitleaks-action builds a "<first>^..<last>" range that fails on a root commit).
+      - name: Secret scan (gitleaks, full history)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: 8.28.0
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks git --config .gitleaks.toml --redact --verbose .
