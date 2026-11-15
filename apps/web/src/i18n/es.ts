@@ -159,9 +159,9 @@ export const es: Messages = {
   'settings.title': 'Ajustes',
   'settings.language': 'Idioma',
   'settings.device': 'Este dispositivo',
-  'settings.unpair': 'Desvincular este dispositivo',
+  'settings.unpair': 'Desconectar de Cloudflare',
   'settings.unpairConfirm':
-    '¿Desvincular este dispositivo? Las descargas se mantienen, pero necesitarás la clave de acceso para volver a conectarte.',
+    '¿Desconectar este dispositivo de tu Cloudflare? Tu música sigue guardada allí y las descargas se mantienen, pero para volver a conectarte necesitarás la clave de acceso.',
   'settings.about': 'Acerca de',
   'settings.aboutText':
     'Aske Stream es una nube musical autoalojada y de código abierto construida sobre Cloudflare Workers, D1 y R2.',
@@ -173,6 +173,10 @@ export const es: Messages = {
 
   'toast.offline': 'Estás sin conexión',
   'toast.error': 'Algo ha salido mal',
+  'toast.playlistTooBig':
+    'Una playlist puede tener como máximo {max} canciones. Elige menos canciones.',
+  'toast.playlistFull':
+    'Una playlist puede tener como máximo {max} canciones: en «{name}» solo caben {free} más.',
   'toast.addedToPlaylist': 'Añadida a {name}',
   'toast.removedFromPlaylist': 'Quitada de {name}',
   'toast.liked': 'Añadida a Me gusta',
@@ -223,6 +227,12 @@ export const es: Messages = {
   'setup.sizeNote': 'Truco: tu móvil muestra el espacio libre en Ajustes → Almacenamiento.',
   'pair.urlLabel': 'Dirección de tu app en Cloudflare',
   'pair.urlHint': 'Tiene esta forma: https://aske-stream.tu-nombre.workers.dev',
+  'setup.changeTitle': 'Cambiar dónde se guarda tu música',
+  'setup.changeSubtitle':
+    'Al cambiar no se borra nada. Si vuelves a una opción que ya usaste, tu música seguirá ahí y no tendrás que configurarla de nuevo.',
+  'setup.cancel': 'Volver sin cambiar nada',
+  'setup.current': 'En uso',
+  'setup.keep': 'Seguir usando esta',
   'pair.back': 'Elegir otra opción',
   'pair.notSetUp': '¿Aún no lo tienes montado? Sigue la guía paso a paso.',
   'library.import': 'Importar archivos',
@@ -237,8 +247,6 @@ export const es: Messages = {
     'Toda tu música está guardada en este dispositivo, así que ya suena sin internet. La rotación automática es para la música guardada en la nube.',
   'settings.storage': 'Dónde se guarda tu música',
   'settings.storageChange': 'Cambiar',
-  'settings.storageChangeConfirm':
-    '¿Cambiar dónde se guarda tu música? No se borra nada: si vuelves a esta opción más adelante, tu biblioteca seguirá aquí.',
   'nav.podcasts': 'Podcasts',
   'podcasts.title': 'Podcasts',
   'podcasts.empty':
@@ -285,10 +293,6 @@ export const es: Messages = {
   'settings.themeSystem': 'Automático (como tu dispositivo)',
   'settings.themeDark': 'Oscuro',
   'settings.themeLight': 'Claro',
-  'settings.palette': 'Color',
-  'palette.amber': 'Ámbar',
-  'palette.terracotta': 'Terracota',
-  'palette.olive': 'Oliva',
   'settings.playback': 'Reproducción',
   'settings.dataSaver': 'Ahorro de datos',
   'settings.dataSaverHint':

@@ -158,9 +158,9 @@ export const eu: Messages = {
   'settings.title': 'Ezarpenak',
   'settings.language': 'Hizkuntza',
   'settings.device': 'Gailu hau',
-  'settings.unpair': 'Deslotu gailu hau',
+  'settings.unpair': 'Deskonektatu Cloudflaretik',
   'settings.unpairConfirm':
-    'Gailu hau deslotu? Deskargak mantenduko dira, baina sarbide-gakoa beharko duzu berriro konektatzeko.',
+    'Gailu hau zure Cloudflaretik deskonektatu? Zure musika han gordeta jarraituko du eta deskargak mantenduko dira, baina berriro konektatzeko sarbide-gakoa beharko duzu.',
   'settings.about': 'Honi buruz',
   'settings.aboutText':
     'Aske Stream kode irekiko musika-hodei autoostatatua da, Cloudflare Workers, D1 eta R2 gainean eraikia.',
@@ -171,6 +171,10 @@ export const eu: Messages = {
 
   'toast.offline': 'Konexiorik gabe zaude',
   'toast.error': 'Zerbait gaizki atera da',
+  'toast.playlistTooBig':
+    'Zerrenda batek gehienez {max} abesti izan ditzake. Aukeratu abesti gutxiago.',
+  'toast.playlistFull':
+    'Zerrenda batek gehienez {max} abesti izan ditzake: «{name}» zerrendan {free} gehiago baino ez dira sartzen.',
   'toast.addedToPlaylist': '{name} zerrendara gehituta',
   'toast.removedFromPlaylist': '{name} zerrendatik kenduta',
   'toast.liked': 'Gogokoetara gehituta',
@@ -221,6 +225,12 @@ export const eu: Messages = {
     'Aholkua: zure mugikorrak leku librea erakusten du Ezarpenak → Biltegiratzea atalean.',
   'pair.urlLabel': 'Zure Cloudflare aplikazioaren helbidea',
   'pair.urlHint': 'Itxura hau du: https://aske-stream.zure-izena.workers.dev',
+  'setup.changeTitle': 'Aldatu musika non gordetzen den',
+  'setup.changeSubtitle':
+    'Aldatzean ez da ezer ezabatzen. Lehen erabilitako aukera batera itzultzen bazara, zure musika hor egongo da eta ez duzu berriro konfiguratu beharko.',
+  'setup.cancel': 'Itzuli ezer aldatu gabe',
+  'setup.current': 'Erabiltzen',
+  'setup.keep': 'Jarraitu hau erabiltzen',
   'pair.back': 'Beste aukera bat hautatu',
   'pair.notSetUp': 'Oraindik ez duzu prestatuta? Jarraitu urratsez urratseko gida.',
   'library.import': 'Inportatu fitxategiak',
@@ -235,8 +245,6 @@ export const eu: Messages = {
     'Zure musika guztia gailu honetan gordeta dago, beraz Internetik gabe entzuten da jada. Txandakatze automatikoa hodeian gordetako musikarentzat da.',
   'settings.storage': 'Non gordetzen den zure musika',
   'settings.storageChange': 'Aldatu',
-  'settings.storageChangeConfirm':
-    'Musika non gordetzen den aldatu? Ez da ezer ezabatzen: geroago aukera honetara itzultzen bazara, zure liburutegia hemen egongo da.',
   'nav.podcasts': 'Podcastak',
   'podcasts.title': 'Podcastak',
   'podcasts.empty':
@@ -282,10 +290,6 @@ export const eu: Messages = {
   'settings.themeSystem': 'Automatikoa (zure gailuaren berdina)',
   'settings.themeDark': 'Iluna',
   'settings.themeLight': 'Argia',
-  'settings.palette': 'Kolorea',
-  'palette.amber': 'Anbarra',
-  'palette.terracotta': 'Terrakota',
-  'palette.olive': 'Oliba',
   'settings.playback': 'Erreprodukzioa',
   'settings.dataSaver': 'Datu-aurrezpena',
   'settings.dataSaverHint':

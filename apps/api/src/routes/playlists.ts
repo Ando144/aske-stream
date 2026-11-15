@@ -8,7 +8,7 @@ import { assertId, HttpError, ID_PATTERN, notFound, readJson } from '../lib/http
 
 const TrackIds = z
   .array(z.string().regex(ID_PATTERN))
-  .max(LIMITS.playlistBatchMax)
+  .max(LIMITS.playlistMaxTracks)
   .transform((ids) => [...new Set(ids)]);
 
 const CreatePlaylist = z.object({
@@ -119,7 +119,15 @@ export const playlistRoutes = new Hono<AppEnv>()
     const id = assertId(c.req.param('id'), 'Playlist');
     const { trackIds } = await readJson(c, TrackIdsBody);
     const db = c.env.DB;
-    await loadPlaylist(db, id); // 404 if it does not exist
+    const current = await loadPlaylist(db, id); // 404 if it does not exist
+    const total = new Set([...current.trackIds, ...trackIds]).size;
+    if (total > LIMITS.playlistMaxTracks) {
+      throw new HttpError(
+        400,
+        'playlist_full',
+        `A playlist can hold up to ${LIMITS.playlistMaxTracks} songs`,
+      );
+    }
     const [res] = await db.batch([appendMembers(db, id, trackIds), touch(db, id)]);
     if (res!.meta.changes) await bumpVersion(db).run();
     return c.json(await loadPlaylist(db, id));

@@ -1,3 +1,4 @@
+import { LIMITS } from '@aske/shared';
 import type { Playlist, Station, Track } from '@aske/shared';
 import { api } from '../api/client';
 import { getDb } from '../offline/db';
@@ -139,6 +140,9 @@ export const deviceHome: LibraryHome & {
   async addToPlaylist(id, trackIds) {
     const pl = await getPlaylist(id);
     const fresh = trackIds.filter((t) => !pl.trackIds.includes(t));
+    if (pl.trackIds.length + new Set(fresh).size > LIMITS.playlistMaxTracks) {
+      throw new Error('playlist_full');
+    }
     return putPlaylist({ ...pl, trackIds: [...pl.trackIds, ...new Set(fresh)] });
   },
 

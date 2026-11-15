@@ -5,6 +5,7 @@ import { songCount, useT } from '../i18n';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { promptDialog } from '../stores/ui';
 import { Cover } from '../components/Cover';
+import { SettingsLink } from '../components/SettingsLink';
 
 export function PlaylistsView() {
   const t = useT();
@@ -26,9 +27,12 @@ export function PlaylistsView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('playlists.title')}</h1>
-        <button className="btn primary small" onClick={() => void create()}>
-          <Plus size={16} /> {t('playlists.new')}
-        </button>
+        <div className="row">
+          <button className="btn primary small" onClick={() => void create()}>
+            <Plus size={16} /> {t('playlists.new')}
+          </button>
+          <SettingsLink />
+        </div>
       </header>
 
       <div className="card-list">

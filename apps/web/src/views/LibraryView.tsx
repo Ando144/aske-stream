@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { CircleCheck, Library, Play, Search, Settings, Shuffle, WifiOff } from 'lucide-react';
-import { Link, useSearch } from 'wouter';
+import { CircleCheck, Library, Play, Search, Shuffle, WifiOff } from 'lucide-react';
+import { useSearch } from 'wouter';
 import { songCount, useT } from '../i18n';
 import { formatLongDuration, normalizeText } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
@@ -11,6 +11,7 @@ import { useUi } from '../stores/ui';
 import { ImportButton } from '../components/ImportButton';
 import { TrackList } from '../components/TrackList';
 import { useSetup } from '../stores/setup';
+import { SettingsLink } from '../components/SettingsLink';
 
 type Filter = 'all' | 'liked' | 'downloaded';
 type Sort = 'recent' | 'title' | 'artist';
@@ -68,9 +69,7 @@ export function LibraryView() {
         <h1>{t('library.title')}</h1>
         <div className="row">
           {home === 'device' && <ImportButton />}
-          <Link href="/settings" className="icon-btn mobile-only" aria-label={t('common.settings')}>
-            <Settings size={22} />
-          </Link>
+          <SettingsLink />
         </div>
       </header>
 

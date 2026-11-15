@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import type { Playlist } from '@aske/shared';
+import { LIMITS, type Playlist } from '@aske/shared';
 import { ApiError } from '../api/client';
 import { t } from '../i18n';
 import { kvGet, kvSet, type CachedLibrary } from '../offline/db';
@@ -195,6 +195,10 @@ export const useLibrary = create<LibraryState>((set, get) => {
     },
 
     async createPlaylist(name, trackIds = []) {
+      if (new Set(trackIds).size > LIMITS.playlistMaxTracks) {
+        toast(t('toast.playlistTooBig', { max: LIMITS.playlistMaxTracks }));
+        return null;
+      }
       try {
         const pl = await getHome().createPlaylist(name, trackIds);
         set({ playlists: [...get().playlists, pl] });
@@ -228,6 +232,21 @@ export const useLibrary = create<LibraryState>((set, get) => {
     },
 
     async addToPlaylist(id, trackIds) {
+      const current = get().playlists.find((p) => p.id === id);
+      if (current) {
+        const total = new Set([...current.trackIds, ...trackIds]).size;
+        if (total > LIMITS.playlistMaxTracks) {
+          const free = Math.max(0, LIMITS.playlistMaxTracks - current.trackIds.length);
+          toast(
+            t('toast.playlistFull', {
+              max: LIMITS.playlistMaxTracks,
+              name: current.name,
+              free,
+            }),
+          );
+          return;
+        }
+      }
       try {
         const pl = await getHome().addToPlaylist(id, trackIds);
         replacePlaylist(pl);

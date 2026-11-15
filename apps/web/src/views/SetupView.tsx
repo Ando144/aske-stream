@@ -1,4 +1,13 @@
-import { Check, Cloud, HardDrive, Smartphone, TriangleAlert } from 'lucide-react';
+import { useState } from 'react';
+import {
+  ArrowLeft,
+  Check,
+  Cloud,
+  HardDrive,
+  LoaderCircle,
+  Smartphone,
+  TriangleAlert,
+} from 'lucide-react';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { useT, type MessageKey } from '../i18n';
 import { useSetup } from '../stores/setup';
@@ -29,6 +38,9 @@ interface Option {
  */
 export function SetupView() {
   const t = useT();
+  const changing = useSetup((s) => s.changing);
+  const current = useSetup((s) => s.config?.home);
+  const [busy, setBusy] = useState(false);
   const options: Option[] = [
     {
       id: 'device',
@@ -42,7 +54,13 @@ export function SetupView() {
       id: 'cloudflare',
       Icon: Cloud,
       available: true,
-      onChoose: () => useSetup.getState().startCloudflare(),
+      onChoose: () => {
+        setBusy(true);
+        void useSetup
+          .getState()
+          .chooseCloudflare()
+          .finally(() => setBusy(false));
+      },
     },
   ];
 
@@ -52,49 +70,66 @@ export function SetupView() {
     <div className="center-screen">
       <div className="setup">
         <img src="/icons/icon-192.png" alt="" width={64} height={64} />
-        <h1>{t('setup.title')}</h1>
-        <p className="muted">{t('setup.subtitle')}</p>
+        <h1>{changing ? t('setup.changeTitle') : t('setup.title')}</h1>
+        <p className="muted">{changing ? t('setup.changeSubtitle') : t('setup.subtitle')}</p>
+        {changing && (
+          <button className="btn" onClick={() => useSetup.getState().cancelChange()}>
+            <ArrowLeft size={16} /> {t('setup.cancel')}
+          </button>
+        )}
 
         <div className="setup-options">
-          {options.map(({ id, Icon, available, recommended, onChoose }) => (
-            <section key={id} className={`setup-option${available ? '' : ' disabled'}`}>
-              <header className="row">
-                <Icon size={24} />
-                <h2 className="grow">{t(`setup.${id}.title` as MessageKey)}</h2>
-                {recommended && <span className="pill auto">{t('setup.recommended')}</span>}
-              </header>
-              <p>{t(`setup.${id}.desc` as MessageKey)}</p>
-              <div className="setup-lists">
-                <div>
-                  <strong className="small">{t('setup.pros')}</strong>
-                  <ul>
-                    {list(`setup.${id}.pros` as MessageKey).map((p) => (
-                      <li key={p}>
-                        <Check size={16} color="var(--accent)" /> {p}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <strong className="small">{t('setup.cons')}</strong>
-                  <ul>
-                    {list(`setup.${id}.cons` as MessageKey).map((c) => (
-                      <li key={c}>
-                        <TriangleAlert size={16} color="var(--warn-text)" /> {c}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              <button
-                className={`btn ${recommended ? 'primary' : ''}`}
-                disabled={!available}
-                onClick={onChoose}
+          {options.map(({ id, Icon, available, recommended, onChoose }) => {
+            const inUse = changing && current === id;
+            return (
+              <section
+                key={id}
+                className={`setup-option${available ? '' : ' disabled'}${inUse ? ' current' : ''}`}
               >
-                {available ? t('setup.choose') : t('setup.soon')}
-              </button>
-            </section>
-          ))}
+                <header className="row">
+                  <Icon size={24} />
+                  <h2 className="grow">{t(`setup.${id}.title` as MessageKey)}</h2>
+                  {inUse ? (
+                    <span className="pill auto">{t('setup.current')}</span>
+                  ) : (
+                    recommended &&
+                    !changing && <span className="pill auto">{t('setup.recommended')}</span>
+                  )}
+                </header>
+                <p>{t(`setup.${id}.desc` as MessageKey)}</p>
+                <div className="setup-lists">
+                  <div>
+                    <strong className="small">{t('setup.pros')}</strong>
+                    <ul>
+                      {list(`setup.${id}.pros` as MessageKey).map((p) => (
+                        <li key={p}>
+                          <Check size={16} color="var(--accent)" /> {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <strong className="small">{t('setup.cons')}</strong>
+                    <ul>
+                      {list(`setup.${id}.cons` as MessageKey).map((c) => (
+                        <li key={c}>
+                          <TriangleAlert size={16} color="var(--warn-text)" /> {c}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <button
+                  className={`btn ${inUse || (recommended && !changing) ? 'primary' : ''}`}
+                  disabled={!available || busy}
+                  onClick={inUse ? () => useSetup.getState().cancelChange() : onChoose}
+                >
+                  {busy && id === 'cloudflare' && <LoaderCircle size={16} className="spin" />}
+                  {!available ? t('setup.soon') : inUse ? t('setup.keep') : t('setup.choose')}
+                </button>
+              </section>
+            );
+          })}
         </div>
 
         <section className="panel setup-sizes">

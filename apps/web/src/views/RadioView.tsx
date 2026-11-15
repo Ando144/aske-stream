@@ -7,6 +7,7 @@ import { usePlayer, type RadioItem } from '../stores/player';
 import { catalog, catalogToItem, stationToItem, useRadio } from '../stores/radio';
 import { confirmDialog, useUi } from '../stores/ui';
 import { Sheet } from '../components/Sheet';
+import { SettingsLink } from '../components/SettingsLink';
 
 type Order = 'votes' | 'trend' | 'clickcount' | 'name';
 const PAGE = 30;
@@ -50,9 +51,12 @@ export function RadioView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('radio.title')}</h1>
-        <button className="btn small" onClick={() => setAddOpen(true)}>
-          <Plus size={16} /> {t('radio.addCustom')}
-        </button>
+        <div className="row">
+          <button className="btn small" onClick={() => setAddOpen(true)}>
+            <Plus size={16} /> {t('radio.addCustom')}
+          </button>
+          <SettingsLink />
+        </div>
       </header>
 
       <h2 className="section-title" style={{ marginTop: 0 }}>

@@ -103,7 +103,7 @@ export function PairView() {
           <a href={GUIDE_URL} target="_blank" rel="noreferrer" className="row small">
             <ExternalLink size={14} /> {t('pair.notSetUp')}
           </a>
-          <button type="button" className="btn" onClick={() => void useSetup.getState().reset()}>
+          <button type="button" className="btn" onClick={() => useSetup.getState().backToChoice()}>
             <ArrowLeft size={16} /> {t('pair.back')}
           </button>
           <LanguagePicker />

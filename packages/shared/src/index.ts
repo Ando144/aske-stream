@@ -118,7 +118,8 @@ export const LIMITS = {
   titleMax: 300,
   nameMax: 120,
   descriptionMax: 500,
-  playlistBatchMax: 500,
+  /** Most songs a playlist can hold (also the most sent in one request). */
+  playlistMaxTracks: 1000,
   audioMaxBytes: 95 * 1024 * 1024,
   coverMaxBytes: 2 * 1024 * 1024,
   urlMax: 2048,

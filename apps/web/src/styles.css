@@ -1,6 +1,6 @@
 /*
  * Theme: warm neutrals + one accent colour. Light/dark come from
- * [data-theme], the accent from [data-palette] (set by stores/prefs.ts).
+ * [data-theme] (set by stores/prefs.ts). The accent is always amber.
  */
 :root,
 [data-theme='dark'] {
@@ -46,35 +46,14 @@
 }
 
 :root,
-[data-palette='amber'] {
+[data-theme='dark'] {
   --accent: #f2a93b;
   --accent-strong: #e39327;
   --accent-ink: #2a1702;
 }
-[data-theme='light'][data-palette='amber'],
-[data-theme='light']:not([data-palette]) {
+[data-theme='light'] {
   --accent: #c27410;
   --accent-strong: #a8640c;
-  --accent-ink: #fffaf3;
-}
-[data-palette='terracotta'] {
-  --accent: #e8805f;
-  --accent-strong: #d76a48;
-  --accent-ink: #2b1009;
-}
-[data-theme='light'][data-palette='terracotta'] {
-  --accent: #b5502c;
-  --accent-strong: #9c4424;
-  --accent-ink: #fffaf3;
-}
-[data-palette='olive'] {
-  --accent: #bcc56e;
-  --accent-strong: #a9b35a;
-  --accent-ink: #1c2007;
-}
-[data-theme='light'][data-palette='olive'] {
-  --accent: #66731c;
-  --accent-strong: #566116;
   --accent-ink: #fffaf3;
 }
 
@@ -1299,6 +1278,10 @@ input[type='range'] {
   opacity: 0.6;
 }
 
+.setup-option.current {
+  border-color: var(--accent);
+}
+
 .setup-option .btn {
   margin-top: auto;
 }
@@ -1598,48 +1581,8 @@ h2,
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.swatch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px 6px 6px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.swatch.active {
-  border-color: var(--text);
-}
-
-.swatch span {
-  width: 20px;
-  height: 20px;
-  border-radius: 7px;
-}
-
-.swatch-amber span {
-  background: #f2a93b;
-}
-
-.swatch-terracotta span {
-  background: #e8805f;
-}
-
-.swatch-olive span {
-  background: #bcc56e;
-}
-
 @media (max-width: 640px) {
-  .setting:has(.segmented),
-  .setting:has(.swatches) {
+  .setting:has(.segmented) {
     flex-wrap: wrap;
   }
 }
@@ -1665,4 +1608,10 @@ h2,
 .collection-actions .select.compact {
   max-width: 38%;
   min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .page-header .hide-narrow {
+    display: none;
+  }
 }

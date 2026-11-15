@@ -8,6 +8,7 @@ import { useCurrentTrackId, usePlayer } from '../stores/player';
 import { usePodcasts } from '../stores/podcasts';
 import { useUi } from '../stores/ui';
 import { Cover } from '../components/Cover';
+import { SettingsLink } from '../components/SettingsLink';
 
 interface Show {
   name: string;
@@ -50,6 +51,7 @@ export function PodcastsView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('podcasts.title')}</h1>
+        <SettingsLink />
       </header>
 
       {shows.length === 0 && (

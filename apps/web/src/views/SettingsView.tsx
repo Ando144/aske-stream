@@ -1,14 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Cloud,
-  ExternalLink,
-  Globe,
-  HardDrive,
-  LogOut,
-  Palette,
-  Smartphone,
-  SunMoon,
-} from 'lucide-react';
+import { Cloud, ExternalLink, Globe, HardDrive, LogOut, Smartphone, SunMoon } from 'lucide-react';
 import { usePrefs } from '../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
 import { useSetup } from '../stores/setup';
@@ -22,6 +13,7 @@ export function SettingsView() {
   const setLanguage = useI18n((s) => s.setLanguage);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const home = useSetup((s) => s.config?.home);
+  const hasCloudflare = useSetup((s) => s.savedCloudflare !== null);
   const prefs = usePrefs();
 
   useEffect(() => {
@@ -83,24 +75,6 @@ export function SettingsView() {
             ))}
           </div>
         </div>
-        <div className="setting">
-          <Palette size={20} className="muted" />
-          <span className="grow">{t('settings.palette')}</span>
-          <div className="swatches" role="radiogroup" aria-label={t('settings.palette')}>
-            {(['amber', 'terracotta', 'olive'] as const).map((p) => (
-              <button
-                key={p}
-                role="radio"
-                aria-checked={prefs.palette === p}
-                className={`swatch swatch-${p}${prefs.palette === p ? ' active' : ''}`}
-                onClick={() => prefs.set({ palette: p })}
-              >
-                <span aria-hidden />
-                {t(`palette.${p}` as const)}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <h2 className="section-title">{t('settings.playback')}</h2>
@@ -146,26 +120,17 @@ export function SettingsView() {
               {home === 'cloudflare' ? t('setup.cloudflare.title') : t('setup.device.title')}
             </div>
           </div>
-          <button
-            className="btn small"
-            onClick={async () => {
-              if (
-                await confirmDialog(t('settings.storageChangeConfirm'), t('settings.storageChange'))
-              ) {
-                await useSetup.getState().reset();
-              }
-            }}
-          >
+          <button className="btn small" onClick={() => useSetup.getState().changeStorage()}>
             {t('settings.storageChange')}
           </button>
         </div>
-        {home === 'cloudflare' && (
+        {(home === 'cloudflare' || hasCloudflare) && (
           <div className="setting">
             <button
               className="btn danger"
               onClick={async () => {
                 if (await confirmDialog(t('settings.unpairConfirm'), t('settings.unpair'), true)) {
-                  await useSetup.getState().reset();
+                  await useSetup.getState().unpair();
                 }
               }}
             >

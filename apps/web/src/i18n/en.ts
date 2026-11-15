@@ -152,9 +152,9 @@ export const en = {
   'settings.title': 'Settings',
   'settings.language': 'Language',
   'settings.device': 'This device',
-  'settings.unpair': 'Unpair this device',
+  'settings.unpair': 'Disconnect from Cloudflare',
   'settings.unpairConfirm':
-    'Unpair this device? Downloads stay, but you will need the access key to connect again.',
+    'Disconnect this device from your Cloudflare? Your music stays stored there and downloads are kept, but you will need the access key to connect again.',
   'settings.about': 'About',
   'settings.aboutText':
     'Aske Stream is an open-source, self-hosted music cloud built on Cloudflare Workers, D1 and R2.',
@@ -165,6 +165,9 @@ export const en = {
 
   'toast.offline': 'You are offline',
   'toast.error': 'Something went wrong',
+  'toast.playlistTooBig': 'A playlist can hold up to {max} songs. Pick fewer songs.',
+  'toast.playlistFull':
+    'A playlist can hold up to {max} songs: “{name}” only has room for {free} more.',
   'toast.addedToPlaylist': 'Added to {name}',
   'toast.removedFromPlaylist': 'Removed from {name}',
   'toast.liked': 'Added to Liked songs',
@@ -215,6 +218,12 @@ export const en = {
   'setup.sizeNote': 'Tip: your phone shows its free space in Settings → Storage.',
   'pair.urlLabel': 'Address of your Cloudflare app',
   'pair.urlHint': 'It looks like https://aske-stream.your-name.workers.dev',
+  'setup.changeTitle': 'Change where your music is stored',
+  'setup.changeSubtitle':
+    'Nothing is deleted when you change. If you go back to an option you used before, your music will still be there and you will not need to set it up again.',
+  'setup.cancel': 'Go back without changing anything',
+  'setup.current': 'In use',
+  'setup.keep': 'Keep using this',
   'pair.back': 'Choose another option',
   'pair.notSetUp': "Don't have it set up yet? Follow the step-by-step guide.",
   'library.import': 'Import files',
@@ -229,8 +238,6 @@ export const en = {
     'All your music is saved on this device, so it already plays without internet. The automatic rotation is for music stored in the cloud.',
   'settings.storage': 'Where your music is stored',
   'settings.storageChange': 'Change',
-  'settings.storageChangeConfirm':
-    'Change where your music is stored? Nothing is deleted: if you come back to this option later, your library will still be here.',
   'nav.podcasts': 'Podcasts',
   'podcasts.title': 'Podcasts',
   'podcasts.empty':
@@ -276,10 +283,6 @@ export const en = {
   'settings.themeSystem': 'Automatic (same as your device)',
   'settings.themeDark': 'Dark',
   'settings.themeLight': 'Light',
-  'settings.palette': 'Colour',
-  'palette.amber': 'Amber',
-  'palette.terracotta': 'Terracotta',
-  'palette.olive': 'Olive',
   'settings.playback': 'Playback',
   'settings.dataSaver': 'Data saver',
   'settings.dataSaverHint':

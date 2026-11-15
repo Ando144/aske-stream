@@ -10,6 +10,7 @@ import { usePlayer } from '../stores/player';
 import { confirmDialog } from '../stores/ui';
 import { Cover } from '../components/Cover';
 import { useSetup } from '../stores/setup';
+import { SettingsLink } from '../components/SettingsLink';
 
 const quotaLabel = (t: Translate, min: number) =>
   min >= 60 ? formatLongDuration(min * 60_000) : t('offline.minutes', { n: min });
@@ -74,10 +75,20 @@ export function OfflineView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('offline.title')}</h1>
-        <button className="btn small" onClick={() => void offline.run()} disabled={running}>
-          <RefreshCw size={16} className={running ? 'spin' : ''} />
-          {running ? t('offline.running') : t('offline.refresh')}
-        </button>
+        <div className="row">
+          <button
+            className="btn small"
+            onClick={() => void offline.run()}
+            disabled={running}
+            aria-label={running ? t('offline.running') : t('offline.refresh')}
+          >
+            <RefreshCw size={16} className={running ? 'spin' : ''} />
+            <span className="hide-narrow">
+              {running ? t('offline.running') : t('offline.refresh')}
+            </span>
+          </button>
+          <SettingsLink />
+        </div>
       </header>
       <p className="muted">{t('offline.subtitle')}</p>
       {home === 'device' && <div className="banner">{t('offline.deviceHome')}</div>}
