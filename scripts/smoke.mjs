@@ -381,6 +381,31 @@ async function main() {
     assert.match(audio.headers.get('content-type'), /audio\/webm/);
   });
 
+  await step('send to phone: queue, claim, finish, validation', async () => {
+    const send = (body) => api('/api/send', { method: 'POST', body: JSON.stringify(body) });
+    const song = await send({
+      url: 'https://music.youtube.com/watch?v=abcdefghijk&list=PLxyz12345678',
+    });
+    assert.equal(song.status, 201);
+    assert.equal((await json(song)).kind, 'video', 'a song opened inside a playlist is the song');
+    const list = await json(
+      await send({ url: 'https://www.youtube.com/playlist?list=PLabcdefghij' }),
+    );
+    assert.equal(list.kind, 'playlist');
+    assert.equal((await send({ url: 'https://example.com/watch?v=abcdefghijk' })).status, 400);
+    const pending = (await json(await api('/api/send'))).filter((i) => i.status === 'pending');
+    assert.equal(pending.length, 2);
+    const done = await json(
+      await api(`/api/send/${list.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'done', detail: '12 songs' }),
+      }),
+    );
+    assert.equal(done.status, 'done');
+    assert.equal((await api(`/api/send/${list.id}`, { method: 'DELETE' })).status, 204);
+    assert.equal((await api('/api/send/nope-nope-nope', { method: 'DELETE' })).status, 404);
+  });
+
   await step('logout clears the session', async () => {
     await api('/api/auth/logout', { method: 'POST' });
     assert.deepEqual(await json(await api('/api/auth/status')), { paired: false });

@@ -51,7 +51,7 @@ flexibility with a fraction of the risk.
 | YouTube download | ❌ → "Send to phone" queue                              | ✅ yt-dlp on the phone (`youtubedl-android`)                      |
 | Device storage   | Browser storage (OPFS) — import files from the computer | App storage (OPFS inside the app, never evicted)                  |
 | Background audio | Browser                                                 | Native media service (lock screen, notification)                  |
-| Offline rotation | While open                                              | While open or playing (with the app closed: planned, see below)   |
+| Offline rotation | While open                                              | While open or playing (with the app closed: planned)              |
 | Updates          | Automatic (service worker)                              | In-app: app APK from GitHub Releases, yt-dlp engine from Settings |
 
 ## Connecting to Cloudflare from other origins
@@ -115,3 +115,9 @@ notification and lock-screen controls. Rotating the offline cache while the app 
 is not done yet: Android's background workers cannot reach the WebView's storage, so it needs
 the cache to move to native storage first (planned together with phase 3's native downloads).
 Details in [../android.md](../android.md).
+
+Phase 3 notes: yt-dlp runs on the phone (youtubedl-android, with QuickJS), searches use
+YouTube's own search API with yt-dlp as fallback, downloads go to the current library
+(phone or Cloudflare), "Send to phone" goes through a D1 queue, and imported files now
+keep their tags and embedded cover. The "Offline" tab became "Download"; offline settings
+moved to Settings → Offline music (the sidebar keeps both).

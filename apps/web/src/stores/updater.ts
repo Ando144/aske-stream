@@ -15,6 +15,8 @@ import { toast } from './ui';
 type Status =
   'idle' | 'checking' | 'upToDate' | 'available' | 'downloading' | 'needsPermission' | 'error';
 
+let deviceAbis: string[] = [];
+
 interface UpdaterState {
   status: Status;
   current: string;
@@ -46,6 +48,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
     if (!isNative) return;
     try {
       const info = await AskeNative.appInfo();
+      deviceAbis = info.abis ?? [];
       set({ current: info.version });
     } catch {
       // keep the bundled version
@@ -69,7 +72,7 @@ export const useUpdater = create<UpdaterState>((set, get) => ({
       const res = await fetch(LATEST_URL, { headers: { Accept: 'application/vnd.github+json' } });
       if (res.status === 404) throw new Error(t('update.noReleases'));
       if (!res.ok) throw new Error(`GitHub ${res.status}`);
-      const latest = toReleaseInfo(await res.json());
+      const latest = toReleaseInfo(await res.json(), deviceAbis);
       const now = Date.now();
       savePref('update-last-check', now);
       if (latest?.version !== get().latest?.version) downloadedPath = null;

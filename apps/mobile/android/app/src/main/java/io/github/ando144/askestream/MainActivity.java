@@ -7,8 +7,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // App-specific native features (keep-awake while playing, in-app updates).
+        // App-specific native features: keep-awake, in-app updates, YouTube downloads.
         registerPlugin(AskeNativePlugin.class);
+        registerPlugin(DownloaderPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

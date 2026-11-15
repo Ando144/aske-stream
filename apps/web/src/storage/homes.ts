@@ -17,7 +17,7 @@ export function newLocalId(): string {
 /* Cloudflare home: the v1 Worker (D1 + R2)                            */
 /* ------------------------------------------------------------------ */
 
-const fromRemote = (t: Track): LocalTrack => ({
+export const fromRemote = (t: Track): LocalTrack => ({
   ...t,
   kind: t.kind ?? 'music',
   locations: { cloudflare: t.id },

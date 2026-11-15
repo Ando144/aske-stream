@@ -40,6 +40,21 @@ describe('GitHub release → update info', () => {
     });
   });
 
+  it('picks the APK for the phone’s processor', () => {
+    const two = {
+      ...release,
+      assets: [
+        { name: 'aske-stream-0.3.0-armv7.apk', browser_download_url: 'https://x/v7.apk', size: 1 },
+        { name: 'aske-stream-0.3.0.apk', browser_download_url: 'https://x/arm64.apk', size: 2 },
+      ],
+    };
+    expect(toReleaseInfo(two, ['arm64-v8a', 'armeabi-v7a'])?.apkUrl).toBe('https://x/arm64.apk');
+    expect(toReleaseInfo(two, ['armeabi-v7a', 'armeabi'])?.apkUrl).toBe('https://x/v7.apk');
+    expect(toReleaseInfo(two)?.apkUrl).toBe('https://x/arm64.apk');
+    // A 32-bit phone never gets a 64-bit-only APK.
+    expect(toReleaseInfo({ ...two, assets: [two.assets[1]] }, ['armeabi-v7a'])).toBeNull();
+  });
+
   it('ignores drafts, pre-releases, missing or insecure APKs', () => {
     expect(toReleaseInfo({ ...release, draft: true })).toBeNull();
     expect(toReleaseInfo({ ...release, prerelease: true })).toBeNull();

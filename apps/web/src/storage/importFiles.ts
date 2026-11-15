@@ -1,3 +1,4 @@
+import { squareJpeg } from '../lib/cover';
 import { deleteDeviceFile, saveDeviceFile } from './deviceFiles';
 import { deviceHome, newLocalId } from './homes';
 import type { LocalTrack } from './types';
@@ -47,6 +48,37 @@ function probeDuration(file: File): Promise<number> {
   });
 }
 
+interface FileTags {
+  title?: string;
+  artist?: string;
+  album?: string;
+  cover?: Blob;
+}
+
+/**
+ * Reads the song's own tags (ID3 in MP3, Vorbis comments in FLAC/Ogg/Opus,
+ * MP4 atoms in M4A): title, artist, album and the embedded cover. The reader
+ * is only downloaded the first time someone imports files.
+ */
+async function readTags(file: File): Promise<FileTags> {
+  try {
+    const { parseBlob, selectCover } = await import('music-metadata');
+    const { common } = await parseBlob(file, { skipPostHeaders: true });
+    const picture = selectCover(common.picture);
+    const clean = (v?: string | null) => v?.replace(/\0/g, '').trim() || undefined;
+    return {
+      title: clean(common.title),
+      artist: clean(common.artists?.join(', ') ?? common.artist),
+      album: clean(common.album),
+      cover: picture
+        ? new Blob([new Uint8Array(picture.data)], { type: picture.format || 'image/jpeg' })
+        : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export interface ImportResult {
   added: LocalTrack[];
   skipped: number;
@@ -74,16 +106,21 @@ export async function importFiles(
         continue;
       }
       const durationMs = await probeDuration(file);
+      const tags = await readTags(file);
+      const fromName = titleFromFileName(file.name);
+      const cover = tags.cover ? await squareJpeg(tags.cover) : null;
       id = newLocalId();
       await saveDeviceFile('audio', id, file);
+      if (cover) await saveDeviceFile('covers', id, cover);
       const track: LocalTrack = {
         id,
-        ...titleFromFileName(file.name),
-        album: '',
+        title: tags.title ?? fromName.title,
+        artist: tags.artist ?? fromName.artist,
+        album: tags.album ?? '',
         durationMs,
         sizeBytes: file.size,
         bitrateKbps: Math.round((file.size * 8) / durationMs) || null,
-        hasCover: false,
+        hasCover: !!cover,
         kind: 'music',
         source: 'file',
         sourceRef: hash,
@@ -94,7 +131,10 @@ export async function importFiles(
       };
       result.added.push(await deviceHome.addTrack(track));
     } catch {
-      if (id) await deleteDeviceFile('audio', id);
+      if (id) {
+        await deleteDeviceFile('audio', id);
+        await deleteDeviceFile('covers', id).catch(() => undefined);
+      }
       result.failed.push(file.name);
     }
   }

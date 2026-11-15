@@ -7,6 +7,7 @@ export interface AskeNativePlugin {
     build: number;
     canInstallUpdates: boolean;
     androidVersion: string;
+    abis?: string[];
   }>;
   /** Keeps CPU and Wi-Fi awake while music plays with the screen off. */
   keepAwake(options: { playing: boolean }): Promise<void>;

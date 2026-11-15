@@ -1,6 +1,6 @@
 {
   "name": "@aske/web",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Installable PWA: player, library, playlists, radio and smart offline cache.",
@@ -25,6 +25,7 @@
     "hls.js": "^1.7.4",
     "idb": "^8.0.4",
     "lucide-react": "^1.73.0",
+    "music-metadata": "^12.5.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "wouter": "^3.13.0",

@@ -7,6 +7,7 @@ import { RadioBrowserUnavailable } from './lib/radioBrowser';
 import { HttpError } from './lib/http';
 import { authRoutes } from './routes/auth';
 import { ingestRoutes } from './routes/ingest';
+import { sendRoutes, youtubeRoutes } from './routes/youtube';
 import { libraryRoutes } from './routes/library';
 import { mediaRoutes } from './routes/media';
 import { playlistRoutes } from './routes/playlists';
@@ -53,6 +54,8 @@ app.route('/api/playlists', playlistRoutes);
 app.route('/api/stations', stationRoutes);
 app.route('/api/radio', radioRoutes);
 app.route('/api/ingest', ingestRoutes);
+app.route('/api/youtube', youtubeRoutes);
+app.route('/api/send', sendRoutes);
 app.route('/media', mediaRoutes);
 
 app.all('/api/*', (c) => c.json({ error: 'not_found', message: 'Unknown endpoint' }, 404));

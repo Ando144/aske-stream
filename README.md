@@ -31,6 +31,8 @@ _aske_ means “free” in Basque — free as in open source, and free to run on
 - **Background playback on Android** with lock-screen and notification controls (Media Session API).
 - **Smart offline cache**: pin songs or whole playlists, and let the app fill a **minutes-based quota** with random songs. Songs you've heard are **rotated** for fresh ones after a configurable time — swapped, never dropped, so you never end up with less music offline.
 - **Live radio**: browse and search tens of thousands of stations from the open [Radio Browser](https://www.radio-browser.info) directory by country and genre, **like** stations to keep them on top, or add your own stream URLs. HLS streams supported.
+- **Android app** (APK, updates itself from inside the app): background playback with notification and lock-screen controls, and **YouTube search & download on the phone** (songs and whole playlists, with yt-dlp updatable in-app). From the computer, **"Send to phone"** queues songs for the phone to download. See [docs/android.md](docs/android.md).
+- **Your choice of storage**: everything on the phone (no setup), or your own Cloudflare (shared with the computer, rotating offline copy on the phone).
 - **Installable PWA**, works offline, available in **Basque, Spanish and English**.
 - **Ingest CLI**: turn YouTube links/playlists or local files (MP3, FLAC, AAC…) into tagged Opus tracks with cover art and upload them in one command.
 - **Single-owner security model**: no accounts or passwords, but nothing is public — devices are paired once with a secret key.

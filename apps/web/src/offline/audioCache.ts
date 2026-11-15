@@ -47,6 +47,16 @@ export async function downloadAudio(
   return blob.size;
 }
 
+/** Stores audio this device already has (e.g. a song it just downloaded from YouTube). */
+export async function storeAudio(trackId: string, blob: Blob): Promise<number> {
+  const headers = new Headers({
+    'Content-Type': blob.type || 'audio/webm',
+    'Content-Length': String(blob.size),
+  });
+  await (await open()).put(cacheKey(trackId), new Response(blob, { status: 200, headers }));
+  return blob.size;
+}
+
 export async function deleteAudio(trackId: string): Promise<void> {
   await (await open()).delete(cacheKey(trackId));
 }

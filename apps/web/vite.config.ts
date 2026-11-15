@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fileURLToPath } from 'node:url';
 import pkg from '../../package.json' with { type: 'json' };
+
+const fake = (file: string) =>
+  fileURLToPath(new URL(`./test/fake-native/${file}`, import.meta.url));
 
 const API_TARGET = process.env.ASKE_API_URL ?? 'http://127.0.0.1:8787';
 
@@ -11,10 +15,23 @@ export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  // `--mode fakenative`: the web app pretending to be the Android app, with
+  // fake native plugins (test/fake-native) — lets browser tests drive the
+  // download flows that otherwise only run on a phone.
+  resolve:
+    mode === 'fakenative'
+      ? {
+          alias: [
+            { find: /^.*\/native\/platform$/, replacement: fake('platform.ts') },
+            { find: /^.*\/native\/askeNative$/, replacement: fake('askeNative.ts') },
+            { find: /^.*\/native\/downloader$/, replacement: fake('downloader.ts') },
+          ],
+        }
+      : undefined,
   plugins: [
     react(),
     VitePWA({
-      disable: mode === 'android',
+      disable: mode === 'android' || mode === 'fakenative',
       registerType: 'autoUpdate',
       injectRegister: 'script-defer',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],

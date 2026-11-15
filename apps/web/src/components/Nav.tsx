@@ -1,4 +1,13 @@
-import { ArrowDownToLine, Heart, Library, ListMusic, Mic, Radio, Settings } from 'lucide-react';
+import {
+  CloudDownload,
+  Heart,
+  Library,
+  ListMusic,
+  Mic,
+  Radio,
+  Settings,
+  WifiOff,
+} from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useT, type MessageKey } from '../i18n';
 import { useLibrary } from '../stores/library';
@@ -8,12 +17,16 @@ const ITEMS: { to: string; key: MessageKey; Icon: typeof Library }[] = [
   { to: '/playlists', key: 'nav.playlists', Icon: ListMusic },
   { to: '/podcasts', key: 'nav.podcasts', Icon: Mic },
   { to: '/radio', key: 'nav.radio', Icon: Radio },
-  { to: '/offline', key: 'nav.offline', Icon: ArrowDownToLine },
+  { to: '/download', key: 'nav.download', Icon: CloudDownload },
 ];
-/** On phones Settings is the gear in the Library header; the sidebar lists it too. */
-const SIDEBAR_ITEMS = [
+/**
+ * On phones "Offline" and Settings are reached from the gear on every screen
+ * (Settings → Offline music); the sidebar on wide screens lists them all.
+ */
+const SIDEBAR_ITEMS: typeof ITEMS = [
   ...ITEMS,
-  { to: '/settings', key: 'nav.settings' as MessageKey, Icon: Settings },
+  { to: '/offline', key: 'nav.offline', Icon: WifiOff },
+  { to: '/settings', key: 'nav.settings', Icon: Settings },
 ];
 
 function isActive(location: string, to: string) {

@@ -28,7 +28,8 @@ interface LibraryState {
   createPlaylist: (name: string, trackIds?: string[]) => Promise<Playlist | null>;
   renamePlaylist: (id: string, name: string) => Promise<void>;
   deletePlaylist: (id: string) => Promise<void>;
-  addToPlaylist: (id: string, trackIds: string[]) => Promise<void>;
+  /** `silent`: no toast (used by background downloads). */
+  addToPlaylist: (id: string, trackIds: string[], silent?: boolean) => Promise<void>;
   removeFromPlaylist: (id: string, trackId: string) => Promise<void>;
 }
 
@@ -231,7 +232,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
       ).catch(() => undefined);
     },
 
-    async addToPlaylist(id, trackIds) {
+    async addToPlaylist(id, trackIds, silent = false) {
       const current = get().playlists.find((p) => p.id === id);
       if (current) {
         const total = new Set([...current.trackIds, ...trackIds]).size;
@@ -251,7 +252,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
         const pl = await getHome().addToPlaylist(id, trackIds);
         replacePlaylist(pl);
         await persist(get());
-        toast(t('toast.addedToPlaylist', { name: pl.name }));
+        if (!silent) toast(t('toast.addedToPlaylist', { name: pl.name }));
       } catch (err) {
         reportError(err);
       }

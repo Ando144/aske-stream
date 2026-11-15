@@ -56,6 +56,8 @@ public class AskeNativePlugin extends Plugin {
             ret.put("build", Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode);
             ret.put("canInstallUpdates", canInstall());
             ret.put("androidVersion", Build.VERSION.RELEASE);
+            // Processor types, to pick the right APK of a release (arm64 or the older armv7).
+            ret.put("abis", new com.getcapacitor.JSArray(java.util.Arrays.asList(Build.SUPPORTED_ABIS)));
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("Could not read the app version", e);

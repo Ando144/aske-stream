@@ -32,17 +32,26 @@ interface GitHubRelease {
   assets?: { name?: string; browser_download_url?: string; size?: number }[];
 }
 
-/** Reads GitHub's "latest release" answer; null if it has no usable APK. */
-export function toReleaseInfo(json: unknown): ReleaseInfo | null {
+/**
+ * Reads GitHub's "latest release" answer; null if it has no usable APK.
+ * Releases carry one APK per processor type: "aske-stream-X.apk" (64-bit ARM,
+ * nearly every phone) and "aske-stream-X-armv7.apk" (older 32-bit phones).
+ */
+export function toReleaseInfo(json: unknown, abis: string[] = []): ReleaseInfo | null {
   const r = json as GitHubRelease;
   if (!r || typeof r.tag_name !== 'string' || r.draft || r.prerelease) return null;
-  const apk = r.assets?.find(
+  const apks = (r.assets ?? []).filter(
     (a) =>
       typeof a.name === 'string' &&
       a.name.toLowerCase().endsWith('.apk') &&
       typeof a.browser_download_url === 'string' &&
       a.browser_download_url.startsWith('https://'),
   );
+  const isArmv7 = (name = '') => /armv7|armeabi/i.test(name);
+  const only32 = abis.length > 0 && !abis.includes('arm64-v8a') && abis.includes('armeabi-v7a');
+  const apk =
+    apks.find((a) => (only32 ? isArmv7(a.name) : !isArmv7(a.name))) ??
+    (only32 ? undefined : apks[0]);
   if (!apk) return null;
   return {
     version: r.tag_name.replace(/^v/i, ''),

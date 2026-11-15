@@ -22,6 +22,9 @@ import { PlaylistView } from './views/PlaylistView';
 import { RadioView } from './views/RadioView';
 import { SettingsView } from './views/SettingsView';
 import { PodcastsView } from './views/PodcastsView';
+import { DownloadView } from './views/DownloadView';
+import { useDownloads } from './stores/downloads';
+import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
 import { useUi } from './stores/ui';
 
@@ -61,19 +64,28 @@ function useBackgroundSync() {
       await useOffline.getState().init();
       await sync();
       void useRadio.getState().load();
+      // Android app: resume unfinished downloads, then pick up songs sent from the computer.
+      await useDownloads.getState().init();
+      void useSend.getState().checkInbox();
     })();
 
-    const onOnline = () => void sync();
+    const onOnline = () => {
+      void sync();
+      void useSend.getState().checkInbox();
+    };
     const onVisible = () => {
       if (document.visibilityState !== 'visible' || Date.now() - lastFocusSync < 60_000) return;
       lastFocusSync = Date.now();
       void sync();
+      void useSend.getState().checkInbox();
     };
     const interval = setInterval(() => useOffline.getState().scheduleRun(0), SYNC_INTERVAL_MS);
+    const inbox = setInterval(() => void useSend.getState().checkInbox(), 5 * 60 * 1000);
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(interval);
+      clearInterval(inbox);
       window.removeEventListener('online', onOnline);
       document.removeEventListener('visibilitychange', onVisible);
     };
@@ -105,6 +117,7 @@ function Shell() {
           </Route>
           <Route path="/podcasts" component={PodcastsView} />
           <Route path="/radio" component={RadioView} />
+          <Route path="/download" component={DownloadView} />
           <Route path="/offline" component={OfflineView} />
           <Route path="/settings" component={SettingsView} />
           <Route>

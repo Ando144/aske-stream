@@ -11,8 +11,10 @@ apps/mobile/
 ├─ scripts/gradle.mjs         runs the Gradle wrapper on any OS
 └─ android/                   native project (committed; build output is ignored)
    └─ app/src/main/java/io/github/ando144/askestream/
-      ├─ MainActivity.java     registers our plugin
-      └─ AskeNativePlugin.java keep-awake + in-app updates
+      ├─ MainActivity.java     registers our plugins
+      ├─ AskeNativePlugin.java keep-awake + in-app updates
+      ├─ DownloaderPlugin.java YouTube downloads with yt-dlp (search fallback, playlists, engine updates)
+      └─ DownloadService.java  foreground service + progress notification while downloading
 ```
 
 ## How playback works in the background
@@ -31,6 +33,33 @@ device files, podcasts and radio share one code path with the web app.
 `apps/web/src/native/mediaControls.ts` hides the difference: the browser uses
 the standard Media Session API, the app uses the native plugin.
 
+## YouTube downloads
+
+The phone downloads; the Worker never touches YouTube audio (datacenter IPs
+are blocked and it would not be the owner's own traffic).
+
+| Piece          | How                                                                                                                                                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Engine         | [youtubedl-android](https://github.com/yausername/youtubedl-android) 0.18: Python 3.12 + yt-dlp + **QuickJS** (yt-dlp needs a JavaScript runtime for YouTube since 2025.11). No ffmpeg: audio is kept as downloaded (Opus in WebM), nothing is re-encoded |
+| Engine updates | `YoutubeDL.updateYoutubeDL(STABLE)` fetches the latest yt-dlp from its GitHub releases: automatically once a week and before the first download, or by hand (Download → Downloader → Update). No app update needed when YouTube changes                   |
+| Search         | YouTube's own search API (InnerTube, `packages/shared/src/youtube.ts`) through `CapacitorHttp` (no CORS in the app); YouTube Music for "Songs". If it ever returns nothing, falls back to `yt-dlp ytsearch20:`                                            |
+| Queue          | `apps/web/src/stores/downloads.ts`: one song at a time, persisted (survives closing the app), duplicates skipped by YouTube id, playlists optionally recreated in the library                                                                             |
+| Where songs go | Library on the phone → OPFS like imported files. Cloudflare library → uploaded through `/api/ingest/tracks` (WebM accepted), optionally kept on the phone in the offline cache without downloading it again                                               |
+| Covers         | Video thumbnail (maxres, then hq), centre-cropped to a square JPEG in a canvas                                                                                                                                                                            |
+| Metadata       | Same cleanup rules as the CLI (`metadataFromYoutube`: "Artist - Title (Official Video)" → artist + title; YouTube Music fields when present)                                                                                                              |
+| Background     | `DownloadService` (`dataSync` foreground service) with a progress notification whose texts come from the web side (user's language)                                                                                                                       |
+| Size           | One APK per processor type (Python is ~15 MB each): `aske-stream-X.apk` (arm64, nearly all phones), `aske-stream-X-armv7.apk` (old 32-bit phones). The updater picks the right one                                                                        |
+
+"Send to phone": on the computer (Cloudflare library) the Download screen
+searches through the Worker (`/api/youtube/search`) and stores picks in D1
+(`send_queue`, migration 0003). The app checks that list on start, when it
+comes back to the foreground and every 5 minutes while open, downloads, and
+marks each item done (with a count) or failed (with the reason).
+
+Browser tests of these flows run against fake native plugins:
+`vite build --mode fakenative` swaps `src/native/{platform,downloader,askeNative}`
+for `apps/web/test/fake-native/*`.
+
 ## Permissions
 
 | Permission                                                | Why                                                                       |
@@ -40,8 +69,7 @@ the standard Media Session API, the app uses the native plugin.
 | `WAKE_LOCK`                                               | Keep CPU and Wi-Fi awake while (and only while) music plays               |
 | `REQUEST_INSTALL_PACKAGES`                                | In-app updates. Android still asks the user to confirm every installation |
 
-No contacts, location, microphone, storage-wide or notification permission is
-requested. `allowBackup` is off so the device token never ends up in a cloud backup.
+No contacts, location, microphone or storage-wide permission is requested. `allowBackup` is off so the device token never ends up in a cloud backup.
 
 ## In-app updates
 
@@ -103,7 +131,11 @@ Output: `apps/mobile/android/app/build/outputs/apk/`.
 - **Offline rotation with the app fully closed** is not done yet. Android's
   background workers (WorkManager) cannot reach the WebView's storage where the
   offline songs live, so this needs the cache to move to native storage first.
-  It is planned together with phase 3 (native YouTube downloads). Today the
+  It needs the offline cache to move to native storage first. Today the
   rotation runs whenever the app is open or playing, which covers normal use.
 - iPhone: no app; the web version works in Safari (background playback there
   depends on WebKit).
+- YouTube sometimes asks downloaders to prove they are not a robot ("Sign in
+  to confirm you're not a bot"). It depends on YouTube and the network; the app
+  explains it and the fix is usually waiting and updating the downloader.
+- Only download what you have the right to, for personal use.

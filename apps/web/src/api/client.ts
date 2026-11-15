@@ -1,9 +1,11 @@
+import type { SearchKind, SearchResult } from '@aske/shared/youtube';
 import type {
   CatalogCountry,
   CatalogStation,
   CatalogTag,
   Library,
   Playlist,
+  SendItem,
   Station,
   Track,
 } from '@aske/shared';
@@ -40,6 +42,7 @@ export function onUnauthorized(listener: Listener): () => void {
 interface RequestOptions {
   method?: string;
   json?: unknown;
+  form?: FormData;
   headers?: Record<string, string>;
   signal?: AbortSignal;
 }
@@ -47,7 +50,7 @@ interface RequestOptions {
 async function request(path: string, opts: RequestOptions = {}): Promise<Response> {
   const headers = new Headers(opts.headers);
   if (target.token) headers.set('Authorization', `Bearer ${target.token}`);
-  let body: string | undefined;
+  let body: string | FormData | undefined = opts.form;
   if (opts.json !== undefined) {
     headers.set('Content-Type', 'application/json');
     body = JSON.stringify(opts.json);
@@ -121,6 +124,20 @@ export const api = {
     json<Playlist>(`/api/playlists/${id}/tracks`, { method: 'PUT', json: { trackIds } }),
   removeFromPlaylist: (id: string, trackId: string) =>
     json<Playlist>(`/api/playlists/${id}/tracks/${trackId}`, { method: 'DELETE' }),
+
+  /** multipart: meta (JSON), audio (Opus in Ogg/WebM), cover (JPEG, optional). */
+  uploadTrack: (form: FormData) => json<Track>('/api/ingest/tracks', { method: 'POST', form }),
+
+  youtubeSearch: (q: string, kind: SearchKind, lang: string) =>
+    json<{ results: SearchResult[] }>(
+      `/api/youtube/search?${new URLSearchParams({ q, kind, lang })}`,
+    ),
+  sendList: () => json<SendItem[]>('/api/send'),
+  sendCreate: (item: { url: string; title?: string; author?: string; thumbnail?: string }) =>
+    json<SendItem>('/api/send', { method: 'POST', json: item }),
+  sendUpdate: (id: string, status: SendItem['status'], detail = '') =>
+    json<SendItem>(`/api/send/${id}`, { method: 'PATCH', json: { status, detail } }),
+  sendDelete: (id: string) => json<void>(`/api/send/${id}`, { method: 'DELETE' }),
 
   stations: () => json<Station[]>('/api/stations'),
   saveStation: (station: Partial<Station> & { name: string; streamUrl: string; liked?: boolean }) =>

@@ -45,7 +45,11 @@ export function translate(
   key: MessageKey,
   vars?: Record<string, string | number>,
 ): string {
-  const template = dictionaries[language][key] ?? en[key];
+  // Singular forms live under "<key>.one" and are used when count is 1.
+  const oneKey = `${key}.one` as MessageKey;
+  const singular = vars?.count === 1 && oneKey in en;
+  const k = singular ? oneKey : key;
+  const template = dictionaries[language][k] ?? en[k];
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (_, name: string) => String(vars[name] ?? `{${name}}`));
 }

@@ -113,6 +113,20 @@ export interface ApiError {
   message: string;
 }
 
+/** A song or playlist sent from the computer for the phone to download. */
+export interface SendItem {
+  id: string;
+  url: string;
+  kind: 'video' | 'playlist';
+  title: string;
+  author: string;
+  thumbnail: string;
+  status: 'pending' | 'taken' | 'done' | 'error';
+  detail: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** Shared validation limits so the UI and the API agree. */
 export const LIMITS = {
   titleMax: 300,

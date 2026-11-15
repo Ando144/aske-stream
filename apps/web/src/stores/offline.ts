@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { t } from '../i18n';
 import { loadPref, savePref } from '../lib/storage';
-import { deleteAudio, downloadAudio, listCachedAudio, clearAllAudio } from '../offline/audioCache';
+import {
+  clearAllAudio,
+  deleteAudio,
+  downloadAudio,
+  listCachedAudio,
+  storeAudio,
+} from '../offline/audioCache';
 import { getDb } from '../offline/db';
 import { planRotation, selectSwapOut, type OfflineEntry } from '../offline/planner';
 import { useLibrary } from './library';
@@ -41,6 +47,8 @@ interface OfflineState {
   run: () => Promise<void>;
   scheduleRun: (delayMs?: number) => void;
   pin: (trackIds: string[]) => Promise<void>;
+  /** Keeps a song this phone already has the file of (no second download). */
+  adopt: (trackId: string, blob: Blob, durationMs: number) => Promise<void>;
   unpin: (trackId: string) => Promise<void>;
   markListened: (trackId: string) => Promise<void>;
   updateSettings: (patch: Partial<OfflineSettings>) => void;
@@ -235,6 +243,19 @@ export const useOffline = create<OfflineState>((set, get) => {
         }
       }
       toast(failed ? t('toast.downloadFailed') : t('toast.downloaded'), failed ? 'error' : 'info');
+      void get().refreshStorage();
+    },
+
+    async adopt(trackId, blob, durationMs) {
+      const sizeBytes = await storeAudio(trackId, blob);
+      await putEntry({
+        trackId,
+        mode: 'pinned',
+        durationMs,
+        sizeBytes,
+        downloadedAt: Date.now(),
+        listenedAt: null,
+      });
       void get().refreshStorage();
     },
 

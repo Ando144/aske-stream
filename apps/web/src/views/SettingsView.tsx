@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Cloud, ExternalLink, Globe, HardDrive, LogOut, Smartphone, SunMoon } from 'lucide-react';
+import {
+  ChevronRight,
+  Cloud,
+  ExternalLink,
+  Globe,
+  HardDrive,
+  LogOut,
+  Smartphone,
+  SunMoon,
+  WifiOff,
+} from 'lucide-react';
+import { Link } from 'wouter';
 import { usePrefs } from '../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
 import { useSetup } from '../stores/setup';
@@ -80,6 +91,14 @@ export function SettingsView() {
 
       <h2 className="section-title">{t('settings.playback')}</h2>
       <div className="panel">
+        <Link href="/offline" className="setting setting-link">
+          <WifiOff size={20} className="muted" />
+          <div className="grow">
+            <div>{t('settings.offline')}</div>
+            <div className="faint small">{t('settings.offlineHint')}</div>
+          </div>
+          <ChevronRight size={20} className="faint" />
+        </Link>
         <div className="setting">
           <label className="grow" htmlFor="data-saver">
             <div>{t('settings.dataSaver')}</div>
