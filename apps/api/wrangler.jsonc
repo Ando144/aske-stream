@@ -1,0 +1,39 @@
+// Cloudflare Worker configuration.
+// Run `npm run cf:setup` once: it creates the D1 database and the R2 bucket
+// in YOUR Cloudflare account and writes your database_id below.
+// IDs are not secrets; secrets (ACCESS_KEY) go through `wrangler secret put`.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "aske-stream",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+
+  // The PWA build. Static files are served directly by Cloudflare (no Worker
+  // invocation, no cost); only /api/* and /media/* run the Worker.
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/media/*"],
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aske-stream",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "aske-stream-media",
+    },
+  ],
+
+  "observability": { "enabled": true },
+}

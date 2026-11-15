@@ -1,0 +1,40 @@
+import { Hono } from 'hono';
+import type { Library } from '@aske/shared';
+import type { AppEnv } from '../env';
+import { toPlaylist, toTrack, type PlaylistRow, type TrackRow } from '../lib/db';
+
+export const libraryRoutes = new Hono<AppEnv>().get('/', async (c) => {
+  const db = c.env.DB;
+
+  // A batch runs as one transaction, so the version always matches the data.
+  const [versionRes, tracksRes, playlistsRes, membersRes] = await db.batch([
+    db.prepare("SELECT value FROM meta WHERE key = 'library_version'"),
+    db.prepare('SELECT * FROM tracks ORDER BY created_at DESC'),
+    db.prepare('SELECT * FROM playlists ORDER BY created_at ASC'),
+    db.prepare(
+      'SELECT playlist_id, track_id FROM playlist_tracks ORDER BY playlist_id, position ASC',
+    ),
+  ]);
+
+  const version = Number((versionRes!.results[0] as { value: string } | undefined)?.value ?? 0);
+  const etag = `"v${version}"`;
+  c.header('ETag', etag);
+  c.header('Cache-Control', 'no-cache');
+  if (c.req.header('if-none-match') === etag) return c.body(null, 304);
+
+  const members = new Map<string, string[]>();
+  for (const row of membersRes!.results as { playlist_id: string; track_id: string }[]) {
+    const list = members.get(row.playlist_id);
+    if (list) list.push(row.track_id);
+    else members.set(row.playlist_id, [row.track_id]);
+  }
+
+  const library: Library = {
+    version,
+    tracks: (tracksRes!.results as unknown as TrackRow[]).map(toTrack),
+    playlists: (playlistsRes!.results as unknown as PlaylistRow[]).map((p) =>
+      toPlaylist(p, members.get(p.id) ?? []),
+    ),
+  };
+  return c.json(library);
+});

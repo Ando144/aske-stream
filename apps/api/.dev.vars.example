@@ -1,0 +1,4 @@
+# Local development secrets for `wrangler dev`.
+# Copy to apps/api/.dev.vars (git-ignored). In production use:
+#   npx wrangler secret put ACCESS_KEY
+ACCESS_KEY=local-dev-access-key-change-me-0123456789
