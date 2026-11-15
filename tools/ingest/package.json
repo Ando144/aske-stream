@@ -1,0 +1,23 @@
+{
+  "name": "@aske/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local CLI: turns YouTube links or audio files into Opus tracks and uploads them to your aske-stream instance.",
+  "bin": {
+    "aske-ingest": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aske/shared": "*",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "vitest": "^5.1.0"
+  }
+}
