@@ -23,7 +23,7 @@
     {
       "binding": "DB",
       "database_name": "aske-stream",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "8cdcb02f-69e1-402c-a578-ee777fccc713",
       "migrations_dir": "migrations",
     },
   ],
