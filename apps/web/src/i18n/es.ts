@@ -257,6 +257,14 @@ export const es: Messages = {
   'setup.cancel': 'Volver sin cambiar nada',
   'setup.current': 'En uso',
   'setup.keep': 'Seguir usando esta',
+  'pair.problem.noInternet':
+    'No hay conexión a internet. Revisa el Wi-Fi o los datos móviles y vuelve a intentarlo.',
+  'pair.problem.unreachable':
+    'No se encuentra tu servidor en esa dirección. Revisa que esté bien escrita (tiene esta forma: https://aske-stream.tu-nombre.workers.dev). Truco: ábrela en el navegador del móvil; si ves la app, la dirección es correcta.',
+  'pair.problem.blocked':
+    'Tu servidor responde, pero no deja entrar a la app. Suele pasar cuando el servidor tiene una versión antigua: en el ordenador, ejecuta npm run deploy y vuelve a intentarlo.',
+  'pair.notAske': 'En esa dirección hay algo, pero no parece tu Aske Stream. Revisa la dirección.',
+  'pair.details': 'Detalles técnicos (por si alguien te ayuda)',
   'pair.back': 'Elegir otra opción',
   'pair.notSetUp': '¿Aún no lo tienes montado? Sigue la guía paso a paso.',
   'library.import': 'Importar archivos',

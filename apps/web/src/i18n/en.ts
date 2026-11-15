@@ -248,6 +248,15 @@ export const en = {
   'setup.cancel': 'Go back without changing anything',
   'setup.current': 'In use',
   'setup.keep': 'Keep using this',
+  'pair.problem.noInternet':
+    'There is no internet connection. Check Wi-Fi or mobile data and try again.',
+  'pair.problem.unreachable':
+    'Your server could not be found at that address. Check it is written correctly (it looks like https://aske-stream.your-name.workers.dev). Tip: open it in the phone browser; if you see the app, the address is right.',
+  'pair.problem.blocked':
+    'Your server answers but does not let the app in. This usually means the server runs an old version: on the computer, run npm run deploy and try again.',
+  'pair.notAske':
+    'Something answers at that address, but it does not look like your Aske Stream. Check the address.',
+  'pair.details': 'Technical details (in case someone helps you)',
   'pair.back': 'Choose another option',
   'pair.notSetUp': "Don't have it set up yet? Follow the step-by-step guide.",
   'library.import': 'Import files',

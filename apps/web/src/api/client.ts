@@ -63,7 +63,7 @@ async function request(path: string, opts: RequestOptions = {}): Promise<Respons
     });
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err;
-    throw new ApiError(0, 'network_error', 'No connection');
+    throw new ApiError(0, 'network_error', `No connection (${(err as Error).message})`);
   }
   if (res.status === 401 && !path.startsWith('/api/auth/')) {
     unauthorizedListeners.forEach((l) => l());

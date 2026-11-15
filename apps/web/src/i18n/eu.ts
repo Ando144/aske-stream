@@ -256,6 +256,15 @@ export const eu: Messages = {
   'setup.cancel': 'Itzuli ezer aldatu gabe',
   'setup.current': 'Erabiltzen',
   'setup.keep': 'Jarraitu hau erabiltzen',
+  'pair.problem.noInternet':
+    'Ez dago Interneteko konexiorik. Begiratu Wi-Fia edo datu mugikorrak eta saiatu berriro.',
+  'pair.problem.unreachable':
+    'Ez da zure zerbitzaria aurkitu helbide horretan. Begiratu ondo idatzita dagoela (itxura hau du: https://aske-stream.zure-izena.workers.dev). Trikimailua: ireki mugikorreko nabigatzailean; aplikazioa ikusten baduzu, helbidea zuzena da.',
+  'pair.problem.blocked':
+    'Zure zerbitzariak erantzuten du, baina ez dio aplikazioari sartzen uzten. Normalean zerbitzariak bertsio zaharra duelako gertatzen da: ordenagailuan, exekutatu npm run deploy eta saiatu berriro.',
+  'pair.notAske':
+    'Helbide horretan zerbait dago, baina ez dirudi zure Aske Stream denik. Begiratu helbidea.',
+  'pair.details': 'Xehetasun teknikoak (norbaitek laguntzen badizu)',
   'pair.back': 'Beste aukera bat hautatu',
   'pair.notSetUp': 'Oraindik ez duzu prestatuta? Jarraitu urratsez urratseko gida.',
   'library.import': 'Inportatu fitxategiak',
