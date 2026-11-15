@@ -10,6 +10,8 @@ export interface Env {
    * token; a browser exchanges it once for a signed session cookie.
    */
   ACCESS_KEY?: string;
+  /** Extra origins allowed to call the API (comma-separated), e.g. a self-hosted web app. */
+  CORS_ORIGINS?: string;
 }
 
 export interface AppEnv {

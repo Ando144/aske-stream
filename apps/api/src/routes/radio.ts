@@ -2,7 +2,13 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppEnv } from '../env';
 import { HttpError, RB_UUID_PATTERN } from '../lib/http';
-import { countClick, listCountries, listTags, searchStations } from '../lib/radioBrowser';
+import {
+  countClick,
+  listCountries,
+  listTags,
+  RadioBrowserUnavailable,
+  searchStations,
+} from '../lib/radioBrowser';
 
 const CatalogQuery = z.object({
   q: z.string().trim().max(100).optional(),

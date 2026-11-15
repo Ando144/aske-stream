@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Types and constants shared by the API, the web app and the ingest CLI.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./radio-browser": "./src/radioBrowser.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

@@ -326,6 +326,61 @@ async function main() {
     assert.equal((await api('/media/audio/not..valid')).status, 404);
   });
 
+  await step(
+    'device tokens: Bearer for the API, ?t= for media, CORS for the app origin',
+    async () => {
+      const pair = await (
+        await fetch(`${baseUrl}/api/auth/pair`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ key }),
+        })
+      ).json();
+      assert.match(pair.token, /^v1\./);
+      const auth = { authorization: `Bearer ${pair.token}` };
+      assert.equal((await fetch(`${baseUrl}/api/library`, { headers: auth })).status, 200);
+      assert.equal(
+        (await fetch(`${baseUrl}/api/library`, { headers: { authorization: 'Bearer v1.1.bad' } }))
+          .status,
+        401,
+      );
+      const media = await fetch(
+        `${baseUrl}/media/audio/${state.t2.id}?t=${encodeURIComponent(pair.token)}`,
+      );
+      assert.equal(media.status, 200);
+      assert.equal(
+        (await fetch(`${baseUrl}/api/library?t=${pair.token}`)).status,
+        401,
+        'query tokens only for media',
+      );
+      const preflight = await fetch(`${baseUrl}/api/library`, {
+        method: 'OPTIONS',
+        headers: {
+          origin: 'https://localhost',
+          'access-control-request-method': 'GET',
+          'access-control-request-headers': 'authorization',
+        },
+      });
+      assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://localhost');
+      const evil = await fetch(`${baseUrl}/api/library`, {
+        headers: { ...auth, origin: 'https://evil.example' },
+      });
+      assert.equal(evil.headers.get('access-control-allow-origin'), null);
+    },
+  );
+
+  await step('WebM Opus uploads (downloaded on the phone) are accepted as-is', async () => {
+    const webm = fakeOgg(16 * 1024);
+    webm.set([0x1a, 0x45, 0xdf, 0xa3], 0);
+    const res = await upload(meta(9), webm, false);
+    assert.equal(res.status, 201, await res.clone().text());
+    const track = await res.json();
+    const audio = await fetch(`${baseUrl}/media/audio/${track.id}`, {
+      headers: { authorization: `Bearer ${key}` },
+    });
+    assert.match(audio.headers.get('content-type'), /audio\/webm/);
+  });
+
   await step('logout clears the session', async () => {
     await api('/api/auth/logout', { method: 'POST' });
     assert.deepEqual(await json(await api('/api/auth/status')), { paired: false });

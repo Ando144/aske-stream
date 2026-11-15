@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import type { AppEnv } from './env';
 import { requireAuth } from './lib/auth';
+import { RadioBrowserUnavailable } from './lib/radioBrowser';
 import { HttpError } from './lib/http';
 import { authRoutes } from './routes/auth';
 import { ingestRoutes } from './routes/ingest';
@@ -14,6 +16,23 @@ import { trackRoutes } from './routes/tracks';
 
 const app = new Hono<AppEnv>();
 
+/**
+ * The Android app runs on its own origin (Capacitor serves it from
+ * https://localhost). It authenticates with a Bearer device token, never with
+ * cookies, so credentials are not allowed cross-origin.
+ */
+const APP_ORIGINS = ['https://localhost', 'http://localhost', 'capacitor://localhost'];
+const corsMiddleware = cors({
+  origin: (origin, c) => {
+    const extra = (c.env.CORS_ORIGINS ?? '').split(',').map((o: string) => o.trim());
+    return [...APP_ORIGINS, ...extra].includes(origin) ? origin : null;
+  },
+  allowHeaders: ['Authorization', 'Content-Type', 'If-None-Match', 'Range'],
+  exposeHeaders: ['ETag', 'Content-Range', 'Content-Length', 'Accept-Ranges'],
+  maxAge: 86400,
+});
+app.use('/api/*', corsMiddleware);
+app.use('/media/*', corsMiddleware);
 app.use('/api/*', secureHeaders());
 app.use('/api/*', async (c, next) => {
   await next();
@@ -42,6 +61,9 @@ app.all('/api/*', (c) => c.json({ error: 'not_found', message: 'Unknown endpoint
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 app.onError((err, c) => {
+  if (err instanceof RadioBrowserUnavailable) {
+    return c.json({ error: 'radio_unavailable', message: err.message }, 502);
+  }
   if (err instanceof HttpError) {
     return c.json({ error: err.code, message: err.message }, err.status);
   }

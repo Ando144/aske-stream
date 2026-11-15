@@ -31,6 +31,7 @@ async function startsWith(file: File, signatures: number[][]): Promise<boolean> 
 }
 
 const OGG = [[0x4f, 0x67, 0x67, 0x53]]; // "OggS"
+const WEBM = [[0x1a, 0x45, 0xdf, 0xa3]]; // EBML header (WebM/Matroska)
 const IMAGE = [
   [0xff, 0xd8, 0xff], // JPEG
 ];
@@ -84,9 +85,12 @@ export const ingestRoutes = new Hono<AppEnv>()
     if (audio.size > LIMITS.audioMaxBytes) {
       throw new HttpError(413, 'too_large', 'Audio file is too large');
     }
-    if (!(await startsWith(audio, OGG))) {
-      throw new HttpError(415, 'unsupported_audio', 'Audio must be an Ogg Opus file');
+    // Ogg Opus (CLI) or WebM Opus (downloaded on the phone, stored as-is).
+    const isOgg = await startsWith(audio, OGG);
+    if (!isOgg && !(await startsWith(audio, WEBM))) {
+      throw new HttpError(415, 'unsupported_audio', 'Audio must be Opus in Ogg or WebM');
     }
+    const mime = isOgg ? 'audio/ogg' : 'audio/webm';
 
     const coverPart = form.get('cover');
     const cover = coverPart instanceof File && coverPart.size > 0 ? coverPart : null;
@@ -107,7 +111,7 @@ export const ingestRoutes = new Hono<AppEnv>()
     const id = newId();
     // Upload the objects first; the row only appears once the files exist.
     await c.env.BUCKET.put(audioKey(id), audio.stream(), {
-      httpMetadata: { contentType: 'audio/ogg; codecs=opus' },
+      httpMetadata: { contentType: `${mime}; codecs=opus` },
       customMetadata: { title: m.title.slice(0, 200) },
     });
     if (cover) {
@@ -124,7 +128,7 @@ export const ingestRoutes = new Hono<AppEnv>()
             `INSERT INTO tracks (id, title, artist, album, duration_ms, size_bytes, bitrate_kbps,
                                  mime, audio_key, cover_key, source, source_ref, liked_at,
                                  created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'audio/ogg', ?, ?, ?, ?, NULL, ?, ?) RETURNING *`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?) RETURNING *`,
           )
           .bind(
             id,
@@ -134,6 +138,7 @@ export const ingestRoutes = new Hono<AppEnv>()
             m.durationMs,
             audio.size,
             m.bitrateKbps,
+            mime,
             audioKey(id),
             cover ? coverKey(id) : null,
             m.source,

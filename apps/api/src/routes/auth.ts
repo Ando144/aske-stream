@@ -12,14 +12,19 @@ const PairBody = z.object({ key: z.string().min(1).max(512) });
 export const authRoutes = new Hono<AppEnv>()
   .get('/status', async (c) => c.json({ paired: await isAuthenticated(c) }))
 
-  /** Exchanges the access key for a long-lived, HttpOnly session cookie. */
+  /**
+   * Exchanges the access key for a long-lived session. Browsers on the same
+   * origin get it as an HttpOnly cookie; apps on another origin (Android) use
+   * the returned `token` as a Bearer token.
+   */
   .post('/pair', async (c) => {
     const { key } = await readJson(c, PairBody);
     const expected = getAccessKey(c);
     if (!(await safeEqual(key.trim(), expected))) {
       throw new HttpError(401, 'invalid_key', 'The access key is not valid');
     }
-    setCookie(c, SESSION_COOKIE, await createSessionToken(expected), {
+    const token = await createSessionToken(expected);
+    setCookie(c, SESSION_COOKIE, token, {
       httpOnly: true,
       // Browsers treat http://localhost as secure, but curl does not: only
       // require HTTPS when we are actually served over HTTPS.
@@ -28,7 +33,7 @@ export const authRoutes = new Hono<AppEnv>()
       path: '/',
       maxAge: SESSION_MAX_AGE_S,
     });
-    return c.json({ paired: true });
+    return c.json({ paired: true, token });
   })
 
   .post('/logout', (c) => {
