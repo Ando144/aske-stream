@@ -1,0 +1,145 @@
+import { useDeferredValue, useMemo, useState } from 'react';
+import { Library, Play, Search, Shuffle, WifiOff } from 'lucide-react';
+import { songCount, useT } from '../i18n';
+import { formatLongDuration, normalizeText } from '../lib/format';
+import { loadValue, savePref } from '../lib/storage';
+import { useAllTracks, useLibrary } from '../stores/library';
+import { useOffline } from '../stores/offline';
+import { usePlayer } from '../stores/player';
+import { useUi } from '../stores/ui';
+import { TrackList } from '../components/TrackList';
+
+type Filter = 'all' | 'liked' | 'downloaded';
+type Sort = 'recent' | 'title' | 'artist';
+
+export function LibraryView() {
+  const t = useT();
+  const all = useAllTracks();
+  const loaded = useLibrary((s) => s.loaded);
+  const error = useLibrary((s) => s.error);
+  const entries = useOffline((s) => s.entries);
+  const online = useUi((s) => s.online);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<Sort>(() => loadValue<Sort>('library-sort', 'recent'));
+  const deferredQuery = useDeferredValue(query);
+
+  const tracks = useMemo(() => {
+    const q = normalizeText(deferredQuery.trim());
+    let list = all;
+    if (filter === 'liked') list = list.filter((tr) => tr.likedAt !== null);
+    if (filter === 'downloaded') list = list.filter((tr) => entries[tr.id]);
+    if (q) {
+      list = list.filter((tr) => normalizeText(`${tr.title} ${tr.artist} ${tr.album}`).includes(q));
+    }
+    if (sort === 'title') list = [...list].sort((a, b) => a.title.localeCompare(b.title));
+    if (sort === 'artist') {
+      list = [...list].sort(
+        (a, b) => a.artist.localeCompare(b.artist) || a.title.localeCompare(b.title),
+      );
+    }
+    return list;
+  }, [all, filter, entries, deferredQuery, sort]);
+
+  const totalMs = useMemo(() => tracks.reduce((sum, tr) => sum + tr.durationMs, 0), [tracks]);
+  const ids = useMemo(() => tracks.map((tr) => tr.id), [tracks]);
+  const context = { label: t('nav.library'), path: '/' };
+  const play = (startId: string | null, shuffle?: boolean) =>
+    usePlayer.getState().playTracks(ids, startId, { shuffle, context });
+
+  return (
+    <div className="page">
+      <header className="page-header">
+        <h1>{t('library.title')}</h1>
+      </header>
+
+      {!online && (
+        <div className="banner">
+          <WifiOff size={18} /> {t('common.offlineBanner')}
+        </div>
+      )}
+
+      {loaded && all.length === 0 ? (
+        <div className="empty">
+          <Library size={40} />
+          <h2>{t('library.empty')}</h2>
+          <p className="small">
+            <code>{t('library.emptyHint')}</code>
+          </p>
+          {error && <p className="error-text">{error}</p>}
+        </div>
+      ) : (
+        <>
+          <div className="search">
+            <Search size={18} />
+            <input
+              className="input"
+              type="search"
+              value={query}
+              placeholder={t('library.search')}
+              aria-label={t('library.search')}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="chips" style={{ margin: '12px 0 4px' }}>
+            {(['all', 'liked', 'downloaded'] as const).map((f) => (
+              <button
+                key={f}
+                className={`chip${filter === f ? ' active' : ''}`}
+                onClick={() => setFilter(f)}
+                aria-pressed={filter === f}
+              >
+                {t(
+                  f === 'all'
+                    ? 'library.filterAll'
+                    : f === 'liked'
+                      ? 'library.filterLiked'
+                      : 'library.filterDownloaded',
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="collection-actions">
+            <button
+              className="play-fab"
+              onClick={() => play(null, false)}
+              disabled={!ids.length}
+              aria-label={t('common.play')}
+            >
+              <Play size={24} fill="currentColor" style={{ marginLeft: 2 }} />
+            </button>
+            <button className="btn" onClick={() => play(null, true)} disabled={!ids.length}>
+              <Shuffle size={18} /> {t('common.shuffle')}
+            </button>
+            <span className="grow" />
+            <select
+              className="select compact"
+              value={sort}
+              aria-label="sort"
+              onChange={(e) => {
+                const value = e.target.value as Sort;
+                setSort(value);
+                savePref('library-sort', value);
+              }}
+            >
+              <option value="recent">{t('library.sortRecent')}</option>
+              <option value="title">{t('library.sortTitle')}</option>
+              <option value="artist">{t('library.sortArtist')}</option>
+            </select>
+          </div>
+          <p className="muted small" style={{ margin: '0 0 6px' }}>
+            {songCount(t, tracks.length)} · {formatLongDuration(totalMs)}
+          </p>
+
+          {tracks.length === 0 ? (
+            <p className="empty">{t('library.noResults')}</p>
+          ) : (
+            <TrackList tracks={tracks} onPlay={(id) => play(id)} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
