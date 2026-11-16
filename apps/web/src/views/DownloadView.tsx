@@ -650,6 +650,18 @@ function WherePanel() {
             {t('dl.keepOffline')}
           </label>
         </>
+      ) : home === 'drive' ? (
+        <>
+          <div>{t('dl.whereDrive')}</div>
+          <label className="row" style={{ marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={keepOffline}
+              onChange={(e) => useDownloads.getState().setKeepOffline(e.target.checked)}
+            />
+            {t('dl.keepOffline')}
+          </label>
+        </>
       ) : (
         <div>{t('dl.whereDevice')}</div>
       )}

@@ -9,8 +9,10 @@ export interface TrackLocations {
   device?: true;
   /** Track id on the Cloudflare instance. */
   cloudflare?: string;
-  /** File id in Google Drive (phase 5). */
+  /** Audio file id in Google Drive. */
   drive?: string;
+  /** Cover file id in Google Drive. */
+  driveCover?: string;
 }
 
 export interface LocalTrack extends Track {

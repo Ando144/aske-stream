@@ -11,6 +11,7 @@ import {
 import { HelpButton } from '../components/HelpSheet';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { useT, type MessageKey } from '../i18n';
+import { driveAvailable, driveProblem, type DriveProblem } from '../storage/drive/auth';
 import { useSetup } from '../stores/setup';
 
 /** Average song ≈ 4 MB (3.5 min of YouTube's Opus audio, stored without re-encoding). */
@@ -41,7 +42,8 @@ export function SetupView() {
   const t = useT();
   const changing = useSetup((s) => s.changing);
   const current = useSetup((s) => s.config?.home);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<Option['id'] | null>(null);
+  const [driveError, setDriveError] = useState<{ kind: DriveProblem; detail: string } | null>(null);
   const options: Option[] = [
     {
       id: 'device',
@@ -50,17 +52,35 @@ export function SetupView() {
       recommended: true,
       onChoose: () => useSetup.getState().chooseDevice(),
     },
-    { id: 'drive', Icon: HardDrive, available: false, onChoose: () => undefined },
+    {
+      id: 'drive',
+      Icon: HardDrive,
+      available: driveAvailable(),
+      onChoose: () => {
+        setBusy('drive');
+        setDriveError(null);
+        useSetup
+          .getState()
+          .chooseDrive()
+          .catch((err: unknown) =>
+            setDriveError({
+              kind: driveProblem(err),
+              detail: String((err as Error).message ?? err),
+            }),
+          )
+          .finally(() => setBusy(null));
+      },
+    },
     {
       id: 'cloudflare',
       Icon: Cloud,
       available: true,
       onChoose: () => {
-        setBusy(true);
+        setBusy('cloudflare');
         void useSetup
           .getState()
           .chooseCloudflare()
-          .finally(() => setBusy(false));
+          .finally(() => setBusy(null));
       },
     },
   ];
@@ -100,6 +120,7 @@ export function SetupView() {
                 </header>
                 <p>{t(`setup.${id}.desc` as MessageKey)}</p>
                 {id === 'cloudflare' && <HelpButton id="cloudflare-what" />}
+                {id === 'drive' && <HelpButton id="drive-what" />}
                 <div className="setup-lists">
                   <div>
                     <strong className="small">{t('setup.pros')}</strong>
@@ -124,12 +145,35 @@ export function SetupView() {
                 </div>
                 <button
                   className={`btn ${inUse || (recommended && !changing) ? 'primary' : ''}`}
-                  disabled={!available || busy}
+                  disabled={!available || busy !== null}
                   onClick={inUse ? () => useSetup.getState().cancelChange() : onChoose}
                 >
-                  {busy && id === 'cloudflare' && <LoaderCircle size={16} className="spin" />}
-                  {!available ? t('setup.soon') : inUse ? t('setup.keep') : t('setup.choose')}
+                  {busy === id && <LoaderCircle size={16} className="spin" />}
+                  {!available
+                    ? t('setup.soon')
+                    : inUse
+                      ? t('setup.keep')
+                      : id === 'drive'
+                        ? t('setup.drive.connect')
+                        : t('setup.choose')}
                 </button>
+                {id === 'drive' && available && !inUse && (
+                  <p className="faint small">{t('setup.drive.whatHappens')}</p>
+                )}
+                {id === 'drive' && driveError && (
+                  <div className="banner small" role="alert">
+                    <TriangleAlert size={16} />
+                    <div>
+                      <div>{t(`setup.drive.err.${driveError.kind}` as MessageKey)}</div>
+                      {driveError.kind === 'other' || driveError.kind === 'notRegistered' ? (
+                        <details>
+                          <summary>{t('pair.details')}</summary>
+                          <code className="small">{driveError.detail}</code>
+                        </details>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
               </section>
             );
           })}

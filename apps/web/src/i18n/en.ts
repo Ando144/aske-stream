@@ -353,7 +353,7 @@ export const en = {
     'Without internet, with the screen off and from the lock screen. With playlists, podcasts and thousands of radio stations from all over the world.',
   'welcome.4.title': 'You decide where it is kept',
   'welcome.4.text':
-    'Now you choose where to keep your music: on this phone (the simplest) or in your own Cloudflare (to have it on the computer too). You can change it any time, and nobody else can see it.',
+    'Now you choose where to keep your music: on this phone (the simplest), in your Google Drive (so you never lose it and also have it on your computer) or on your own Cloudflare. You can change it whenever you like, and nobody else can see it.',
   'welcome.next': 'Next',
   'welcome.skip': 'Skip',
   'welcome.start': 'Get started',
@@ -364,9 +364,11 @@ export const en = {
     'Type the key of your Aske Stream. You only do this once on each phone or computer; after that the app signs in by itself.',
   'pair.helpKeyOnly':
     'Whoever set up your Cloudflare has the key. If it was you, it is in the .env file of the project folder, on the ASKE_ACCESS_KEY line.',
+  'settings.madeBy': 'Made by',
+  'settings.authorGithub': 'The author’s other projects on GitHub',
   'settings.about': 'About',
   'settings.aboutText':
-    'Aske Stream is an open-source music app: the music is yours and you decide where it is stored. The server version runs on Cloudflare’s free plan.',
+    'Aske Stream is an open-source music app: the music is yours and you decide where it lives: on the device, in your Google Drive or on your own free Cloudflare server.',
   'settings.source': 'Source code on GitHub',
   'settings.persistent': 'Protect downloaded songs',
   'settings.persistentOn': 'On: the browser will not delete them',
@@ -411,9 +413,9 @@ export const en = {
   'setup.drive.desc':
     'Your music is saved in your own Google Drive, in a private folder that only this app uses.',
   'setup.drive.pros':
-    'Safe if you lose your phone|Listen on your laptop too|Just sign in with Google',
+    'Safe if you lose your phone|You can also listen on your computer|Just sign in with Google|The app only sees its own files, not the rest of your Drive',
   'setup.drive.cons':
-    '15 GB free, shared with Gmail and Google Photos|Needs internet, except for downloaded songs',
+    '15 GB free, shared with Gmail and Google Photos|Needs internet, except for songs kept for offline listening|In the browser, Google asks for a tap now and then to stay connected',
   'setup.cloudflare.title': 'Cloudflare (advanced)',
   'setup.cloudflare.desc':
     "Your own private music server, on Cloudflare's free plan. Best if someone helps you set it up the first time.",
@@ -453,7 +455,7 @@ export const en = {
   'toast.importSkipped': '{count} were already in your library',
   'toast.importFailed': '“{name}” could not be imported',
   'offline.deviceHome':
-    'All your music is stored on this device, so it already plays without internet. The automatic swaps on this screen are for music stored in Cloudflare.',
+    'All your music is saved on this device, so it already plays without internet. The automatic changes on this screen are for music kept in Google Drive or Cloudflare.',
   'settings.storage': 'Where your music is stored',
   'settings.storageChange': 'Change',
   'nav.podcasts': 'Podcasts',
@@ -510,6 +512,59 @@ export const en = {
   'common.settings': 'Settings',
   'playlists.reorder': 'Change order',
   'playlists.reorderDone': 'Done',
+  'setup.drive.connect': 'Connect with Google',
+  'setup.drive.whatHappens':
+    'A Google window will open so you can pick your account and give permission. The app can only see the files it creates itself: the rest of your Drive stays private.',
+  'setup.drive.err.canceled':
+    'You closed the Google window before finishing. Tap “Connect with Google” to try again.',
+  'setup.drive.err.offline':
+    'There is no internet connection. Check Wi-Fi or mobile data and try again.',
+  'setup.drive.err.notRegistered':
+    'Google does not let this copy of the app in because it is not registered with Google yet. It is not your fault: tell whoever gave you the app (they need to register it in Google Cloud; the steps are in docs/google-drive.md).',
+  'setup.drive.err.blocked':
+    'The browser blocked the Google window, or permission was not given. Allow pop-ups for this page, try again and, in the Google window, tap “Continue” or “Allow”.',
+  'setup.drive.err.other':
+    'Google did not let the app connect. Try again in a moment; if it keeps happening, open the details and show them to whoever helps you.',
+  'toast.importingDrive': 'Uploading {count} songs to your Google Drive…',
+  'library.importHintDrive':
+    'Upload songs you already have on this device to your Google Drive (MP3, M4A, FLAC, OGG…).',
+  'library.emptyDrive':
+    'Tap “Import files” to upload songs you already have, or use “Download” in the Android app to find them on YouTube. Everything is kept in your Google Drive.',
+  'dl.whereDrive':
+    'Songs are saved in your Google Drive (“Aske Stream” folder), so you also have them on your computer.',
+  'dl.err.driveFull':
+    'Your Google Drive is full. Free up space in Drive (or in Gmail or Google Photos, which share those 15 GB) and try again.',
+  'dl.err.driveAuth':
+    'Google wants you to confirm access again. Tap “Reconnect” at the top, then “Retry”.',
+  'drive.reconnectText': 'To keep using your Google Drive, Google asks you to confirm it is you.',
+  'drive.reconnect': 'Reconnect',
+  'drive.reconnectFailed': 'Could not connect to Google. Please try again.',
+  'storage.drive': 'Your Google Drive',
+  'storage.driveMusic': 'Your music takes {size} ({count} songs)',
+  'storage.driveMusic.one': 'Your music takes {size} (1 song)',
+  'storage.driveFull': 'Your Google Drive is full: no more songs fit.',
+  'storage.driveAlmostFull':
+    'Your Google Drive is almost full. Delete songs you no longer listen to, or free up space in Gmail or Google Photos.',
+  'storage.driveHint':
+    "Google's free 15 GB are shared by Drive, Gmail and Google Photos. The bar shows everything your account uses, not just music.",
+  'storage.driveUnavailable': 'Your Google Drive cannot be checked right now (no internet?).',
+  'settings.driveDisconnect': 'Disconnect Google Drive',
+  'settings.driveDisconnectConfirm':
+    'Disconnect your Google account on this device? Your music stays in your Google Drive and nothing is deleted. To come back, choose Google Drive and sign in again.',
+  'settings.driveDisconnected': 'Disconnected from Google Drive',
+  'copyDrive.title': 'Move your music to Google Drive',
+  'copyDrive.offer':
+    'This device has {count} songs from when music was saved here. Shall we upload them to your Google Drive, with your likes and playlists?',
+  'copyDrive.explain':
+    'Nothing is deleted from this device. You can stop at any time: when you tap again it continues where it left off and never uploads anything twice. Wi-Fi is best.',
+  'copyDrive.start': 'Upload to Google Drive',
+  'copyDrive.resume': 'Continue uploading',
+  'copyDrive.progress': 'Uploaded {done} of {total} songs…',
+  'copyDrive.keepOpen': 'Keep the app open and the screen on until it finishes.',
+  'copyDrive.stop': 'Stop',
+  'copyDrive.someFailed':
+    '{count} songs could not be uploaded. Tap “Continue uploading” to try again.',
+  'copyDrive.done': 'Done: all the music on this device is now in your Google Drive.',
 } as const;
 
 export type MessageKey = keyof typeof en;

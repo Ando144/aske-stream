@@ -1,5 +1,6 @@
 import { squareJpeg } from '../lib/cover';
 import { deleteDeviceFile, saveDeviceFile } from './deviceFiles';
+import { driveHome } from './drive/home';
 import { deviceHome, newLocalId } from './homes';
 import type { LocalTrack } from './types';
 
@@ -85,10 +86,14 @@ export interface ImportResult {
   failed: string[];
 }
 
-/** Copies audio files into this device's storage and adds them to the library. */
+/**
+ * Adds audio files to the library: copied into this device's storage, or
+ * uploaded to Google Drive when that is where the library lives.
+ */
 export async function importFiles(
   files: File[],
   onProgress?: (done: number, total: number) => void,
+  target: 'device' | 'drive' = 'device',
 ): Promise<ImportResult> {
   const result: ImportResult = { added: [], skipped: 0, failed: [] };
   let done = 0;
@@ -101,7 +106,8 @@ export async function importFiles(
     let id: string | null = null;
     try {
       const hash = await sha256(file);
-      if (await deviceHome.findBySource('file', hash)) {
+      const home = target === 'drive' ? driveHome : deviceHome;
+      if (await home.findBySource('file', hash)) {
         result.skipped++;
         continue;
       }
@@ -109,6 +115,28 @@ export async function importFiles(
       const tags = await readTags(file);
       const fromName = titleFromFileName(file.name);
       const cover = tags.cover ? await squareJpeg(tags.cover) : null;
+      if (target === 'drive') {
+        result.added.push(
+          await driveHome.addTrack(
+            {
+              title: tags.title ?? fromName.title,
+              artist: tags.artist ?? fromName.artist,
+              album: tags.album ?? '',
+              durationMs,
+              sizeBytes: file.size,
+              bitrateKbps: Math.round((file.size * 8) / durationMs) || null,
+              hasCover: !!cover,
+              kind: 'music',
+              source: 'file',
+              sourceRef: hash,
+              mime: file.type || 'audio/mpeg',
+            },
+            file,
+            cover,
+          ),
+        );
+        continue;
+      }
       id = newLocalId();
       await saveDeviceFile('audio', id, file);
       if (cover) await saveDeviceFile('covers', id, cover);

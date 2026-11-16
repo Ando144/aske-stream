@@ -10,7 +10,15 @@ import type { Language } from '../i18n';
  */
 
 export type SectionId =
-  'start' | 'music' | 'listen' | 'offline' | 'cloudflare' | 'android' | 'problems' | 'privacy';
+  | 'start'
+  | 'music'
+  | 'listen'
+  | 'offline'
+  | 'drive'
+  | 'cloudflare'
+  | 'android'
+  | 'problems'
+  | 'privacy';
 
 type Text = Record<Language, string>;
 
@@ -37,6 +45,10 @@ export const SECTIONS: HelpSection[] = [
       en: 'Offline and space',
       eu: 'Konexiorik gabe eta lekua',
     },
+  },
+  {
+    id: 'drive',
+    title: { es: 'Tu Google Drive', en: 'Your Google Drive', eu: 'Zure Google Drive' },
   },
   {
     id: 'cloudflare',
@@ -75,7 +87,7 @@ export const ARTICLES: HelpArticle[] = [
 - Escucha sin internet, con la pantalla apagada y desde la pantalla de bloqueo.
 - Escucha radios de todo el mundo y separa tus podcasts de la música.
 
-«Aske» significa «libre» en euskera.`,
+«Aske» significa «libre» en euskera. La app la ha creado **Andoni Ortiz de Zarate Urruela** y su código es abierto.`,
       en: `Aske Stream is an app for listening to music, a bit like Spotify, with one big difference: **the music is yours**. You download it once and listen whenever you like, with no ads, no subscription and nobody taking it away.
 
 - Search YouTube for songs or playlists and download them with one tap (in the Android app).
@@ -83,7 +95,7 @@ export const ARTICLES: HelpArticle[] = [
 - Listen without internet, with the screen off and from the lock screen.
 - Listen to radio stations from all over the world and keep podcasts apart from music.
 
-“Aske” means “free” in Basque.`,
+“Aske” means “free” in Basque. The app was created by **Andoni Ortiz de Zarate Urruela** and its code is open source.`,
       eu: `Aske Stream musika entzuteko aplikazio bat da, Spotifyren antzekoa, alde handi batekin: **musika zurea da**. Behin deskargatzen duzu eta nahi duzunean entzuten duzu, iragarkirik gabe, harpidetzarik gabe eta inork kendu gabe.
 
 - Bilatu YouTubeko abestiak edo zerrendak eta deskargatu ukitu batekin (Android aplikazioan).
@@ -91,7 +103,7 @@ export const ARTICLES: HelpArticle[] = [
 - Entzun Internetik gabe, pantaila itzalita eta blokeo-pantailatik.
 - Entzun mundu osoko irratiak eta bereizi podcastak musikatik.
 
-«Aske» hitzak «libre» esan nahi du.`,
+«Aske» hitzak «libre» esan nahi du. Aplikazioa **Andoni Ortiz de Zarate Urruela**k sortu du eta bere kodea irekia da.`,
     },
   },
   {
@@ -115,7 +127,10 @@ export const ARTICLES: HelpArticle[] = [
 - Tienes la misma biblioteca en el móvil y en el ordenador.
 - Montarlo lleva unos 10 minutos con un ordenador. Mira [[cloudflare-what|qué es Cloudflare]].
 
-**Google Drive** llegará en una próxima versión.
+**En tu Google Drive**
+- Solo hay que iniciar sesión con tu cuenta de Google.
+- Si pierdes el móvil no pierdes la música, y también la escuchas en el ordenador.
+- Usa el espacio gratis de Google (15 GB, compartidos con Gmail y Google Fotos). Mira [[drive-what|cómo funciona]].
 
 Una canción normal ocupa unos 4 MB: 1.000 canciones son unos 4 GB.`,
       en: `The first time you open the app you choose where to keep it. You can change it any time in **Settings → Where your music is stored**, and nothing is deleted when you do.
@@ -130,7 +145,10 @@ Una canción normal ocupa unos 4 MB: 1.000 canciones son unos 4 GB.`,
 - The same library on your phone and your computer.
 - Setting it up takes about 10 minutes with a computer. See [[cloudflare-what|what Cloudflare is]].
 
-**Google Drive** is coming in a future version.
+**In your Google Drive**
+- Just sign in with your Google account.
+- Losing your phone does not lose your music, and you can also listen on your computer.
+- It uses Google's free space (15 GB, shared with Gmail and Google Photos). See [[drive-what|how it works]].
 
 A normal song takes about 4 MB: 1,000 songs are about 4 GB.`,
       eu: `Aplikazioa lehen aldiz irekitzean non gorde aukeratzen duzu. Nahi duzunean alda dezakezu **Ezarpenak → Non gordetzen den zure musika** atalean, eta aldatzean ez da ezer ezabatzen.
@@ -145,7 +163,10 @@ A normal song takes about 4 MB: 1,000 songs are about 4 GB.`,
 - Liburutegi bera duzu mugikorrean eta ordenagailuan.
 - Prestatzeak 10 minutu inguru behar ditu ordenagailu batekin. Ikusi [[cloudflare-what|zer den Cloudflare]].
 
-**Google Drive** hurrengo bertsio batean helduko da.
+**Zure Google Drive-n**
+- Zure Google kontuarekin saioa hastea besterik ez.
+- Mugikorra galtzen baduzu ez duzu musika galtzen, eta ordenagailuan ere entzun dezakezu.
+- Google-ren doako lekua erabiltzen du (15 GB, Gmail eta Google Argazkiak-ekin partekatuak). Ikusi [[drive-what|nola dabilen]].
 
 Abesti arrunt batek 4 MB inguru hartzen ditu: 1.000 abesti 4 GB inguru dira.`,
     },
@@ -511,7 +532,7 @@ Abesti zehatz bat ukitzen baduzu, hori entzuten da, dagoen tokian dagoela.`,
     body: {
       es: `**Si guardas la música en este dispositivo**, toda suena sin internet. No hay que hacer nada.
 
-**Si usas tu Cloudflare**, el móvil guarda una copia de una parte de tu música para cuando no tengas internet (en el metro, de viaje…). Lo ajustas en **Ajustes → Música sin conexión**:
+**Si usas Google Drive o tu Cloudflare**, el móvil guarda una copia de una parte de tu música para cuando no tengas internet (en el metro, de viaje…). Lo ajustas en **Ajustes → Música sin conexión**:
 - **Cuánta música** guardar, en minutos u horas.
 - **Rellenar automáticamente**: la app elige canciones al azar hasta llegar al límite.
 - **Cambiar las ya escuchadas**: pasado un tiempo, las que ya has escuchado se cambian por otras, para que siempre tengas música «nueva» sin conexión.
@@ -519,7 +540,7 @@ Abesti zehatz bat ukitzen baduzu, hori entzuten da, dagoen tokian dagoela.`,
 - **Descargar con datos móviles**: si está apagado, espera al Wi-Fi.`,
       en: `**If you keep music on this device**, all of it plays without internet. Nothing to do.
 
-**If you use your Cloudflare**, the phone keeps a copy of part of your music for when you have no internet (underground, travelling…). Set it in **Settings → Offline music**:
+**If you use Google Drive or your Cloudflare**, the phone keeps a copy of part of your music for when you have no internet (underground, travelling…). Set it in **Settings → Offline music**:
 - **How much music** to keep, in minutes or hours.
 - **Fill automatically**: the app picks random songs up to the limit.
 - **Swap songs you have heard**: after a while, songs you have already heard are swapped for others, so you always have “new” music offline.
@@ -527,7 +548,7 @@ Abesti zehatz bat ukitzen baduzu, hori entzuten da, dagoen tokian dagoela.`,
 - **Download with mobile data**: when off, it waits for Wi-Fi.`,
       eu: `**Musika gailu honetan gordetzen baduzu**, guztia entzuten da Internetik gabe. Ez dago ezer egin beharrik.
 
-**Zure Cloudflare erabiltzen baduzu**, mugikorrak zure musikaren zati baten kopia gordetzen du Internetik ez duzunerako (metroan, bidaian…). **Ezarpenak → Konexiorik gabeko musika** atalean doitzen da:
+**Google Drive edo zure Cloudflare erabiltzen badituzu**, mugikorrak zure musikaren zati baten kopia gordetzen du Internetik ez duzunerako (metroan, bidaian…). **Ezarpenak → Konexiorik gabeko musika** atalean doitzen da:
 - **Zenbat musika** gorde, minututan edo ordutan.
 - **Automatikoki bete**: aplikazioak ausaz aukeratzen ditu abestiak mugara iritsi arte.
 - **Aldatu entzundakoak**: denbora pixka bat igarotakoan, entzun dituzunak beste batzuengatik aldatzen dira, konexiorik gabe beti musika «berria» izateko.
@@ -574,6 +595,221 @@ Lekua egiteko: ezabatu abestiak (⋮ menua → «Ezabatu liburutegitik») edo ja
     },
   },
 
+  /* ------------------------------- drive ------------------------------- */
+  {
+    id: 'drive-what',
+    section: 'drive',
+    title: {
+      es: '¿Cómo funciona con Google Drive?',
+      en: 'How does it work with Google Drive?',
+      eu: 'Nola dabil Google Drive-rekin?',
+    },
+    body: {
+      es: `Google Drive es el «disco duro en internet» que viene con cualquier cuenta de Google (la de Gmail o la del móvil Android). Si eliges guardar ahí tu música:
+
+- La app crea en tu Drive una carpeta llamada **Aske Stream**. Dentro van tus canciones (carpeta **audio**), las portadas (**covers**) y un archivo **library.json** con tus playlists, tus «me gusta» y tus radios.
+- Todo lo que descargas o importas se sube a esa carpeta.
+- Si abres la app en otro móvil o en el ordenador con la misma cuenta de Google, ves la misma biblioteca.
+- El móvil guarda una selección de canciones para escuchar sin internet, igual que con Cloudflare. Mira [[offline-how|cómo funciona sin conexión]].
+
+**Cuánto cabe:** Google regala 15 GB, compartidos con Gmail y Google Fotos. Si no usas mucho esos servicios, caben unas 3.000 canciones. Lo ves en **Ajustes → Almacenamiento**.
+
+**Qué hace falta:** solo tu cuenta de Google. Mira [[drive-connect|cómo conectarla]].`,
+      en: `Google Drive is the "hard drive on the internet" that comes with every Google account (your Gmail or Android phone account). If you choose to keep your music there:
+
+- The app creates a folder called **Aske Stream** in your Drive. Inside go your songs (**audio** folder), the covers (**covers**) and a **library.json** file with your playlists, likes and radios.
+- Everything you download or import is uploaded to that folder.
+- If you open the app on another phone or on your computer with the same Google account, you see the same library.
+- The phone keeps a selection of songs to play without internet, just like with Cloudflare. See [[offline-how|how offline works]].
+
+**How much fits:** Google gives you 15 GB free, shared with Gmail and Google Photos. If you do not use those much, about 3,000 songs fit. You can see it in **Settings → Storage**.
+
+**What you need:** just your Google account. See [[drive-connect|how to connect it]].`,
+      eu: `Google Drive edozein Google konturekin (Gmail-ekoa edo Android mugikorrekoa) datorren «Interneteko disko gogorra» da. Zure musika bertan gordetzea aukeratzen baduzu:
+
+- Aplikazioak **Aske Stream** izeneko karpeta bat sortzen du zure Drive-n. Barruan zure abestiak (**audio** karpeta), azalak (**covers**) eta zure playlistak, «gustuko»ak eta irratiak dituen **library.json** fitxategia daude.
+- Deskargatzen edo inportatzen duzun guztia karpeta horretara igotzen da.
+- Aplikazioa beste mugikor batean edo ordenagailuan Google kontu berarekin irekitzen baduzu, liburutegi bera ikusten duzu.
+- Mugikorrak abesti-hautaketa bat gordetzen du Internetik gabe entzuteko, Cloudflarerekin bezala. Ikusi [[offline-how|nola dabilen konexiorik gabe]].
+
+**Zenbat sartzen da:** Google-k 15 GB oparitzen ditu, Gmail eta Google Argazkiak-ekin partekatuak. Zerbitzu horiek asko erabiltzen ez badituzu, 3.000 abesti inguru sartzen dira. **Ezarpenak → Biltegiratzea** atalean ikusten da.
+
+**Zer behar da:** zure Google kontua besterik ez. Ikusi [[drive-connect|nola konektatu]].`,
+    },
+  },
+  {
+    id: 'drive-connect',
+    section: 'drive',
+    title: {
+      es: 'Conectar tu Google Drive',
+      en: 'Connecting your Google Drive',
+      eu: 'Zure Google Drive konektatu',
+    },
+    body: {
+      es: `1. En la pantalla **¿Dónde guardamos tu música?** (o en **Ajustes → Dónde se guarda tu música → Cambiar**), pulsa **Conectar con Google** en la opción Google Drive.
+2. Se abre una ventana de Google. Elige tu cuenta (o escribe tu correo y contraseña si no aparece).
+3. Google te dice que Aske Stream quiere **ver, editar, crear y eliminar solo los archivos de Google Drive que use con esta app**. Pulsa **Continuar** o **Permitir**.
+4. Listo: vuelves a la app y ya puedes descargar o importar música.
+
+**En la app de Android** solo se pide una vez. **En el navegador del ordenador**, Google da permiso por una hora; cuando caduca, arriba aparece **Volver a conectar**: púlsalo y sigue escuchando.
+
+**Si algo falla:**
+- «Has cerrado la ventana…»: vuelve a pulsar Conectar con Google y termina los pasos.
+- El navegador bloquea la ventana: permite las ventanas emergentes para esta página (suele aparecer un aviso en la barra de direcciones).
+- «Esta copia de la app no está dada de alta en Google»: no es culpa tuya; avisa a quien te pasó la app.
+
+Si ya tenías música guardada en este dispositivo, mira [[drive-copy|cómo pasarla a Drive]].`,
+      en: `1. On the **Where shall we keep your music?** screen (or in **Settings → Where your music is stored → Change**), tap **Connect with Google** on the Google Drive option.
+2. A Google window opens. Pick your account (or type your email and password if it is not listed).
+3. Google tells you Aske Stream wants to **see, edit, create and delete only the specific Google Drive files you use with this app**. Tap **Continue** or **Allow**.
+4. Done: you are back in the app and can download or import music.
+
+**In the Android app** you are asked only once. **In the computer's browser**, Google gives permission for one hour; when it runs out, **Reconnect** appears at the top: tap it and keep listening.
+
+**If something goes wrong:**
+- "You closed the Google window…": tap Connect with Google again and finish the steps.
+- The browser blocks the window: allow pop-ups for this page (there is usually a notice in the address bar).
+- "This copy of the app is not registered with Google": it is not your fault; tell whoever gave you the app.
+
+If you already had music saved on this device, see [[drive-copy|how to move it to Drive]].`,
+      eu: `1. **Non gordeko dugu zure musika?** pantailan (edo **Ezarpenak → Non gordetzen den zure musika → Aldatu** atalean), sakatu **Google-ekin konektatu** Google Drive aukeran.
+2. Google-ren leiho bat irekiko da. Aukeratu zure kontua (edo idatzi zure posta eta pasahitza agertzen ez bada).
+3. Google-k esango dizu Aske Streamek **aplikazio honekin erabiltzen dituzun Google Drive-ko fitxategiak bakarrik ikusi, editatu, sortu eta ezabatu** nahi dituela. Sakatu **Jarraitu** edo **Baimendu**.
+4. Eginda: aplikaziora itzultzen zara eta musika deskargatu edo inportatu dezakezu.
+
+**Android aplikazioan** behin bakarrik eskatzen da. **Ordenagailuko nabigatzailean**, Google-k ordubeteko baimena ematen du; amaitzean, goian **Berriro konektatu** agertzen da: sakatu eta jarraitu entzuten.
+
+**Zerbaitek huts egiten badu:**
+- «Google-ren leihoa itxi duzu…»: sakatu berriro Google-ekin konektatu eta amaitu urratsak.
+- Nabigatzaileak leihoa blokeatzen du: baimendu leiho gainerakorrak orri honetan (helbide-barran abisu bat agertu ohi da).
+- «Aplikazioaren kopia hau ez dago Google-n erregistratuta»: ez da zure errua; esan aplikazioa eman dizunari.
+
+Gailu honetan musika gordeta bazenuen, ikusi [[drive-copy|nola eraman Drive-ra]].`,
+    },
+  },
+  {
+    id: 'drive-copy',
+    section: 'drive',
+    title: {
+      es: 'Pasar a Drive la música de este dispositivo',
+      en: 'Moving this device’s music to Drive',
+      eu: 'Gailu honetako musika Drive-ra eraman',
+    },
+    body: {
+      es: `Si antes guardabas la música **en este dispositivo** y ahora usas Google Drive, en la Biblioteca y en **Ajustes → Almacenamiento** aparece **Pasar tu música a Google Drive**.
+
+1. Conéctate a un Wi-Fi (son muchos megas).
+2. Pulsa **Subir a Google Drive**.
+3. Deja la app abierta con la pantalla encendida. Verás cuántas canciones lleva.
+
+Se suben las canciones con sus portadas y tus «me gusta», y después tus playlists (si en Drive ya hay una con el mismo nombre, se le añaden las canciones que falten).
+
+- **No se borra nada del dispositivo.** Si vuelves a elegir «Este dispositivo», todo sigue ahí.
+- Puedes pulsar **Parar** cuando quieras. Al volver a pulsar, sigue por donde iba y no sube nada dos veces.
+- Si alguna canción falla (por ejemplo, se cortó internet), pulsa **Seguir subiendo** para reintentarla.`,
+      en: `If you used to keep your music **on this device** and now use Google Drive, **Move your music to Google Drive** appears in the Library and in **Settings → Storage**.
+
+1. Connect to Wi-Fi (it is a lot of data).
+2. Tap **Upload to Google Drive**.
+3. Keep the app open with the screen on. You will see how many songs are done.
+
+Songs are uploaded with their covers and your likes, then your playlists (if Drive already has one with the same name, the missing songs are added to it).
+
+- **Nothing is deleted from the device.** If you choose "This device" again, everything is still there.
+- You can tap **Stop** at any time. When you tap again it continues where it left off and never uploads anything twice.
+- If a song fails (for example, the internet dropped), tap **Continue uploading** to retry it.`,
+      eu: `Lehen musika **gailu honetan** gordetzen bazenuen eta orain Google Drive erabiltzen baduzu, Liburutegian eta **Ezarpenak → Biltegiratzea** atalean **Eraman zure musika Google Drive-ra** agertzen da.
+
+1. Konektatu Wi-Fi batera (datu asko dira).
+2. Sakatu **Google Drive-ra igo**.
+3. Utzi aplikazioa irekita pantaila piztuta duela. Zenbat abesti doazen ikusiko duzu.
+
+Abestiak azalekin eta zure «gustuko»ekin igotzen dira, eta gero zure playlistak (Drive-n izen bereko bat badago, falta diren abestiak gehitzen zaizkio).
+
+- **Ez da ezer ezabatzen gailutik.** Berriro «Gailu hau» aukeratzen baduzu, dena hor dago.
+- Nahi duzunean sakatu dezakezu **Gelditu**. Berriro sakatzean, utzitako lekutik jarraitzen du eta ez du ezer bi aldiz igotzen.
+- Abestiren batek huts egiten badu (adibidez, Internet moztu bada), sakatu **Igotzen jarraitu** berriro saiatzeko.`,
+    },
+  },
+  {
+    id: 'drive-full',
+    section: 'drive',
+    title: {
+      es: 'Mi Google Drive está lleno',
+      en: 'My Google Drive is full',
+      eu: 'Nire Google Drive beteta dago',
+    },
+    body: {
+      es: `Los 15 GB gratis de Google se reparten entre **Drive, Gmail y Google Fotos**. Cuando se llenan, no se pueden subir más canciones (y tampoco te llegarán correos nuevos a Gmail).
+
+Para hacer sitio:
+- Borra en la app canciones que ya no escuches (menú ⋮ → **Eliminar de la biblioteca**). Se van a la papelera de Drive, que se vacía sola a los 30 días; si la vacías tú, el espacio vuelve al momento.
+- Libera espacio en Gmail (correos con archivos grandes) o en Google Fotos.
+- Mira qué ocupa más en [Almacenamiento de Google](https://one.google.com/storage).
+
+Si quieres mucha más música, Google vende más espacio (Google One), o puedes usar [[cloudflare-what|tu propio Cloudflare]], que da 10 GB solo para música.`,
+      en: `Google's free 15 GB are shared by **Drive, Gmail and Google Photos**. When they are full, no more songs can be uploaded (and Gmail stops receiving new email too).
+
+To make room:
+- Delete songs you no longer listen to in the app (⋮ menu → **Delete from library**). They go to Drive's bin, which empties itself after 30 days; if you empty it yourself, the space comes back at once.
+- Free up space in Gmail (emails with large attachments) or in Google Photos.
+- See what takes most in [Google storage](https://one.google.com/storage).
+
+If you want much more music, Google sells more space (Google One), or you can use [[cloudflare-what|your own Cloudflare]], which gives 10 GB just for music.`,
+      eu: `Google-ren doako 15 GBak **Drive, Gmail eta Google Argazkiak** artean banatzen dira. Betetzen direnean, ezin da abesti gehiago igo (eta Gmail-era ere ez zaizu posta berririk iritsiko).
+
+Lekua egiteko:
+- Ezabatu aplikazioan entzuten ez dituzun abestiak (⋮ menua → **Ezabatu liburutegitik**). Drive-ko zakarrontzira doaz, 30 egunetan bere kabuz husten dena; zuk husten baduzu, lekua berehala itzultzen da.
+- Egin lekua Gmail-en (fitxategi handiak dituzten mezuak) edo Google Argazkiak-en.
+- Ikusi zerk hartzen duen gehien [Google biltegiratzea](https://one.google.com/storage) orrian.
+
+Musika askoz gehiago nahi baduzu, Google-k leku gehiago saltzen du (Google One), edo [[cloudflare-what|zure Cloudflare propioa]] erabil dezakezu, musikarentzat bakarrik 10 GB ematen dituena.`,
+    },
+  },
+  {
+    id: 'drive-privacy',
+    section: 'drive',
+    title: {
+      es: '¿Qué puede ver la app de mi Google Drive?',
+      en: 'What can the app see in my Google Drive?',
+      eu: 'Zer ikus dezake aplikazioak nire Google Drive-n?',
+    },
+    body: {
+      es: `**Solo los archivos que ha creado ella misma** (la carpeta Aske Stream y lo que hay dentro). No puede ver tus documentos, fotos ni ningún otro archivo de tu Drive: Google no se lo permite.
+
+- La carpeta es privada: no se comparte con nadie, ni siquiera con quien hizo la app.
+- La app no tiene servidor propio: habla directamente con Google desde tu móvil u ordenador.
+- No muevas ni cambies el nombre de los archivos de la carpeta a mano: la app podría dejar de encontrarlos. Si borras la carpeta entera, la app empieza con una biblioteca vacía.
+
+**Quitar el permiso:**
+1. En la app: **Ajustes → Desconectar de Google Drive** (en ese dispositivo).
+2. Para todos los dispositivos: entra en [Aplicaciones con acceso a tu cuenta](https://myaccount.google.com/connections), elige Aske Stream y pulsa **Eliminar todas las conexiones**.
+
+Quitar el permiso no borra tu música. Si quieres borrarla, borra la carpeta **Aske Stream** de tu Drive.`,
+      en: `**Only the files it created itself** (the Aske Stream folder and what is inside). It cannot see your documents, photos or any other file in your Drive: Google does not allow it.
+
+- The folder is private: it is shared with nobody, not even whoever made the app.
+- The app has no server of its own: it talks to Google directly from your phone or computer.
+- Do not move or rename the files in the folder by hand: the app might stop finding them. If you delete the whole folder, the app starts with an empty library.
+
+**Removing the permission:**
+1. In the app: **Settings → Disconnect Google Drive** (on that device).
+2. For every device: go to [Apps with access to your account](https://myaccount.google.com/connections), pick Aske Stream and tap **Delete all connections**.
+
+Removing the permission does not delete your music. If you want to delete it, delete the **Aske Stream** folder from your Drive.`,
+      eu: `**Berak sortutako fitxategiak bakarrik** (Aske Stream karpeta eta barruan dagoena). Ezin ditu zure dokumentuak, argazkiak edo zure Drive-ko beste fitxategirik ikusi: Google-k ez dio uzten.
+
+- Karpeta pribatua da: ez da inorekin partekatzen, ezta aplikazioa egin zuenarekin ere.
+- Aplikazioak ez du zerbitzari propiorik: zure mugikor edo ordenagailutik zuzenean hitz egiten du Google-rekin.
+- Ez mugitu edo berrizendatu karpetako fitxategiak eskuz: aplikazioak aurkitzeari utz liezaieke. Karpeta osoa ezabatzen baduzu, aplikazioa liburutegi huts batekin hasten da.
+
+**Baimena kentzeko:**
+1. Aplikazioan: **Ezarpenak → Google Drive-tik deskonektatu** (gailu horretan).
+2. Gailu guztietarako: sartu [Zure kontura sarbidea duten aplikazioak](https://myaccount.google.com/connections) orrian, aukeratu Aske Stream eta sakatu **Ezabatu konexio guztiak**.
+
+Baimena kentzeak ez du zure musika ezabatzen. Ezabatu nahi baduzu, ezabatu **Aske Stream** karpeta zure Drive-tik.`,
+    },
+  },
   /* ----------------------------- cloudflare ---------------------------- */
   {
     id: 'cloudflare-what',
@@ -906,23 +1142,26 @@ Ikusi baita ere [[cloudflare-connect|non aurkitu helbidea eta gakoa]].`,
     body: {
       es: `Solo tú.
 - **En este dispositivo**: la música no sale del móvil.
+- **En tu Google Drive**: está en tu propia cuenta de Google, en una carpeta privada que no se comparte con nadie. La app solo puede ver los archivos que ella misma ha creado. Mira [[drive-privacy|qué puede ver la app]].
 - **En tu Cloudflare**: está en tu propia cuenta, en un almacén privado. Solo entran los móviles u ordenadores que tienen tu clave. Nada es público.
 
-Aske Stream no tiene anuncios, no vende datos y no envía tu música a nadie. La app solo habla con tu Cloudflare, con YouTube (para buscar y descargar), con el catálogo de radios y con GitHub (para buscar actualizaciones).
+Aske Stream no tiene anuncios, no vende datos y no envía tu música a nadie. La app solo habla con tu Google Drive o tu Cloudflare, con YouTube (para buscar y descargar), con el catálogo de radios y con GitHub (para buscar actualizaciones).
 
 Si crees que alguien tiene tu clave, quien montó el servidor puede cambiarla: todos los dispositivos tendrán que conectarse otra vez.`,
       en: `Only you.
 - **On this device**: the music never leaves the phone.
+- **In your Google Drive**: it is in your own Google account, in a private folder shared with nobody. The app can only see the files it created itself. See [[drive-privacy|what the app can see]].
 - **In your Cloudflare**: it is in your own account, in private storage. Only phones or computers with your key get in. Nothing is public.
 
-Aske Stream has no ads, sells no data and sends your music to nobody. The app only talks to your Cloudflare, to YouTube (to search and download), to the radio catalogue and to GitHub (to check for updates).
+Aske Stream has no ads, sells no data and sends your music to nobody. The app only talks to your Google Drive or your Cloudflare, to YouTube (to search and download), to the radio catalogue and to GitHub (to check for updates).
 
 If you think someone has your key, whoever set up the server can change it: every device will have to connect again.`,
       eu: `Zuk bakarrik.
 - **Gailu honetan**: musika ez da mugikorretik ateratzen.
+- **Zure Google Drive-n**: zure Google kontu propioan dago, inorekin partekatzen ez den karpeta pribatu batean. Aplikazioak berak sortutako fitxategiak bakarrik ikus ditzake. Ikusi [[drive-privacy|zer ikus dezakeen aplikazioak]].
 - **Zure Cloudflaren**: zure kontu propioan dago, biltegi pribatu batean. Zure gakoa duten mugikor edo ordenagailuak bakarrik sartzen dira. Ezer ez da publikoa.
 
-Aske Streamek ez du iragarkirik, ez du daturik saltzen eta ez dio inori zure musika bidaltzen. Aplikazioak zure Cloudflarerekin, YouTuberekin (bilatu eta deskargatzeko), irrati-katalogoarekin eta GitHubekin (eguneraketak bilatzeko) bakarrik hitz egiten du.
+Aske Streamek ez du iragarkirik, ez du daturik saltzen eta ez dio inori zure musika bidaltzen. Aplikazioak zure Google Drive edo Cloudflarerekin, YouTuberekin (bilatu eta deskargatzeko), irrati-katalogoarekin eta GitHubekin (eguneraketak bilatzeko) bakarrik hitz egiten du.
 
 Norbaitek zure gakoa duela uste baduzu, zerbitzaria prestatu zuenak alda dezake: gailu guztiek berriro konektatu beharko dute.`,
     },

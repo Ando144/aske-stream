@@ -360,7 +360,7 @@ export const eu: Messages = {
     'Internetik gabe, pantaila itzalita eta blokeo-pantailatik. Zerrendekin, podcastekin eta mundu osoko milaka irratirekin.',
   'welcome.4.title': 'Zuk erabakitzen duzu non gorde',
   'welcome.4.text':
-    'Orain aukeratzen duzu non gorde zure musika: mugikor honetan (errazena) edo zure Cloudflare propioan (ordenagailuan ere izateko). Nahi duzunean alda dezakezu, eta beste inork ezin du ikusi.',
+    'Orain aukeratzen duzu non gorde zure musika: mugikor honetan (errazena), zure Google Drive-n (inoiz ez galtzeko eta ordenagailuan ere izateko) edo zure Cloudflare propioan. Nahi duzunean alda dezakezu, eta beste inork ezin du ikusi.',
   'welcome.next': 'Hurrengoa',
   'welcome.skip': 'Saltatu',
   'welcome.start': 'Hasi',
@@ -371,9 +371,11 @@ export const eu: Messages = {
     'Idatzi zure Aske Streamen gakoa. Behin bakarrik egin behar da mugikor edo ordenagailu bakoitzean; gero aplikazioa bere kabuz sartzen da.',
   'pair.helpKeyOnly':
     'Gakoa zure Cloudflare prestatu zuenak du. Zu izan bazinen, proiektuaren karpetako .env fitxategian dago, ASKE_ACCESS_KEY lerroan.',
+  'settings.madeBy': 'Egilea:',
+  'settings.authorGithub': 'Egilearen beste proiektuak GitHuben',
   'settings.about': 'Honi buruz',
   'settings.aboutText':
-    'Aske Stream kode irekiko musika aplikazio bat da: musika zurea da eta zuk erabakitzen duzu non gorde. Zerbitzaridun bertsioa Cloudflareren doako planean dabil.',
+    'Aske Stream kode irekiko musika aplikazio bat da: musika zurea da eta zuk erabakitzen duzu non gorde: gailuan, zure Google Drive-n edo zure Cloudflare zerbitzari doakoan.',
   'settings.source': 'Iturburu-kodea GitHub-en',
   'settings.persistent': 'Babestu deskargatutako abestiak',
   'settings.persistentOn': 'Aktibatuta: nabigatzaileak ez ditu ezabatuko',
@@ -419,9 +421,9 @@ export const eu: Messages = {
   'setup.drive.desc':
     'Zure musika zure Google Drive-n gordetzen da, aplikazio honek bakarrik erabiltzen duen karpeta pribatu batean.',
   'setup.drive.pros':
-    'Seguru mugikorra galtzen baduzu|Ordenagailu eramangarrian ere entzun dezakezu|Google-rekin saioa hastea besterik ez',
+    'Salbu mugikorra galtzen baduzu|Ordenagailuan ere entzun dezakezu|Google-ekin saioa hastea besterik ez|Aplikazioak bere fitxategiak bakarrik ikusten ditu, ez zure Drive-ko gainerakoa',
   'setup.drive.cons':
-    '15 GB doan, Gmail eta Google Argazkiekin partekatuta|Internet behar du, deskargatutako abestiak izan ezik',
+    '15 GB doan, Gmail eta Google Argazkiak-ekin partekatuak|Internet behar du, konexiorik gabe entzuteko gordetako abestiak izan ezik|Nabigatzailean, Google-k noizean behin ukitu bat eskatzen du konektatuta jarraitzeko',
   'setup.cloudflare.title': 'Cloudflare (aurreratua)',
   'setup.cloudflare.desc':
     'Zure musika-zerbitzari pribatua, Cloudflare-ren doako planean. Ezin hobea lehen aldian norbaitek laguntzen badizu.',
@@ -462,7 +464,7 @@ export const eu: Messages = {
   'toast.importSkipped': '{count} lehendik zeuden zure liburutegian',
   'toast.importFailed': 'Ezin izan da «{name}» inportatu',
   'offline.deviceHome':
-    'Zure musika guztia gailu honetan gordeta dago, beraz Internetik gabe entzuten da jada. Pantaila honetako aldaketa automatikoak Cloudflaren gordetako musikarentzat dira.',
+    'Zure musika guztia gailu honetan gordeta dago, beraz Internetik gabe ere entzuten da. Pantaila honetako aldaketa automatikoak Google Drive-n edo Cloudflare-n gordetako musikarentzat dira.',
   'settings.storage': 'Non gordetzen den zure musika',
   'settings.storageChange': 'Aldatu',
   'nav.podcasts': 'Podcastak',
@@ -519,4 +521,58 @@ export const eu: Messages = {
   'common.settings': 'Ezarpenak',
   'playlists.reorder': 'Ordena aldatu',
   'playlists.reorderDone': 'Eginda',
+  'setup.drive.connect': 'Google-ekin konektatu',
+  'setup.drive.whatHappens':
+    'Google-ren leiho bat irekiko da zure kontua aukeratu eta baimena emateko. Aplikazioak berak sortzen dituen fitxategiak bakarrik ikus ditzake: zure Drive-ko gainerakoa pribatua da.',
+  'setup.drive.err.canceled':
+    'Google-ren leihoa itxi duzu amaitu gabe. Sakatu «Google-ekin konektatu» berriro saiatzeko.',
+  'setup.drive.err.offline':
+    'Ez dago Interneteko konexiorik. Begiratu Wi-Fia edo datu mugikorrak eta saiatu berriro.',
+  'setup.drive.err.notRegistered':
+    'Google-k ez dio aplikazioaren kopia honi sartzen uzten, oraindik ez dagoelako Google-n erregistratuta. Ez da zure errua: esan aplikazioa eman dizunari (Google Cloud-en erregistratu behar du; urratsak docs/google-drive.md fitxategian daude).',
+  'setup.drive.err.blocked':
+    'Nabigatzaileak Google-ren leihoa blokeatu du, edo ez da baimenik eman. Baimendu leiho gainerakorrak orri honetan, saiatu berriro eta, Google-ren leihoan, sakatu «Jarraitu» edo «Baimendu».',
+  'setup.drive.err.other':
+    'Google-k ez du konektatzen utzi. Saiatu berriro pixka bat barru; berriro gertatzen bada, ireki xehetasunak eta erakutsi laguntzen dizunari.',
+  'toast.importingDrive': '{count} abesti zure Google Drive-ra igotzen…',
+  'library.importHintDrive':
+    'Igo zure Google Drive-ra gailu honetan dituzun abestiak (MP3, M4A, FLAC, OGG…).',
+  'library.emptyDrive':
+    'Sakatu «Inportatu fitxategiak» dituzun abestiak igotzeko, edo erabili Android aplikazioko «Deskargatu» YouTuben bilatzeko. Dena zure Google Drive-n gordetzen da.',
+  'dl.whereDrive':
+    'Abestiak zure Google Drive-n gordetzen dira («Aske Stream» karpetan), horrela ordenagailuan ere badituzu.',
+  'dl.err.driveFull':
+    'Zure Google Drive beteta dago. Egin lekua Drive-n (edo Gmail-en edo Google Argazkiak-en, 15 GB horiek partekatzen baitituzte) eta saiatu berriro.',
+  'dl.err.driveAuth':
+    'Google-k sarbidea berriro baieztatzeko eskatzen du. Sakatu goiko «Berriro konektatu» eta gero «Saiatu berriro».',
+  'drive.reconnectText':
+    'Zure Google Drive erabiltzen jarraitzeko, Google-k zu zarela baieztatzeko eskatzen du.',
+  'drive.reconnect': 'Berriro konektatu',
+  'drive.reconnectFailed': 'Ezin izan da Google-ekin konektatu. Saiatu berriro.',
+  'storage.drive': 'Zure Google Drive',
+  'storage.driveMusic': 'Zure musikak {size} hartzen ditu ({count} abesti)',
+  'storage.driveMusic.one': 'Zure musikak {size} hartzen ditu (abesti 1)',
+  'storage.driveFull': 'Zure Google Drive beteta dago: ez da abesti gehiago sartzen.',
+  'storage.driveAlmostFull':
+    'Zure Google Drive ia beteta dago. Ezabatu entzuten ez dituzun abestiak, edo egin lekua Gmail-en edo Google Argazkiak-en.',
+  'storage.driveHint':
+    'Google-ren doako 15 GBak Drive, Gmail eta Google Argazkiak artean partekatzen dira. Barrak zure kontuak erabiltzen duen guztia erakusten du, ez musika bakarrik.',
+  'storage.driveUnavailable': 'Orain ezin da zure Google Drive begiratu (Internetik gabe?).',
+  'settings.driveDisconnect': 'Google Drive-tik deskonektatu',
+  'settings.driveDisconnectConfirm':
+    'Zure Google kontua gailu honetan deskonektatu? Zure musikak zure Google Drive-n jarraitzen du eta ez da ezer ezabatzen. Itzultzeko, aukeratu Google Drive eta hasi saioa berriro.',
+  'settings.driveDisconnected': 'Google Drive-tik deskonektatuta',
+  'copyDrive.title': 'Eraman zure musika Google Drive-ra',
+  'copyDrive.offer':
+    'Gailu honetan {count} abesti daude, musika hemen gordetzen zen garaikoak. Zure Google Drive-ra igoko ditugu, zure «gustuko» eta playlistekin?',
+  'copyDrive.explain':
+    'Ez da ezer ezabatzen gailu honetatik. Nahi duzunean gelditu dezakezu: berriro sakatzean, utzitako lekutik jarraitzen du eta ez du ezer bi aldiz igotzen. Hobe Wi-Fiarekin.',
+  'copyDrive.start': 'Google Drive-ra igo',
+  'copyDrive.resume': 'Igotzen jarraitu',
+  'copyDrive.progress': '{total} abestitik {done} igota…',
+  'copyDrive.keepOpen': 'Utzi aplikazioa irekita eta pantaila piztuta amaitu arte.',
+  'copyDrive.stop': 'Gelditu',
+  'copyDrive.someFailed':
+    '{count} abesti ezin izan dira igo. Sakatu «Igotzen jarraitu» berriro saiatzeko.',
+  'copyDrive.done': 'Eginda: gailu honetako musika guztia zure Google Drive-n dago jada.',
 };

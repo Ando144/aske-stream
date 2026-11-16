@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CloudDownload, Headphones, Music2, ShieldCheck } from 'lucide-react';
 import { LanguagePicker } from '../components/LanguagePicker';
+import { AUTHOR } from '../config';
 import { useT, type MessageKey } from '../i18n';
 
 const SLIDES: { Icon: typeof Music2; title: MessageKey; text: MessageKey }[] = [
@@ -60,6 +61,11 @@ export function WelcomeView({ onDone }: { onDone: () => void }) {
           )}
         </div>
         {step === 0 && <LanguagePicker />}
+        {step === 0 && (
+          <p className="faint small welcome-credit">
+            {t('settings.madeBy')} {AUTHOR.name}
+          </p>
+        )}
       </div>
     </div>
   );

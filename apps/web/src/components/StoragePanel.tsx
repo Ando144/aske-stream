@@ -9,6 +9,8 @@ import { isNative } from '../native/platform';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { useSetup } from '../stores/setup';
+import { driveQuota } from '../storage/drive/home';
+import type { DriveQuota } from '../storage/drive/api';
 
 /** Average song ≈ 4 MB (same estimate as the storage choice screen). */
 const BYTES_PER_SONG = 4_000_000;
@@ -25,6 +27,8 @@ export function StoragePanel() {
   const [cloud, setCloud] = useState<StorageStats | null>(null);
   const [cloudError, setCloudError] = useState(false);
   const [device, setDevice] = useState<{ free: number; total: number | null } | null>(null);
+  const [drive, setDrive] = useState<DriveQuota | null>(null);
+  const [driveError, setDriveError] = useState(false);
 
   useEffect(() => {
     if (home === 'cloudflare') {
@@ -32,6 +36,11 @@ export function StoragePanel() {
         .storage()
         .then(setCloud)
         .catch(() => setCloudError(true));
+    }
+    if (home === 'drive') {
+      driveQuota()
+        .then(setDrive)
+        .catch(() => setDriveError(true));
     }
     if (isNative) {
       AskeNative.storageInfo()
@@ -53,6 +62,15 @@ export function StoragePanel() {
     const list = Object.values(offline);
     return { count: list.length, bytes: list.reduce((s, e) => s + (e.sizeBytes || 0), 0) };
   }, [offline]);
+
+  const inDrive = useMemo(() => {
+    const list = Object.values(tracks).filter((tr) => tr.locations.drive);
+    return { count: list.length, bytes: list.reduce((s, tr) => s + (tr.sizeBytes || 0), 0) };
+  }, [tracks]);
+  const drivePct = drive?.limit ? Math.min(100, (drive.usage / drive.limit) * 100) : 0;
+  const driveLeftSongs = drive?.limit
+    ? Math.max(0, Math.floor((drive.limit - drive.usage) / BYTES_PER_SONG))
+    : null;
 
   const cloudPct = cloud ? Math.min(100, (cloud.usedBytes / cloud.limitBytes) * 100) : 0;
   const cloudLeftSongs = cloud
@@ -100,6 +118,56 @@ export function StoragePanel() {
         </div>
       )}
 
+      {home === 'drive' && (
+        <div className="storage-item">
+          <div className="row">
+            <HardDrive size={20} className="muted" />
+            <div className="grow">
+              <div>{t('storage.drive')}</div>
+              {drive?.email && <div className="faint small">{drive.email}</div>}
+            </div>
+            {drive && (
+              <strong className="small">
+                {drive.limit
+                  ? t('storage.ofLimit', {
+                      used: formatBytes(drive.usage),
+                      limit: formatBytes(drive.limit),
+                    })
+                  : formatBytes(drive.usage)}
+              </strong>
+            )}
+          </div>
+          {drive?.limit ? (
+            <div className="meter" aria-hidden>
+              <div
+                className={drivePct >= 90 ? 'danger' : 'auto'}
+                style={{ width: `${Math.max(drivePct, 1)}%` }}
+              />
+            </div>
+          ) : null}
+          <div className="faint small">
+            {t('storage.driveMusic', {
+              count: inDrive.count,
+              size: formatBytes(inDrive.bytes),
+            })}
+          </div>
+          {driveLeftSongs !== null && (
+            <div className="faint small">
+              {driveLeftSongs > 0
+                ? t('storage.cloudLeft', { count: driveLeftSongs.toLocaleString() })
+                : t('storage.driveFull')}
+            </div>
+          )}
+          {drivePct >= 90 && (
+            <div className="banner small">
+              <TriangleAlert size={16} /> {t('storage.driveAlmostFull')}
+            </div>
+          )}
+          <div className="faint small">{t('storage.driveHint')}</div>
+          {driveError && <div className="faint small">{t('storage.driveUnavailable')}</div>}
+        </div>
+      )}
+
       {home === 'device' && (
         <div className="storage-item row">
           <Smartphone size={20} className="muted" />
@@ -110,7 +178,7 @@ export function StoragePanel() {
         </div>
       )}
 
-      {home === 'cloudflare' && (
+      {(home === 'cloudflare' || home === 'drive') && (
         <div className="storage-item row">
           <WifiOff size={20} className="muted" />
           <div className="grow">{t('storage.offlineCopies')}</div>

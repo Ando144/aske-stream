@@ -14,6 +14,7 @@ apps/mobile/
       ├─ MainActivity.java     registers our plugins
       ├─ AskeNativePlugin.java keep-awake + in-app updates
       ├─ DownloaderPlugin.java YouTube downloads with yt-dlp (search fallback, playlists, engine updates)
+      ├─ GoogleDrivePlugin.java Google sign-in for Drive (Play services Identity, drive.file only)
       └─ DownloadService.java  foreground service + progress notification while downloading
 ```
 
@@ -57,14 +58,24 @@ comes back to the foreground and every 5 minutes while open, downloads, and
 marks each item done (with a count) or failed (with the reason).
 
 Browser tests of these flows run against fake native plugins:
-`vite build --mode fakenative` swaps `src/native/{platform,downloader,askeNative}`
+`vite build --mode fakenative` swaps `src/native/{platform,downloader,askeNative,googleDrive}`
 for `apps/web/test/fake-native/*`.
+
+## Google Drive sign-in
+
+`GoogleDrivePlugin` asks Google Play services for a Drive token with the
+`drive.file` permission (`Identity.getAuthorizationClient`). The first time,
+Google shows its account picker and "Allow" screen; after that every call
+returns a fresh token silently. Google recognises the app by its package name
+and the SHA-1 of the signing key, so a build signed with another key (a debug
+build, or a fork) gets `DEVELOPER_ERROR 10` until its own Android OAuth
+client exists. Setup: [google-drive.md](google-drive.md).
 
 ## Permissions
 
 | Permission                                                | Why                                                                       |
 | --------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `INTERNET`                                                | Streaming, your Cloudflare, radio catalogue, update check                 |
+| `INTERNET`                                                | Streaming, Google Drive, your Cloudflare, radio catalogue, update check   |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Keep playing with the screen off, with the playback notification          |
 | `WAKE_LOCK`                                               | Keep CPU and Wi-Fi awake while (and only while) music plays               |
 | `REQUEST_INSTALL_PACKAGES`                                | In-app updates. Android still asks the user to confirm every installation |

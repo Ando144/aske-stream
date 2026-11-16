@@ -16,12 +16,14 @@ import {
 import { Link } from 'wouter';
 import { usePrefs } from '../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
-import { useSetup } from '../stores/setup';
+import { DRIVE_EMAIL_KEY, useSetup } from '../stores/setup';
+import { loadValue } from '../lib/storage';
+import { CopyToDrivePanel } from '../components/CopyToDrivePanel';
 import { confirmDialog, toast } from '../stores/ui';
 import { useTips } from '../stores/tips';
 import { AppUpdatePanel } from '../components/AppUpdatePanel';
 import { StoragePanel } from '../components/StoragePanel';
-import { REPO_URL } from '../config';
+import { AUTHOR, REPO_URL } from '../config';
 import { isNative } from '../native/platform';
 
 export function SettingsView() {
@@ -31,6 +33,7 @@ export function SettingsView() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const home = useSetup((s) => s.config?.home);
   const hasCloudflare = useSetup((s) => s.savedCloudflare !== null);
+  const driveEmail = loadValue<string>(DRIVE_EMAIL_KEY, '');
   const prefs = usePrefs();
 
   useEffect(() => {
@@ -124,6 +127,7 @@ export function SettingsView() {
 
       <h2 className="section-title">{t('storage.title')}</h2>
       <StoragePanel />
+      <CopyToDrivePanel />
 
       <h2 className="section-title">{t('settings.device')}</h2>
       <div className="panel">
@@ -142,19 +146,46 @@ export function SettingsView() {
         <div className="setting">
           {home === 'cloudflare' ? (
             <Cloud size={20} className="muted" />
+          ) : home === 'drive' ? (
+            <HardDrive size={20} className="muted" />
           ) : (
             <Smartphone size={20} className="muted" />
           )}
           <div className="grow">
             <div>{t('settings.storage')}</div>
             <div className="faint small">
-              {home === 'cloudflare' ? t('setup.cloudflare.title') : t('setup.device.title')}
+              {home === 'cloudflare'
+                ? t('setup.cloudflare.title')
+                : home === 'drive'
+                  ? `${t('setup.drive.title')}${driveEmail ? ` · ${driveEmail}` : ''}`
+                  : t('setup.device.title')}
             </div>
           </div>
           <button className="btn small" onClick={() => useSetup.getState().changeStorage()}>
             {t('settings.storageChange')}
           </button>
         </div>
+        {(home === 'drive' || driveEmail) && (
+          <div className="setting">
+            <button
+              className="btn danger"
+              onClick={async () => {
+                if (
+                  await confirmDialog(
+                    t('settings.driveDisconnectConfirm'),
+                    t('settings.driveDisconnect'),
+                    true,
+                  )
+                ) {
+                  await useSetup.getState().disconnectDrive();
+                  toast(t('settings.driveDisconnected'));
+                }
+              }}
+            >
+              <LogOut size={18} /> {t('settings.driveDisconnect')}
+            </button>
+          </div>
+        )}
         {(home === 'cloudflare' || hasCloudflare) && (
           <div className="setting">
             <button
@@ -205,11 +236,26 @@ export function SettingsView() {
       <h2 className="section-title">{t('settings.about')}</h2>
       <div className="panel">
         <p style={{ marginTop: 0 }}>{t('settings.aboutText')}</p>
+        <p className="about-author">
+          {t('settings.madeBy')}{' '}
+          <a href={AUTHOR.website} target="_blank" rel="noreferrer">
+            <strong>{AUTHOR.name}</strong>
+          </a>
+        </p>
         <a href={REPO_URL} target="_blank" rel="noreferrer" className="row">
           <ExternalLink size={16} /> {t('settings.source')}
         </a>
+        <a
+          href={AUTHOR.github}
+          target="_blank"
+          rel="noreferrer"
+          className="row"
+          style={{ marginTop: 8 }}
+        >
+          <ExternalLink size={16} /> {t('settings.authorGithub')}
+        </a>
         <p className="faint small" style={{ marginBottom: 0 }}>
-          v{__APP_VERSION__}
+          v{__APP_VERSION__} · © {new Date().getFullYear()} {AUTHOR.name} · MIT
         </p>
       </div>
     </div>

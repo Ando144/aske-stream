@@ -14,6 +14,7 @@ import { useSetup } from '../stores/setup';
 import { SettingsLink } from '../components/SettingsLink';
 import { ScreenTip } from '../components/ScreenTip';
 import { FirstSteps } from '../components/FirstSteps';
+import { CopyToDrivePanel } from '../components/CopyToDrivePanel';
 
 type Filter = 'all' | 'liked' | 'downloaded';
 type Sort = 'recent' | 'title' | 'artist';
@@ -74,7 +75,7 @@ export function LibraryView() {
       <header className="page-header">
         <h1>{t('library.title')}</h1>
         <div className="row">
-          {home === 'device' && <ImportButton />}
+          {(home === 'device' || home === 'drive') && <ImportButton />}
           <SettingsLink />
         </div>
       </header>
@@ -88,12 +89,15 @@ export function LibraryView() {
       )}
 
       {loaded && <FirstSteps />}
+      <CopyToDrivePanel compact />
       {loaded && all.length === 0 ? (
         <div className="empty">
           <Library size={40} />
           <h2>{t('library.empty')}</h2>
           {home === 'device' ? (
             <p className="small">{t('library.emptyDevice')}</p>
+          ) : home === 'drive' ? (
+            <p className="small">{t('library.emptyDrive')}</p>
           ) : (
             <p className="small">{t('library.emptyHint')}</p>
           )}

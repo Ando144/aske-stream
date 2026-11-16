@@ -12,6 +12,7 @@ import {
 import { Link, useLocation } from 'wouter';
 import { useT, type MessageKey } from '../i18n';
 import { useLibrary } from '../stores/library';
+import { AUTHOR } from '../config';
 
 const ITEMS: { to: string; key: MessageKey; Icon: typeof Library }[] = [
   { to: '/', key: 'nav.library', Icon: Library },
@@ -91,6 +92,9 @@ export function Sidebar() {
           {pl.name}
         </Link>
       ))}
+      <a className="side-credit" href={AUTHOR.website} target="_blank" rel="noreferrer">
+        {t('settings.madeBy')} {AUTHOR.name}
+      </a>
     </aside>
   );
 }

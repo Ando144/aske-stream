@@ -9,6 +9,7 @@ import {
   storeAudio,
 } from '../offline/audioCache';
 import { getDb } from '../offline/db';
+import { driveAudio } from '../storage/drive/home';
 import { planRotation, selectSwapOut, type OfflineEntry } from '../offline/planner';
 import { useLibrary } from './library';
 import { toast } from './ui';
@@ -98,9 +99,11 @@ export const useOffline = create<OfflineState>((set, get) => {
     if (!track) return null;
     set({ downloading: { ...get().downloading, [trackId]: true } });
     try {
-      const remoteId = track.locations.cloudflare;
-      if (!remoteId) throw new Error('Not stored in the cloud');
-      const sizeBytes = await downloadAudio(trackId, remoteId, track.hasCover);
+      const { cloudflare, drive } = track.locations;
+      let sizeBytes: number;
+      if (cloudflare) sizeBytes = await downloadAudio(trackId, cloudflare, track.hasCover);
+      else if (drive) sizeBytes = await storeAudio(trackId, await driveAudio(drive));
+      else throw new Error('Not stored in the cloud');
       const entry: OfflineEntry = {
         trackId,
         mode,
@@ -170,7 +173,10 @@ export const useOffline = create<OfflineState>((set, get) => {
           .map((id) => lib.tracks[id])
           .filter(
             (tr) =>
-              !!tr && !!tr.locations.cloudflare && !tr.locations.device && tr.kind !== 'podcast',
+              !!tr &&
+              !!(tr.locations.cloudflare || tr.locations.drive) &&
+              !tr.locations.device &&
+              tr.kind !== 'podcast',
           )
           .map((tr) => ({ id: tr!.id, durationMs: tr!.durationMs }));
 

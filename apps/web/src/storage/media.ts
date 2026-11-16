@@ -1,13 +1,17 @@
 import { mediaCredentials, mediaUrl } from '../api/client';
 import { getAudioBlob } from '../offline/audioCache';
 import { getDeviceFile } from './deviceFiles';
+import { driveAudio } from './drive/home';
+import { driveApi } from './drive/api';
 import type { LocalTrack } from './types';
 
 /**
  * Picks where to play a song from, in order of preference:
  *   1. a file stored on this device (no network at all),
  *   2. the smart offline cache,
- *   3. a cloud destination (streamed with Range requests).
+ *   3. Cloudflare (streamed with Range requests), or Google Drive (the
+ *      whole song is fetched first: Drive only hands files out with the
+ *      user's token in a header, which an <audio> element cannot send).
  * Returns a URL for the <audio> element, or null if nothing is reachable.
  */
 export async function resolveAudio(
@@ -24,6 +28,13 @@ export async function resolveAudio(
   }
   if (track.locations.cloudflare && navigator.onLine) {
     return mediaUrl('audio', track.locations.cloudflare);
+  }
+  if (track.locations.drive && navigator.onLine) {
+    try {
+      return URL.createObjectURL(await driveAudio(track.locations.drive));
+    } catch {
+      return null;
+    }
   }
   return null;
 }
@@ -42,7 +53,41 @@ export function resolveCoverUrl(track: LocalTrack): Promise<string | null> | str
     return url;
   }
   if (track.locations.cloudflare) return mediaUrl('cover', track.locations.cloudflare);
+  const driveCover = track.locations.driveCover;
+  if (driveCover) {
+    let url = driveCoverUrls.get(driveCover);
+    if (!url) {
+      url = loadDriveCover(driveCover);
+      driveCoverUrls.set(driveCover, url);
+    }
+    return url;
+  }
   return null;
+}
+
+/** Drive covers: kept on this device after the first time (they are tiny). */
+const driveCoverUrls = new Map<string, Promise<string | null>>();
+const COVER_CACHE = 'aske-drive-covers-v1';
+
+async function driveCoverBlob(fileId: string): Promise<Blob | null> {
+  const key = new Request(new URL(`/drive-cover/${fileId}`, location.origin));
+  try {
+    const cache = await caches.open(COVER_CACHE);
+    const hit = await cache.match(key);
+    if (hit) return await hit.blob();
+    if (!navigator.onLine) return null;
+    const blob = await driveApi.download(fileId);
+    await cache.put(key, new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } }));
+    return blob;
+  } catch {
+    return null;
+  }
+}
+
+async function loadDriveCover(fileId: string): Promise<string | null> {
+  const blob = await driveCoverBlob(fileId);
+  if (!blob) driveCoverUrls.delete(fileId); // try again next time
+  return blob ? URL.createObjectURL(blob) : null;
 }
 
 /** Lock-screen artwork must be self-contained, so it is handed over as a data: URL. */
@@ -50,6 +95,7 @@ export async function resolveCoverDataUrl(track: LocalTrack): Promise<string | n
   try {
     let blob: Blob | null = null;
     if (track.locations.device) blob = await getDeviceFile('covers', track.id);
+    else if (track.locations.driveCover) blob = await driveCoverBlob(track.locations.driveCover);
     else if (track.locations.cloudflare) {
       const res = await fetch(mediaUrl('cover', track.locations.cloudflare), {
         credentials: mediaCredentials(),

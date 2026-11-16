@@ -96,9 +96,9 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | --- | ----------------------------------------------------------------------------------- | ------ |
 | 1   | Storage layer: local library, home + destinations, device mode, device tokens       | ✅     |
 | 2   | Android app (Capacitor): native audio, device files, in-app updater, CI APK builds  | ✅     |
-| 3   | YouTube search & download (songs, playlists, queue, engine updates) + Send to phone |        |
-| 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere           |        |
-| 5   | Google Drive home & destination                                                     |        |
+| 3   | YouTube search & download (songs, playlists, queue, engine updates) + Send to phone | ✅     |
+| 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere           | ✅     |
+| 5   | Google Drive home & destination                                                     | ✅     |
 | 6   | Cloudflare guided setup inside the app (+ QR pairing)                               |        |
 | 7   | Hub: shared playlists and in-person Jams                                            |        |
 | 8   | Telemetry (opt-in) and admin dashboard                                              |        |
@@ -128,3 +128,14 @@ in the library, one dismissible tip per screen, and a help centre (`apps/web/src
 screens through a sheet that works before the app is set up. Unit tests keep the three
 languages complete and the links between articles valid. Technical wording (pairing, stream
 URLs, sync, CLI hints) was rewritten in plain language.
+
+Phase 5 notes: Google Drive is a full home (see [google-drive.md](../google-drive.md)). Only
+the non-sensitive `drive.file` permission is requested, so the app sees nothing but its own
+"Aske Stream" folder and needs no Google security review. Songs and covers are plain files;
+the library is one `library.json` that each device merges with its local copy (newest change
+per item wins, deletions are final), so phone and laptop can both edit it, also offline.
+Android gets tokens from Google Play services (silent after the first "Allow"); the web uses
+Google Identity Services, whose one-hour tokens are renewed with a tap on a "Reconnect" bar.
+Drive songs play from a fetched blob (Drive only accepts the token in a header) and rotate
+in the offline cache like Cloudflare songs. Switching from "This device" offers to copy the
+music, likes and playlists across, resumable and without deleting anything.

@@ -29,6 +29,7 @@ import { useTips } from './stores/tips';
 import { useDownloads } from './stores/downloads';
 import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
+import { DriveReconnect } from './components/DriveReconnect';
 import { useUi } from './stores/ui';
 
 export function App() {
@@ -116,6 +117,7 @@ function Shell() {
     <div className="app">
       <Sidebar />
       <main ref={mainRef} className={`main${hasPlayer ? '' : ' no-player'}`}>
+        <DriveReconnect />
         <Switch>
           <Route path="/" component={LibraryView} />
           <Route path="/playlists" component={PlaylistsView} />

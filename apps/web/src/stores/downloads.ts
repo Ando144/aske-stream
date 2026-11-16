@@ -9,6 +9,8 @@ import { loadValue, savePref } from '../lib/storage';
 import { Downloader, listPlaylistOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
 import { deleteDeviceFile, saveDeviceFile } from '../storage/deviceFiles';
+import { DriveAuthRequired } from '../storage/drive/auth';
+import { driveHome } from '../storage/drive/home';
 import { deviceHome, fromRemote, newLocalId } from '../storage/homes';
 import type { LocalTrack } from '../storage/types';
 import { useLibrary } from './library';
@@ -94,6 +96,8 @@ const isFinished = (j: DownloadJob) => !isActive(j);
 export function friendlyError(raw: string): string {
   const m = raw.toLowerCase();
   if (m.includes('storage is full') || m.includes('storage_full')) return t('dl.err.cloudFull');
+  if (m.includes('drive_full')) return t('dl.err.driveFull');
+  if (m.includes('drive_auth')) return t('dl.err.driveAuth');
   if (m.includes('quota') || m.includes('no space') || m.includes('enospc'))
     return t('dl.err.phoneFull');
   if (m.includes('confirm you') && m.includes('bot')) return t('dl.err.bot');
@@ -280,6 +284,27 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           }
           throw err;
         }
+        useLibrary.getState().upsertTracks([track]);
+        if (job.keepOffline) await useOffline.getState().adopt(track.id, audio, durationMs);
+      } else if (home === 'drive') {
+        if (!navigator.onLine) throw new ApiError(0, 'network_error', 'No connection');
+        track = await driveHome.addTrack(
+          {
+            title: meta.title || job.title,
+            artist: meta.artist,
+            album: meta.album,
+            durationMs,
+            sizeBytes: audio.size,
+            bitrateKbps,
+            hasCover: !!cover.blob,
+            kind: 'music',
+            source: 'youtube',
+            sourceRef: job.videoId,
+            mime,
+          },
+          audio,
+          cover.blob,
+        );
         useLibrary.getState().upsertTracks([track]);
         if (job.keepOffline) await useOffline.getState().adopt(track.id, audio, durationMs);
       } else {
@@ -481,7 +506,14 @@ export const useDownloads = create<DownloadsState>((set, get) => {
             const raw = String((err as Error).message ?? err);
             update(job.id, {
               status: code === 'canceled' ? 'canceled' : 'error',
-              error: code === 'canceled' ? undefined : friendlyError(raw),
+              error:
+                code === 'canceled'
+                  ? undefined
+                  : friendlyError(
+                      code === 'drive_full' || err instanceof DriveAuthRequired
+                        ? (code ?? 'drive_auth')
+                        : raw,
+                    ),
               finishedAt: Date.now(),
             });
             if (code === 'init_failed') {

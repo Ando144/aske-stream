@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { api, ApiError, configureApi, onUnauthorized } from '../api/client';
 import { loadValue, savePref } from '../lib/storage';
 import { kvGet } from '../offline/db';
+import { driveAvailable, getDriveToken, signOutDrive } from '../storage/drive/auth';
+import { driveHome, driveQuota, flushDrive, resetDriveState } from '../storage/drive/home';
 import { cloudflareHome, deviceHome } from '../storage/homes';
 import type { HomeKind, LibraryHome } from '../storage/types';
 
@@ -42,6 +44,13 @@ interface SetupState {
   savedCloudflare: CloudflareConnection | null;
   init: () => Promise<void>;
   chooseDevice: () => void;
+  /**
+   * Opens Google's "allow access" window (must be called right after a tap)
+   * and starts using Google Drive.
+   */
+  chooseDrive: () => Promise<void>;
+  /** Forgets the Google account on this device. Nothing in Drive is deleted. */
+  disconnectDrive: () => Promise<void>;
   /** Reuses the saved connection when it still works; otherwise asks for the key. */
   chooseCloudflare: () => Promise<void>;
   connectCloudflare: (key: string, baseUrl?: string) => Promise<void>;
@@ -57,6 +66,7 @@ interface SetupState {
 
 const STORAGE_KEY = 'setup';
 const CLOUDFLARE_KEY = 'cloudflare-connection';
+export const DRIVE_EMAIL_KEY = 'drive-email';
 
 function apply(config: SetupConfig | null) {
   if (config?.home === 'cloudflare' && config.cloudflare) {
@@ -141,10 +151,39 @@ export const useSetup = create<SetupState>((set, get) => {
     },
 
     chooseDevice() {
+      void flushDrive().catch(() => undefined);
       use({ home: 'device' });
     },
 
+    async chooseDrive() {
+      const { config, changing } = get();
+      if (config?.home === 'drive' && changing) {
+        get().cancelChange();
+        return;
+      }
+      if (!driveAvailable()) throw new Error('drive_unavailable');
+      await getDriveToken(true);
+      // Another Google account than last time: its library is a different one.
+      const { email } = await driveQuota().catch(() => ({ email: '' }));
+      const previous = loadValue<string>(DRIVE_EMAIL_KEY, '');
+      if (email && previous && email !== previous) await resetDriveState();
+      if (email) savePref(DRIVE_EMAIL_KEY, email);
+      use({ home: 'drive' });
+    },
+
+    async disconnectDrive() {
+      await flushDrive().catch(() => undefined);
+      await signOutDrive();
+      await resetDriveState();
+      savePref(DRIVE_EMAIL_KEY, '');
+      if (get().config?.home === 'drive') {
+        savePref(STORAGE_KEY, null);
+        set({ config: null, status: 'choose', changing: false });
+      }
+    },
+
     async chooseCloudflare() {
+      void flushDrive().catch(() => undefined);
       const { config, savedCloudflare, sameOriginApi } = get();
       if (config?.home === 'cloudflare' && get().changing) {
         get().cancelChange();
@@ -217,7 +256,8 @@ export const useSetup = create<SetupState>((set, get) => {
 
 /** The library home currently in use. */
 export function getHome(): LibraryHome {
-  return useSetup.getState().config?.home === 'cloudflare' ? cloudflareHome : deviceHome;
+  const home = useSetup.getState().config?.home;
+  return home === 'cloudflare' ? cloudflareHome : home === 'drive' ? driveHome : deviceHome;
 }
 
 onUnauthorized(() => {

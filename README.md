@@ -14,6 +14,8 @@ organise it in playlists, listen to live radio, and keep a self-refreshing offli
 
 _aske_ means “free” in Basque — free as in open source, and free to run on Cloudflare's free tier.
 
+Designed and built by **[Andoni Ortiz de Zarate Urruela](https://github.com/Ando144)**.
+
 </div>
 
 <p align="center">
@@ -32,8 +34,8 @@ _aske_ means “free” in Basque — free as in open source, and free to run on
 - **Smart offline cache**: pin songs or whole playlists, and let the app fill a **minutes-based quota** with random songs. Songs you've heard are **rotated** for fresh ones after a configurable time — swapped, never dropped, so you never end up with less music offline.
 - **Live radio**: browse and search tens of thousands of stations from the open [Radio Browser](https://www.radio-browser.info) directory by country and genre, **like** stations to keep them on top, or add your own stream URLs. HLS streams supported.
 - **Android app** (APK, updates itself from inside the app): background playback with notification and lock-screen controls, and **YouTube search & download on the phone** (songs and whole playlists, with yt-dlp updatable in-app). From the computer, **"Send to phone"** queues songs for the phone to download. See [docs/android.md](docs/android.md).
-- **Your choice of storage**: everything on the phone (no setup), or your own Cloudflare (shared with the computer, rotating offline copy on the phone).
-- **Explained for everyone**: first-run introduction, first-steps checklist, a tip on each screen and a searchable help centre (28 articles) in **Basque, Spanish and English**.
+- **Your choice of storage**: everything on the phone (no setup), your own **Google Drive** (just sign in; the app only sees its own folder), or your own Cloudflare. With Drive or Cloudflare the library is shared with the computer and the phone keeps a rotating offline copy. See [docs/google-drive.md](docs/google-drive.md).
+- **Explained for everyone**: first-run introduction, first-steps checklist, a tip on each screen and a searchable help centre (33 articles) in **Basque, Spanish and English**.
 - **Installable PWA**, works offline.
 - **Ingest CLI**: turn YouTube links/playlists or local files (MP3, FLAC, AAC…) into tagged Opus tracks with cover art and upload them in one command.
 - **Single-owner security model**: no accounts or passwords, but nothing is public — devices are paired once with a secret key.
@@ -135,13 +137,14 @@ npm run test:e2e   # boots a real Worker with local D1/R2 and exercises the whol
 
 ## Configuration & secrets
 
-| Name                                                                 | Where                                             | Purpose                                                    |
-| -------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
-| `ACCESS_KEY`                                                         | Worker secret (`wrangler secret put`)             | The single owner key. Rotate it to log every device out.   |
-| `ASKE_URL`, `ASKE_ACCESS_KEY`                                        | `.env` (git-ignored)                              | Used by the ingest CLI                                     |
-| `database_id`                                                        | `apps/api/wrangler.jsonc`                         | Your D1 id (not a secret)                                  |
-| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`                      | GitHub secrets (optional)                         | Only for the manual deploy workflow                        |
-| `ANDROID_KEYSTORE_BASE64`, `ANDROID_*_PASSWORD`, `ANDROID_KEY_ALIAS` | GitHub secrets; `.secrets/` locally (git-ignored) | Signs the Android APK ([docs/android.md](docs/android.md)) |
+| Name                                                                 | Where                                             | Purpose                                                                                                  |
+| -------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `ACCESS_KEY`                                                         | Worker secret (`wrangler secret put`)             | The single owner key. Rotate it to log every device out.                                                 |
+| `ASKE_URL`, `ASKE_ACCESS_KEY`                                        | `.env` (git-ignored)                              | Used by the ingest CLI                                                                                   |
+| `database_id`                                                        | `apps/api/wrangler.jsonc`                         | Your D1 id (not a secret)                                                                                |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`                      | GitHub secrets (optional)                         | Only for the manual deploy workflow                                                                      |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_*_PASSWORD`, `ANDROID_KEY_ALIAS` | GitHub secrets; `.secrets/` locally (git-ignored) | Signs the Android APK ([docs/android.md](docs/android.md))                                               |
+| `GOOGLE_WEB_CLIENT_ID`                                               | `apps/web/src/config.ts`                          | Google sign-in on the web ([docs/google-drive.md](docs/google-drive.md)); public by design, not a secret |
 
 No credentials ever live in the repository: the bucket has no public access and no S3 keys exist — the Worker reaches R2 through a binding.
 
@@ -154,7 +157,13 @@ No credentials ever live in the repository: the bucket has no public access and 
 ## Roadmap
 
 See [docs/v2/architecture.md](docs/v2/architecture.md) for the v2 plan (Android app ✅, YouTube
-downloads in the app, Google Drive, guided setup, shared playlists and Jams).
+downloads in the app ✅, help centre ✅, Google Drive ✅, guided setup, shared playlists and Jams).
+
+## Author
+
+**Andoni Ortiz de Zarate Urruela** — Computer Engineering (Management and Information Systems)
+student at the Bilbao School of Engineering (UPV/EHU).
+[GitHub](https://github.com/Ando144) · [Website](https://ando144.github.io)
 
 ## License
 

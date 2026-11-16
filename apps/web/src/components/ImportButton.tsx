@@ -3,9 +3,13 @@ import { LoaderCircle, Upload } from 'lucide-react';
 import { useT } from '../i18n';
 import { importFiles } from '../storage/importFiles';
 import { useLibrary } from '../stores/library';
+import { useSetup } from '../stores/setup';
 import { toast } from '../stores/ui';
 
-/** "Import files": copies songs the user already has into this device's library. */
+/**
+ * "Import files": adds songs the user already has, into this device's
+ * storage or uploaded to their Google Drive.
+ */
 export function ImportButton() {
   const t = useT();
   const input = useRef<HTMLInputElement>(null);
@@ -13,9 +17,14 @@ export function ImportButton() {
 
   const onFiles = async (files: File[]) => {
     if (!files.length) return;
+    const toDrive = useSetup.getState().config?.home === 'drive';
+    if (toDrive && !navigator.onLine) {
+      toast(t('toast.offline'), 'error');
+      return;
+    }
     setBusy(true);
-    toast(t('toast.importing', { count: files.length }));
-    const result = await importFiles(files);
+    toast(t(toDrive ? 'toast.importingDrive' : 'toast.importing', { count: files.length }));
+    const result = await importFiles(files, undefined, toDrive ? 'drive' : 'device');
     useLibrary.getState().upsertTracks(result.added);
     setBusy(false);
     if (result.added.length) toast(t('toast.imported', { count: result.added.length }));
@@ -29,7 +38,11 @@ export function ImportButton() {
         className="btn primary small"
         onClick={() => input.current?.click()}
         disabled={busy}
-        title={t('library.importHint')}
+        title={t(
+          useSetup.getState().config?.home === 'drive'
+            ? 'library.importHintDrive'
+            : 'library.importHint',
+        )}
       >
         {busy ? <LoaderCircle size={16} className="spin" /> : <Upload size={16} />}
         {t('library.import')}
