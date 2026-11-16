@@ -18,4 +18,6 @@ export const AUTHOR = {
  * Paste it between the quotes below (VITE_GOOGLE_CLIENT_ID overrides it, for
  * tests). See docs/google-drive.md.
  */
-export const GOOGLE_WEB_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+export const GOOGLE_WEB_CLIENT_ID: string =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '356178035561-go4h8i2c71sfb77hjevotd5usfkf6ent.apps.googleusercontent.com';
