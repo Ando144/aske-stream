@@ -5,6 +5,7 @@ import type { AppEnv } from '../env';
 import { audioKey, bumpVersion, coverKey, toTrack, type TrackRow } from '../lib/db';
 import { newId } from '../lib/ids';
 import { HttpError } from '../lib/http';
+import { storageStats } from '../lib/storage';
 
 const Metadata = z.object({
   title: z.string().trim().min(1).max(LIMITS.titleMax),
@@ -101,6 +102,16 @@ export const ingestRoutes = new Hono<AppEnv>()
 
     const m = meta.data;
     const db = c.env.DB;
+
+    // Never go over the free storage budget.
+    const stats = await storageStats(c.env);
+    if (stats.usedBytes + audio.size + (cover?.size ?? 0) > stats.uploadLimitBytes) {
+      throw new HttpError(
+        507,
+        'storage_full',
+        `Storage is full: ${(stats.usedBytes / 1e9).toFixed(2)} GB of ${(stats.limitBytes / 1e9).toFixed(0)} GB used`,
+      );
+    }
     if (m.sourceRef) {
       const dup = await db
         .prepare('SELECT id FROM tracks WHERE source = ? AND source_ref = ?')

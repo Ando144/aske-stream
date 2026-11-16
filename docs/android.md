@@ -139,3 +139,11 @@ Output: `apps/mobile/android/app/build/outputs/apk/`.
   to confirm you're not a bot"). It depends on YouTube and the network; the app
   explains it and the fix is usually waiting and updating the downloader.
 - Only download what you have the right to, for personal use.
+
+## Storage budget
+
+`GET /api/library/storage` sums the audio sizes (plus ~80 KB per cover) and
+returns the budget, 10 GB by default (`STORAGE_LIMIT_GB` var): Cloudflare R2's
+free allowance. Uploads stop at 95 % of it with `507 storage_full`, so the
+bill stays at zero. Settings → Storage shows it, together with the songs on
+the phone, the offline copies and the phone's free space.

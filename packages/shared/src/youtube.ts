@@ -348,3 +348,97 @@ export function parseSearchResponse(json: unknown): SearchResult[] {
 
   return results;
 }
+
+/* ------------------------------------------------------------------ */
+/* Playlist pages (InnerTube browse)                                   */
+/* ------------------------------------------------------------------ */
+
+export interface PlaylistEntry {
+  id: string;
+  title: string;
+  author: string;
+  /** Seconds, 0 when unknown. */
+  duration: number;
+}
+
+export interface PlaylistPage {
+  title: string;
+  author: string;
+  entries: PlaylistEntry[];
+  /** Token for the next 100 songs, if there are more. */
+  continuation: string | null;
+}
+
+/** First page of a playlist (`continuation` null) or the next one. */
+export function buildBrowseRequest(
+  playlistId: string,
+  continuation: string | null,
+  lang = 'es',
+): InnerTubeRequest {
+  const host = 'https://www.youtube.com';
+  const context = { client: { ...WEB_CLIENT, hl: lang, gl: 'ES' } };
+  return {
+    url: `${host}/youtubei/v1/browse?prettyPrint=false`,
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: host,
+      'X-Youtube-Client-Name': '1',
+      'X-Youtube-Client-Version': WEB_CLIENT.clientVersion,
+    },
+    body: JSON.stringify(
+      continuation ? { context, continuation } : { context, browseId: `VL${playlistId}` },
+    ),
+  };
+}
+
+export function parsePlaylistPage(json: unknown): PlaylistPage {
+  const entries: PlaylistEntry[] = [];
+  const seen = new Set<string>();
+  for (const v of findAll(json, 'playlistVideoRenderer')) {
+    const id = String(v.videoId ?? '');
+    // Deleted / private videos stay in playlists but cannot be played.
+    if (!id || seen.has(id) || v.isPlayable === false) continue;
+    seen.add(id);
+    entries.push({
+      id,
+      title: text(v.title),
+      author: text(v.shortBylineText),
+      duration: Number(v.lengthSeconds ?? 0) || parseDuration(text(v.lengthText)) || 0,
+    });
+  }
+  for (const l of findAll(json, 'lockupViewModel')) {
+    const id = String(l.contentId ?? '');
+    if (!String(l.contentType ?? '').includes('VIDEO') || !id || seen.has(id)) continue;
+    seen.add(id);
+    const meta = get(l, 'metadata', 'lockupMetadataViewModel');
+    const rows = (get(meta, 'metadata', 'contentMetadataViewModel', 'metadataRows') ??
+      []) as unknown[];
+    const author = text(get(rows[0], 'metadataParts', 0, 'text'));
+    const badge = findAll(l, 'thumbnailBadgeViewModel').map((b) => String(b.text ?? ''))[0] ?? '';
+    entries.push({
+      id,
+      title: text(get(meta, 'title')),
+      author,
+      duration: parseDuration(badge) ?? 0,
+    });
+  }
+
+  const meta = findAll(json, 'playlistMetadataRenderer')[0];
+  const header = findAll(json, 'playlistHeaderRenderer')[0];
+  const pageHeader = findAll(json, 'pageHeaderViewModel')[0];
+  const title =
+    text(meta?.title) ||
+    text(header?.title) ||
+    text(get(pageHeader, 'title', 'dynamicTextViewModel', 'text'));
+  const author = text(header?.ownerText) || text(get(header, 'ownerText'));
+
+  const token =
+    findAll(json, 'continuationCommand')
+      .map((c) => c.token)
+      .find((x) => typeof x === 'string') ??
+    findAll(json, 'nextContinuationData')
+      .map((c) => c.continuation)
+      .find((x) => typeof x === 'string');
+
+  return { title, author, entries, continuation: typeof token === 'string' ? token : null };
+}

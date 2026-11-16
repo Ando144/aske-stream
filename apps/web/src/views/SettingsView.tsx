@@ -16,6 +16,7 @@ import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
 import { useSetup } from '../stores/setup';
 import { confirmDialog } from '../stores/ui';
 import { AppUpdatePanel } from '../components/AppUpdatePanel';
+import { StoragePanel } from '../components/StoragePanel';
 import { REPO_URL } from '../config';
 import { isNative } from '../native/platform';
 
@@ -116,6 +117,9 @@ export function SettingsView() {
           </span>
         </div>
       </div>
+
+      <h2 className="section-title">{t('storage.title')}</h2>
+      <StoragePanel />
 
       <h2 className="section-title">{t('settings.device')}</h2>
       <div className="panel">

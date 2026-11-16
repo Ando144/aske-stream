@@ -6,6 +6,7 @@ import type {
   Library,
   Playlist,
   SendItem,
+  StorageStats,
   Station,
   Track,
 } from '@aske/shared';
@@ -124,6 +125,8 @@ export const api = {
     json<Playlist>(`/api/playlists/${id}/tracks`, { method: 'PUT', json: { trackIds } }),
   removeFromPlaylist: (id: string, trackId: string) =>
     json<Playlist>(`/api/playlists/${id}/tracks/${trackId}`, { method: 'DELETE' }),
+
+  storage: () => json<StorageStats>('/api/library/storage'),
 
   /** multipart: meta (JSON), audio (Opus in Ogg/WebM), cover (JPEG, optional). */
   uploadTrack: (form: FormData) => json<Track>('/api/ingest/tracks', { method: 'POST', form }),

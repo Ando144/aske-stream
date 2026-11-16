@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  BatteryWarning,
   Check,
   CircleAlert,
   Download,
@@ -26,9 +27,10 @@ import { api } from '../api/client';
 import { SettingsLink } from '../components/SettingsLink';
 import { RELEASES_URL } from '../config';
 import { useI18n, useT } from '../i18n';
-import { formatTime } from '../lib/format';
+import { formatBytes, formatTime } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
-import { searchOnPhone, Downloader } from '../native/downloader';
+import { AskeNative } from '../native/askeNative';
+import { listPlaylistOnPhone, searchOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
 import { useDownloads, type DownloadJob } from '../stores/downloads';
 import { useLibrary } from '../stores/library';
@@ -99,7 +101,7 @@ function Intro() {
 
 const KINDS: SearchKind[] = ['songs', 'videos', 'playlists'];
 
-/** Search box on top; `children` (the queue or the sent list) sits between it and the results. */
+/** Search box on top, its results right below, then `children` (the download queue). */
 function SearchPanel({ children }: { children: ReactNode }) {
   const t = useT();
   const language = useI18n((s) => s.language);
@@ -174,7 +176,6 @@ function SearchPanel({ children }: { children: ReactNode }) {
       )}
 
       {link && <LinkCard url={link} onDone={() => setQuery('')} />}
-      {children}
       {busy && (
         <div className="row muted dl-status">
           <LoaderCircle className="spin" size={18} /> {t('dl.searching')}
@@ -189,6 +190,7 @@ function SearchPanel({ children }: { children: ReactNode }) {
           ))}
         </div>
       )}
+      {children}
       {openPlaylist && (
         <PlaylistSheet result={openPlaylist} onClose={() => setOpenPlaylist(null)} />
       )}
@@ -335,26 +337,45 @@ function LinkCard({ url, onDone }: { url: string; onDone: () => void }) {
 /** Preview of a playlist before downloading (phone) or sending it (computer). */
 function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () => void }) {
   const t = useT();
-  const [entries, setEntries] = useState<
-    { id: string; title: string; uploader: string; duration: number }[] | null
-  >(null);
-  const [error, setError] = useState(false);
+  const language = useI18n((s) => s.language);
+  const [entries, setEntries] = useState<{ id: string; title: string; author: string }[] | null>(
+    null,
+  );
+  const [title, setTitle] = useState(result.title);
+  const [error, setError] = useState<string | null>(null);
   const [makePlaylist, setMakePlaylist] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!isNative) return;
-    Downloader.list({ url: result.url })
-      .then((l) => setEntries(l.entries))
-      .catch(() => setError(true));
+    let alive = true;
+    listPlaylistOnPhone(result.url, language)
+      .then((l) => {
+        if (!alive) return;
+        if (l.title) setTitle(l.title);
+        setEntries(l.entries);
+        if (!l.entries.length) setError(t('dl.playlistEmpty'));
+      })
+      .catch((err: Error) => {
+        if (!alive) return;
+        setEntries([]);
+        setError(
+          err.message === 'timeout'
+            ? t('dl.playlistSlow')
+            : `${t('dl.playlistFailed')} (${err.message})`,
+        );
+      });
+    return () => {
+      alive = false;
+    };
   }, [result.url]);
 
   const go = async () => {
     setBusy(true);
     if (isNative && entries) {
       await useDownloads.getState().enqueue(
-        entries.map((e) => ({ videoId: e.id, title: e.title, author: e.uploader })),
-        { playlistName: makePlaylist ? result.title : undefined },
+        entries.map((e) => ({ videoId: e.id, title: e.title, author: e.author })),
+        { playlistName: makePlaylist ? title : undefined },
       );
     } else if (!isNative) {
       await useSend.getState().send(result);
@@ -383,8 +404,8 @@ function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () 
             <LoaderCircle className="spin" size={18} /> {t('dl.loadingPlaylist')}
           </div>
         )}
-        {error && <div className="error-text">{t('dl.playlistFailed')}</div>}
-        {entries && (
+        {error && <div className="error-text small">{error}</div>}
+        {entries && entries.length > 0 && (
           <div className="dl-entries">
             {entries.map((e, i) => (
               <div key={e.id} className="small ellipsis">
@@ -400,7 +421,7 @@ function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () 
               checked={makePlaylist}
               onChange={(e) => setMakePlaylist(e.target.checked)}
             />
-            {t('dl.makePlaylist', { name: result.title })}
+            {t('dl.makePlaylist', { name: title })}
           </label>
         )}
         {!isNative && <p className="small muted">{t('send.playlistHint')}</p>}
@@ -459,6 +480,7 @@ function Queue() {
 
   return (
     <>
+      {active.length > 0 && <BatteryHint />}
       {(active.length > 0 || failed.length > 0) && (
         <section>
           <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -566,11 +588,52 @@ function JobRow({ job }: { job: DownloadJob }) {
   );
 }
 
+/**
+ * Android may pause apps in the background to save battery. Downloads with
+ * the screen off need the app to be exempt: ask, explained in plain words.
+ */
+function BatteryHint() {
+  const t = useT();
+  const [restricted, setRestricted] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      void AskeNative.batteryStatus()
+        .then((s) => setRestricted(!s.unrestricted))
+        .catch(() => setRestricted(false));
+    check();
+    const onVisible = () => document.visibilityState === 'visible' && check();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+  if (!restricted) return null;
+  return (
+    <div className="banner dl-battery">
+      <BatteryWarning size={20} />
+      <div className="grow small">{t('dl.batteryText')}</div>
+      <button
+        className="btn small primary"
+        onClick={() => void AskeNative.requestBatteryExemption()}
+      >
+        {t('dl.batteryButton')}
+      </button>
+    </div>
+  );
+}
+
 /** Where downloaded songs go (and, with Cloudflare, whether to keep a copy here). */
 function WherePanel() {
   const t = useT();
   const keepOffline = useDownloads((s) => s.keepOffline);
   const home = useSetup((s) => s.config?.home);
+  const [used, setUsed] = useState<{ used: number; limit: number } | null>(null);
+  const jobsDone = useDownloads((s) => s.jobs.filter((j) => j.status === 'done').length);
+  useEffect(() => {
+    if (home !== 'cloudflare') return;
+    api
+      .storage()
+      .then((st) => setUsed({ used: st.usedBytes, limit: st.limitBytes }))
+      .catch(() => undefined);
+  }, [home, jobsDone]);
   return (
     <div className="panel dl-where small">
       {home === 'cloudflare' ? (

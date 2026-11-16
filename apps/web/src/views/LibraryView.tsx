@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { CircleCheck, Library, Play, Search, Shuffle, WifiOff } from 'lucide-react';
 import { useSearch } from 'wouter';
 import { songCount, useT } from '../i18n';
-import { formatLongDuration, normalizeText } from '../lib/format';
+import { formatBytes, formatLongDuration, normalizeText } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
@@ -58,6 +58,10 @@ export function LibraryView() {
   }, [all, filter, entries, deferredQuery, sort]);
 
   const totalMs = useMemo(() => tracks.reduce((sum, tr) => sum + tr.durationMs, 0), [tracks]);
+  const totalBytes = useMemo(
+    () => tracks.reduce((sum, tr) => sum + (tr.sizeBytes || 0), 0),
+    [tracks],
+  );
   const ids = useMemo(() => tracks.map((tr) => tr.id), [tracks]);
   const context = { label: t('nav.library'), path: '/' };
   const play = (startId: string | null, shuffle?: boolean) =>
@@ -166,7 +170,8 @@ export function LibraryView() {
             </select>
           </div>
           <p className="muted small" style={{ margin: '0 0 6px' }}>
-            {songCount(t, tracks.length)} · {formatLongDuration(totalMs)}
+            {songCount(t, tracks.length)} · {formatLongDuration(totalMs)} ·{' '}
+            {formatBytes(totalBytes)}
           </p>
 
           {tracks.length === 0 ? (

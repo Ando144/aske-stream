@@ -12,6 +12,11 @@ export interface Env {
   ACCESS_KEY?: string;
   /** Extra origins allowed to call the API (comma-separated), e.g. a self-hosted web app. */
   CORS_ORIGINS?: string;
+  /**
+   * Storage budget in GB (default 10: Cloudflare R2's free allowance).
+   * Uploads that would go over it are refused, so nobody ends up paying.
+   */
+  STORAGE_LIMIT_GB?: string;
 }
 
 export interface AppEnv {

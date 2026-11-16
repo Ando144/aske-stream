@@ -64,6 +64,47 @@ public class AskeNativePlugin extends Plugin {
         }
     }
 
+    /** Free and total space of the phone's internal storage (where the app keeps music). */
+    @PluginMethod
+    public void storageInfo(PluginCall call) {
+        android.os.StatFs fs = new android.os.StatFs(getContext().getFilesDir().getAbsolutePath());
+        JSObject ret = new JSObject();
+        ret.put("freeBytes", fs.getAvailableBytes());
+        ret.put("totalBytes", fs.getTotalBytes());
+        call.resolve(ret);
+    }
+
+    /* --------------------------- battery saver ---------------------------- */
+
+    /** Whether Android's battery optimisation may pause the app in the background. */
+    @PluginMethod
+    public void batteryStatus(PluginCall call) {
+        PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+        JSObject ret = new JSObject();
+        ret.put("unrestricted", pm.isIgnoringBatteryOptimizations(getContext().getPackageName()));
+        call.resolve(ret);
+    }
+
+    /** Shows Android's own "Let the app always run in the background?" question. */
+    @PluginMethod
+    public void requestBatteryExemption(PluginCall call) {
+        Context ctx = getContext();
+        try {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + ctx.getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception e) {
+            try {
+                Intent fallback = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(fallback);
+            } catch (Exception ignored) {
+                // nothing else to open
+            }
+        }
+        call.resolve();
+    }
+
     /* ------------------------------ keep awake ---------------------------- */
 
     @PluginMethod

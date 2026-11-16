@@ -1744,3 +1744,42 @@ h2,
   color: inherit;
   text-decoration: none;
 }
+
+.dl-battery {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.storage-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.storage-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.storage-item.row {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.storage-item:last-child {
+  border-bottom: 0;
+}
+
+.storage-item .row {
+  gap: 16px;
+}
+
+.meter .danger {
+  background: var(--danger);
+}

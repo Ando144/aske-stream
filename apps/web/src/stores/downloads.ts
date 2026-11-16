@@ -3,10 +3,10 @@ import { Capacitor } from '@capacitor/core';
 import { LIMITS } from '@aske/shared';
 import { metadataFromYoutube, youtubePlaylistId, youtubeVideoId } from '@aske/shared/youtube';
 import { api, ApiError } from '../api/client';
-import { t } from '../i18n';
+import { t, useI18n } from '../i18n';
 import { squareJpeg } from '../lib/cover';
 import { loadValue, savePref } from '../lib/storage';
-import { Downloader } from '../native/downloader';
+import { Downloader, listPlaylistOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
 import { deleteDeviceFile, saveDeviceFile } from '../storage/deviceFiles';
 import { deviceHome, fromRemote, newLocalId } from '../storage/homes';
@@ -93,6 +93,9 @@ const isFinished = (j: DownloadJob) => !isActive(j);
 /** Turns yt-dlp's English errors into something the user can act on. */
 export function friendlyError(raw: string): string {
   const m = raw.toLowerCase();
+  if (m.includes('storage is full') || m.includes('storage_full')) return t('dl.err.cloudFull');
+  if (m.includes('quota') || m.includes('no space') || m.includes('enospc'))
+    return t('dl.err.phoneFull');
   if (m.includes('confirm you') && m.includes('bot')) return t('dl.err.bot');
   if (m.includes('private video') || m.includes('unavailable') || m.includes('removed'))
     return t('dl.err.unavailable');
@@ -198,12 +201,18 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       return;
     }
     const current = active.find((j) => j.status !== 'queued') ?? active[0]!;
-    const batch = jobs.filter((j) => j.createdAt >= (active[active.length - 1]?.createdAt ?? 0));
-    const done = batch.filter(isFinished).length;
+    // This "batch": everything queued since the oldest song still waiting.
+    const since = Math.min(...active.map((j) => j.createdAt));
+    const batch = jobs.filter((j) => j.createdAt >= since);
+    const position = batch.filter(isFinished).length + 1;
+    const left = active.length - 1;
     await Downloader.setNotification({
       active: true,
-      title: t('dl.notifTitle'),
-      text: t('dl.notifText', { done: done + 1, total: batch.length, title: current.title }),
+      title: t('dl.notifTitle', { done: position, total: batch.length }),
+      text:
+        left > 0
+          ? t('dl.notifText', { title: current.title, count: left })
+          : t('dl.notifTextLast', { title: current.title }),
       progress: Math.round(current.progress),
     }).catch(() => undefined);
   }
@@ -390,10 +399,10 @@ export const useDownloads = create<DownloadsState>((set, get) => {
         return get().enqueue([{ videoId, title: videoId, author: '' }], { sendId });
       }
       if (!youtubePlaylistId(url)) throw new Error('Not a YouTube link');
-      await ensureEngine();
-      const list = await Downloader.list({ url });
+      const list = await listPlaylistOnPhone(url, useI18n.getState().language);
+      if (!list.entries.length) throw new Error('Empty or private playlist');
       return get().enqueue(
-        list.entries.map((e) => ({ videoId: e.id, title: e.title, author: e.uploader })),
+        list.entries.map((e) => ({ videoId: e.id, title: e.title, author: e.author })),
         { playlistName: list.title || undefined, sendId },
       );
     },

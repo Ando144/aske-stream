@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildBrowseRequest,
   buildSearchRequest,
+  parsePlaylistPage,
   parseDuration,
   parseSearchResponse,
   youtubePlaylistId,
@@ -211,5 +213,73 @@ describe('search answer', () => {
   it('never throws on unexpected answers', () => {
     expect(parseSearchResponse(null)).toEqual([]);
     expect(parseSearchResponse({ weird: [1, 'a', { videoRenderer: {} }] })).toEqual([]);
+  });
+});
+
+describe('playlist pages', () => {
+  it('asks for the first page by id and the next ones by token', () => {
+    expect(JSON.parse(buildBrowseRequest('PLabc', null).body).browseId).toBe('VLPLabc');
+    expect(JSON.parse(buildBrowseRequest('PLabc', 'TOKEN').body)).toMatchObject({
+      continuation: 'TOKEN',
+    });
+  });
+
+  it('reads songs, skips unplayable ones and finds the next page', () => {
+    const page = {
+      metadata: { playlistMetadataRenderer: { title: 'Euskal rock' } },
+      header: { playlistHeaderRenderer: { ownerText: { runs: [{ text: 'Someone' }] } } },
+      contents: [
+        {
+          playlistVideoRenderer: {
+            videoId: 'aaaaaaaaaaa',
+            title: { runs: [{ text: 'Song A' }] },
+            shortBylineText: { runs: [{ text: 'Band A' }] },
+            lengthSeconds: '201',
+          },
+        },
+        {
+          playlistVideoRenderer: {
+            videoId: 'bbbbbbbbbbb',
+            title: { simpleText: '[Deleted video]' },
+            isPlayable: false,
+          },
+        },
+        { playlistVideoRenderer: { videoId: 'aaaaaaaaaaa', title: { runs: [{ text: 'dup' }] } } },
+        {
+          continuationItemRenderer: {
+            continuationEndpoint: { continuationCommand: { token: 'NEXT' } },
+          },
+        },
+      ],
+    };
+    expect(parsePlaylistPage(page)).toEqual({
+      title: 'Euskal rock',
+      author: 'Someone',
+      entries: [{ id: 'aaaaaaaaaaa', title: 'Song A', author: 'Band A', duration: 201 }],
+      continuation: 'NEXT',
+    });
+  });
+
+  it('a continuation answer has songs and maybe no further token', () => {
+    const next = {
+      onResponseReceivedActions: [
+        {
+          appendContinuationItemsAction: {
+            continuationItems: [
+              {
+                playlistVideoRenderer: {
+                  videoId: 'ccccccccccc',
+                  title: { runs: [{ text: 'C' }] },
+                  lengthSeconds: '60',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const r = parsePlaylistPage(next);
+    expect(r.entries.map((e) => e.id)).toEqual(['ccccccccccc']);
+    expect(r.continuation).toBeNull();
   });
 });

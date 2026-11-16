@@ -58,6 +58,9 @@ async function startWorker() {
       persistDir,
       '--var',
       `ACCESS_KEY:${key}`,
+      // 2 MB budget so the "storage full" check can be tested with small files.
+      '--var',
+      'STORAGE_LIMIT_GB:0.002',
       '--show-interactive-dev-session=false',
     ],
     { cwd: apiDir, stdio: ['ignore', 'pipe', 'pipe'], shell: isWin },
@@ -379,6 +382,15 @@ async function main() {
       headers: { authorization: `Bearer ${key}` },
     });
     assert.match(audio.headers.get('content-type'), /audio\/webm/);
+  });
+
+  await step('storage stats and the free-tier budget', async () => {
+    const stats = await json(await api('/api/library/storage'));
+    assert.equal(stats.limitBytes, 2_000_000);
+    assert.ok(stats.usedBytes > 0 && stats.trackCount > 0, JSON.stringify(stats));
+    const big = await upload(meta(10), fakeOgg(2_100_000), false);
+    assert.equal(big.status, 507, await big.clone().text());
+    assert.equal((await big.json()).error, 'storage_full');
   });
 
   await step('send to phone: queue, claim, finish, validation', async () => {

@@ -316,9 +316,18 @@ public class DownloaderPlugin extends Plugin {
             call.resolve();
             return;
         }
-        intent.putExtra("title", call.getString("title", ""));
-        intent.putExtra("text", call.getString("text", ""));
-        intent.putExtra("progress", call.getInt("progress", -1));
+        String title = call.getString("title", "");
+        String text = call.getString("text", "");
+        int progress = call.getInt("progress", -1);
+        if (DownloadService.running) {
+            // Already in the foreground: just refresh the notification (works with the app in the background).
+            DownloadService.update(ctx, title, text, progress);
+            call.resolve();
+            return;
+        }
+        intent.putExtra("title", title);
+        intent.putExtra("text", text);
+        intent.putExtra("progress", progress);
         try {
             ContextCompat.startForegroundService(ctx, intent);
             call.resolve();

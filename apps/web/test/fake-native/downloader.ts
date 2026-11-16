@@ -96,3 +96,17 @@ export async function searchOnPhone(query: string, kind: SearchKind): Promise<Se
     url: `https://www.youtube.com/watch?v=${id}`,
   }));
 }
+
+export async function listPlaylistOnPhone(url: string) {
+  const list = await Downloader.list({ url });
+  return {
+    title: list.title,
+    author: list.uploader,
+    entries: list.entries.map((e) => ({
+      id: e.id,
+      title: e.title,
+      author: e.uploader,
+      duration: e.duration,
+    })),
+  };
+}

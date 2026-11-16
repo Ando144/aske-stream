@@ -127,6 +127,17 @@ export interface SendItem {
   updatedAt: number;
 }
 
+/** How full the owner's Cloudflare storage is. */
+export interface StorageStats {
+  trackCount: number;
+  /** Audio + estimated covers, in bytes. */
+  usedBytes: number;
+  /** The budget (10 GB by default: R2's free allowance). */
+  limitBytes: number;
+  /** Uploads stop here (a little below the budget, to stay free). */
+  uploadLimitBytes: number;
+}
+
 /** Shared validation limits so the UI and the API agree. */
 export const LIMITS = {
   titleMax: 300,

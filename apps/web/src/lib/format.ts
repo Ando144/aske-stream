@@ -19,10 +19,15 @@ export function formatLongDuration(ms: number): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
+/** Decimal units, like Android's own storage screen and Cloudflare's free tier (10 GB). */
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
-  const mb = bytes / (1024 * 1024);
-  return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(mb < 10 ? 1 : 0)} MB`;
+  const mb = bytes / 1_000_000;
+  if (mb >= 1000) {
+    const gb = mb / 1000;
+    return `${gb.toLocaleString(undefined, { maximumFractionDigits: gb < 10 ? 2 : 1 })} GB`;
+  }
+  return `${mb.toLocaleString(undefined, { maximumFractionDigits: mb < 10 ? 1 : 0 })} MB`;
 }
 
 /** Accent/case-insensitive matching for search boxes ("Pablo Alboran" finds "Pablo Alborán"). */
