@@ -9,6 +9,7 @@ import { usePodcasts } from '../stores/podcasts';
 import { useUi } from '../stores/ui';
 import { Cover } from '../components/Cover';
 import { SettingsLink } from '../components/SettingsLink';
+import { ScreenTip } from '../components/ScreenTip';
 
 interface Show {
   name: string;
@@ -53,6 +54,7 @@ export function PodcastsView() {
         <h1>{t('podcasts.title')}</h1>
         <SettingsLink />
       </header>
+      <ScreenTip id="podcasts" text="tips.podcasts" helpId="podcasts" />
 
       {shows.length === 0 && (
         <div className="empty">

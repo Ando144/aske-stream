@@ -12,6 +12,8 @@ import { ImportButton } from '../components/ImportButton';
 import { TrackList } from '../components/TrackList';
 import { useSetup } from '../stores/setup';
 import { SettingsLink } from '../components/SettingsLink';
+import { ScreenTip } from '../components/ScreenTip';
+import { FirstSteps } from '../components/FirstSteps';
 
 type Filter = 'all' | 'liked' | 'downloaded';
 type Sort = 'recent' | 'title' | 'artist';
@@ -76,6 +78,7 @@ export function LibraryView() {
           <SettingsLink />
         </div>
       </header>
+      <ScreenTip id="library" text="tips.library" helpId="queue" />
 
       {target && <div className="banner accent">{t('select.pickHint', { name: target.name })}</div>}
       {!online && (
@@ -84,6 +87,7 @@ export function LibraryView() {
         </div>
       )}
 
+      {loaded && <FirstSteps />}
       {loaded && all.length === 0 ? (
         <div className="empty">
           <Library size={40} />
@@ -91,9 +95,7 @@ export function LibraryView() {
           {home === 'device' ? (
             <p className="small">{t('library.emptyDevice')}</p>
           ) : (
-            <p className="small">
-              <code>{t('library.emptyHint')}</code>
-            </p>
+            <p className="small">{t('library.emptyHint')}</p>
           )}
           {error && <p className="error-text">{error}</p>}
         </div>

@@ -23,6 +23,9 @@ import { RadioView } from './views/RadioView';
 import { SettingsView } from './views/SettingsView';
 import { PodcastsView } from './views/PodcastsView';
 import { DownloadView } from './views/DownloadView';
+import { HelpView } from './views/HelpView';
+import { WelcomeView } from './views/WelcomeView';
+import { useTips } from './stores/tips';
 import { useDownloads } from './stores/downloads';
 import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
@@ -31,6 +34,8 @@ import { useUi } from './stores/ui';
 export function App() {
   const status = useSetup((s) => s.status);
   const home = useSetup((s) => s.config?.home);
+  const changing = useSetup((s) => s.changing);
+  const welcomeSeen = useTips((s) => s.welcomeSeen);
 
   useEffect(() => {
     void useSetup.getState().init();
@@ -42,6 +47,9 @@ export function App() {
         <LoaderCircle className="spin" size={32} color="var(--accent)" />
       </div>
     );
+  }
+  if (status === 'choose' && !welcomeSeen && !changing) {
+    return <WelcomeView onDone={() => useTips.getState().finishWelcome()} />;
   }
   if (status === 'choose') return <SetupView />;
   if (status === 'pair') return <PairView />;
@@ -118,6 +126,9 @@ function Shell() {
           <Route path="/podcasts" component={PodcastsView} />
           <Route path="/radio" component={RadioView} />
           <Route path="/download" component={DownloadView} />
+          <Route path="/help">{() => <HelpView />}</Route>
+          <Route path="/help/:id">{(params) => <HelpView key={params.id} id={params.id} />}</Route>
+          <Route path="/welcome">{() => <Replay />}</Route>
           <Route path="/offline" component={OfflineView} />
           <Route path="/settings" component={SettingsView} />
           <Route>
@@ -136,4 +147,10 @@ function Shell() {
       <Toasts />
     </div>
   );
+}
+
+/** Settings → Help → "Show the introduction again". */
+function Replay() {
+  const [, navigate] = useLocation();
+  return <WelcomeView onDone={() => navigate('/')} />;
 }

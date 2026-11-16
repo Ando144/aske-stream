@@ -25,14 +25,16 @@ export const eu: Messages = {
   'common.songs': '{count} abesti',
   'common.offlineBanner': 'Konexiorik gabe zaude: deskargatutako musika bakarrik dago eskuragarri',
 
-  'pair.title': 'Lotu gailu hau',
+  'pair.title': 'Konektatu zure Cloudflarera',
   'pair.subtitle':
-    'Aske Stream-ek ez du konturik. Itsatsi zure instantziaren sarbide-gakoa behin, eta gailu hau konektatuta geratuko da.',
-  'pair.keyLabel': 'Sarbide-gakoa',
-  'pair.submit': 'Lotu gailua',
+    'Idatzi zure Aske Streamen helbidea eta gakoa. Behin bakarrik egin behar da mugikor edo ordenagailu bakoitzean; gero aplikazioa bere kabuz sartzen da.',
+  'pair.keyLabel': 'Gakoa',
+  'pair.submit': 'Konektatu',
   'pair.invalid': 'Gako hori ez da baliozkoa.',
-  'pair.notConfigured': 'Zerbitzariak ez du oraindik ACCESS_KEY konfiguratuta. Ikusi hedapen-gida.',
-  'pair.help': 'Aholkua: ireki https://<zure-aplikazioa>/#key=<gakoa> ukitu batean lotzeko.',
+  'pair.notConfigured':
+    'Zure zerbitzaria erdi prestatuta dago: oraindik ez du gakorik. Instalatu zuenak gidako urrats hori amaitu behar du.',
+  'pair.help':
+    'Helbidea eta gakoa zure Cloudflare prestatu zuenak ditu. Zu izan bazinen, proiektuaren karpetako .env fitxategian daude, ASKE_URL eta ASKE_ACCESS_KEY lerroetan.',
 
   'library.title': 'Zure liburutegia',
   'library.search': 'Bilatu abestiak, artistak edo albumak',
@@ -44,7 +46,7 @@ export const eu: Messages = {
   'library.sortArtist': 'Artista',
   'library.empty': 'Zure liburutegia hutsik dago',
   'library.emptyHint':
-    'Gehitu musika ingest CLI-arekin: npm run ingest -- <YouTube esteka edo fitxategia>',
+    'Musika gehitzeko, joan «Deskargatu» atalera: Android aplikazioan abestiak bilatu eta deskargatzen dituzu, eta ordenagailutik mugikorrera bidaltzen dizkiozu.',
   'library.noResults': 'Ez dago bilaketarekin bat datorren abestirik',
   'library.unknownArtist': 'Artista ezezaguna',
 
@@ -75,7 +77,7 @@ export const eu: Messages = {
   'track.removeDownload': 'Ezabatu deskarga',
   'track.delete': 'Ezabatu liburutegitik',
   'track.deleteConfirm':
-    '«{title}» zure liburutegitik ezabatu? Audio-fitxategia hodeitik ezabatuko da.',
+    '«{title}» zure liburutegitik ezabatu? Betiko ezabatuko da, abestiaren fitxategia barne.',
   'track.notAvailable': 'Deskargatu gabe',
 
   'sheet.addToPlaylist': 'Gehitu zerrenda batera',
@@ -110,11 +112,11 @@ export const eu: Messages = {
   'radio.loadMore': 'Kargatu gehiago',
   'radio.noResults': 'Ez da irratirik aurkitu',
   'radio.catalogError': 'Irratien katalogoa ez dago eskuragarri une honetan.',
-  'radio.addCustom': 'Gehitu irratia URL bidez',
+  'radio.addCustom': 'Gehitu irrati bat bere estekarekin',
   'radio.customName': 'Izena',
-  'radio.customUrl': 'Stream-aren URLa',
+  'radio.customUrl': 'Irratiaren esteka',
   'radio.customUrlHint':
-    'https:// edo http://-rekin hasten da (MP3, AAC, Ogg edo HLS .m3u8). http:// irratiak Android aplikazioan bakarrik entzuten dira.',
+    'Irratiaren webgunean aurkituko duzu (batzuetan «entzun beste erreproduzitzaile batean» jartzen du). https:// edo http:// hasten da. http:// hasten direnak Android aplikazioan bakarrik entzuten dira.',
   'radio.like': 'Gustatzen zait irrati hau',
   'radio.unlike': 'Kendu gogokoetatik',
   'radio.remove': 'Kendu irratia',
@@ -126,7 +128,7 @@ export const eu: Messages = {
   'offline.subtitle':
     'Zure liburutegiko hautaketa aldakor bat gordetzen da mugikor honetan. Entzundako abestiak beste berri batzuekin ordezkatzen dira denbora baten ondoren.',
   'offline.quota': 'Lineaz kanpoko musika',
-  'offline.rotateAfter': 'Ordezkatu entzundakoak',
+  'offline.rotateAfter': 'Aldatu entzundakoak hau igarotakoan:',
   'offline.autoFill': 'Bete automatikoki',
   'offline.autoFillHint': 'Aukeratu zure liburutegiko abestiak ausaz mugara iritsi arte.',
   'offline.allowCellular': 'Deskargatu datu mugikorrekin',
@@ -135,14 +137,14 @@ export const eu: Messages = {
   'offline.usage': '{used} erabilita, {quota} guztira',
   'offline.pinnedCount': 'Zuk deskargatuak: {count}',
   'offline.autoCount': 'Automatikoak: {count}',
-  'offline.pinned': 'Finkatua',
-  'offline.auto': 'Auto',
+  'offline.pinned': 'Zuk aukeratua',
+  'offline.auto': 'Automatikoa',
   'offline.heard': 'Entzunda',
-  'offline.rotatesIn': '{time} ordezkatuko da',
-  'offline.rotatesSoon': 'hurrengo sinkronizazioan ordezkatuko da',
-  'offline.refresh': 'Sinkronizatu orain',
-  'offline.running': 'Sinkronizatzen…',
-  'offline.lastRun': 'Azken sinkronizazioa: {time}',
+  'offline.rotatesIn': '{time} aldatuko da',
+  'offline.rotatesSoon': 'hurrengo eguneraketan aldatuko da',
+  'offline.refresh': 'Eguneratu orain',
+  'offline.running': 'Eguneratzen…',
+  'offline.lastRun': 'Azken eguneraketa: {time}',
   'offline.never': 'inoiz ez',
   'offline.clearAuto': 'Ezabatu deskarga automatikoak',
   'offline.clearAutoConfirm':
@@ -318,13 +320,65 @@ export const eu: Messages = {
   'dl.err.phoneFull': 'Ez dago lekurik mugikorrean. Askatu lekua eta saiatu berriro.',
   'dl.cloudUsed': 'Zure Cloudflaren erabilita: {used} / {limit} doan',
   'storage.freeOf': '{free} libre / {total}',
+  'help.title': 'Laguntza',
+  'help.subtitle': 'Ohiko zalantzei erantzun laburrak. Bilatu edo aukeratu gai bat.',
+  'help.search': 'Bilatu laguntzan (adibidez: zerrenda, irratia, lekua)',
+  'help.noResults': 'Ez dago hitz horiek dituen artikulurik. Saiatu errazagoekin.',
+  'help.related': 'Gai honi buruz gehiago',
+  'help.learnMore': 'Informazio gehiago',
+  'settings.helpCenter': 'Laguntza-gunea',
+  'settings.helpCenterHint': 'Ohiko galderak eta urratsez urratseko gidak',
+  'settings.replayIntro': 'Erakutsi sarrera berriro',
+  'settings.resetTips': 'Erakutsi aholkuak berriro',
+  'settings.tipsReset': 'Aholkuak berriro agertuko dira pantaila bakoitzean',
+  'tips.gotIt': 'Ulertuta',
+  'tips.library':
+    'Ukitu abesti bat entzuteko. Eutsi bat sakatuta batzuk batera aukeratzeko, eta irristatu eskuinera ilarara gehitzeko.',
+  'tips.playlists':
+    'Sortu zerrendak zure musika antolatzeko. «Gogoko abestiak» bere kabuz betetzen da abesti baten bihotza sakatzean.',
+  'tips.podcasts':
+    'Hemen doaz hitzaldiak eta elkarrizketak, musikatik bereizita. Aplikazioak gogoratzen du atal bakoitzean non zinen.',
+  'tips.radio':
+    'Bilatu irratiak izenez, herrialdez edo generoz. Sakatu bihotza beti goian edukitzeko, «Zure irratiak» atalean.',
+  'tips.offline':
+    'Hemen erabakitzen duzu zenbat musika gordetzen duen mugikorrak Internetik ez duzunerako. Aplikazioak bere kabuz berritzen du.',
+  'firstSteps.title': 'Lehen urratsak',
+  'firstSteps.progress': '{done}/{total}',
+  'firstSteps.hide': 'Ezkutatu lehen urratsak',
+  'firstSteps.song': 'Lortu zure lehen abestia',
+  'firstSteps.playlist': 'Sortu zerrenda bat',
+  'firstSteps.radio': 'Gorde zure irrati gogokoena',
+  'firstSteps.help': 'Begiratu laguntzari',
+  'welcome.1.title': 'Zure musika, benetan zurea',
+  'welcome.1.text':
+    'Aske Stream Spotify bezalakoa da, baina musika zurea da: behin lortzen duzu eta nahi duzunean entzuten duzu, iragarkirik eta harpidetzarik gabe.',
+  'welcome.2.title': 'Lortu musika segundotan',
+  'welcome.2.text':
+    'Bilatu YouTubeko abestiak edo zerrendak eta deskargatu ukitu batekin Android aplikazioan. Zure fitxategiak inportatu edo ordenagailutik abestiak bidali ere egin dezakezu.',
+  'welcome.3.title': 'Entzun edonon',
+  'welcome.3.text':
+    'Internetik gabe, pantaila itzalita eta blokeo-pantailatik. Zerrendekin, podcastekin eta mundu osoko milaka irratirekin.',
+  'welcome.4.title': 'Zuk erabakitzen duzu non gorde',
+  'welcome.4.text':
+    'Orain aukeratzen duzu non gorde zure musika: mugikor honetan (errazena) edo zure Cloudflare propioan (ordenagailuan ere izateko). Nahi duzunean alda dezakezu, eta beste inork ezin du ikusi.',
+  'welcome.next': 'Hurrengoa',
+  'welcome.skip': 'Saltatu',
+  'welcome.start': 'Hasi',
+  'welcome.step': '{n}/{total} urratsa',
+  'setup.helpChoose': 'Ez dakizu zein aukeratu?',
+  'pair.problemsLink': 'Ez da konektatzen? Ikusi irtenbideak',
+  'pair.subtitleKeyOnly':
+    'Idatzi zure Aske Streamen gakoa. Behin bakarrik egin behar da mugikor edo ordenagailu bakoitzean; gero aplikazioa bere kabuz sartzen da.',
+  'pair.helpKeyOnly':
+    'Gakoa zure Cloudflare prestatu zuenak du. Zu izan bazinen, proiektuaren karpetako .env fitxategian dago, ASKE_ACCESS_KEY lerroan.',
   'settings.about': 'Honi buruz',
   'settings.aboutText':
-    'Aske Stream kode irekiko musika-hodei autoostatatua da, Cloudflare Workers, D1 eta R2 gainean eraikia.',
+    'Aske Stream kode irekiko musika aplikazio bat da: musika zurea da eta zuk erabakitzen duzu non gorde. Zerbitzaridun bertsioa Cloudflareren doako planean dabil.',
   'settings.source': 'Iturburu-kodea GitHub-en',
-  'settings.persistent': 'Biltegiratze iraunkorra',
-  'settings.persistentOn': 'Emanda: nabigatzaileak ez ditu zure deskargak ezabatuko',
-  'settings.persistentOff': 'Eman gabe: nabigatzaileak deskargak ezaba ditzake lekurik ez badago',
+  'settings.persistent': 'Babestu deskargatutako abestiak',
+  'settings.persistentOn': 'Aktibatuta: nabigatzaileak ez ditu ezabatuko',
+  'settings.persistentOff':
+    'Desaktibatuta: ordenagailuak lekurik gabe geratzen bada, nabigatzaileak ezaba ditzake',
 
   'toast.offline': 'Konexiorik gabe zaude',
   'toast.error': 'Zerbait gaizki atera da',
@@ -372,7 +426,7 @@ export const eu: Messages = {
   'setup.cloudflare.desc':
     'Zure musika-zerbitzari pribatua, Cloudflare-ren doako planean. Ezin hobea lehen aldian norbaitek laguntzen badizu.',
   'setup.cloudflare.pros':
-    'Erreprodukziorik azkarrena, gailu guztietan|10 GB doan (2.500 abesti inguru)|Lineaz kanpoko txandakatze adimenduna mugikorrean',
+    'Erreprodukziorik azkarrena, gailu guztietan|10 GB doan (2.500 abesti inguru)|Mugikorrak konexiorik gabe entzuteko hautaketa bat gordetzen du, bere kabuz berritzen dena',
   'setup.cloudflare.cons':
     '10 minutu inguru konfiguratzeko, ordenagailu batekin|Cloudflare-k txartel bat eskatzen du doako plana aktibatzeko (ez du ezer kobratzen 10 GB-tik behera)',
   'setup.sizeTitle': 'Zenbat leku hartzen du musikak?',
@@ -393,22 +447,22 @@ export const eu: Messages = {
   'pair.problem.unreachable':
     'Ez da zure zerbitzaria aurkitu helbide horretan. Begiratu ondo idatzita dagoela (itxura hau du: https://aske-stream.zure-izena.workers.dev). Trikimailua: ireki mugikorreko nabigatzailean; aplikazioa ikusten baduzu, helbidea zuzena da.',
   'pair.problem.blocked':
-    'Zure zerbitzariak erantzuten du, baina ez dio aplikazioari sartzen uzten. Normalean zerbitzariak bertsio zaharra duelako gertatzen da: ordenagailuan, exekutatu npm run deploy eta saiatu berriro.',
+    'Zure zerbitzariak erantzuten du, baina ez dio aplikazioari sartzen uzten. Normalean bertsio zaharra duelako da: eskatu prestatu zuenari eguneratzeko (bere ordenagailuan: npm run deploy).',
   'pair.notAske':
     'Helbide horretan zerbait dago, baina ez dirudi zure Aske Stream denik. Begiratu helbidea.',
   'pair.details': 'Xehetasun teknikoak (norbaitek laguntzen badizu)',
   'pair.back': 'Beste aukera bat hautatu',
-  'pair.notSetUp': 'Oraindik ez duzu prestatuta? Jarraitu urratsez urratseko gida.',
+  'pair.notSetUp': 'Non aurkitzen ditut helbidea eta gakoa?',
   'library.import': 'Inportatu fitxategiak',
   'library.importHint': 'Gehitu gailu honetan dituzun abestiak (MP3, M4A, FLAC, OGG…).',
   'library.emptyDevice':
-    'Zure liburutegia hutsik dago. Sakatu «Inportatu fitxategiak» gailu honetako abestiak gehitzeko. YouTube-n bilatzea eta deskargatzea Android aplikazioarekin iritsiko da.',
+    'Sakatu «Inportatu fitxategiak» dagoeneko dituzun abestiak gehitzeko, edo erabili «Deskargatu» Android aplikazioan YouTuben bilatzeko.',
   'toast.importing': '{count} abesti inportatzen…',
   'toast.imported': '{count} abesti gehituta',
   'toast.importSkipped': '{count} lehendik zeuden zure liburutegian',
   'toast.importFailed': 'Ezin izan da «{name}» inportatu',
   'offline.deviceHome':
-    'Zure musika guztia gailu honetan gordeta dago, beraz Internetik gabe entzuten da jada. Txandakatze automatikoa hodeian gordetako musikarentzat da.',
+    'Zure musika guztia gailu honetan gordeta dago, beraz Internetik gabe entzuten da jada. Pantaila honetako aldaketa automatikoak Cloudflaren gordetako musikarentzat dira.',
   'settings.storage': 'Non gordetzen den zure musika',
   'settings.storageChange': 'Aldatu',
   'nav.podcasts': 'Podcastak',
@@ -461,7 +515,7 @@ export const eu: Messages = {
   'settings.dataSaverHint':
     'Zerrenda batean Erreproduzitu sakatzean, lehenik gailu honetan gordetako abestiak entzungo dira, eta gero Internet behar dutenak. Abesti zehatz bat ukitzen baduzu, hori entzungo da.',
   'radio.httpOnly':
-    'Irrati honek zifratu gabe igortzen du (http://). Android aplikazioan dabil, baina nabigatzaileek blokeatzen dute.',
+    'Irrati honek nabigatzaileek blokeatzen duten konexio zahar bat (http://) erabiltzen du. Android aplikazioan bai, entzuten da.',
   'common.settings': 'Ezarpenak',
   'playlists.reorder': 'Ordena aldatu',
   'playlists.reorderDone': 'Eginda',

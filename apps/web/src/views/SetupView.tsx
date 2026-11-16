@@ -8,6 +8,7 @@ import {
   Smartphone,
   TriangleAlert,
 } from 'lucide-react';
+import { HelpButton } from '../components/HelpSheet';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { useT, type MessageKey } from '../i18n';
 import { useSetup } from '../stores/setup';
@@ -72,6 +73,7 @@ export function SetupView() {
         <img src="/icons/icon-192.png" alt="" width={64} height={64} />
         <h1>{changing ? t('setup.changeTitle') : t('setup.title')}</h1>
         <p className="muted">{changing ? t('setup.changeSubtitle') : t('setup.subtitle')}</p>
+        <HelpButton id="storage-options" label={t('setup.helpChoose')} />
         {changing && (
           <button className="btn" onClick={() => useSetup.getState().cancelChange()}>
             <ArrowLeft size={16} /> {t('setup.cancel')}
@@ -97,6 +99,7 @@ export function SetupView() {
                   )}
                 </header>
                 <p>{t(`setup.${id}.desc` as MessageKey)}</p>
+                {id === 'cloudflare' && <HelpButton id="cloudflare-what" />}
                 <div className="setup-lists">
                   <div>
                     <strong className="small">{t('setup.pros')}</strong>

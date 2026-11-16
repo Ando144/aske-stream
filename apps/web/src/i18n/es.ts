@@ -25,15 +25,16 @@ export const es: Messages = {
   'common.songs': '{count} canciones',
   'common.offlineBanner': 'Sin conexión: solo está disponible la música descargada',
 
-  'pair.title': 'Vincular este dispositivo',
+  'pair.title': 'Conectar con tu Cloudflare',
   'pair.subtitle':
-    'Aske Stream no tiene cuentas. Pega una vez la clave de acceso de tu instancia y este dispositivo quedará conectado.',
-  'pair.keyLabel': 'Clave de acceso',
-  'pair.submit': 'Vincular dispositivo',
+    'Escribe la dirección y la clave de tu Aske Stream. Solo hay que hacerlo una vez en cada móvil u ordenador; luego la app entra sola.',
+  'pair.keyLabel': 'Clave',
+  'pair.submit': 'Conectar',
   'pair.invalid': 'Esa clave no es válida.',
   'pair.notConfigured':
-    'El servidor aún no tiene configurada ACCESS_KEY. Consulta la guía de despliegue.',
-  'pair.help': 'Truco: abre https://<tu-app>/#key=<clave> para vincular con un toque.',
+    'Tu servidor está a medio montar: todavía no tiene clave. Quien lo instaló tiene que terminar ese paso de la guía.',
+  'pair.help':
+    'La dirección y la clave las tiene quien montó tu Cloudflare. Si fuiste tú, están en el archivo .env de la carpeta del proyecto, en las líneas ASKE_URL y ASKE_ACCESS_KEY.',
 
   'library.title': 'Tu biblioteca',
   'library.search': 'Busca canciones, artistas o álbumes',
@@ -45,7 +46,7 @@ export const es: Messages = {
   'library.sortArtist': 'Artista',
   'library.empty': 'Tu biblioteca está vacía',
   'library.emptyHint':
-    'Añade música con la CLI de ingesta: npm run ingest -- <enlace de YouTube o archivo>',
+    'Para añadir música, ve a «Descargar»: desde la app de Android buscas y descargas canciones, y desde el ordenador se las envías al móvil.',
   'library.noResults': 'Ninguna canción coincide con tu búsqueda',
   'library.unknownArtist': 'Artista desconocido',
 
@@ -76,7 +77,7 @@ export const es: Messages = {
   'track.removeDownload': 'Eliminar descarga',
   'track.delete': 'Eliminar de la biblioteca',
   'track.deleteConfirm':
-    '¿Eliminar «{title}» de tu biblioteca? Se borrará el archivo de audio de la nube.',
+    '¿Eliminar «{title}» de tu biblioteca? Se borrará para siempre, también el archivo de la canción.',
   'track.notAvailable': 'No descargada',
 
   'sheet.addToPlaylist': 'Añadir a una playlist',
@@ -111,11 +112,11 @@ export const es: Messages = {
   'radio.loadMore': 'Cargar más',
   'radio.noResults': 'No se han encontrado emisoras',
   'radio.catalogError': 'El catálogo de emisoras no está disponible ahora mismo.',
-  'radio.addCustom': 'Añadir emisora por URL',
+  'radio.addCustom': 'Añadir una emisora con su enlace',
   'radio.customName': 'Nombre',
-  'radio.customUrl': 'URL del stream',
+  'radio.customUrl': 'Enlace de la emisora',
   'radio.customUrlHint':
-    'Empieza por https:// o http:// (MP3, AAC, Ogg o HLS .m3u8). Las emisoras http:// solo suenan en la app de Android.',
+    'Lo encuentras en la web de la emisora (a veces pone «escuchar en otro reproductor»). Empieza por https:// o http://. Las que empiezan por http:// solo suenan en la app de Android.',
   'radio.like': 'Me gusta esta emisora',
   'radio.unlike': 'Quitar me gusta',
   'radio.remove': 'Quitar emisora',
@@ -127,7 +128,7 @@ export const es: Messages = {
   'offline.subtitle':
     'Una selección rotativa de tu biblioteca se guarda en este móvil. Las canciones que ya has escuchado se cambian por otras nuevas pasado un tiempo.',
   'offline.quota': 'Música sin conexión',
-  'offline.rotateAfter': 'Rotar las escuchadas tras',
+  'offline.rotateAfter': 'Cambiar las ya escuchadas tras',
   'offline.autoFill': 'Rellenar automáticamente',
   'offline.autoFillHint': 'Elige canciones al azar de tu biblioteca hasta llegar al límite.',
   'offline.allowCellular': 'Descargar con datos móviles',
@@ -136,14 +137,14 @@ export const es: Messages = {
   'offline.usage': '{used} de {quota} usados',
   'offline.pinnedCount': 'Descargadas por ti: {count}',
   'offline.autoCount': 'Automáticas: {count}',
-  'offline.pinned': 'Fijada',
-  'offline.auto': 'Auto',
+  'offline.pinned': 'Elegida por ti',
+  'offline.auto': 'Automática',
   'offline.heard': 'Escuchada',
-  'offline.rotatesIn': 'rota {time}',
-  'offline.rotatesSoon': 'rota en la próxima sincronización',
-  'offline.refresh': 'Sincronizar ahora',
-  'offline.running': 'Sincronizando…',
-  'offline.lastRun': 'Última sincronización: {time}',
+  'offline.rotatesIn': 'se cambia {time}',
+  'offline.rotatesSoon': 'se cambiará en la próxima actualización',
+  'offline.refresh': 'Actualizar ahora',
+  'offline.running': 'Actualizando…',
+  'offline.lastRun': 'Última actualización: {time}',
   'offline.never': 'nunca',
   'offline.clearAuto': 'Eliminar descargas automáticas',
   'offline.clearAutoConfirm':
@@ -318,14 +319,65 @@ export const es: Messages = {
   'dl.err.phoneFull': 'No queda espacio en el móvil. Libera espacio y vuelve a intentarlo.',
   'dl.cloudUsed': 'Usado en tu Cloudflare: {used} de {limit} gratis',
   'storage.freeOf': '{free} libres de {total}',
+  'help.title': 'Ayuda',
+  'help.subtitle': 'Respuestas cortas a las dudas más comunes. Busca o elige un tema.',
+  'help.search': 'Busca en la ayuda (por ejemplo: playlist, radio, espacio)',
+  'help.noResults': 'No hay artículos con esas palabras. Prueba con otras más sencillas.',
+  'help.related': 'Más sobre este tema',
+  'help.learnMore': 'Más información',
+  'settings.helpCenter': 'Centro de ayuda',
+  'settings.helpCenterHint': 'Preguntas frecuentes y guías paso a paso',
+  'settings.replayIntro': 'Ver la introducción otra vez',
+  'settings.resetTips': 'Volver a mostrar los consejos',
+  'settings.tipsReset': 'Los consejos volverán a aparecer en cada pantalla',
+  'tips.gotIt': 'Entendido',
+  'tips.library':
+    'Toca una canción para escucharla. Mantén pulsada una para elegir varias a la vez, y deslízala a la derecha para añadirla a la cola.',
+  'tips.playlists':
+    'Crea playlists para ordenar tu música. «Canciones que te gustan» se llena sola cuando pulsas el corazón de una canción.',
+  'tips.podcasts':
+    'Aquí van las charlas y entrevistas, separadas de la música. La app recuerda por dónde ibas en cada episodio.',
+  'tips.radio':
+    'Busca emisoras por nombre, país o género. Pulsa el corazón para tenerlas siempre arriba, en «Tus emisoras».',
+  'tips.offline':
+    'Aquí decides cuánta música guarda el móvil para cuando no tengas internet. La app la va renovando sola.',
+  'firstSteps.title': 'Primeros pasos',
+  'firstSteps.progress': '{done} de {total}',
+  'firstSteps.hide': 'Ocultar primeros pasos',
+  'firstSteps.song': 'Consigue tu primera canción',
+  'firstSteps.playlist': 'Crea una playlist',
+  'firstSteps.radio': 'Guarda tu emisora de radio favorita',
+  'firstSteps.help': 'Echa un vistazo a la ayuda',
+  'welcome.1.title': 'Tu música, de verdad tuya',
+  'welcome.1.text':
+    'Aske Stream es como Spotify, pero la música es tuya: la consigues una vez y la escuchas cuando quieras, sin anuncios ni suscripciones.',
+  'welcome.2.title': 'Consigue música en segundos',
+  'welcome.2.text':
+    'Busca canciones o playlists de YouTube y descárgalas con un toque desde la app de Android. También puedes importar tus archivos o enviar canciones desde el ordenador.',
+  'welcome.3.title': 'Escucha donde sea',
+  'welcome.3.text':
+    'Sin internet, con la pantalla apagada y desde la pantalla de bloqueo. Con playlists, podcasts y miles de radios de todo el mundo.',
+  'welcome.4.title': 'Tú decides dónde se guarda',
+  'welcome.4.text':
+    'Ahora eliges dónde guardar tu música: en este móvil (lo más sencillo) o en tu propio Cloudflare (para tenerla también en el ordenador). Puedes cambiarlo cuando quieras, y nadie más puede verla.',
+  'welcome.next': 'Siguiente',
+  'welcome.skip': 'Saltar',
+  'welcome.start': 'Empezar',
+  'welcome.step': 'Paso {n} de {total}',
+  'setup.helpChoose': '¿No sabes cuál elegir?',
+  'pair.problemsLink': '¿No conecta? Mira las soluciones',
+  'pair.subtitleKeyOnly':
+    'Escribe la clave de tu Aske Stream. Solo hay que hacerlo una vez en cada móvil u ordenador; luego la app entra sola.',
+  'pair.helpKeyOnly':
+    'La clave la tiene quien montó tu Cloudflare. Si fuiste tú, está en el archivo .env de la carpeta del proyecto, en la línea ASKE_ACCESS_KEY.',
   'settings.about': 'Acerca de',
   'settings.aboutText':
-    'Aske Stream es una nube musical autoalojada y de código abierto construida sobre Cloudflare Workers, D1 y R2.',
+    'Aske Stream es una app de música de código abierto: la música es tuya y tú decides dónde se guarda. La versión con servidor funciona en el plan gratuito de Cloudflare.',
   'settings.source': 'Código fuente en GitHub',
-  'settings.persistent': 'Almacenamiento persistente',
-  'settings.persistentOn': 'Concedido: el navegador no borrará tus descargas',
+  'settings.persistent': 'Proteger las canciones descargadas',
+  'settings.persistentOn': 'Activado: el navegador no las borrará',
   'settings.persistentOff':
-    'No concedido: el navegador podría borrar las descargas si falta espacio',
+    'Desactivado: si el ordenador se queda sin espacio, el navegador podría borrarlas',
 
   'toast.offline': 'Estás sin conexión',
   'toast.error': 'Algo ha salido mal',
@@ -374,7 +426,7 @@ export const es: Messages = {
   'setup.cloudflare.desc':
     'Tu propio servidor de música privado, en el plan gratuito de Cloudflare. Ideal si alguien te ayuda a montarlo la primera vez.',
   'setup.cloudflare.pros':
-    'La reproducción más rápida, en todos tus dispositivos|10 GB gratis (unas 2.500 canciones)|Rotación inteligente sin conexión en el móvil',
+    'La reproducción más rápida, en todos tus dispositivos|10 GB gratis (unas 2.500 canciones)|El móvil guarda una selección para escuchar sin conexión que se va renovando sola',
   'setup.cloudflare.cons':
     'Unos 10 minutos de configuración, con un ordenador|Cloudflare pide una tarjeta para activar el plan gratuito (no cobra nada dentro de los 10 GB)',
   'setup.sizeTitle': '¿Cuánto ocupa la música?',
@@ -394,21 +446,21 @@ export const es: Messages = {
   'pair.problem.unreachable':
     'No se encuentra tu servidor en esa dirección. Revisa que esté bien escrita (tiene esta forma: https://aske-stream.tu-nombre.workers.dev). Truco: ábrela en el navegador del móvil; si ves la app, la dirección es correcta.',
   'pair.problem.blocked':
-    'Tu servidor responde, pero no deja entrar a la app. Suele pasar cuando el servidor tiene una versión antigua: en el ordenador, ejecuta npm run deploy y vuelve a intentarlo.',
+    'Tu servidor responde, pero no deja entrar a la app. Suele pasar cuando tiene una versión antigua: pide a quien lo montó que lo actualice (en su ordenador: npm run deploy).',
   'pair.notAske': 'En esa dirección hay algo, pero no parece tu Aske Stream. Revisa la dirección.',
   'pair.details': 'Detalles técnicos (por si alguien te ayuda)',
   'pair.back': 'Elegir otra opción',
-  'pair.notSetUp': '¿Aún no lo tienes montado? Sigue la guía paso a paso.',
+  'pair.notSetUp': '¿Dónde encuentro la dirección y la clave?',
   'library.import': 'Importar archivos',
   'library.importHint': 'Añade canciones que ya tengas en este dispositivo (MP3, M4A, FLAC, OGG…).',
   'library.emptyDevice':
-    'Tu biblioteca está vacía. Pulsa «Importar archivos» para añadir canciones de este dispositivo. Buscar y descargar de YouTube llegará con la app de Android.',
+    'Pulsa «Importar archivos» para añadir canciones que ya tengas, o usa «Descargar» en la app de Android para buscarlas en YouTube.',
   'toast.importing': 'Importando {count} canciones…',
   'toast.imported': '{count} canciones añadidas',
   'toast.importSkipped': '{count} ya estaban en tu biblioteca',
   'toast.importFailed': 'No se ha podido importar «{name}»',
   'offline.deviceHome':
-    'Toda tu música está guardada en este dispositivo, así que ya suena sin internet. La rotación automática es para la música guardada en la nube.',
+    'Toda tu música está guardada en este dispositivo, así que ya suena sin internet. Los cambios automáticos de esta pantalla son para la música guardada en Cloudflare.',
   'settings.storage': 'Dónde se guarda tu música',
   'settings.storageChange': 'Cambiar',
   'nav.podcasts': 'Podcasts',
@@ -462,7 +514,7 @@ export const es: Messages = {
   'settings.dataSaverHint':
     'Cuando pulsas Reproducir en una lista, primero suenan las canciones guardadas en este dispositivo y después las que necesitan internet. Si tocas una canción concreta, suena esa.',
   'radio.httpOnly':
-    'Esta emisora emite sin cifrar (http://). Funciona en la app de Android, pero los navegadores la bloquean.',
+    'Esta emisora usa una conexión antigua (http://) que los navegadores bloquean. En la app de Android sí suena.',
   'common.settings': 'Ajustes',
   'playlists.reorder': 'Cambiar orden',
   'playlists.reorderDone': 'Hecho',

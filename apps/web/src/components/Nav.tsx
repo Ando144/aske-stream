@@ -1,4 +1,5 @@
 import {
+  CircleHelp,
   CloudDownload,
   Heart,
   Library,
@@ -27,6 +28,7 @@ const SIDEBAR_ITEMS: typeof ITEMS = [
   ...ITEMS,
   { to: '/offline', key: 'nav.offline', Icon: WifiOff },
   { to: '/settings', key: 'nav.settings', Icon: Settings },
+  { to: '/help', key: 'help.title', Icon: CircleHelp },
 ];
 
 function isActive(location: string, to: string) {

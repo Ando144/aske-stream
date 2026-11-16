@@ -11,6 +11,7 @@ import { confirmDialog } from '../stores/ui';
 import { Cover } from '../components/Cover';
 import { useSetup } from '../stores/setup';
 import { SettingsLink } from '../components/SettingsLink';
+import { ScreenTip } from '../components/ScreenTip';
 
 const quotaLabel = (t: Translate, min: number) =>
   min >= 60 ? formatLongDuration(min * 60_000) : t('offline.minutes', { n: min });
@@ -90,6 +91,7 @@ export function OfflineView() {
           <SettingsLink />
         </div>
       </header>
+      <ScreenTip id="offline" text="tips.offline" helpId="offline-how" />
       <p className="muted">{t('offline.subtitle')}</p>
       {home === 'device' && <div className="banner">{t('offline.deviceHome')}</div>}
 

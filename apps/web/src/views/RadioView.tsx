@@ -8,6 +8,7 @@ import { catalog, catalogToItem, stationToItem, useRadio } from '../stores/radio
 import { confirmDialog, useUi } from '../stores/ui';
 import { Sheet } from '../components/Sheet';
 import { SettingsLink } from '../components/SettingsLink';
+import { ScreenTip } from '../components/ScreenTip';
 
 type Order = 'votes' | 'trend' | 'clickcount' | 'name';
 const PAGE = 30;
@@ -58,6 +59,7 @@ export function RadioView() {
           <SettingsLink />
         </div>
       </header>
+      <ScreenTip id="radio" text="tips.radio" helpId="radio" />
 
       <h2 className="section-title" style={{ marginTop: 0 }}>
         {t('radio.myStations')}

@@ -37,6 +37,7 @@ import { useLibrary } from '../stores/library';
 import { useSend } from '../stores/send';
 import { useSetup } from '../stores/setup';
 import { toast } from '../stores/ui';
+import { HelpButton } from '../components/HelpSheet';
 
 /**
  * Find music on YouTube and get it into the library.
@@ -91,6 +92,7 @@ function Intro() {
         <strong>{isNative ? t('dl.introTitle') : t('send.introTitle')}</strong>
         <p>{isNative ? t('dl.introText') : t('send.introText')}</p>
         <p className="small">{t('dl.legal')}</p>
+        <HelpButton id={isNative ? 'download-youtube' : 'send-to-phone'} />
       </div>
       <button className="icon-btn" aria-label={t('common.close')} onClick={close}>
         <X size={18} />

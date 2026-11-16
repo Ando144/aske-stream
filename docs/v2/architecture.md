@@ -121,3 +121,10 @@ YouTube's own search API with yt-dlp as fallback, downloads go to the current li
 (phone or Cloudflare), "Send to phone" goes through a D1 queue, and imported files now
 keep their tags and embedded cover. The "Offline" tab became "Download"; offline settings
 moved to Settings → Offline music (the sidebar keeps both).
+
+Phase 4 notes: a four-screen introduction before the storage choice, a first-steps checklist
+in the library, one dismissible tip per screen, and a help centre (`apps/web/src/help`) with
+28 articles in Basque, Spanish and English, searchable, linked from the setup and connection
+screens through a sheet that works before the app is set up. Unit tests keep the three
+languages complete and the links between articles valid. Technical wording (pairing, stream
+URLs, sync, CLI hints) was rewritten in plain language.

@@ -6,6 +6,7 @@ import { useAllTracks, useLibrary } from '../stores/library';
 import { promptDialog } from '../stores/ui';
 import { Cover } from '../components/Cover';
 import { SettingsLink } from '../components/SettingsLink';
+import { ScreenTip } from '../components/ScreenTip';
 
 export function PlaylistsView() {
   const t = useT();
@@ -34,6 +35,7 @@ export function PlaylistsView() {
           <SettingsLink />
         </div>
       </header>
+      <ScreenTip id="playlists" text="tips.playlists" helpId="playlists" />
 
       <div className="card-list">
         <Link href="/liked" className="card-row">

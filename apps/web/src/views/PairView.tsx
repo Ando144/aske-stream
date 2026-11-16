@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { HelpButton } from '../components/HelpSheet';
 import { ApiError } from '../api/client';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { useT } from '../i18n';
 import { useSetup } from '../stores/setup';
 import { normalizeServerUrl } from '../lib/url';
-
-const GUIDE_URL = 'https://github.com/Ando144/aske-stream/blob/main/docs/deployment.md';
 
 /** Reads `#key=…` from the URL (fragment never reaches the server or its logs). */
 function takeKeyFromHash(): string | null {
@@ -90,7 +89,7 @@ export function PairView() {
       <div className="pair-card">
         <img src="/icons/icon-192.png" alt="" />
         <h1>{t('pair.title')}</h1>
-        <p className="muted">{t('pair.subtitle')}</p>
+        <p className="muted">{needsUrl ? t('pair.subtitle') : t('pair.subtitleKeyOnly')}</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -141,10 +140,9 @@ export function PairView() {
           <button className="btn primary" type="submit" disabled={busy || !key.trim() || !urlValid}>
             {t('pair.submit')}
           </button>
-          <p className="faint small">{t('pair.help')}</p>
-          <a href={GUIDE_URL} target="_blank" rel="noreferrer" className="row small">
-            <ExternalLink size={14} /> {t('pair.notSetUp')}
-          </a>
+          <p className="faint small">{needsUrl ? t('pair.help') : t('pair.helpKeyOnly')}</p>
+          <HelpButton id="cloudflare-connect" label={t('pair.notSetUp')} />
+          <HelpButton id="cant-connect" label={t('pair.problemsLink')} />
           <button type="button" className="btn" onClick={() => useSetup.getState().backToChoice()}>
             <ArrowLeft size={16} /> {t('pair.back')}
           </button>

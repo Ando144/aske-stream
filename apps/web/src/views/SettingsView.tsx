@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   ChevronRight,
+  CircleHelp,
+  Lightbulb,
+  Sparkles,
   Cloud,
   ExternalLink,
   Globe,
@@ -14,7 +17,8 @@ import { Link } from 'wouter';
 import { usePrefs } from '../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
 import { useSetup } from '../stores/setup';
-import { confirmDialog } from '../stores/ui';
+import { confirmDialog, toast } from '../stores/ui';
+import { useTips } from '../stores/tips';
 import { AppUpdatePanel } from '../components/AppUpdatePanel';
 import { StoragePanel } from '../components/StoragePanel';
 import { REPO_URL } from '../config';
@@ -169,6 +173,34 @@ export function SettingsView() {
 
       <h2 className="section-title">{t('settings.app')}</h2>
       <AppUpdatePanel />
+
+      <h2 className="section-title">{t('help.title')}</h2>
+      <div className="panel">
+        <Link href="/help" className="setting setting-link">
+          <CircleHelp size={20} className="muted" />
+          <div className="grow">
+            <div>{t('settings.helpCenter')}</div>
+            <div className="faint small">{t('settings.helpCenterHint')}</div>
+          </div>
+          <ChevronRight size={20} className="faint" />
+        </Link>
+        <Link href="/welcome" className="setting setting-link">
+          <Sparkles size={20} className="muted" />
+          <div className="grow">{t('settings.replayIntro')}</div>
+          <ChevronRight size={20} className="faint" />
+        </Link>
+        <button
+          className="setting setting-link link-btn"
+          style={{ width: '100%', textAlign: 'left' }}
+          onClick={() => {
+            useTips.getState().resetAll();
+            toast(t('settings.tipsReset'));
+          }}
+        >
+          <Lightbulb size={20} className="muted" />
+          <div className="grow">{t('settings.resetTips')}</div>
+        </button>
+      </div>
 
       <h2 className="section-title">{t('settings.about')}</h2>
       <div className="panel">

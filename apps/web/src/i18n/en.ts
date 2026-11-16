@@ -24,14 +24,16 @@ export const en = {
   'common.songs': '{count} songs',
   'common.offlineBanner': 'You are offline — only downloaded music is available',
 
-  'pair.title': 'Pair this device',
+  'pair.title': 'Connect to your Cloudflare',
   'pair.subtitle':
-    'Aske Stream has no accounts. Paste the access key of your instance once and this device stays connected.',
-  'pair.keyLabel': 'Access key',
-  'pair.submit': 'Pair device',
+    'Type the address and the key of your Aske Stream. You only do this once on each phone or computer; after that the app signs in by itself.',
+  'pair.keyLabel': 'Key',
+  'pair.submit': 'Connect',
   'pair.invalid': 'That key is not valid.',
-  'pair.notConfigured': 'The server has no ACCESS_KEY configured yet. See the deployment guide.',
-  'pair.help': 'Tip: open https://<your-app>/#key=<access-key> to pair in one tap.',
+  'pair.notConfigured':
+    'Your server is half set up: it has no key yet. Whoever installed it needs to finish that step of the guide.',
+  'pair.help':
+    'Whoever set up your Cloudflare has the address and the key. If it was you, they are in the .env file of the project folder, on the ASKE_URL and ASKE_ACCESS_KEY lines.',
 
   'library.title': 'Your library',
   'library.search': 'Search songs, artists, albums',
@@ -42,7 +44,8 @@ export const en = {
   'library.sortTitle': 'Title',
   'library.sortArtist': 'Artist',
   'library.empty': 'Your library is empty',
-  'library.emptyHint': 'Add music with the ingest CLI: npm run ingest -- <YouTube link or file>',
+  'library.emptyHint':
+    'To add music, go to “Download”: in the Android app you search and download songs, and from the computer you send them to the phone.',
   'library.noResults': 'No songs match your search',
   'library.unknownArtist': 'Unknown artist',
 
@@ -71,7 +74,7 @@ export const en = {
   'track.removeDownload': 'Remove download',
   'track.delete': 'Delete from library',
   'track.deleteConfirm':
-    'Delete “{title}” from your library? This removes the audio file from the cloud.',
+    'Delete “{title}” from your library? It is deleted for good, including the song file.',
   'track.notAvailable': 'Not downloaded',
 
   'sheet.addToPlaylist': 'Add to playlist',
@@ -106,11 +109,11 @@ export const en = {
   'radio.loadMore': 'Load more',
   'radio.noResults': 'No stations found',
   'radio.catalogError': 'The station catalog is not reachable right now.',
-  'radio.addCustom': 'Add station by URL',
+  'radio.addCustom': 'Add a station by its link',
   'radio.customName': 'Name',
-  'radio.customUrl': 'Stream URL',
+  'radio.customUrl': 'Station link',
   'radio.customUrlHint':
-    'Starts with https:// or http:// (MP3, AAC, Ogg or HLS .m3u8). http:// stations only play in the Android app.',
+    'You find it on the station’s website (sometimes called “listen in another player”). It starts with https:// or http://. Those starting with http:// only play in the Android app.',
   'radio.like': 'Like station',
   'radio.unlike': 'Unlike station',
   'radio.remove': 'Remove station',
@@ -122,7 +125,7 @@ export const en = {
   'offline.subtitle':
     'A rotating selection of your library stays on this phone. Songs you have heard are swapped for new ones after a while.',
   'offline.quota': 'Offline music',
-  'offline.rotateAfter': 'Rotate heard songs after',
+  'offline.rotateAfter': 'Swap songs you have heard after',
   'offline.autoFill': 'Fill automatically',
   'offline.autoFillHint': 'Pick random songs from your library until the limit is reached.',
   'offline.allowCellular': 'Download on mobile data',
@@ -130,14 +133,14 @@ export const en = {
   'offline.usage': '{used} of {quota} used',
   'offline.pinnedCount': 'Downloaded by you: {count}',
   'offline.autoCount': 'Automatic: {count}',
-  'offline.pinned': 'Pinned',
-  'offline.auto': 'Auto',
+  'offline.pinned': 'Picked by you',
+  'offline.auto': 'Automatic',
   'offline.heard': 'Heard',
-  'offline.rotatesIn': 'rotates {time}',
-  'offline.rotatesSoon': 'rotates on next sync',
-  'offline.refresh': 'Sync now',
-  'offline.running': 'Syncing…',
-  'offline.lastRun': 'Last sync: {time}',
+  'offline.rotatesIn': 'swapped {time}',
+  'offline.rotatesSoon': 'swapped at the next update',
+  'offline.refresh': 'Update now',
+  'offline.running': 'Updating…',
+  'offline.lastRun': 'Last update: {time}',
   'offline.never': 'never',
   'offline.clearAuto': 'Remove automatic downloads',
   'offline.clearAutoConfirm': 'Remove all automatic downloads from this device? Pinned songs stay.',
@@ -310,13 +313,64 @@ export const en = {
   'dl.err.phoneFull': 'There is no space left on the phone. Free some space and try again.',
   'dl.cloudUsed': 'Used in your Cloudflare: {used} of {limit} free',
   'storage.freeOf': '{free} free of {total}',
+  'help.title': 'Help',
+  'help.subtitle': 'Short answers to the most common questions. Search or pick a topic.',
+  'help.search': 'Search the help (for example: playlist, radio, space)',
+  'help.noResults': 'No articles with those words. Try simpler ones.',
+  'help.related': 'More on this topic',
+  'help.learnMore': 'Learn more',
+  'settings.helpCenter': 'Help centre',
+  'settings.helpCenterHint': 'Frequent questions and step-by-step guides',
+  'settings.replayIntro': 'Show the introduction again',
+  'settings.resetTips': 'Show the tips again',
+  'settings.tipsReset': 'Tips will appear again on each screen',
+  'tips.gotIt': 'Got it',
+  'tips.library':
+    'Tap a song to play it. Press and hold one to pick several at once, and swipe it to the right to add it to the queue.',
+  'tips.playlists':
+    'Create playlists to organise your music. “Liked songs” fills itself when you tap a song’s heart.',
+  'tips.podcasts':
+    'Talks and interviews go here, apart from your music. The app remembers where you were in each episode.',
+  'tips.radio':
+    'Find stations by name, country or genre. Tap the heart to keep them at the top, in “Your stations”.',
+  'tips.offline':
+    'Here you choose how much music the phone keeps for when you have no internet. The app refreshes it by itself.',
+  'firstSteps.title': 'First steps',
+  'firstSteps.progress': '{done} of {total}',
+  'firstSteps.hide': 'Hide first steps',
+  'firstSteps.song': 'Get your first song',
+  'firstSteps.playlist': 'Create a playlist',
+  'firstSteps.radio': 'Save your favourite radio station',
+  'firstSteps.help': 'Have a look at the help',
+  'welcome.1.title': 'Your music, truly yours',
+  'welcome.1.text':
+    'Aske Stream is like Spotify, but the music is yours: you get it once and listen whenever you like, with no ads and no subscriptions.',
+  'welcome.2.title': 'Get music in seconds',
+  'welcome.2.text':
+    'Search YouTube for songs or playlists and download them with one tap in the Android app. You can also import your files or send songs from the computer.',
+  'welcome.3.title': 'Listen anywhere',
+  'welcome.3.text':
+    'Without internet, with the screen off and from the lock screen. With playlists, podcasts and thousands of radio stations from all over the world.',
+  'welcome.4.title': 'You decide where it is kept',
+  'welcome.4.text':
+    'Now you choose where to keep your music: on this phone (the simplest) or in your own Cloudflare (to have it on the computer too). You can change it any time, and nobody else can see it.',
+  'welcome.next': 'Next',
+  'welcome.skip': 'Skip',
+  'welcome.start': 'Get started',
+  'welcome.step': 'Step {n} of {total}',
+  'setup.helpChoose': 'Not sure which to choose?',
+  'pair.problemsLink': 'Not connecting? See the fixes',
+  'pair.subtitleKeyOnly':
+    'Type the key of your Aske Stream. You only do this once on each phone or computer; after that the app signs in by itself.',
+  'pair.helpKeyOnly':
+    'Whoever set up your Cloudflare has the key. If it was you, it is in the .env file of the project folder, on the ASKE_ACCESS_KEY line.',
   'settings.about': 'About',
   'settings.aboutText':
-    'Aske Stream is an open-source, self-hosted music cloud built on Cloudflare Workers, D1 and R2.',
+    'Aske Stream is an open-source music app: the music is yours and you decide where it is stored. The server version runs on Cloudflare’s free plan.',
   'settings.source': 'Source code on GitHub',
-  'settings.persistent': 'Persistent storage',
-  'settings.persistentOn': 'Granted — the browser will not evict your downloads',
-  'settings.persistentOff': 'Not granted — the browser may clear downloads when space is low',
+  'settings.persistent': 'Protect downloaded songs',
+  'settings.persistentOn': 'On: the browser will not delete them',
+  'settings.persistentOff': 'Off: if the computer runs out of space, the browser might delete them',
 
   'toast.offline': 'You are offline',
   'toast.error': 'Something went wrong',
@@ -364,7 +418,7 @@ export const en = {
   'setup.cloudflare.desc':
     "Your own private music server, on Cloudflare's free plan. Best if someone helps you set it up the first time.",
   'setup.cloudflare.pros':
-    'Fastest playback, on every device|10 GB free (about 2,500 songs)|Smart offline rotation on your phone',
+    'Fastest playback, on every device|10 GB free (about 2,500 songs)|Your phone keeps a selection for offline listening that refreshes by itself',
   'setup.cloudflare.cons':
     'About 10 minutes to set up, with a computer|Cloudflare asks for a card to activate the free plan (nothing is charged within 10 GB)',
   'setup.sizeTitle': 'How much space does music take?',
@@ -384,22 +438,22 @@ export const en = {
   'pair.problem.unreachable':
     'Your server could not be found at that address. Check it is written correctly (it looks like https://aske-stream.your-name.workers.dev). Tip: open it in the phone browser; if you see the app, the address is right.',
   'pair.problem.blocked':
-    'Your server answers but does not let the app in. This usually means the server runs an old version: on the computer, run npm run deploy and try again.',
+    'Your server answers but does not let the app in. This usually means it runs an old version: ask whoever set it up to update it (on their computer: npm run deploy).',
   'pair.notAske':
     'Something answers at that address, but it does not look like your Aske Stream. Check the address.',
   'pair.details': 'Technical details (in case someone helps you)',
   'pair.back': 'Choose another option',
-  'pair.notSetUp': "Don't have it set up yet? Follow the step-by-step guide.",
+  'pair.notSetUp': 'Where do I find the address and the key?',
   'library.import': 'Import files',
   'library.importHint': 'Add songs you already have on this device (MP3, M4A, FLAC, OGG…).',
   'library.emptyDevice':
-    'Your library is empty. Tap “Import files” to add songs from this device. Searching and downloading from YouTube comes with the Android app.',
+    'Tap “Import files” to add songs you already have, or use “Download” in the Android app to find them on YouTube.',
   'toast.importing': 'Importing {count} songs…',
   'toast.imported': '{count} songs added',
   'toast.importSkipped': '{count} were already in your library',
   'toast.importFailed': '“{name}” could not be imported',
   'offline.deviceHome':
-    'All your music is saved on this device, so it already plays without internet. The automatic rotation is for music stored in the cloud.',
+    'All your music is stored on this device, so it already plays without internet. The automatic swaps on this screen are for music stored in Cloudflare.',
   'settings.storage': 'Where your music is stored',
   'settings.storageChange': 'Change',
   'nav.podcasts': 'Podcasts',
@@ -452,7 +506,7 @@ export const en = {
   'settings.dataSaverHint':
     'When you press Play on a list, songs saved on this device play first, and only then the ones that need internet. Tapping a specific song always plays that song.',
   'radio.httpOnly':
-    'This station broadcasts without encryption (http://). It works in the Android app, but browsers block it.',
+    'This station uses an old kind of connection (http://) that browsers block. It does play in the Android app.',
   'common.settings': 'Settings',
   'playlists.reorder': 'Change order',
   'playlists.reorderDone': 'Done',
