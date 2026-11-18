@@ -58,3 +58,4 @@ apps/mobile/android/capacitor-cordova-android-plugins/build/
 apps/mobile/android/local.properties
 *.apk
 *.aab
+apps/web/test/browser/shots/
