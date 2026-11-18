@@ -27,6 +27,7 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
 - Comprobar todo antes de entregar: `npm run check` (formato, tipos, tests, build).
   Después `npm run test:e2e`, el smoke test contra wrangler dev con un dist recién construido;
   reinicia wrangler tras cada build.
+- Tests sueltos: `npx vitest run <archivo> --root apps/web`. Nunca `vitest -w` ni modo watch: deja procesos colgados.
 - Tests de navegador: ver `apps/web/test/browser/README.md`. Build como si fuera Android: `npx vite build --mode fakenative -w @aske/web`.
   Cambia `src/native/*` por `apps/web/test/fake-native/*`.
 - APK: `npm run android:apk` (necesita ANDROID_HOME y `.secrets/keystore.properties`).
