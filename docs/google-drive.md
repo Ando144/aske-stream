@@ -45,8 +45,12 @@ takes about 15 minutes in [Google Cloud Console](https://console.cloud.google.co
    1. _Audience_: choose **External**, then **Publish app** (status "In production"). While it
       says "Testing", only the test users you list can sign in.
    2. _Branding_: app name `Aske Stream`, a support email and a developer contact email (use
-      your own; never commit it). **No logo**: uploading one forces brand verification. Home
-      page and privacy policy links are optional; add an authorised domain only if you add them.
+      your own; never commit it). **No logo**: uploading one forces brand verification. Google
+      requires a **home page** and a **privacy policy** URL to publish: use
+      `https://github.com/Ando144/aske-stream` and
+      `https://github.com/Ando144/aske-stream/blob/main/docs/PRIVACY.md` (needs the commit pushed).
+      Leave the terms of service empty. If Google rejects a link, try the other option or an
+      authorised domain you own.
    3. _Data access_: _Add or remove scopes_ → tick only `.../auth/drive.file` → _Update_ → _Save_.
       Because `drive.file` is not sensitive, Google does not ask for a security review.
    4. Do **not** press "Prepare for verification".
