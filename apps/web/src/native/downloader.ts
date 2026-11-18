@@ -3,7 +3,9 @@ import type { YtInfo } from '@aske/shared/youtube';
 import {
   buildBrowseRequest,
   buildSearchRequest,
+  isPlaylistComplete,
   parsePlaylistPage,
+  pickLongerList,
   parseSearchResponse,
   youtubePlaylistId,
   type PlaylistEntry,
@@ -89,10 +91,15 @@ export interface PlaylistListing {
   title: string;
   author: string;
   entries: PlaylistEntry[];
+  /** Videos the playlist header announces; null when unknown. */
+  totalCount: number | null;
+  /** false when fewer songs were read than announced and yt-dlp did not get more either. */
+  complete: boolean;
 }
 
 /** At most 2 000 songs (20 pages) are read from one playlist. */
 const MAX_PAGES = 20;
+const INNERTUBE_TIMEOUT_MS = 30_000;
 const YTDLP_LIST_TIMEOUT_MS = 120_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -105,50 +112,106 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-/**
- * Lists a playlist from the phone. Like search: YouTube's own API first
- * (a second or two, 100 songs per page), yt-dlp as the backup.
- */
-export async function listPlaylistOnPhone(url: string, lang = 'es'): Promise<PlaylistListing> {
-  const id = youtubePlaylistId(url);
-  if (id) {
-    try {
-      let title = '';
-      let author = '';
-      const entries: PlaylistEntry[] = [];
-      let continuation: string | null = null;
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const req = buildBrowseRequest(id, continuation, lang);
-        const res = await CapacitorHttp.post({
-          url: req.url,
-          headers: req.headers,
-          data: JSON.parse(req.body),
-          responseType: 'json',
-          connectTimeout: 10_000,
-          readTimeout: 20_000,
-        });
-        if (res.status !== 200) break;
-        const parsed = parsePlaylistPage(res.data);
-        if (page === 0) ({ title, author } = parsed);
-        const known = new Set(entries.map((e) => e.id));
-        entries.push(...parsed.entries.filter((e) => !known.has(e.id)));
-        continuation = parsed.continuation;
-        if (!continuation || parsed.entries.length === 0) break;
-      }
-      if (entries.length) return { title, author, entries };
-    } catch {
-      // fall back to yt-dlp
+/** What YouTube's own API gave so far; filled in place so a timeout keeps the partial result. */
+interface InnerTubeRead {
+  title: string;
+  author: string;
+  entries: PlaylistEntry[];
+  totalCount: number | null;
+  /** YouTube said there is nothing more to read. */
+  exhausted: boolean;
+}
+
+async function readPlaylistPages(id: string, lang: string, read: InnerTubeRead): Promise<void> {
+  let continuation: string | null = null;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const req = buildBrowseRequest(id, continuation, lang);
+    const res = await CapacitorHttp.post({
+      url: req.url,
+      headers: req.headers,
+      data: JSON.parse(req.body),
+      responseType: 'json',
+      connectTimeout: 10_000,
+      readTimeout: 20_000,
+    });
+    if (res.status !== 200) return;
+    const parsed = parsePlaylistPage(res.data);
+    if (page === 0) {
+      read.title = parsed.title;
+      read.author = parsed.author;
+      read.totalCount = parsed.totalCount;
     }
+    const known = new Set(read.entries.map((e) => e.id));
+    read.entries.push(...parsed.entries.filter((e) => !known.has(e.id)));
+    continuation = parsed.continuation;
+    if (!continuation) {
+      read.exhausted = true;
+      return;
+    }
+    if (parsed.entries.length === 0) return;
   }
-  const list = await withTimeout(Downloader.list({ url }), YTDLP_LIST_TIMEOUT_MS);
-  return {
-    title: list.title,
-    author: list.uploader,
-    entries: list.entries.map((e) => ({
+}
+
+async function readViaInnerTube(id: string, lang: string): Promise<InnerTubeRead> {
+  const read: InnerTubeRead = {
+    title: '',
+    author: '',
+    entries: [],
+    totalCount: null,
+    exhausted: false,
+  };
+  try {
+    await withTimeout(readPlaylistPages(id, lang, read), INNERTUBE_TIMEOUT_MS);
+  } catch {
+    // keep whatever was read; yt-dlp may complete it below
+  }
+  return read;
+}
+
+/**
+ * Lists a playlist from the phone. Like search: YouTube's own API first (a second or two,
+ * 100 songs per page), yt-dlp when that fails or stops short of the announced count.
+ * `onPartial` is called with the songs already read while yt-dlp is still working.
+ */
+export async function listPlaylistOnPhone(
+  url: string,
+  lang = 'es',
+  onPartial?: (partial: PlaylistListing) => void,
+): Promise<PlaylistListing> {
+  const id = youtubePlaylistId(url);
+  const inner = id ? await readViaInnerTube(id, lang) : null;
+  const innerEntries = inner?.entries ?? [];
+  const totalCount = inner?.totalCount ?? null;
+  const complete = isPlaylistComplete(innerEntries.length, totalCount, inner?.exhausted ?? false);
+  const fromInner: PlaylistListing = {
+    title: inner?.title ?? '',
+    author: inner?.author ?? '',
+    entries: innerEntries,
+    totalCount,
+    complete,
+  };
+  if (innerEntries.length && complete) return fromInner;
+
+  if (innerEntries.length) onPartial?.(fromInner);
+  try {
+    const list = await withTimeout(Downloader.list({ url }), YTDLP_LIST_TIMEOUT_MS);
+    const backup = list.entries.map((e) => ({
       id: e.id,
       title: e.title,
       author: e.uploader,
       duration: e.duration || 0,
-    })),
-  };
+    }));
+    const entries = pickLongerList(innerEntries, backup);
+    return {
+      title: fromInner.title || list.title,
+      author: fromInner.author || list.uploader,
+      entries,
+      totalCount,
+      complete: isPlaylistComplete(entries.length, totalCount, false),
+    };
+  } catch (err) {
+    // A partial list is still useful; the sheet tells the user it is incomplete.
+    if (innerEntries.length) return fromInner;
+    throw err;
+  }
 }

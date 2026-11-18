@@ -4,6 +4,8 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.util.Log;
+import android.webkit.WebView;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -305,12 +307,28 @@ public class DownloaderPlugin extends Plugin {
 
     /* ------------------------- progress notification ------------------------- */
 
+    /**
+     * While downloading, keep the WebView renderer at important priority even when hidden: Android
+     * demotes (and may freeze or kill) the renderer of a hidden WebView that is not playing audio,
+     * which would stop the JS download queue. Back to the default when the queue is idle.
+     */
+    private void setRendererPriority(boolean downloading) {
+        if (Build.VERSION.SDK_INT < 26 || getBridge() == null) return;
+        getBridge().executeOnMainThread(() -> {
+            WebView webView = getBridge().getWebView();
+            if (webView != null) {
+                webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, !downloading);
+            }
+        });
+    }
+
     /** Shows/updates (active=true) or removes (active=false) the download notification. */
     @PluginMethod
     public void setNotification(PluginCall call) {
         Context ctx = getContext();
         boolean active = Boolean.TRUE.equals(call.getBoolean("active", false));
         Intent intent = new Intent(ctx, DownloadService.class);
+        setRendererPriority(active);
         if (!active) {
             ctx.stopService(intent);
             call.resolve();
@@ -333,6 +351,7 @@ public class DownloaderPlugin extends Plugin {
             call.resolve();
         } catch (Exception e) {
             // Android refuses to start it from the background: downloads go on without it.
+            Log.w("DownloaderPlugin", "Could not start the download service: " + e);
             call.resolve();
         }
     }

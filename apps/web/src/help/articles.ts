@@ -265,6 +265,8 @@ Dagoeneko dituzun abestiek «Baduzu» jartzen dute eta ez dira bi aldiz deskarga
 
 Se descargan de una en una. Una playlist de 100 canciones ocupa unos 400 MB y tarda un rato: puedes apagar la pantalla.
 
+Si ya tenías alguna canción, no se descarga otra vez, pero sí aparece en la playlist, en el mismo orden que en YouTube. Si ya tienes una playlist con ese nombre, la app te pregunta si prefieres juntarlas o crear otra.
+
 Si el móvil para las descargas al apagar la pantalla, mira [[background|este artículo]].
 
 Las playlists de Aske Stream admiten hasta 1.000 canciones.`,
@@ -275,6 +277,8 @@ Las playlists de Aske Stream admiten hasta 1.000 canciones.`,
 
 They download one by one. A 100-song playlist takes about 400 MB and a while: you can switch the screen off.
 
+If you already had some songs, they are not downloaded again, but they do appear in the playlist, in the same order as on YouTube. If you already have a playlist with that name, the app asks whether to merge them or create another one.
+
 If your phone stops downloads when the screen is off, see [[background|this article]].
 
 Aske Stream playlists hold up to 1,000 songs.`,
@@ -284,6 +288,8 @@ Aske Stream playlists hold up to 1,000 songs.`,
 4. Sakatu **Deskargatu N abesti**.
 
 Banan-banan deskargatzen dira. 100 abestiko zerrenda batek 400 MB inguru hartzen ditu eta denbora pixka bat behar du: pantaila itzal dezakezu.
+
+Abesti batzuk bazenituen jada, ez dira berriro deskargatzen, baina zerrendan agertzen dira, YouTuben duten ordena berean. Izen bereko zerrenda bat baduzu, aplikazioak galdetuko dizu batu nahi dituzun edo beste bat sortu.
 
 Pantaila itzaltzean mugikorrak deskargak gelditzen baditu, ikusi [[background|artikulu hau]].
 
@@ -450,6 +456,44 @@ Each playlist holds up to 1,000 songs. “Liked songs” fills itself with your 
 - **Kendu**: ⋮ menua → «Kendu zerrenda honetatik». Abestiak zure liburutegian jarraitzen du.
 
 Zerrenda bakoitzak 1.000 abesti arte onartzen ditu. «Gogoko abestiak» bere kabuz betetzen da zure «Gogokoetara» gehitutakoekin.`,
+    },
+  },
+  {
+    id: 'sleep-timer',
+    section: 'listen',
+    title: {
+      es: 'Temporizador para dormir',
+      en: 'Sleep timer',
+      eu: 'Lo egiteko tenporizadorea',
+    },
+    body: {
+      es: `Para quedarte dormido con música sin que suene toda la noche:
+
+1. Abre el reproductor en grande.
+2. Pulsa la **luna** de arriba.
+3. Elige un tiempo (15 min, 1 h…), **Al acabar la canción** u **Otro tiempo**.
+
+En los últimos 20 segundos la música baja poco a poco y se para. La luna se ve en ámbar mientras el temporizador está activo; púlsala otra vez para ver cuánto falta o para **Cancelar temporizador**.
+
+«Al acabar la canción» no está disponible con la radio. Mira también [[queue|la cola]].`,
+      en: `To fall asleep to music without it playing all night:
+
+1. Open the player full screen.
+2. Tap the **moon** at the top.
+3. Pick a time (15 min, 1 h…), **When the song ends** or **Other time**.
+
+In the last 20 seconds the music fades out and stops. The moon is amber while the timer is on; tap it again to see the time left or to **Cancel timer**.
+
+“When the song ends” is not available with radio. See also [[queue|the queue]].`,
+      eu: `Musikarekin lokartzeko, gau osoan jotzen egon gabe:
+
+1. Ireki erreproduzitzailea handian.
+2. Sakatu goiko **ilargia**.
+3. Aukeratu denbora bat (15 min, 1 h…), **Abestia amaitzean** edo **Beste denbora bat**.
+
+Azken 20 segundoetan musika apurka-apurka jaisten da eta gelditu egiten da. Ilargia anbar kolorekoa da tenporizadorea aktibo dagoen bitartean; sakatu berriro zenbat falta den ikusteko edo **Utzi tenporizadorea** egiteko.
+
+«Abestia amaitzean» ez dago erabilgarri irratiarekin. Ikusi baita ere [[queue|ilara]].`,
     },
   },
   {

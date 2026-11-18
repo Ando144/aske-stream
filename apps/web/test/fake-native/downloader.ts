@@ -1,5 +1,5 @@
 import type { SearchKind, SearchResult } from '@aske/shared/youtube';
-import type { DownloaderPlugin } from '../../src/native/downloader';
+import type { DownloaderPlugin, PlaylistListing } from '../../src/native/downloader';
 
 /**
  * Fake yt-dlp for browser tests: "downloads" serve a small real WebM Opus
@@ -20,12 +20,16 @@ export const Downloader: DownloaderPlugin = {
   updateEngine: async () => (log('update'), { updated: true, version: '2026.11.01' }),
   list: async ({ url }) => {
     log(`list ${url}`);
+    // "PLbig" is a long playlist (like the 168-song one that showed an empty panel).
+    const count = url.includes('PLbig') ? 150 : 3;
     return {
-      title: 'Test playlist',
+      title: url.includes('PLbig') ? 'Big playlist' : 'Test playlist',
       uploader: 'Tester',
-      entries: [1, 2, 3].map((n) => ({
+      entries: Array.from({ length: count }, (_, i) => i + 1).map((n) => ({
         // Different playlists (by their last letters) give different songs.
-        id: url.includes('RESUME') ? `resume00000${n}` : `plvid000000${n}`,
+        id: url.includes('RESUME')
+          ? `resume00000${n}`
+          : `${url.includes('PLbig') ? 'big' : 'plvid'}${String(n).padStart(8, '0')}`,
         title: `Band - Track ${n} (Official Video)`,
         uploader: 'BandVEVO',
         duration: 4,
@@ -84,6 +88,15 @@ export async function searchOnPhone(query: string, kind: SearchKind): Promise<Se
         thumbnail: '/test-media/thumb.jpg',
         url: 'https://www.youtube.com/playlist?list=PLtest0000001',
       },
+      {
+        kind: 'playlist',
+        id: 'PLbig00000001',
+        title: 'Big playlist',
+        author: 'Tester',
+        count: 150,
+        thumbnail: '/test-media/thumb.jpg',
+        url: 'https://www.youtube.com/playlist?list=PLbig00000001',
+      },
     ];
   }
   return ['song0000001', 'song0000002', 'fail0000001'].map((id, i) => ({
@@ -97,7 +110,11 @@ export async function searchOnPhone(query: string, kind: SearchKind): Promise<Se
   }));
 }
 
-export async function listPlaylistOnPhone(url: string) {
+export async function listPlaylistOnPhone(
+  url: string,
+  _lang?: string,
+  _onPartial?: (partial: PlaylistListing) => void,
+): Promise<PlaylistListing> {
   const list = await Downloader.list({ url });
   return {
     title: list.title,
@@ -108,5 +125,7 @@ export async function listPlaylistOnPhone(url: string) {
       author: e.uploader,
       duration: e.duration,
     })),
+    totalCount: list.entries.length,
+    complete: true,
   };
 }

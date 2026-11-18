@@ -1,0 +1,197 @@
+{
+  "onResponseReceivedActions": [
+    {
+      "appendContinuationItemsAction": {
+        "continuationItems": [
+          {
+            "lockupViewModel": {
+              "contentImage": {
+                "thumbnailViewModel": {
+                  "image": {
+                    "sources": [
+                      {
+                        "url": "https://i.ytimg.com/vi/_8-jVi-snW8/hqdefault.jpg?sqp=-oaymwE9CNACELwBSFryq4qpAy8IARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Ab4CgALwAYoCDAgAEAEYZSBZKFEwDw==&rs=AOn4CLC_EVjmY_LvDBrAyIJObcu4nM1NXA",
+                        "width": 336,
+                        "height": 188
+                      }
+                    ]
+                  }
+                }
+              },
+              "metadata": {
+                "lockupMetadataViewModel": {
+                  "title": {
+                    "content": "KAUTA - HELMUGAK"
+                  },
+                  "image": {
+                    "decoratedAvatarViewModel": {
+                      "avatar": {
+                        "avatarViewModel": {
+                          "image": {
+                            "sources": [
+                              {
+                                "url": "https://yt3.ggpht.com/ytc/AIdro_m8-oaFBoLM8jO-P9aOH_YBfcRJPJdf8asEtz2PVnCn_w=s68-c-k-c0x00ffffff-no-rj",
+                                "width": 68,
+                                "height": 68
+                              }
+                            ]
+                          },
+                          "avatarImageSize": "AVATAR_SIZE_M"
+                        }
+                      },
+                      "a11yLabel": "Ir al canal Kauta Musika"
+                    }
+                  },
+                  "metadata": {
+                    "contentMetadataViewModel": {
+                      "metadataRows": [
+                        {
+                          "metadataParts": [
+                            {
+                              "text": {
+                                "content": "Kauta Musika",
+                                "styleRuns": [
+                                  {
+                                    "startIndex": 0,
+                                    "length": 12,
+                                    "weightLabel": "FONT_WEIGHT_NORMAL"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "metadataParts": [
+                            {
+                              "text": {
+                                "content": "172 K visualizaciones"
+                              }
+                            },
+                            {
+                              "text": {
+                                "content": "hace 18 años"
+                              },
+                              "accessibilityLabel": "hace 18 años"
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": " • "
+                    }
+                  },
+                  "menuButton": {
+                    "buttonViewModel": {
+                      "iconName": "MORE_VERT",
+                      "accessibilityText": "Más acciones",
+                      "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                      "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+                      "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                      "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                    }
+                  }
+                }
+              },
+              "contentId": "_8-jVi-snW8",
+              "contentType": "LOCKUP_CONTENT_TYPE_VIDEO"
+            }
+          },
+          {
+            "lockupViewModel": {
+              "contentImage": {
+                "thumbnailViewModel": {
+                  "image": {
+                    "sources": [
+                      {
+                        "url": "https://i.ytimg.com/vi/4qWy06NMl6I/hqdefault.jpg?sqp=-oaymwEjCNACELwBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLAR-bl0VikLukaaqMrUp-Ct6oAPzQ",
+                        "width": 336,
+                        "height": 188
+                      }
+                    ]
+                  }
+                }
+              },
+              "metadata": {
+                "lockupMetadataViewModel": {
+                  "title": {
+                    "content": "ÍZARO, Baiuca - “Xorieri” | La Revuelta"
+                  },
+                  "image": {
+                    "decoratedAvatarViewModel": {
+                      "avatar": {
+                        "avatarViewModel": {
+                          "image": {
+                            "sources": [
+                              {
+                                "url": "https://yt3.ggpht.com/ytc/AIdro_kUw4KJN-qxR-3pkUUAEqzuYBQ6y2HrwxAriEvVkbSOAw=s68-c-k-c0x00ffffff-no-rj",
+                                "width": 68,
+                                "height": 68
+                              }
+                            ]
+                          },
+                          "avatarImageSize": "AVATAR_SIZE_M"
+                        }
+                      },
+                      "a11yLabel": "Ir al canal RTVE Música"
+                    }
+                  },
+                  "metadata": {
+                    "contentMetadataViewModel": {
+                      "metadataRows": [
+                        {
+                          "metadataParts": [
+                            {
+                              "text": {
+                                "content": "RTVE Música",
+                                "styleRuns": [
+                                  {
+                                    "startIndex": 0,
+                                    "length": 11,
+                                    "weightLabel": "FONT_WEIGHT_NORMAL"
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "metadataParts": [
+                            {
+                              "text": {
+                                "content": "399 K visualizaciones"
+                              }
+                            },
+                            {
+                              "text": {
+                                "content": "hace 1 año"
+                              },
+                              "accessibilityLabel": "hace 1 año"
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": " • "
+                    }
+                  },
+                  "menuButton": {
+                    "buttonViewModel": {
+                      "iconName": "MORE_VERT",
+                      "accessibilityText": "Más acciones",
+                      "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                      "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+                      "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                      "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                    }
+                  }
+                }
+              },
+              "contentId": "4qWy06NMl6I",
+              "contentType": "LOCKUP_CONTENT_TYPE_VIDEO"
+            }
+          }
+        ],
+        "targetId": "PLL5TvC9p6x4OZt8DnMhKtUCZMmW1R5u6M"
+      }
+    }
+  ]
+}

@@ -1722,6 +1722,8 @@ h2,
 }
 
 .dl-entries {
+  /* A flex child with overflow:hidden may shrink to 0; the rows must keep their height. */
+  flex-shrink: 0;
   max-height: 40vh;
   overflow-y: auto;
   display: flex;
@@ -1730,6 +1732,16 @@ h2,
   padding: 8px 10px;
   border-radius: 10px;
   background: var(--bg-sunken);
+}
+
+.dl-entries > * {
+  flex-shrink: 0;
+}
+
+.dl-thumb-empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
 }
 
 .link-btn {

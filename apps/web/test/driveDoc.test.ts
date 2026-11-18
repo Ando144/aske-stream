@@ -4,6 +4,7 @@ import {
   emptyDoc,
   mergeDocs,
   parseDoc,
+  pruneDeleted,
   sameDoc,
   type DocTrack,
 } from '../src/storage/drive/doc';
@@ -77,6 +78,25 @@ describe('Drive library merge', () => {
     expect(sameDoc(mergeDocs(a, b), mergeDocs(b, a))).toBe(true);
     const changed = mergeDocs(a, { ...emptyDoc(), tracks: { a: track('a', 9) } });
     expect(docFingerprint(changed)).not.toBe(docFingerprint(a));
+  });
+
+  it('prunes deletion marks older than 180 days but keeps recent ones', () => {
+    const day = 24 * 3600 * 1000;
+    const now = 1_000 * day;
+    expect(pruneDeleted({ old: now - 200 * day, recent: now - 10 * day }, now)).toEqual({
+      recent: now - 10 * day,
+    });
+  });
+
+  it('mergeDocs prunes old marks after filtering, so recent deletions still apply', () => {
+    const day = 24 * 3600 * 1000;
+    const now = 1_000 * day;
+    const a = { ...emptyDoc(), tracks: { old: track('old', 1), new: track('new', 1) } };
+    const b = { ...emptyDoc(), deleted: { old: now - 200 * day, new: now - 10 * day } };
+    const merged = mergeDocs(a, b, now);
+    expect(merged.tracks.new).toBeUndefined();
+    expect(merged.tracks.old).toBeUndefined();
+    expect(Object.keys(merged.deleted)).toEqual(['new']);
   });
 
   it('reads damaged or foreign files as an empty library', () => {

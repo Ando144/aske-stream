@@ -1,0 +1,722 @@
+{
+  "contents": {
+    "twoColumnBrowseResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "image": {
+                                  "sources": [
+                                    {
+                                      "url": "https://i.ytimg.com/vi/mPWrwtO4wFw/hqdefault.jpg?sqp=-oaymwEjCNACELwBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLBa7Lq0wRsCbCmnSb8gEGqEhNDZJQ",
+                                      "width": 336,
+                                      "height": 188
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "LA TXAMA - BILA-BILA FT. SÜNE"
+                                },
+                                "image": {
+                                  "decoratedAvatarViewModel": {
+                                    "avatar": {
+                                      "avatarViewModel": {
+                                        "image": {
+                                          "sources": [
+                                            {
+                                              "url": "https://yt3.ggpht.com/d65UTXwCzV3hJbEbUUbWnUruW6R7ODkLla0Y_PEO44JDeRzx0_6aY0xcxa1fsEYJLmkftjUF=s88-c-k-c0x00ffffff-no-rj",
+                                              "width": 68,
+                                              "height": 68
+                                            }
+                                          ]
+                                        },
+                                        "avatarImageSize": "AVATAR_SIZE_M"
+                                      }
+                                    },
+                                    "a11yLabel": "Ir al canal La Txama"
+                                  }
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "La Txama",
+                                              "styleRuns": [
+                                                {
+                                                  "startIndex": 0,
+                                                  "length": 8,
+                                                  "weightLabel": "FONT_WEIGHT_NORMAL"
+                                                },
+                                                {
+                                                  "startIndex": 8,
+                                                  "styleRunExtensions": {
+                                                    "styleRunColorMapExtension": {
+                                                      "colorMap": [
+                                                        {
+                                                          "key": "USER_INTERFACE_THEME_DARK",
+                                                          "value": 4289374890
+                                                        },
+                                                        {
+                                                          "key": "USER_INTERFACE_THEME_LIGHT",
+                                                          "value": 4284506208
+                                                        }
+                                                      ]
+                                                    }
+                                                  }
+                                                }
+                                              ],
+                                              "attachmentRuns": [
+                                                {
+                                                  "startIndex": 8,
+                                                  "length": 0,
+                                                  "element": {
+                                                    "type": {
+                                                      "imageType": {
+                                                        "image": {
+                                                          "sources": [
+                                                            {
+                                                              "clientResource": {
+                                                                "imageName": "AUDIO_BADGE"
+                                                              },
+                                                              "width": 14,
+                                                              "height": 14
+                                                            }
+                                                          ]
+                                                        }
+                                                      }
+                                                    },
+                                                    "properties": {
+                                                      "layoutProperties": {
+                                                        "height": {
+                                                          "value": 14,
+                                                          "unit": "DIMENSION_UNIT_POINT"
+                                                        },
+                                                        "width": {
+                                                          "value": 14,
+                                                          "unit": "DIMENSION_UNIT_POINT"
+                                                        },
+                                                        "margin": {
+                                                          "left": {
+                                                            "value": 4,
+                                                            "unit": "DIMENSION_UNIT_POINT"
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "alignment": "ALIGNMENT_VERTICAL_CENTER"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "133 K visualizaciones"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "hace 1 mes"
+                                            },
+                                            "accessibilityLabel": "hace 1 mes"
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "delimiter": " • "
+                                  }
+                                },
+                                "menuButton": {
+                                  "buttonViewModel": {
+                                    "iconName": "MORE_VERT",
+                                    "accessibilityText": "Más acciones",
+                                    "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                                    "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+                                    "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                                    "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "mPWrwtO4wFw",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO"
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "image": {
+                                  "sources": [
+                                    {
+                                      "url": "https://i.ytimg.com/vi/5pSuNbEswZM/hqdefault.jpg?sqp=-oaymwEjCNACELwBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLASJO_FCa0XDdAe6x0DakSTRDgK8w",
+                                      "width": 336,
+                                      "height": 188
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "Peiremans+ - Durangoko Palentinoan (bideoklip ofiziala - official music video)"
+                                },
+                                "image": {
+                                  "decoratedAvatarViewModel": {
+                                    "avatar": {
+                                      "avatarViewModel": {
+                                        "image": {
+                                          "sources": [
+                                            {
+                                              "url": "https://yt3.ggpht.com/lKkeZJPC3GTJym8yy_pBoxQNGSXMbWvCz3EZwBtf3XBX3gXphOyYw9QeUSMq2ABvR-7h4ZwExg=s68-c-k-c0x00ffffff-no-rj",
+                                              "width": 68,
+                                              "height": 68
+                                            }
+                                          ]
+                                        },
+                                        "avatarImageSize": "AVATAR_SIZE_M"
+                                      }
+                                    },
+                                    "a11yLabel": "Ir al canal Gorka Urbizu"
+                                  }
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "Gorka Urbizu",
+                                              "styleRuns": [
+                                                {
+                                                  "startIndex": 0,
+                                                  "length": 12,
+                                                  "weightLabel": "FONT_WEIGHT_NORMAL"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "21 K visualizaciones"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "hace 2 semanas"
+                                            },
+                                            "accessibilityLabel": "hace 2 semanas"
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "delimiter": " • "
+                                  }
+                                },
+                                "menuButton": {
+                                  "buttonViewModel": {
+                                    "iconName": "MORE_VERT",
+                                    "accessibilityText": "Más acciones",
+                                    "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                                    "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+                                    "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                                    "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "5pSuNbEswZM",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO"
+                          }
+                        },
+                        {
+                          "lockupViewModel": {
+                            "contentImage": {
+                              "thumbnailViewModel": {
+                                "image": {
+                                  "sources": [
+                                    {
+                                      "url": "https://i.ytimg.com/vi/ibmo5oHNXNo/hqdefault.jpg?sqp=-oaymwEjCNACELwBSFryq4qpAxUIARUAAAAAGAElAADIQj0AgKJDeAE=&rs=AOn4CLAhnmHQof6MFSSLI_TL-IjYdK9Y-w",
+                                      "width": 336,
+                                      "height": 188
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "metadata": {
+                              "lockupMetadataViewModel": {
+                                "title": {
+                                  "content": "KAPARRAK - Galtzaile"
+                                },
+                                "image": {
+                                  "decoratedAvatarViewModel": {
+                                    "avatar": {
+                                      "avatarViewModel": {
+                                        "image": {
+                                          "sources": [
+                                            {
+                                              "url": "https://yt3.ggpht.com/YzXfIBFtJN1V8wWrT7uxcBd0l0YgdtLjMlW9uOa3_U9oFEMe63EEBY475saymsfIMUQw_f-A6g=s68-c-k-c0x00ffffff-no-rj",
+                                              "width": 68,
+                                              "height": 68
+                                            }
+                                          ]
+                                        },
+                                        "avatarImageSize": "AVATAR_SIZE_M"
+                                      }
+                                    },
+                                    "a11yLabel": "Ir al canal Kaparrak"
+                                  }
+                                },
+                                "metadata": {
+                                  "contentMetadataViewModel": {
+                                    "metadataRows": [
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "Kaparrak",
+                                              "styleRuns": [
+                                                {
+                                                  "startIndex": 0,
+                                                  "length": 8,
+                                                  "weightLabel": "FONT_WEIGHT_NORMAL"
+                                                }
+                                              ]
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "metadataParts": [
+                                          {
+                                            "text": {
+                                              "content": "731 K visualizaciones"
+                                            }
+                                          },
+                                          {
+                                            "text": {
+                                              "content": "hace 1 año"
+                                            },
+                                            "accessibilityLabel": "hace 1 año"
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "delimiter": " • "
+                                  }
+                                },
+                                "menuButton": {
+                                  "buttonViewModel": {
+                                    "iconName": "MORE_VERT",
+                                    "accessibilityText": "Más acciones",
+                                    "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                                    "type": "BUTTON_VIEW_MODEL_TYPE_TEXT",
+                                    "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                                    "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                                  }
+                                }
+                              }
+                            },
+                            "contentId": "ibmo5oHNXNo",
+                            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO"
+                          }
+                        },
+                        {
+                          "continuationItemViewModel": {
+                            "trigger": "CONTINUATION_TRIGGER_ON_ITEM_SHOWN",
+                            "continuationCommand": {
+                              "innertubeCommand": {
+                                "continuationCommand": {
+                                  "token": "4qmFsgKBARIkVkxQTEw1VHZDOXA2eDRPWnQ4RG5NaEt0VUNaTW1XMVI1dTZNGjRDQUY2SGxCVU9rTkhWV2xGUlZKSFVrVk9RMDVxVVROU2FsSkVVbFZWTlU0d1NRJTNEJTNEmgIiUExMNVR2QzlwNng0T1p0OERuTWhLdFVDWk1tVzFSNXU2TQ%3D%3D",
+                                  "request": "CONTINUATION_REQUEST_TYPE_BROWSE"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "targetId": "PLL5TvC9p6x4OZt8DnMhKtUCZMmW1R5u6M"
+                    }
+                  },
+                  {
+                    "continuationItemViewModel": {
+                      "trigger": "CONTINUATION_TRIGGER_ON_ITEM_SHOWN",
+                      "continuationCommand": {
+                        "innertubeCommand": {
+                          "continuationCommand": {
+                            "token": "4qmFsgJbEiRWTFBMTDVUdkM5cDZ4NE9adDhEbk1oS3RVQ1pNbVcxUjV1Nk0aDGtnRURDT01JNEFzQpoCJFZMUExMNVR2QzlwNng0T1p0OERuTWhLdFVDWk1tVzFSNXU2TQ%3D%3D",
+                            "request": "CONTINUATION_REQUEST_TYPE_BROWSE"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "targetId": "VLPLL5TvC9p6x4OZt8DnMhKtUCZMmW1R5u6M",
+                "sectionListLayoutConfiguration": {
+                  "layoutConfiguration": {
+                    "responsiveContainerConfiguration": {
+                      "responsiveSize": "RESPONSIVE_SIZE_COMPACT",
+                      "responsiveMap": [
+                        {
+                          "containerSize": "CONTAINER_SIZE_NARROW",
+                          "containerType": "CONTAINER_TYPE_VERTICAL_LIST",
+                          "maxWidth": 599,
+                          "minColumnSize": 310,
+                          "minColumnCount": 1,
+                          "maxColumnCount": 1,
+                          "spacingConfiguration": {
+                            "columnGap": 12,
+                            "rowGap": 12,
+                            "containerMarginTop": 12,
+                            "containerMarginBottom": 12,
+                            "containerMarginStart": 12,
+                            "containerMarginEnd": 12
+                          },
+                          "columnMultiplier": 1,
+                          "columnAdder": 0
+                        },
+                        {
+                          "containerSize": "CONTAINER_SIZE_MEDIUM",
+                          "containerType": "CONTAINER_TYPE_VERTICAL_LIST",
+                          "maxWidth": 1023,
+                          "minColumnSize": 310,
+                          "minColumnCount": 1,
+                          "maxColumnCount": 1,
+                          "spacingConfiguration": {
+                            "columnGap": 12,
+                            "rowGap": 12,
+                            "containerMarginTop": 16,
+                            "containerMarginBottom": 16,
+                            "containerMarginStart": 16,
+                            "containerMarginEnd": 16
+                          },
+                          "columnMultiplier": 1,
+                          "columnAdder": 0
+                        },
+                        {
+                          "containerSize": "CONTAINER_SIZE_WIDE",
+                          "containerType": "CONTAINER_TYPE_VERTICAL_LIST",
+                          "maxWidth": 2047,
+                          "minColumnSize": 310,
+                          "minColumnCount": 1,
+                          "maxColumnCount": 1,
+                          "spacingConfiguration": {
+                            "columnGap": 12,
+                            "rowGap": 12,
+                            "containerMarginTop": 16,
+                            "containerMarginBottom": 16,
+                            "containerMarginStart": 16,
+                            "containerMarginEnd": 16
+                          },
+                          "columnMultiplier": 1,
+                          "columnAdder": 0
+                        }
+                      ]
+                    }
+                  }
+                },
+                "webComponentHint": {
+                  "componentVersion": "WEB_COMPONENT_VERSION_SHARED"
+                }
+              }
+            },
+            "tabIdentifier": "PL"
+          }
+        }
+      ]
+    }
+  },
+  "header": {
+    "pageHeaderRenderer": {
+      "pageTitle": "EUSKAL MUSIKA 2026🍒 MÚSICA EN EUSKERA 2026",
+      "content": {
+        "pageHeaderViewModel": {
+          "title": {
+            "dynamicTextViewModel": {
+              "text": {
+                "content": "EUSKAL MUSIKA 2026🍒 MÚSICA EN EUSKERA 2026"
+              }
+            }
+          },
+          "metadata": {
+            "contentMetadataViewModel": {
+              "metadataRows": [
+                {
+                  "metadataParts": [
+                    {
+                      "avatarStack": {
+                        "avatarStackViewModel": {
+                          "avatars": [
+                            {
+                              "avatarViewModel": {
+                                "image": {
+                                  "sources": [
+                                    {
+                                      "url": "https://yt3.ggpht.com/r80TiAnVJo6pvJz4z3q3TN-tW_p1OtAGzQa9plellVVPpmxejxGDrO_5cFwL3yUD0ZpMUkUB=s48-c-k-c0x00ffffff-no-rj",
+                                      "width": 48,
+                                      "height": 48
+                                    }
+                                  ],
+                                  "processor": {
+                                    "borderImageProcessor": {
+                                      "circular": true
+                                    }
+                                  }
+                                },
+                                "avatarImageSize": "AVATAR_SIZE_XS"
+                              }
+                            }
+                          ],
+                          "text": {
+                            "content": "de ZUGA",
+                            "styleRuns": [
+                              {
+                                "startIndex": 0,
+                                "length": 7,
+                                "fontColor": 4294967295,
+                                "weightLabel": "FONT_WEIGHT_NORMAL"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "metadataParts": [
+                    {
+                      "text": {
+                        "content": "Lista de reproducción"
+                      }
+                    },
+                    {
+                      "text": {
+                        "content": "168 vídeos"
+                      }
+                    },
+                    {
+                      "text": {
+                        "content": "332.979 visualizaciones"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "•"
+            }
+          },
+          "actions": {
+            "flexibleActionsViewModel": {
+              "actionsRows": [
+                {
+                  "actions": [
+                    {
+                      "buttonViewModel": {
+                        "iconName": "PLAY_ARROW",
+                        "title": "Reproducir todo",
+                        "accessibilityText": "Reproducir todo",
+                        "style": "BUTTON_VIEW_MODEL_STYLE_OVERLAY",
+                        "isFullWidth": false,
+                        "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                        "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT"
+                      }
+                    },
+                    {
+                      "toggleButtonViewModel": {
+                        "defaultButtonViewModel": {
+                          "buttonViewModel": {
+                            "iconName": "PLAYLIST_ADD",
+                            "accessibilityText": "Guardar lista de reproducción",
+                            "style": "BUTTON_VIEW_MODEL_STYLE_OVERLAY",
+                            "isFullWidth": false,
+                            "type": "BUTTON_VIEW_MODEL_TYPE_TONAL",
+                            "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                            "tooltip": "Guardar lista de reproducción"
+                          }
+                        },
+                        "toggledButtonViewModel": {
+                          "buttonViewModel": {
+                            "iconName": "PLAYLIST_ADD_CHECK",
+                            "accessibilityText": "Quitar de la biblioteca",
+                            "style": "BUTTON_VIEW_MODEL_STYLE_OVERLAY",
+                            "isFullWidth": false,
+                            "type": "BUTTON_VIEW_MODEL_TYPE_TONAL",
+                            "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                            "tooltip": "Quitar de la biblioteca"
+                          }
+                        },
+                        "isToggled": false,
+                        "identifier": ""
+                      }
+                    },
+                    {
+                      "buttonViewModel": {
+                        "iconName": "SHARE",
+                        "accessibilityText": "Compartir",
+                        "style": "BUTTON_VIEW_MODEL_STYLE_OVERLAY",
+                        "isFullWidth": false,
+                        "type": "BUTTON_VIEW_MODEL_TYPE_TONAL",
+                        "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                        "tooltip": "Compartir"
+                      }
+                    },
+                    {
+                      "buttonViewModel": {
+                        "iconName": "MORE_VERT",
+                        "accessibilityText": "Más acciones",
+                        "style": "BUTTON_VIEW_MODEL_STYLE_OVERLAY",
+                        "isFullWidth": false,
+                        "type": "BUTTON_VIEW_MODEL_TYPE_TONAL",
+                        "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                        "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE",
+                        "enableIconButton": true
+                      }
+                    }
+                  ]
+                }
+              ],
+              "justifyContent": "FLEXIBLE_ACTIONS_JUSTIFY_CONTENT_START",
+              "minimumRowHeight": 44
+            }
+          },
+          "description": {
+            "descriptionPreviewViewModel": {
+              "description": {
+                "content": "Euskal eszenak azken urteetan eman duen abesti esanguratsuenak! ❤️🤍💚 Lo más nuevo de la escena actual vasca. ¡Actualizado todas las semanas! ETS, Zetak, Gatibu, Sune, Huntza, Olaia Inziarte, Chill Mafia, Bulego, Naxker, Izaro, Olatz Salvador, Tatxers, ZUGA, Dupla, Raimundo El Canastero, Skabidean..."
+              },
+              "truncationText": {
+                "content": "...más",
+                "styleRuns": [
+                  {
+                    "startIndex": 0,
+                    "length": 6,
+                    "weight": 500
+                  }
+                ]
+              }
+            }
+          },
+          "heroImage": {
+            "contentPreviewImageViewModel": {
+              "image": {
+                "sources": [
+                  {
+                    "url": "https://i.ytimg.com/vi/mPWrwtO4wFw/hqdefault.jpg?sqp=-oaymwEXCNACELwBSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLCIsmpys2z4n_0h1ENorJNT_ReGng",
+                    "width": 336,
+                    "height": 188
+                  }
+                ]
+              },
+              "style": "CONTENT_PREVIEW_IMAGE_STYLE_HORIZONTAL_RECTANGLE_16_BY_9",
+              "layoutMode": "CONTENT_PREVIEW_IMAGE_LAYOUT_MODE_FULL_WIDTH"
+            }
+          },
+          "background": {
+            "cinematicContainerViewModel": {
+              "backgroundImageConfig": {
+                "image": {
+                  "sources": [
+                    {
+                      "url": "https://i.ytimg.com/vi/mPWrwtO4wFw/hqdefault.jpg?sqp=-oaymwEXCNACELwBSFryq4qpAwkIARUAAIhCGAE=&rs=AOn4CLCIsmpys2z4n_0h1ENorJNT_ReGng",
+                      "width": 336,
+                      "height": 188
+                    }
+                  ]
+                }
+              },
+              "gradientColorConfig": [
+                {
+                  "lightThemeColor": 3428400950,
+                  "darkThemeColor": 3428400950,
+                  "startLocation": 0
+                },
+                {
+                  "lightThemeColor": 1280917302,
+                  "darkThemeColor": 1280917302,
+                  "startLocation": 0.33
+                },
+                {
+                  "lightThemeColor": 3428400950,
+                  "darkThemeColor": 4279176975,
+                  "startLocation": 1
+                }
+              ],
+              "config": {
+                "lightThemeBackgroundColor": 4284038966,
+                "darkThemeBackgroundColor": 4284038966,
+                "colorSourceSizeMultiplier": 2,
+                "applyClientImageBlur": true
+              }
+            }
+          },
+          "hasTopbarAnimation": true,
+          "enableFlexibleActionsButtonsWrapper": false
+        }
+      },
+      "enableSidebarView": true
+    }
+  },
+  "alerts": [
+    {
+      "alertWithButtonRenderer": {
+        "type": "INFO",
+        "text": {
+          "simpleText": "Los vídeos no disponibles están ocultos"
+        },
+        "dismissButton": {
+          "buttonRenderer": {
+            "style": "STYLE_DEFAULT",
+            "size": "SIZE_DEFAULT",
+            "isDisabled": false,
+            "icon": {
+              "iconType": "CLOSE"
+            },
+            "accessibilityData": {
+              "accessibilityData": {
+                "label": "Cerrar"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "playlistMetadataRenderer": {
+      "title": "EUSKAL MUSIKA 2026🍒 MÚSICA EN EUSKERA 2026",
+      "description": "Euskal eszenak azken urteetan eman duen abesti esanguratsuenak! ❤️🤍💚 Lo más nuevo de la escena actual vasca. ¡Actualizado todas las semanas! ETS, Zetak, Gatibu, Sune, Huntza, Olaia Inziarte, Chill Mafia, Bulego, Naxker, Izaro, Olatz Salvador, Tatxers, ZUGA, Dupla, Raimundo El Canastero, Skabidean...",
+      "androidAppindexingLink": "android-app://com.google.android.youtube/http/www.youtube.com/playlist?list=PLL5TvC9p6x4OZt8DnMhKtUCZMmW1R5u6M",
+      "iosAppindexingLink": "ios-app://544007664/vnd.youtube/www.youtube.com/playlist?list=PLL5TvC9p6x4OZt8DnMhKtUCZMmW1R5u6M"
+    }
+  }
+}

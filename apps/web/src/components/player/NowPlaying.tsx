@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
-import { ChevronDown, EllipsisVertical } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronDown, EllipsisVertical, Moon } from 'lucide-react';
 import { useT } from '../../i18n';
 import { usePlayer } from '../../stores/player';
+import { useSleepTimer } from '../../stores/sleepTimer';
+import { SleepTimerSheet } from '../SleepTimerSheet';
 import { useUi } from '../../stores/ui';
 import { Artwork } from './Artwork';
 import { SeekBar, TransportControls, VolumeControl } from './Controls';
@@ -14,6 +16,8 @@ export function NowPlaying() {
   const isOpen = useUi((s) => s.nowPlayingOpen);
   const info = usePlayingInfo();
   const context = usePlayer((s) => s.contextInfo);
+  const sleepActive = useSleepTimer((s) => s.endsAt !== null || s.endOfTrack);
+  const [sleepOpen, setSleepOpen] = useState(false);
 
   // The Android back button should minimise the player, not leave the page:
   // opening pushes a history entry and "back" (button or gesture) pops it.
@@ -52,6 +56,14 @@ export function NowPlaying() {
           <div className="grow small muted ellipsis" style={{ textAlign: 'center' }}>
             {info.kind === 'radio' ? t('player.radio') : (context?.label ?? t('player.nowPlaying'))}
           </div>
+          <button
+            className="icon-btn"
+            onClick={() => setSleepOpen(true)}
+            aria-label={t('sleep.title')}
+            style={sleepActive ? { color: 'var(--accent)' } : undefined}
+          >
+            <Moon size={22} />
+          </button>
           {info.kind === 'track' ? (
             <button
               className="icon-btn"
@@ -86,6 +98,12 @@ export function NowPlaying() {
         <VolumeControl />
         {info.kind === 'track' && <QueuePanel />}
       </div>
+      {sleepOpen && (
+        <SleepTimerSheet
+          onClose={() => setSleepOpen(false)}
+          allowEndOfTrack={info.kind === 'track'}
+        />
+      )}
     </div>
   );
 }

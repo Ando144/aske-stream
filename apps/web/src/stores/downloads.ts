@@ -3,6 +3,14 @@ import { Capacitor } from '@capacitor/core';
 import { LIMITS } from '@aske/shared';
 import { metadataFromYoutube, youtubePlaylistId, youtubeVideoId } from '@aske/shared/youtube';
 import { api, ApiError } from '../api/client';
+import {
+  arrangeImportedPlaylist,
+  importsToKeep,
+  batchForRetry,
+  notificationCounts,
+  uniquePlaylistName,
+  type PlaylistImport,
+} from '../downloads/batch';
 import { t, useI18n } from '../i18n';
 import { squareJpeg } from '../lib/cover';
 import { loadValue, savePref } from '../lib/storage';
@@ -43,6 +51,8 @@ export interface DownloadJob {
   error?: string;
   /** Library playlist the song is added to when it is ready. */
   playlistId?: string | null;
+  /** Group of songs queued together; drives the "1 of N" notification. Older jobs have none. */
+  batchId?: string;
   /** "Send to phone" item this job comes from. */
   sendId?: string | null;
   /** Cloudflare library: also keep the file on this phone. */
@@ -67,9 +77,15 @@ interface DownloadsState {
   engine: { status: EngineStatus; version: string | null; updatedAt: number; error?: string };
   keepOffline: boolean;
   init: () => Promise<void>;
+  /** Returns how many songs were really queued (songs already in the library are skipped). */
   enqueue: (
     items: NewDownload[],
-    opts?: { playlistName?: string; sendId?: string | null },
+    opts?: {
+      playlistName?: string;
+      /** Name already taken: 'merge' (default) joins that playlist, 'new' creates "Name (n)". */
+      playlistMode?: 'merge' | 'new';
+      sendId?: string | null;
+    },
   ) => Promise<number>;
   /** Expands a YouTube link (song or playlist) and queues it. */
   enqueueUrl: (url: string, sendId?: string | null) => Promise<number>;
@@ -87,6 +103,9 @@ const STORE_KEY = 'downloads-v1';
 const ENGINE_KEY = 'downloader-engine';
 const ENGINE_MAX_AGE = 7 * 24 * 3600 * 1000;
 const KEEP_FINISHED = 300;
+const IMPORTS_KEY = 'downloads-imports-v1';
+
+const normalizeName = (name: string) => name.trim().toLowerCase();
 
 const isActive = (j: DownloadJob) =>
   j.status === 'queued' || j.status === 'downloading' || j.status === 'saving';
@@ -129,6 +148,17 @@ function persist(jobs: DownloadJob[]) {
     if (pendingSave) savePref(STORE_KEY, pendingSave);
     pendingSave = null;
   }, 400);
+}
+
+/** Playlists being imported: what YouTube lists, so late downloads still land in order. */
+let importsCache: PlaylistImport[] | null = null;
+function readImports(): PlaylistImport[] {
+  importsCache ??= loadValue<PlaylistImport[]>(IMPORTS_KEY, []);
+  return importsCache;
+}
+function writeImports(next: PlaylistImport[]) {
+  importsCache = next;
+  savePref(IMPORTS_KEY, next);
 }
 
 function mimeFor(ext: string): string {
@@ -205,14 +235,11 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       return;
     }
     const current = active.find((j) => j.status !== 'queued') ?? active[0]!;
-    // This "batch": everything queued since the oldest song still waiting.
-    const since = Math.min(...active.map((j) => j.createdAt));
-    const batch = jobs.filter((j) => j.createdAt >= since);
-    const position = batch.filter(isFinished).length + 1;
+    const counts = notificationCounts(jobs) ?? { position: 1, total: active.length };
     const left = active.length - 1;
     await Downloader.setNotification({
       active: true,
-      title: t('dl.notifTitle', { done: position, total: batch.length }),
+      title: t('dl.notifTitle', { done: counts.position, total: counts.total }),
       text:
         left > 0
           ? t('dl.notifText', { title: current.title, count: left })
@@ -221,12 +248,114 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     }).catch(() => undefined);
   }
 
+  /** Makes the playlist hold every imported song that is in the library, in YouTube order. */
+  async function syncImport(playlistId: string) {
+    const lib = useLibrary.getState();
+    const playlist = lib.playlists.find((p) => p.id === playlistId);
+    const entry = readImports().find((i) => i.playlistId === playlistId);
+    if (!entry) return;
+    if (!playlist) {
+      writeImports(readImports().filter((i) => i.playlistId !== playlistId));
+      return;
+    }
+    const trackIdOf = (videoId: string) => findInLibrary(videoId)?.id;
+    const wanted = arrangeImportedPlaylist(
+      entry.videoIds,
+      playlist.trackIds,
+      trackIdOf,
+      LIMITS.playlistMaxTracks,
+    );
+    const have = new Set(playlist.trackIds);
+    const missing = wanted.filter((id) => !have.has(id));
+    if (missing.length) await lib.addToPlaylist(playlistId, missing, true);
+    const after = useLibrary.getState().playlists.find((p) => p.id === playlistId);
+    const same =
+      after &&
+      after.trackIds.length === wanted.length &&
+      after.trackIds.every((id, i) => id === wanted[i]);
+    if (!same) await useLibrary.getState().reorderPlaylist(playlistId, wanted);
+  }
+
+  /** A song just became available (or was skipped): update every import that lists it. */
+  async function syncImportsFor(videoId: string) {
+    for (const entry of readImports().filter((i) => i.videoIds.includes(videoId))) {
+      await syncImport(entry.playlistId);
+    }
+    pruneImports();
+  }
+
+  /** Forget imports whose songs are all finished: nothing left to add to the playlist. */
+  function pruneImports() {
+    const current = readImports();
+    const kept = importsToKeep(current, get().jobs);
+    if (kept.length !== current.length) writeImports(kept);
+  }
+
+  /** Playlist that receives an import; creates it, or "Name (n)" when asked for a new one. */
+  async function resolvePlaylist(rawName: string, mode: 'merge' | 'new'): Promise<string | null> {
+    const lib = useLibrary.getState();
+    let name = rawName.slice(0, LIMITS.nameMax);
+    const same = lib.playlists.find((p) => normalizeName(p.name) === normalizeName(name));
+    if (same && mode === 'merge') return same.id;
+    if (same) {
+      name = uniquePlaylistName(
+        name,
+        lib.playlists.map((p) => p.name),
+        LIMITS.nameMax,
+      );
+    }
+    return (await lib.createPlaylist(name))?.id ?? null;
+  }
+
+  function rememberImport(playlistId: string, items: NewDownload[]) {
+    const ids = items.map((i) => i.videoId);
+    const previous = readImports().find((i) => i.playlistId === playlistId);
+    const videoIds = previous ? [...new Set([...ids, ...previous.videoIds])] : ids;
+    writeImports([
+      ...readImports().filter((i) => i.playlistId !== playlistId),
+      { playlistId, videoIds },
+    ]);
+  }
+
+  /** Jobs for new songs: queued, or already skipped when the library has them. */
+  function buildJobs(items: NewDownload[], playlistId: string | null, sendId: string | null) {
+    const seen = new Set(
+      get()
+        .jobs.filter(isActive)
+        .map((j) => j.videoId),
+    );
+    const now = Date.now();
+    const batchId = `b${now.toString(36)}`;
+    const fresh: DownloadJob[] = [];
+    for (const [i, item] of items.entries()) {
+      if (seen.has(item.videoId)) continue;
+      seen.add(item.videoId);
+      const inLibrary = findInLibrary(item.videoId);
+      fresh.push({
+        id: `${now.toString(36)}-${i}-${item.videoId}`.replace(/[^\w-]/g, ''),
+        videoId: item.videoId,
+        title: item.title || item.videoId,
+        author: item.author,
+        thumbnail: item.thumbnail ?? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
+        status: inLibrary ? 'skipped' : 'queued',
+        progress: 0,
+        playlistId,
+        batchId,
+        sendId,
+        keepOffline: get().keepOffline,
+        trackId: inLibrary?.id,
+        createdAt: now + i,
+        finishedAt: inLibrary ? now : undefined,
+      });
+    }
+    return fresh;
+  }
+
   async function process(job: DownloadJob) {
     const existing = findInLibrary(job.videoId);
     if (existing) {
-      if (job.playlistId)
-        await useLibrary.getState().addToPlaylist(job.playlistId, [existing.id], true);
       update(job.id, { status: 'skipped', trackId: existing.id, finishedAt: Date.now() });
+      await syncImportsFor(job.videoId);
       return;
     }
 
@@ -277,9 +406,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           if (err instanceof ApiError && err.status === 409) {
             await useLibrary.getState().load();
             const dup = findInLibrary(job.videoId);
-            if (job.playlistId && dup)
-              await useLibrary.getState().addToPlaylist(job.playlistId, [dup.id], true);
             update(job.id, { status: 'skipped', trackId: dup?.id, finishedAt: Date.now() });
+            await syncImportsFor(job.videoId);
             return;
           }
           throw err;
@@ -337,9 +465,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
         useLibrary.getState().upsertTracks([track]);
       }
 
-      if (job.playlistId)
-        await useLibrary.getState().addToPlaylist(job.playlistId, [track.id], true);
       update(job.id, { status: 'done', trackId: track.id, finishedAt: Date.now() });
+      await syncImportsFor(job.videoId);
     } finally {
       for (const path of cleanup) await Downloader.deleteFile({ path }).catch(() => undefined);
     }
@@ -361,6 +488,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           : j,
       );
       set({ jobs });
+      pruneImports();
       await Downloader.clearAll().catch(() => undefined);
       void Downloader.addListener('progress', ({ jobId, progress }) => {
         const job = get().jobs.find((j) => j.id === jobId);
@@ -375,47 +503,32 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     async enqueue(items, opts = {}) {
       if (!isNative || !items.length) return 0;
       await Downloader.requestNotifications().catch(() => undefined);
-      let playlistId: string | null = null;
-      if (opts.playlistName) {
-        const name = opts.playlistName.slice(0, LIMITS.nameMax);
-        const existing = useLibrary.getState().playlists.find((p) => p.name === name);
-        playlistId = existing?.id ?? (await useLibrary.getState().createPlaylist(name))?.id ?? null;
-      }
-      const queuedIds = new Set(
-        get()
-          .jobs.filter(isActive)
-          .map((j) => j.videoId),
-      );
-      const now = Date.now();
-      const fresh: DownloadJob[] = [];
-      for (const [i, item] of items.entries()) {
-        if (queuedIds.has(item.videoId)) continue;
-        queuedIds.add(item.videoId);
-        fresh.push({
-          id: `${now.toString(36)}-${i}-${item.videoId}`.replace(/[^\w-]/g, ''),
-          videoId: item.videoId,
-          title: item.title || item.videoId,
-          author: item.author,
-          thumbnail: item.thumbnail ?? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
-          status: 'queued',
-          progress: 0,
-          playlistId,
-          sendId: opts.sendId ?? null,
-          keepOffline: get().keepOffline,
-          createdAt: now + i,
-        });
-      }
+      const list = opts.playlistName ? items.slice(0, LIMITS.playlistMaxTracks) : items;
+      const playlistId = opts.playlistName
+        ? await resolvePlaylist(opts.playlistName, opts.playlistMode ?? 'merge')
+        : null;
+      const fresh = buildJobs(list, playlistId, opts.sendId ?? null);
       const finished = get().jobs.filter(isFinished).slice(-KEEP_FINISHED);
       const jobs = [...get().jobs.filter(isActive), ...fresh, ...finished].sort(
         (a, b) => a.createdAt - b.createdAt,
       );
       set({ jobs });
       persist(jobs);
-      if (fresh.length) {
-        toast(t('dl.queued', { count: fresh.length }));
-        void get().run();
+      if (playlistId) {
+        rememberImport(playlistId, list);
+        await syncImport(playlistId);
+        pruneImports();
       }
-      return fresh.length;
+      const skipped = fresh.filter((j) => j.status === 'skipped').length;
+      const queued = fresh.length - skipped;
+      if (skipped && playlistId) toast(t('dl.alreadyHad', { count: skipped }));
+      if (queued) {
+        toast(t('dl.queued', { count: queued }));
+        // The foreground service must start while the app is still visible.
+        await notify();
+        void get().run();
+      } else if (opts.sendId) await reportSend(opts.sendId);
+      return queued;
     },
 
     async enqueueUrl(url, sendId = null) {
@@ -428,7 +541,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       if (!list.entries.length) throw new Error('Empty or private playlist');
       return get().enqueue(
         list.entries.map((e) => ({ videoId: e.id, title: e.title, author: e.author })),
-        { playlistName: list.title || undefined, sendId },
+        // Nobody is looking at the phone to answer: a repeated name gets "Name (n)".
+        { playlistName: list.title || undefined, playlistMode: 'new', sendId },
       );
     },
 
@@ -437,6 +551,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       if (!job || !isActive(job)) return;
       if (job.status !== 'queued') await Downloader.cancel({ jobId }).catch(() => undefined);
       update(jobId, { status: 'canceled', finishedAt: Date.now() });
+      pruneImports();
       if (job.sendId) void reportSend(job.sendId);
       void notify();
     },
@@ -446,13 +561,27 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     },
 
     retry(jobId) {
-      update(jobId, { status: 'queued', progress: 0, error: undefined, finishedAt: undefined });
+      const batchId = batchForRetry(get().jobs, Date.now());
+      update(jobId, {
+        status: 'queued',
+        progress: 0,
+        error: undefined,
+        finishedAt: undefined,
+        batchId,
+      });
       void get().run();
     },
 
     retryFailed() {
+      const batchId = batchForRetry(get().jobs, Date.now());
       for (const j of get().jobs.filter((x) => x.status === 'error')) {
-        update(j.id, { status: 'queued', progress: 0, error: undefined, finishedAt: undefined });
+        update(j.id, {
+          status: 'queued',
+          progress: 0,
+          error: undefined,
+          finishedAt: undefined,
+          batchId,
+        });
       }
       void get().run();
     },
@@ -461,6 +590,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       const jobs = get().jobs.filter(isActive);
       set({ jobs });
       persist(jobs);
+      pruneImports();
     },
 
     setKeepOffline(keepOffline) {
@@ -520,6 +650,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
               set({ engine: { ...get().engine, status: 'error', error: raw } });
             }
           }
+          pruneImports();
           if (job.sendId) await reportSend(job.sendId);
           void notify();
         }

@@ -59,6 +59,34 @@ export function insertAfter(
   return [...head, ...ids, ...tail];
 }
 
+export interface PlaybackLists {
+  currentId: string | null;
+  context: string[];
+  original: string[];
+  index: number;
+  queue: string[];
+}
+
+/**
+ * Drops deleted songs from the playback lists. When the current song is removed from the
+ * context, `index` is left on the previous one so `step()` moves on to the song that followed.
+ */
+export function withoutTracks(
+  s: PlaybackLists,
+  removed: ReadonlySet<string>,
+): Omit<PlaybackLists, 'currentId'> & { currentRemoved: boolean } {
+  const keep = (id: string) => !removed.has(id);
+  const removedUpToCursor = s.context.slice(0, s.index + 1).filter((id) => removed.has(id)).length;
+  const context = s.context.filter(keep);
+  return {
+    context,
+    original: s.original.filter(keep),
+    queue: s.queue.filter(keep),
+    index: Math.max(-1, s.index - removedUpToCursor),
+    currentRemoved: s.currentId !== null && removed.has(s.currentId),
+  };
+}
+
 /** Moves one item (drag & drop). */
 export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
   const next = [...items];

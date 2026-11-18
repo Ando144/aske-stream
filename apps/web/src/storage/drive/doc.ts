@@ -77,7 +77,25 @@ function mergeMap<T extends { updatedAt: number }>(
   return out;
 }
 
-export function mergeDocs(a: LibraryDoc, b: LibraryDoc): LibraryDoc {
+const DELETED_MAX_AGE_MS = 180 * 24 * 3600 * 1000;
+
+/**
+ * Forgets old deletion marks so the file does not grow forever. Accepted risk: a device
+ * that stays offline for more than the max age could bring back something deleted meanwhile.
+ */
+export function pruneDeleted(
+  deleted: Record<string, number>,
+  now: number,
+  maxAgeMs = DELETED_MAX_AGE_MS,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [id, at] of Object.entries(deleted)) {
+    if (now - at <= maxAgeMs) out[id] = at;
+  }
+  return out;
+}
+
+export function mergeDocs(a: LibraryDoc, b: LibraryDoc, now = Date.now()): LibraryDoc {
   const deleted: Record<string, number> = { ...a.deleted };
   for (const [id, at] of Object.entries(b.deleted)) deleted[id] = Math.max(deleted[id] ?? 0, at);
   const tracks = mergeMap(a.tracks, b.tracks, deleted);
@@ -92,7 +110,8 @@ export function mergeDocs(a: LibraryDoc, b: LibraryDoc): LibraryDoc {
     tracks,
     playlists,
     stations: mergeMap(a.stations, b.stations, deleted),
-    deleted,
+    // Pruned last: the filtering above must still see recent and old marks alike.
+    deleted: pruneDeleted(deleted, now),
   };
 }
 

@@ -61,6 +61,17 @@ Browser tests of these flows run against fake native plugins:
 `vite build --mode fakenative` swaps `src/native/{platform,downloader,askeNative,googleDrive}`
 for `apps/web/test/fake-native/*`.
 
+### Downloads in the background
+
+The queue runs in JavaScript, so it only advances while the WebView renderer is alive. Android
+demotes (and can freeze or kill) the renderer of a hidden WebView that is not playing audio.
+While the queue is active, `Downloader.setNotification({ active: true })` starts the foreground
+service and sets the renderer priority to "important" without lowering it when hidden; with
+`active: false` it returns to the default. Capacitor keeps the WebView timers running on pause
+(`KeepRunning` defaults to true), so `MainActivity` needs no changes. If Android refuses to start
+the service from the background, the reason is logged (`Log.w`) and downloads go on without it.
+A fully native queue would be the next step if this is not enough.
+
 ## Google Drive sign-in
 
 `GoogleDrivePlugin` asks Google Play services for a Drive token with the

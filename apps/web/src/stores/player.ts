@@ -10,6 +10,7 @@ import {
   previousIndex,
   reshuffleForNextLap,
   shuffleKeepingFirst,
+  withoutTracks,
   type RepeatMode,
 } from '../player/queue';
 import { resolveAudio, resolveCoverDataUrl } from '../storage/media';
@@ -143,6 +144,7 @@ const availableOffline = (id: string) =>
 const engine = {
   advance: (_auto: boolean): void => undefined,
   persist: (): void => undefined,
+  forgetTracks: (_removed: Set<string>): void => undefined,
 };
 
 export const usePlayer = create<PlayerState>((set, get) => {
@@ -300,8 +302,28 @@ export const usePlayer = create<PlayerState>((set, get) => {
     void loadCurrent(true);
   }
 
+  /** Removes deleted songs from playback; if the current one went, moves on or stops. */
+  function forgetTracks(removed: Set<string>) {
+    const s = get();
+    const { currentRemoved, ...lists } = withoutTracks(s, removed);
+    set(lists);
+    if (currentRemoved && s.mode === 'track') {
+      const wasPlaying = s.isPlaying;
+      if (step(false)) {
+        void loadCurrent(wasPlaying);
+      } else {
+        loadSeq++;
+        audio.pause();
+        resetSource();
+        set({ mode: 'idle', currentId: null, isPlaying: false });
+      }
+    }
+    persist();
+  }
+
   engine.advance = advance;
   engine.persist = persist;
+  engine.forgetTracks = forgetTracks;
   (engine as typeof engine & { retryRadio?: () => boolean }).retryRadio = () => {
     const st = get().station;
     if (!st || !triedHttpsUpgrade) return false;
@@ -610,8 +632,22 @@ audio.addEventListener('error', () => {
   toast(t('toast.playbackError'), 'error');
   // Skip broken songs, but never loop forever over a fully broken list.
   if (++consecutiveErrors < 3 && s.context.length + s.queue.length > 1) {
-    setTimeout(() => engine.advance(true), 1200);
+    // If the song was deleted meanwhile, the library listener already moved on: don't skip twice.
+    const failedSrc = audio.currentSrc;
+    setTimeout(() => {
+      if (audio.currentSrc === failedSrc) engine.advance(true);
+    }, 1200);
   }
+});
+
+/** Deleting the playing song (or any queued one) must not leave the player on a ghost. */
+useLibrary.subscribe((state, prev) => {
+  if (state.tracks === prev.tracks) return;
+  const removed = new Set(Object.keys(prev.tracks).filter((id) => !(id in state.tracks)));
+  if (!removed.size) return;
+  const p = usePlayer.getState();
+  const used = [p.currentId, ...p.context, ...p.queue].some((id) => id !== null && removed.has(id));
+  if (used) engine.forgetTracks(removed);
 });
 
 window.addEventListener('pagehide', () => engine.persist());

@@ -5,6 +5,7 @@ import {
   previousIndex,
   reshuffleForNextLap,
   shuffleKeepingFirst,
+  withoutTracks,
 } from '../src/player/queue';
 
 const ids = Array.from({ length: 50 }, (_, i) => `s${i}`);
@@ -69,5 +70,51 @@ describe('queue editing and data saver', () => {
     ]);
     const shuffledOrder = orderForDataSaver(['a', 'b', 'c', 'd'], (id) => local.has(id), true);
     expect(new Set(shuffledOrder.slice(0, 2))).toEqual(local);
+  });
+});
+
+describe('withoutTracks', () => {
+  const base = {
+    currentId: 'c',
+    context: ['a', 'b', 'c', 'd'],
+    original: ['a', 'b', 'c', 'd'],
+    index: 2,
+    queue: ['q1', 'q2'],
+  };
+
+  it('lowers the index when songs before the cursor are removed', () => {
+    const out = withoutTracks(base, new Set(['a']));
+    expect(out.context).toEqual(['b', 'c', 'd']);
+    expect(out.index).toBe(1);
+    expect(out.currentRemoved).toBe(false);
+  });
+
+  it('leaves the index on the previous song when the current one is removed', () => {
+    const out = withoutTracks(base, new Set(['c']));
+    expect(out.context).toEqual(['a', 'b', 'd']);
+    expect(out.index).toBe(1);
+    expect(out.currentRemoved).toBe(true);
+  });
+
+  it('removes from queue and original too', () => {
+    const out = withoutTracks(base, new Set(['q1', 'b']));
+    expect(out.queue).toEqual(['q2']);
+    expect(out.original).toEqual(['a', 'c', 'd']);
+    expect(out.index).toBe(1);
+  });
+
+  it('keeps the index when the current song came from the queue', () => {
+    const out = withoutTracks({ ...base, currentId: 'q1' }, new Set(['q1']));
+    expect(out.queue).toEqual(['q2']);
+    expect(out.index).toBe(2);
+    expect(out.currentRemoved).toBe(true);
+  });
+
+  it('returns empty lists when everything is removed', () => {
+    const out = withoutTracks(base, new Set(['a', 'b', 'c', 'd', 'q1', 'q2']));
+    expect(out.context).toEqual([]);
+    expect(out.queue).toEqual([]);
+    expect(out.original).toEqual([]);
+    expect(out.index).toBeLessThanOrEqual(0);
   });
 });

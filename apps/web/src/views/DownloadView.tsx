@@ -15,7 +15,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { SendItem } from '@aske/shared';
+import { LIMITS, type SendItem } from '@aske/shared';
 import {
   isYoutubeUrl,
   youtubePlaylistId,
@@ -28,9 +28,10 @@ import { SettingsLink } from '../components/SettingsLink';
 import { RELEASES_URL } from '../config';
 import { useI18n, useT } from '../i18n';
 import { formatBytes, formatTime } from '../lib/format';
+import { uniquePlaylistName } from '../downloads/batch';
 import { loadValue, savePref } from '../lib/storage';
 import { AskeNative } from '../native/askeNative';
-import { listPlaylistOnPhone, searchOnPhone } from '../native/downloader';
+import { listPlaylistOnPhone, searchOnPhone, type PlaylistListing } from '../native/downloader';
 import { isNative } from '../native/platform';
 import { useDownloads, type DownloadJob } from '../stores/downloads';
 import { useLibrary } from '../stores/library';
@@ -177,7 +178,7 @@ function SearchPanel({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      {link && <LinkCard url={link} onDone={() => setQuery('')} />}
+      {link && <LinkCard url={link} onDone={() => setQuery('')} onOpenPlaylist={setOpenPlaylist} />}
       {busy && (
         <div className="row muted dl-status">
           <LoaderCircle className="spin" size={18} /> {t('dl.searching')}
@@ -291,13 +292,34 @@ function ResultRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
 }
 
 /** A pasted YouTube / YouTube Music link. */
-function LinkCard({ url, onDone }: { url: string; onDone: () => void }) {
+function LinkCard({
+  url,
+  onDone,
+  onOpenPlaylist,
+}: {
+  url: string;
+  onDone: () => void;
+  onOpenPlaylist: (result: SearchResult) => void;
+}) {
   const t = useT();
   const isPlaylist = !youtubeVideoId(url) && !!youtubePlaylistId(url);
   const [busy, setBusy] = useState(false);
   const valid = !!youtubeVideoId(url) || isPlaylist;
 
   const act = async () => {
+    if (isNative && isPlaylist) {
+      // Same preview as a searched playlist, so the "name already exists" question shows too.
+      onOpenPlaylist({
+        kind: 'playlist',
+        id: youtubePlaylistId(url) ?? '',
+        title: '',
+        author: '',
+        thumbnail: '',
+        url,
+      });
+      onDone();
+      return;
+    }
     setBusy(true);
     try {
       if (isNative) {
@@ -336,31 +358,71 @@ function LinkCard({ url, onDone }: { url: string; onDone: () => void }) {
   );
 }
 
+/** Cover of a playlist; falls back to an icon when the picture is missing or broken. */
+function PlaylistCover({ src }: { src: string }) {
+  const [broken, setBroken] = useState(!src);
+  useEffect(() => setBroken(!src), [src]);
+  if (broken) {
+    return (
+      <div className="dl-thumb dl-thumb-empty">
+        <ListMusic size={22} />
+      </div>
+    );
+  }
+  return (
+    <img
+      className="dl-thumb"
+      src={src}
+      alt=""
+      referrerPolicy="no-referrer"
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
+type SheetEntry = { id: string; title: string; author: string };
+
 /** Preview of a playlist before downloading (phone) or sending it (computer). */
 function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () => void }) {
   const t = useT();
   const language = useI18n((s) => s.language);
-  const [entries, setEntries] = useState<{ id: string; title: string; author: string }[] | null>(
-    null,
-  );
+  const [listing, setListing] = useState<PlaylistListing | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [title, setTitle] = useState(result.title);
   const [error, setError] = useState<string | null>(null);
   const [makePlaylist, setMakePlaylist] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<'merge' | 'new'>('merge');
+  const playlists = useLibrary((s) => s.playlists);
+  const entries: SheetEntry[] | null = listing?.entries ?? null;
+  const playlistName = title.slice(0, LIMITS.nameMax);
+  const existingNames = playlists.map((p) => p.name);
+  const nameTaken =
+    !!playlistName &&
+    existingNames.some((n) => n.trim().toLowerCase() === playlistName.trim().toLowerCase());
 
   useEffect(() => {
     if (!isNative) return;
     let alive = true;
-    listPlaylistOnPhone(result.url, language)
+    // YouTube's own API gave part of the list: show it while yt-dlp reads the rest.
+    const onPartial = (partial: PlaylistListing) => {
+      if (!alive) return;
+      if (partial.title) setTitle(partial.title);
+      setListing(partial);
+      setLoadingMore(true);
+    };
+    listPlaylistOnPhone(result.url, language, onPartial)
       .then((l) => {
         if (!alive) return;
         if (l.title) setTitle(l.title);
-        setEntries(l.entries);
+        setListing(l);
+        setLoadingMore(false);
         if (!l.entries.length) setError(t('dl.playlistEmpty'));
       })
       .catch((err: Error) => {
         if (!alive) return;
-        setEntries([]);
+        setLoadingMore(false);
+        setListing((prev) => prev ?? emptyListing());
         setError(
           err.message === 'timeout'
             ? t('dl.playlistSlow')
@@ -377,7 +439,7 @@ function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () 
     if (isNative && entries) {
       await useDownloads.getState().enqueue(
         entries.map((e) => ({ videoId: e.id, title: e.title, author: e.author })),
-        { playlistName: makePlaylist ? title : undefined },
+        { playlistName: makePlaylist ? title : undefined, playlistMode: mode },
       );
     } else if (!isNative) {
       await useSend.getState().send(result);
@@ -386,14 +448,16 @@ function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () 
     onClose();
   };
 
+  const total = listing?.totalCount ?? null;
+  const cover = result.thumbnail || (entries?.[0] ? videoThumb(entries[0].id) : '');
   // Rendered on <body> so it sits above the tab bar and the player, like the other sheets.
   return createPortal(
     <div className="backdrop" onClick={onClose}>
       <div className="sheet dl-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal>
         <div className="row">
-          <img className="dl-thumb" src={result.thumbnail} alt="" referrerPolicy="no-referrer" />
+          <PlaylistCover src={cover} />
           <div className="grow" style={{ minWidth: 0 }}>
-            <div className="card-title">{result.title}</div>
+            <div className="card-title">{result.title || title}</div>
             <div className="muted small">
               {[result.author, result.count ? t('dl.songsCount', { count: result.count }) : null]
                 .filter(Boolean)
@@ -401,12 +465,23 @@ function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () 
             </div>
           </div>
         </div>
-        {isNative && !entries && !error && (
+        {isNative && !listing && !error && (
           <div className="row muted dl-status">
             <LoaderCircle className="spin" size={18} /> {t('dl.loadingPlaylist')}
           </div>
         )}
+        {loadingMore && entries && total && (
+          <div className="row muted small dl-status">
+            <LoaderCircle className="spin" size={16} />{' '}
+            {t('dl.playlistLoadingMore', { count: entries.length, total })}
+          </div>
+        )}
         {error && <div className="error-text small">{error}</div>}
+        {listing && !loadingMore && !listing.complete && entries && total && (
+          <div className="muted small">
+            {t('dl.playlistPartial', { count: entries.length, total })}
+          </div>
+        )}
         {entries && entries.length > 0 && (
           <div className="dl-entries">
             {entries.map((e, i) => (
@@ -425,6 +500,31 @@ function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () 
             />
             {t('dl.makePlaylist', { name: title })}
           </label>
+        )}
+        {isNative && makePlaylist && nameTaken && (
+          <fieldset className="small" style={{ border: 'none', padding: 0, margin: 0 }}>
+            <legend>{t('dl.playlistExists', { name: playlistName })}</legend>
+            <label className="row">
+              <input
+                type="radio"
+                name="playlist-mode"
+                checked={mode === 'merge'}
+                onChange={() => setMode('merge')}
+              />
+              {t('dl.playlistMerge')}
+            </label>
+            <label className="row">
+              <input
+                type="radio"
+                name="playlist-mode"
+                checked={mode === 'new'}
+                onChange={() => setMode('new')}
+              />
+              {t('dl.playlistNew', {
+                name: uniquePlaylistName(playlistName, existingNames, LIMITS.nameMax),
+              })}
+            </label>
+          </fieldset>
         )}
         {!isNative && <p className="small muted">{t('send.playlistHint')}</p>}
         <div className="row" style={{ justifyContent: 'flex-end' }}>
@@ -447,6 +547,16 @@ function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () 
     document.body,
   );
 }
+
+const emptyListing = (): PlaylistListing => ({
+  title: '',
+  author: '',
+  entries: [],
+  totalCount: null,
+  complete: true,
+});
+
+const videoThumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 
 /* ------------------------------- phone queue ------------------------------- */
 

@@ -1,7 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   buildBrowseRequest,
   buildSearchRequest,
+  isPlaylistComplete,
+  pickLongerList,
   parsePlaylistPage,
   parseDuration,
   parseSearchResponse,
@@ -257,6 +260,7 @@ describe('playlist pages', () => {
       author: 'Someone',
       entries: [{ id: 'aaaaaaaaaaa', title: 'Song A', author: 'Band A', duration: 201 }],
       continuation: 'NEXT',
+      totalCount: null,
     });
   });
 
@@ -281,5 +285,117 @@ describe('playlist pages', () => {
     const r = parsePlaylistPage(next);
     expect(r.entries.map((e) => e.id)).toEqual(['ccccccccccc']);
     expect(r.continuation).toBeNull();
+  });
+
+  const fixture = (name: string) =>
+    JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
+
+  it('real first page: list token (not the "more playlists" one) and the header count', () => {
+    const r = parsePlaylistPage(fixture('playlist-page1.json'));
+    expect(r.entries).toHaveLength(3);
+    expect(r.totalCount).toBe(168);
+    expect(r.title).toContain('EUSKAL MUSIKA');
+    // Captured page 1 has two tokens: the list one comes first, the other is the next section.
+    expect(r.continuation).toMatch(/^4qmFsgKBARIk/);
+  });
+
+  it('real continuation page gives the next songs and no further token', () => {
+    const r = parsePlaylistPage(fixture('playlist-page2.json'));
+    expect(r.entries).toHaveLength(2);
+    expect(r.continuation).toBeNull();
+    expect(r.totalCount).toBeNull();
+  });
+
+  it('reads the count from the old header and the new page header', () => {
+    const old = {
+      header: {
+        playlistHeaderRenderer: {
+          numVideosText: { runs: [{ text: '1.234' }, { text: ' videos' }] },
+        },
+      },
+    };
+    expect(parsePlaylistPage(old).totalCount).toBe(1234);
+    const modern = {
+      header: {
+        pageHeaderViewModel: {
+          metadata: {
+            contentMetadataViewModel: {
+              metadataRows: [
+                {
+                  metadataParts: [
+                    { text: { content: 'de ZUGA' } },
+                    { text: { content: '2026 vídeos' } },
+                  ],
+                },
+                { metadataParts: [{ text: { content: '332.979 visualizaciones' } }] },
+              ],
+            },
+          },
+        },
+      },
+    };
+    expect(parsePlaylistPage(modern).totalCount).toBe(2026);
+  });
+});
+
+describe('search thumbnails and albums', () => {
+  const lockup = (extra: Record<string, unknown>) => ({
+    contents: [
+      {
+        lockupViewModel: {
+          metadata: { lockupMetadataViewModel: { title: { content: 'T' } } },
+          ...extra,
+        },
+      },
+    ],
+  });
+
+  it('skips empty images and uses the first video thumbnail for playlists without one', () => {
+    const empty = lockup({
+      contentId: 'PLabcdefghijk',
+      contentType: 'LOCKUP_CONTENT_TYPE_PLAYLIST',
+      contentImage: { a: { image: { sources: [] } } },
+      rendererContext: { e: { watchEndpoint: { videoId: 'first000001' } } },
+    });
+    expect(parseSearchResponse(empty)[0]?.thumbnail).toBe(
+      'https://i.ytimg.com/vi/first000001/hqdefault.jpg',
+    );
+    const second = lockup({
+      contentId: 'PLabcdefghijk',
+      contentType: 'LOCKUP_CONTENT_TYPE_PLAYLIST',
+      contentImage: [
+        { image: { sources: [] } },
+        { image: { sources: [{ url: 'https://i.ytimg.com/real.jpg', width: 100 }] } },
+      ],
+    });
+    expect(parseSearchResponse(second)[0]?.thumbnail).toBe('https://i.ytimg.com/real.jpg');
+  });
+
+  it('albums use their OLAK5uy playlist id, or are dropped without one', () => {
+    const album = lockup({
+      contentId: 'MPREb_abc',
+      contentType: 'LOCKUP_CONTENT_TYPE_ALBUM',
+      rendererContext: { e: { watchPlaylistEndpoint: { playlistId: 'OLAK5uy_xyz123' } } },
+    });
+    const r = parseSearchResponse(album)[0];
+    expect(r?.id).toBe('OLAK5uy_xyz123');
+    expect(r?.url).toBe('https://www.youtube.com/playlist?list=OLAK5uy_xyz123');
+    const noId = lockup({ contentId: 'MPREb_abc', contentType: 'LOCKUP_CONTENT_TYPE_ALBUM' });
+    expect(parseSearchResponse(noId)).toEqual([]);
+  });
+});
+
+describe('playlist completeness', () => {
+  it('is incomplete only when we read fewer than announced and YouTube did not say it ended', () => {
+    expect(isPlaylistComplete(100, 168, false)).toBe(false);
+    expect(isPlaylistComplete(167, 168, true)).toBe(true);
+    expect(isPlaylistComplete(168, 168, false)).toBe(true);
+    expect(isPlaylistComplete(10, null, false)).toBe(true);
+  });
+
+  it('keeps the longer reading and prefers the first on a tie', () => {
+    expect(pickLongerList([1, 2], [1, 2, 3])).toEqual([1, 2, 3]);
+    expect(pickLongerList([1, 2, 3], [9, 9])).toEqual([1, 2, 3]);
+    expect(pickLongerList([1], [2])).toEqual([1]);
   });
 });

@@ -53,6 +53,14 @@ with sync_playwright() as pw:
     for k in range(4):
         time.sleep(0.5); print("  t", k, [(x['videoId'][-1],x['status']) for x in jobs(p)], p.evaluate("() => window.__fakeNative.calls.slice(-3)"))
     st=wait_jobs_idle(p); print("playlist jobs:", st, [(x['videoId'],x['status']) for x in jobs(p)])
+    # long playlist: every row visible inside a scrolling panel, button counts them all
+    p.locator(".dl-result").nth(1).locator("button").click(); p.wait_for_selector(".dl-entries .small")
+    time.sleep(0.4)
+    box=p.evaluate("() => { const e=document.querySelector('.dl-entries'); const r=e.getBoundingClientRect(); const row=e.firstElementChild.getBoundingClientRect(); return {rows:e.children.length, h:r.height, rowH:row.height, scroll:e.scrollHeight>e.clientHeight} }")
+    print("big playlist panel:", box); shot(p,"05b-big-playlist")
+    assert box["rows"]==150 and box["h"]>100 and box["rowH"]>10 and box["scroll"], box
+    assert "150" in p.locator(".dl-sheet .btn.primary").inner_text()
+    p.locator(".dl-sheet .btn", has_text="Cancelar").click()
     # link
     p.fill(".dl-search input","https://music.youtube.com/watch?v=song0000009&list=PLzzz000000"); p.wait_for_selector(".dl-link")
     shot(p,"06-link"); p.locator(".dl-link .btn.primary").click(); wait_jobs_idle(p)

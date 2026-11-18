@@ -237,6 +237,65 @@ function bestThumb(node: unknown, fallbackId?: string): string {
 const videoUrl = (id: string) => `https://www.youtube.com/watch?v=${id}`;
 const playlistUrl = (id: string) => `https://www.youtube.com/playlist?list=${id}`;
 
+/** Playlist id of an album lockup (`MPRE…` content ids are not playlists; `OLAK5uy…` ones are). */
+function albumPlaylistId(l: Json): string | null {
+  for (const key of ['watchPlaylistEndpoint', 'watchEndpoint']) {
+    const id = findAll(l, key)
+      .map((e) => e.playlistId)
+      .find((x): x is string => typeof x === 'string' && x.startsWith('OLAK5uy'));
+    if (id) return id;
+  }
+  return null;
+}
+
+/** First image that really has sources (the first `image` of a lockup may be an empty one). */
+function lockupThumb(l: Json, videoId: string | undefined): string {
+  const image = findAll(l, 'image').find((i) => Array.isArray(i.sources) && i.sources.length > 0);
+  return bestThumb(image ? { thumbnails: image.sources } : undefined, videoId);
+}
+
+function parseLockup(l: Json): SearchResult | null {
+  const contentId = String(l.contentId ?? '');
+  const type = String(l.contentType ?? '');
+  const meta = get(l, 'metadata', 'lockupMetadataViewModel');
+  const title = text(get(meta, 'title'));
+  const rows = (get(meta, 'metadata', 'contentMetadataViewModel', 'metadataRows') ??
+    []) as unknown[];
+  const parts = rows.flatMap((row) =>
+    ((get(row, 'metadataParts') ?? []) as unknown[]).map((p) => text(get(p, 'text'))),
+  );
+  const badge = findAll(l, 'thumbnailBadgeViewModel').map((b) => String(b.text ?? ''))[0] ?? '';
+  const author = parts[0] ?? '';
+
+  if (type.includes('VIDEO')) {
+    return {
+      kind: 'video',
+      id: contentId,
+      title,
+      author,
+      duration: parseDuration(badge),
+      thumbnail: lockupThumb(l, contentId),
+      url: videoUrl(contentId),
+    };
+  }
+  if (!type.includes('PLAYLIST') && !type.includes('ALBUM')) return null;
+  const id = contentId.startsWith('MPRE') ? albumPlaylistId(l) : contentId;
+  if (!id) return null;
+  const firstVideo = findAll(l, 'watchEndpoint')
+    .map((w) => w.videoId)
+    .find((x): x is string => typeof x === 'string');
+  const count = Number(badge.replace(/\D/g, ''));
+  return {
+    kind: 'playlist',
+    id,
+    title,
+    author,
+    count: count > 0 ? count : undefined,
+    thumbnail: lockupThumb(l, firstVideo),
+    url: playlistUrl(id),
+  };
+}
+
 /** Reads an InnerTube search answer (youtube.com or music.youtube.com). */
 export function parseSearchResponse(json: unknown): SearchResult[] {
   const results: SearchResult[] = [];
@@ -276,43 +335,8 @@ export function parseSearchResponse(json: unknown): SearchResult[] {
 
   // Newer layout for playlists (and sometimes videos).
   for (const l of findAll(json, 'lockupViewModel')) {
-    const id = String(l.contentId ?? '');
-    const type = String(l.contentType ?? '');
-    const meta = get(l, 'metadata', 'lockupMetadataViewModel');
-    const title = text(get(meta, 'title'));
-    const rows = (get(meta, 'metadata', 'contentMetadataViewModel', 'metadataRows') ??
-      []) as unknown[];
-    const parts = rows.flatMap((row) =>
-      ((get(row, 'metadataParts') ?? []) as unknown[]).map((p) => text(get(p, 'text'))),
-    );
-    const badge = findAll(l, 'thumbnailBadgeViewModel').map((b) => String(b.text ?? ''))[0] ?? '';
-    const image = findAll(l, 'image')[0];
-    const thumb = bestThumb(
-      image?.sources ? { thumbnails: image.sources } : undefined,
-      type.includes('VIDEO') ? id : undefined,
-    );
-    if (type.includes('PLAYLIST') || type.includes('ALBUM')) {
-      const count = Number(badge.replace(/\D/g, ''));
-      push({
-        kind: 'playlist',
-        id,
-        title,
-        author: parts[0] ?? '',
-        count: count > 0 ? count : undefined,
-        thumbnail: thumb,
-        url: playlistUrl(id),
-      });
-    } else if (type.includes('VIDEO')) {
-      push({
-        kind: 'video',
-        id,
-        title,
-        author: parts[0] ?? '',
-        duration: parseDuration(badge),
-        thumbnail: thumb,
-        url: videoUrl(id),
-      });
-    }
+    const parsed = parseLockup(l);
+    if (parsed) push(parsed);
   }
 
   // YouTube Music rows: title | artist • album • duration
@@ -367,6 +391,8 @@ export interface PlaylistPage {
   entries: PlaylistEntry[];
   /** Token for the next 100 songs, if there are more. */
   continuation: string | null;
+  /** Number of videos the playlist header announces; null when not shown. */
+  totalCount: number | null;
 }
 
 /** First page of a playlist (`continuation` null) or the next one. */
@@ -389,6 +415,81 @@ export function buildBrowseRequest(
       continuation ? { context, continuation } : { context, browseId: `VL${playlistId}` },
     ),
   };
+}
+
+const isVideoItem = (n: unknown): boolean =>
+  !!get(n, 'playlistVideoRenderer') ||
+  String(get(n, 'lockupViewModel', 'contentType') ?? '').includes('VIDEO');
+
+/** The token of a `continuationCommand`, old (renderer) or new (view model) layout. */
+function tokenIn(node: unknown): string | null {
+  if (!node || typeof node !== 'object') return null;
+  const direct = get(node, 'continuationCommand', 'token');
+  if (typeof direct === 'string') return direct;
+  for (const child of Object.values(node as Json)) {
+    const found = tokenIn(child);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** First array (anywhere in the tree) that holds playlist videos. */
+function findVideoList(node: unknown): unknown[] | null {
+  if (Array.isArray(node)) {
+    if (node.some(isVideoItem)) return node;
+    for (const n of node) {
+      const found = findVideoList(n);
+      if (found) return found;
+    }
+  } else if (node && typeof node === 'object') {
+    for (const v of Object.values(node as Json)) {
+      const found = findVideoList(v);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Token for the next songs. It must be the one sitting at the end of the list of videos:
+ * the page also carries tokens for other sections (e.g. "more playlists"), and in the
+ * newer layout the token is nested under `innertubeCommand`.
+ */
+function listContinuationToken(json: unknown): string | null {
+  const list = findVideoList(json);
+  if (list) {
+    for (const item of list) {
+      if (isVideoItem(item)) continue;
+      const token = tokenIn(item);
+      if (token) return token;
+    }
+    return null;
+  }
+  const legacy = findAll(json, 'nextContinuationData')
+    .map((c) => c.continuation)
+    .find((x) => typeof x === 'string');
+  return typeof legacy === 'string' ? legacy : null;
+}
+
+/** "1.234 videos" → 1234. Needs a word after the number so years or names don't match. */
+function countFromText(value: string): number | null {
+  const m = value
+    .trim()
+    .match(new RegExp('^([0-9][0-9.,' + String.fromCharCode(160, 8239) + ']*)( [^ ]|$)'));
+  const n = m ? Number(m[1]!.replace(/[^0-9]/g, '')) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Video count shown in the playlist header (old header, new page header or sidebar). */
+function playlistTotalCount(json: unknown): number | null {
+  const header = findAll(json, 'playlistHeaderRenderer')[0];
+  const pageHeader = findAll(json, 'pageHeaderViewModel')[0];
+  const parts = findAll(pageHeader, 'metadataParts').flatMap((list) =>
+    (list as unknown as unknown[]).map((part) => text(get(part, 'text'))),
+  );
+  const stats = ((header?.stats ?? []) as unknown[]).map(text);
+  const candidates = [text(header?.numVideosText), ...parts, ...stats];
+  return candidates.map(countFromText).find((n) => n !== null) ?? null;
 }
 
 export function parsePlaylistPage(json: unknown): PlaylistPage {
@@ -432,13 +533,29 @@ export function parsePlaylistPage(json: unknown): PlaylistPage {
     text(get(pageHeader, 'title', 'dynamicTextViewModel', 'text'));
   const author = text(header?.ownerText) || text(get(header, 'ownerText'));
 
-  const token =
-    findAll(json, 'continuationCommand')
-      .map((c) => c.token)
-      .find((x) => typeof x === 'string') ??
-    findAll(json, 'nextContinuationData')
-      .map((c) => c.continuation)
-      .find((x) => typeof x === 'string');
+  return {
+    title,
+    author,
+    entries,
+    continuation: listContinuationToken(json),
+    totalCount: playlistTotalCount(json),
+  };
+}
 
-  return { title, author, entries, continuation: typeof token === 'string' ? token : null };
+/**
+ * Did we get the whole playlist? `exhausted` means YouTube itself said there is nothing
+ * more (no continuation left): any gap against the header count is then videos that are
+ * removed or private, not songs we failed to read.
+ */
+export function isPlaylistComplete(
+  readCount: number,
+  totalCount: number | null,
+  exhausted: boolean,
+): boolean {
+  return exhausted || totalCount === null || readCount >= totalCount;
+}
+
+/** Keeps the longer of two readings of the same playlist (both in YouTube's order). */
+export function pickLongerList<T>(primary: readonly T[], backup: readonly T[]): T[] {
+  return [...(backup.length > primary.length ? backup : primary)];
 }
