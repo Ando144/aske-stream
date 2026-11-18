@@ -1,6 +1,6 @@
 {
   "name": "@aske/api",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "description": "Cloudflare Worker: REST API, media streaming from R2 and static hosting of the PWA.",
