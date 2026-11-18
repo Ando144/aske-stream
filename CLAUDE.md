@@ -39,15 +39,15 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
 
 ```
 apps/web/src/
-  storage/        homes (device, cloudflare, drive/) + types.ts (LibraryHome, LocalTrack.locations)
-  stores/         estado zustand: library, player, offline, downloads, setup, send, copyToDrive, tips…
+  storage/        homes (device, cloudflare, drive/), copy/ (plan, run, endpoints) + types.ts (LibraryHome, LocalTrack.locations)
+  stores/         estado zustand: library, player, offline, downloads, setup, send, copy, tips…
   views/ components/  pantallas y piezas de UI
   native/         puentes a plugins nativos (sustituidos en modo fakenative)
   offline/        IndexedDB (db.ts), Cache Storage de audio, planner de rotación
-  help/articles.ts  centro de ayuda (eu/es/en)   i18n/{es,en,eu}.ts  textos
+  help/articles.ts + help/articles/*.ts  centro de ayuda (eu/es/en), un archivo por sección   i18n/{es,en,eu}.ts  textos
   config.ts       repo, autor, GOOGLE_WEB_CLIENT_ID (público)
 apps/api/src/     routes/ + lib/ ; migrations/000N_*.sql
-docs/             architecture.md, android.md, google-drive.md, v2/architecture.md (fases), releases/
+docs/             architecture.md, android.md, google-drive.md, PRIVACY.md (política que enlaza Google Cloud), v2/architecture.md (fases), releases/
 ```
 
 ## Convenciones de código
