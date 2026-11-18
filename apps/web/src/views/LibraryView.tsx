@@ -14,7 +14,7 @@ import { useSetup } from '../stores/setup';
 import { SettingsLink } from '../components/SettingsLink';
 import { ScreenTip } from '../components/ScreenTip';
 import { FirstSteps } from '../components/FirstSteps';
-import { CopyToDrivePanel } from '../components/CopyToDrivePanel';
+import { CopyPanel } from '../components/CopyPanel';
 
 type Filter = 'all' | 'liked' | 'downloaded';
 type Sort = 'recent' | 'title' | 'artist';
@@ -89,7 +89,7 @@ export function LibraryView() {
       )}
 
       {loaded && <FirstSteps />}
-      <CopyToDrivePanel compact />
+      <CopyPanel compact />
       {loaded && all.length === 0 ? (
         <div className="empty">
           <Library size={40} />

@@ -100,7 +100,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere            | ✅     |
 | 5   | Google Drive home & destination                                                      | ✅     |
 | 5.1 | Real-use fixes: batch counter, full imported playlists, sleep timer, tombstone prune | ✅     |
-| 5.2 | Copy in every direction when switching storage                                       |        |
+| 5.2 | Copy in every direction when switching storage                                       | ✅     |
 | 5.3 | One-level folders, covers, merge playlists                                           |        |
 | 6   | Cloudflare guided setup inside the app (+ QR pairing)                                |        |
 | 7   | Hub: shared playlists and in-person Jams                                             |        |
@@ -144,3 +144,11 @@ Google Identity Services, whose one-hour tokens are renewed with a tap on a "Rec
 Drive songs play from a fetched blob (Drive only accepts the token in a header) and rotate
 in the offline cache like Cloudflare songs. Switching from "This device" offers to copy the
 music, likes and playlists across, resumable and without deleting anything.
+
+Phase 5.2 notes: copying works between any two of device, Drive and Cloudflare. The pure
+planner (`storage/copy/plan.ts`) decides what is missing, `run.ts` copies oldest first through a
+`CopyEndpoint` per storage, and `stores/copy.ts` keeps the job so it can be resumed. Nothing is
+deleted at the source and songs already present (same id map, or same song) are skipped.
+Cloudflare only accepts Opus, so other formats are skipped and counted; playlists are capped at
+1 000 songs. Radios are copied too. The Google "unverified app" warning is guided in the setup
+screen and the help centre.

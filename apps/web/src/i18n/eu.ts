@@ -532,6 +532,9 @@ export const eu: Messages = {
   'setup.drive.connect': 'Google-ekin konektatu',
   'setup.drive.whatHappens':
     'Google-ren leiho bat irekiko da zure kontua aukeratu eta baimena emateko. Aplikazioak berak sortzen dituen fitxategiak bakarrik ikus ditzake: zure Drive-ko gainerakoa pribatua da.',
+  'setup.drive.unverified':
+    'Google-k abisatu diezazuke aplikazioa ez dagoela egiaztatuta. Normala da horrelako doako aplikazioetan: sakatu «Aurreratuak», gero «Joan Aske Stream-era (ez da segurua)» eta «Jarraitu».',
+  'setup.drive.unverifiedHelp': 'Ikusi urratsak xehetasunez',
   'setup.drive.err.canceled':
     'Google-ren leihoa itxi duzu amaitu gabe. Sakatu «Google-ekin konektatu» berriro saiatzeko.',
   'setup.drive.err.offline':
@@ -570,19 +573,44 @@ export const eu: Messages = {
   'settings.driveDisconnectConfirm':
     'Zure Google kontua gailu honetan deskonektatu? Zure musikak zure Google Drive-n jarraitzen du eta ez da ezer ezabatzen. Itzultzeko, aukeratu Google Drive eta hasi saioa berriro.',
   'settings.driveDisconnected': 'Google Drive-tik deskonektatuta',
-  'copyDrive.title': 'Eraman zure musika Google Drive-ra',
-  'copyDrive.offer':
-    'Gailu honetan {count} abesti daude, musika hemen gordetzen zen garaikoak. Zure Google Drive-ra igoko ditugu, zure «gustuko» eta playlistekin?',
-  'copyDrive.explain':
-    'Ez da ezer ezabatzen gailu honetatik. Nahi duzunean gelditu dezakezu: berriro sakatzean, utzitako lekutik jarraitzen du eta ez du ezer bi aldiz igotzen. Hobe Wi-Fiarekin.',
-  'copyDrive.start': 'Google Drive-ra igo',
-  'copyDrive.resume': 'Igotzen jarraitu',
-  'copyDrive.progress': '{total} abestitik {done} igota…',
-  'copyDrive.keepOpen': 'Utzi aplikazioa irekita eta pantaila piztuta amaitu arte.',
-  'copyDrive.stop': 'Gelditu',
-  'copyDrive.someFailed':
-    '{count} abesti ezin izan dira igo. Sakatu «Igotzen jarraitu» berriro saiatzeko.',
-  'copyDrive.done': 'Eginda: gailu honetako musika guztia zure Google Drive-n dago jada.',
+  'copy.title': 'Kopiatu zure musika',
+  'copy.from': 'Nondik: {place}',
+  'copy.to': 'Nora: {place}',
+  'copy.place.device': 'Gailu hau',
+  'copy.place.drive': 'Google Drive',
+  'copy.place.cloudflare': 'Cloudflare',
+  'copy.offer': '{count} abesti kopiatuko ditugu, zure «gustuko», playlist eta irrati gogokoekin?',
+  'copy.offer.one': 'Abesti 1 kopiatuko dugu, zure «gustuko», playlist eta irrati gogokoekin?',
+  'copy.explain':
+    'Ez da ezer ezabatzen jatorrizko lekuan. Nahi duzunean gelditu dezakezu: berriro sakatzean, utzitako lekutik jarraitzen du eta ez du ezer bi aldiz kopiatzen. Hobe Wi-Fiarekin.',
+  'copy.start': 'Kopiatu',
+  'copy.later': 'Orain ez',
+  'copy.resume': 'Kopiatzen jarraitu',
+  'copy.cancel': 'Utzi',
+  'copy.progress': '{total}tik {done}',
+  'copy.keepOpen': 'Utzi aplikazioa irekita eta pantaila piztuta amaitu arte.',
+  'copy.notEnoughSpace':
+    'Ez dirudi leku nahikorik dagoenik: {size} inguru falta dira. Egin lekua helmugan edo kopiatu zati bat bakarrik.',
+  'copy.stopped.cancelled': 'Kopia gelditu duzu. Sakatu «Kopiatzen jarraitu» nahi duzunean.',
+  'copy.stopped.offline': 'Internet moztu da. Itzultzean, sakatu «Kopiatzen jarraitu».',
+  'copy.stopped.auth':
+    'Berriro sartu behar duzu jatorriko edo helmugako kontuan. Konektatu berriro eta sakatu «Kopiatzen jarraitu».',
+  'copy.stopped.full': 'Helmuga beteta dago: egin lekua eta sakatu «Kopiatzen jarraitu».',
+  'copy.reconnectGoogle': 'Berriro konektatu Google-rekin',
+  'copy.done': 'Eginda: {copied} kopiatu dira, {already} lehendik bazeuden.',
+  'copy.unsupported':
+    '{count} abesti ez dira kopiatuko, Cloudflare-k Opus formatua soilik onartzen baitu (YouTube-koa). Dauden lekuan jarraitzen dute.',
+  'copy.unsupported.one':
+    'Abesti 1 ez da kopiatuko, Cloudflare-k Opus formatua soilik onartzen baitu (YouTube-koa). Dagoen lekuan jarraitzen du.',
+  'copy.failed':
+    '{count} abesti ezin izan dira kopiatu. Sakatu «Kopiatzen jarraitu» berriro saiatzeko.',
+  'copy.failed.one':
+    'Abesti 1 ezin izan da kopiatu. Sakatu «Kopiatzen jarraitu» berriro saiatzeko.',
+  'copy.playlistFull':
+    '«{name}» playlistak {count} abesti ditu eta ez dira denak sartzen helmugan: sartzen diren lehenak kopiatu dira.',
+  'copy.close': 'Itxi',
+  'copy.fromOther': 'Kopiatu musika beste leku batetik',
+  'copy.nothing': 'Ez dago musikarik beste leku batetik kopiatzeko.',
 
   'sleep.title': 'Lo egiteko tenporizadorea',
   'sleep.minutes': '{count} min',

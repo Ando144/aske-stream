@@ -158,7 +158,11 @@ export function SetupView() {
                         : t('setup.choose')}
                 </button>
                 {id === 'drive' && available && !inUse && (
-                  <p className="faint small">{t('setup.drive.whatHappens')}</p>
+                  <>
+                    <p className="faint small">{t('setup.drive.whatHappens')}</p>
+                    <p className="faint small">{t('setup.drive.unverified')}</p>
+                    <HelpButton id="drive-warning" label={t('setup.drive.unverifiedHelp')} />
+                  </>
                 )}
                 {id === 'drive' && driveError && (
                   <div className="banner small" role="alert">
@@ -170,6 +174,9 @@ export function SetupView() {
                           <summary>{t('pair.details')}</summary>
                           <code className="small">{driveError.detail}</code>
                         </details>
+                      ) : null}
+                      {driveError.kind === 'canceled' || driveError.kind === 'blocked' ? (
+                        <HelpButton id="drive-warning" label={t('setup.drive.unverifiedHelp')} />
                       ) : null}
                     </div>
                   </div>

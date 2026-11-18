@@ -531,6 +531,9 @@ export const es: Messages = {
   'setup.drive.connect': 'Conectar con Google',
   'setup.drive.whatHappens':
     'Se abrirá una ventana de Google para elegir tu cuenta y dar permiso. La app solo puede ver los archivos que ella misma crea: el resto de tu Drive sigue siendo privado.',
+  'setup.drive.unverified':
+    'Google puede avisarte de que la app no está verificada. Es normal en apps gratuitas como esta: pulsa «Configuración avanzada», luego «Ir a Aske Stream (no seguro)» y «Continuar».',
+  'setup.drive.unverifiedHelp': 'Ver los pasos con detalle',
   'setup.drive.err.canceled':
     'Has cerrado la ventana de Google sin terminar. Pulsa «Conectar con Google» para intentarlo otra vez.',
   'setup.drive.err.offline':
@@ -569,19 +572,46 @@ export const es: Messages = {
   'settings.driveDisconnectConfirm':
     '¿Desconectar tu cuenta de Google en este dispositivo? Tu música sigue en tu Google Drive y no se borra nada. Para volver, elige Google Drive e inicia sesión otra vez.',
   'settings.driveDisconnected': 'Desconectado de Google Drive',
-  'copyDrive.title': 'Pasar tu música a Google Drive',
-  'copyDrive.offer':
-    'En este dispositivo hay {count} canciones de cuando la música se guardaba aquí. ¿Las subimos a tu Google Drive, con tus «me gusta» y tus playlists?',
-  'copyDrive.explain':
-    'No se borra nada de este dispositivo. Puedes parar cuando quieras: al volver a pulsar, sigue por donde iba y no sube nada dos veces. Mejor con Wi-Fi.',
-  'copyDrive.start': 'Subir a Google Drive',
-  'copyDrive.resume': 'Seguir subiendo',
-  'copyDrive.progress': 'Subidas {done} de {total} canciones…',
-  'copyDrive.keepOpen': 'Deja la app abierta y la pantalla encendida hasta que termine.',
-  'copyDrive.stop': 'Parar',
-  'copyDrive.someFailed':
-    '{count} canciones no se han podido subir. Pulsa «Seguir subiendo» para intentarlo otra vez.',
-  'copyDrive.done': 'Listo: toda la música de este dispositivo ya está en tu Google Drive.',
+  'copy.title': 'Copiar tu música',
+  'copy.from': 'De: {place}',
+  'copy.to': 'A: {place}',
+  'copy.place.device': 'Este dispositivo',
+  'copy.place.drive': 'Google Drive',
+  'copy.place.cloudflare': 'Cloudflare',
+  'copy.offer':
+    '¿Copiamos {count} canciones, con tus «me gusta», tus playlists y tus radios favoritas?',
+  'copy.offer.one':
+    '¿Copiamos 1 canción, con tus «me gusta», tus playlists y tus radios favoritas?',
+  'copy.explain':
+    'No se borra nada del sitio de origen. Puedes parar cuando quieras: al volver a pulsar, sigue por donde iba y no copia nada dos veces. Mejor con Wi-Fi.',
+  'copy.start': 'Copiar',
+  'copy.later': 'Ahora no',
+  'copy.resume': 'Seguir copiando',
+  'copy.cancel': 'Cancelar',
+  'copy.progress': '{done} de {total}',
+  'copy.keepOpen': 'Deja la app abierta y la pantalla encendida hasta que termine.',
+  'copy.notEnoughSpace':
+    'Parece que no hay sitio suficiente: faltan unos {size}. Libera espacio en el destino o copia solo una parte.',
+  'copy.stopped.cancelled': 'Has parado la copia. Pulsa «Seguir copiando» cuando quieras.',
+  'copy.stopped.offline': 'Se ha cortado internet. Cuando vuelva, pulsa «Seguir copiando».',
+  'copy.stopped.auth':
+    'Hay que volver a entrar en la cuenta del destino o del origen. Conéctate otra vez y pulsa «Seguir copiando».',
+  'copy.stopped.full': 'El destino está lleno: libera espacio y pulsa «Seguir copiando».',
+  'copy.reconnectGoogle': 'Volver a conectar con Google',
+  'copy.done': 'Listo: {copied} copiadas, {already} ya estaban.',
+  'copy.unsupported':
+    '{count} canciones no se copiarán porque Cloudflare solo admite el formato Opus (el de YouTube). Siguen donde estaban.',
+  'copy.unsupported.one':
+    '1 canción no se copiará porque Cloudflare solo admite el formato Opus (el de YouTube). Sigue donde estaba.',
+  'copy.failed':
+    '{count} canciones no se han podido copiar. Pulsa «Seguir copiando» para intentarlo otra vez.',
+  'copy.failed.one':
+    '1 canción no se ha podido copiar. Pulsa «Seguir copiando» para intentarlo otra vez.',
+  'copy.playlistFull':
+    'La playlist «{name}» tiene {count} canciones y no caben todas en el destino: se han copiado las primeras que caben.',
+  'copy.close': 'Cerrar',
+  'copy.fromOther': 'Copiar música de otro sitio',
+  'copy.nothing': 'No hay música que copiar desde otro sitio.',
 
   'sleep.title': 'Temporizador para dormir',
   'sleep.minutes': '{count} min',

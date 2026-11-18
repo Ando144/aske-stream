@@ -18,13 +18,53 @@ import { usePrefs } from '../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../i18n';
 import { DRIVE_EMAIL_KEY, useSetup } from '../stores/setup';
 import { loadValue } from '../lib/storage';
-import { CopyToDrivePanel } from '../components/CopyToDrivePanel';
+import { CopyPanel } from '../components/CopyPanel';
+import { useCopy } from '../stores/copy';
+import type { Destination } from '../storage/types';
 import { confirmDialog, toast } from '../stores/ui';
 import { useTips } from '../stores/tips';
 import { AppUpdatePanel } from '../components/AppUpdatePanel';
 import { StoragePanel } from '../components/StoragePanel';
 import { AUTHOR, REPO_URL } from '../config';
 import { isNative } from '../native/platform';
+
+/** "Copy music from another place": asks which one when there are several. */
+function CopyFromOther({ home }: { home: Destination }) {
+  const t = useT();
+  const [choosing, setChoosing] = useState<Destination[]>([]);
+
+  async function copyFrom(source: Destination) {
+    setChoosing([]);
+    await useCopy.getState().offer(source, home);
+    if (useCopy.getState().job?.status !== 'offered') toast(t('copy.nothing'));
+  }
+
+  function begin() {
+    const sources = useCopy.getState().availableSources();
+    if (sources.length === 0) toast(t('copy.nothing'));
+    else if (sources.length === 1) void copyFrom(sources[0]!);
+    else setChoosing(sources);
+  }
+
+  return (
+    <div className="setting">
+      <div className="grow">
+        <button className="btn small" onClick={begin}>
+          {t('copy.fromOther')}
+        </button>
+        {choosing.length > 0 && (
+          <div className="row">
+            {choosing.map((source) => (
+              <button key={source} className="btn small" onClick={() => void copyFrom(source)}>
+                {t(`copy.place.${source}`)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function SettingsView() {
   const t = useT();
@@ -127,7 +167,7 @@ export function SettingsView() {
 
       <h2 className="section-title">{t('storage.title')}</h2>
       <StoragePanel />
-      <CopyToDrivePanel />
+      <CopyPanel />
 
       <h2 className="section-title">{t('settings.device')}</h2>
       <div className="panel">
@@ -165,6 +205,7 @@ export function SettingsView() {
             {t('settings.storageChange')}
           </button>
         </div>
+        {home && <CopyFromOther home={home} />}
         {(home === 'drive' || driveEmail) && (
           <div className="setting">
             <button
