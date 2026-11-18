@@ -145,6 +145,8 @@ a {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  /* With overflow-y: auto the x axis also becomes scrollable; this is the safety net. */
+  overflow-x: hidden;
   padding: calc(16px + var(--safe-top)) 16px
     calc(var(--tabbar-h) + var(--mini-h) + var(--safe-bottom) + 24px);
 }
@@ -164,12 +166,46 @@ a {
   justify-content: space-between;
   gap: 12px;
   margin: 4px 0 16px;
+  container: page-header / inline-size;
+}
+
+.page-header > * {
+  flex-shrink: 0;
 }
 
 .page-header h1 {
   font-size: 26px;
   margin: 0;
   letter-spacing: -0.02em;
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container page-header (max-width: 520px) {
+  .header-actions .btn-label {
+    display: none;
+  }
+
+  .header-actions .btn.small {
+    width: 32px;
+    padding: 0;
+  }
 }
 
 .section-title {
@@ -1477,6 +1513,7 @@ h2,
   cursor: grab;
   touch-action: none;
   width: 32px;
+  flex-shrink: 0;
 }
 
 .card-row-link {
@@ -1497,6 +1534,11 @@ h2,
   opacity: 0.4;
 }
 
+/* Folder rows shift while another one is dragged; keep the dragged one above. */
+.dnd-row {
+  position: relative;
+}
+
 .dnd-row.drop-over,
 .drop-root.drop-over {
   background: var(--accent-soft);
@@ -1508,6 +1550,8 @@ h2,
   bottom: 90px;
   margin-top: 12px;
   padding: 18px;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 2px dashed var(--accent);
   border-radius: 12px;
   text-align: center;
@@ -1522,6 +1566,10 @@ h2,
   box-shadow: var(--shadow);
   font-weight: 600;
   border: 1px solid var(--accent);
+  max-width: min(80vw, 360px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .queue-panel {

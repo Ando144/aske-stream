@@ -141,6 +141,20 @@ describe('Drive library merge', () => {
       expect(parseDoc(JSON.stringify(old)).folders).toEqual({});
     });
 
+    it('keeps position through parseDoc and the newest folder wins with its position', () => {
+      const a = { ...emptyDoc(), folders: { f: { ...folder('f', 'A', 1), position: 0 } } };
+      const b = { ...emptyDoc(), folders: { f: { ...folder('f', 'A', 2), position: 3 } } };
+      expect(parseDoc(JSON.stringify(a)).folders.f!.position).toBe(0);
+      expect(mergeDocs(a, b).folders.f!.position).toBe(3);
+      expect(mergeDocs(b, a).folders.f!.position).toBe(3);
+    });
+
+    it('the fingerprint changes after reordering', () => {
+      const a = { ...emptyDoc(), folders: { f: { ...folder('f', 'A', 1), position: 0 } } };
+      const b = { ...emptyDoc(), folders: { f: { ...folder('f', 'A', 2), position: 1 } } };
+      expect(docFingerprint(a)).not.toBe(docFingerprint(b));
+    });
+
     it('the fingerprint changes when a folder is renamed', () => {
       const a = { ...emptyDoc(), folders: { f: folder('f', 'A', 1) } };
       const b = { ...emptyDoc(), folders: { f: folder('f', 'B', 2) } };

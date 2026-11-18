@@ -7,7 +7,7 @@ import { groupPlaylists } from '../storage/playlistOps';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { promptDialog } from '../stores/ui';
 import { FolderMenu } from '../components/FolderMenu';
-import { DraggablePlaylist, DroppableFolder, PlaylistDnd } from '../components/PlaylistDnd';
+import { DraggablePlaylist, PlaylistDnd, SortableFolder } from '../components/PlaylistDnd';
 import { PlaylistArt } from '../components/PlaylistArt';
 import { PlaylistMenu } from '../components/PlaylistMenu';
 import { SettingsLink } from '../components/SettingsLink';
@@ -44,19 +44,29 @@ export function PlaylistsView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('playlists.title')}</h1>
-        <div className="row">
-          <button className="btn small" onClick={() => void createFolder()}>
-            <FolderPlus size={16} /> {t('folders.new')}
+        <div className="header-actions">
+          <button
+            className="btn small"
+            onClick={() => void createFolder()}
+            aria-label={t('folders.new')}
+            title={t('folders.new')}
+          >
+            <FolderPlus size={16} /> <span className="btn-label">{t('folders.new')}</span>
           </button>
-          <button className="btn primary small" onClick={() => void create()}>
-            <Plus size={16} /> {t('playlists.new')}
+          <button
+            className="btn primary small"
+            onClick={() => void create()}
+            aria-label={t('playlists.new')}
+            title={t('playlists.new')}
+          >
+            <Plus size={16} /> <span className="btn-label">{t('playlists.new')}</span>
           </button>
           <SettingsLink />
         </div>
       </header>
       <ScreenTip id="playlists" text="tips.playlists" helpId="playlists" />
 
-      <PlaylistDnd playlists={playlists}>
+      <PlaylistDnd playlists={playlists} folders={folders}>
         <div className="card-list">
           <Link href="/liked" className="card-row">
             <div
@@ -91,30 +101,40 @@ export function PlaylistsView() {
 function FolderRow({ folder, count, t }: { folder: Folder; count: number; t: Translate }) {
   const [menu, setMenu] = useState(false);
   return (
-    <DroppableFolder folderId={folder.id}>
-      <div className="card-row">
-        <Link href={`/folder/${folder.id}`} className="card-row-link">
-          <div className="collection-art single" style={{ width: 56, height: 56, borderRadius: 8 }}>
-            <FolderIcon size={26} color="var(--accent)" />
+    <SortableFolder folderId={folder.id}>
+      {(handle) => (
+        <>
+          <div className="card-row">
+            <Link href={`/folder/${folder.id}`} className="card-row-link">
+              <div
+                className="collection-art single"
+                style={{ width: 56, height: 56, borderRadius: 8 }}
+              >
+                <FolderIcon size={26} color="var(--accent)" />
+              </div>
+              <div className="grow">
+                <div className="card-title ellipsis">{folder.name}</div>
+                <div className="muted small">
+                  {count === 1
+                    ? t('folders.playlistCount.one')
+                    : t('folders.playlistCount', { count })}
+                </div>
+              </div>
+            </Link>
+            <button
+              className="icon-btn"
+              onClick={() => setMenu(true)}
+              aria-label={t('playlists.menu')}
+              title={t('playlists.menu')}
+            >
+              <EllipsisVertical size={18} />
+            </button>
+            {handle}
           </div>
-          <div className="grow">
-            <div className="card-title ellipsis">{folder.name}</div>
-            <div className="muted small">
-              {count === 1 ? t('folders.playlistCount.one') : t('folders.playlistCount', { count })}
-            </div>
-          </div>
-        </Link>
-        <button
-          className="icon-btn"
-          onClick={() => setMenu(true)}
-          aria-label={t('playlists.menu')}
-          title={t('playlists.menu')}
-        >
-          <EllipsisVertical size={18} />
-        </button>
-      </div>
-      {menu && <FolderMenu folder={folder} onClose={() => setMenu(false)} />}
-    </DroppableFolder>
+          {menu && <FolderMenu folder={folder} onClose={() => setMenu(false)} />}
+        </>
+      )}
+    </SortableFolder>
   );
 }
 

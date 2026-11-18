@@ -89,11 +89,13 @@ Karpetetan antolatzeko, argazkia jartzeko edo bi batu nahi badituzu, ikusi [[pla
 - Abre la playlist, pulsa **…** → «Mover a una carpeta» y elige una (o crea una nueva).
 - O en la lista, arrastra el asa **⠿** de la playlist y suéltala sobre la carpeta. Para sacarla, suéltala en la zona «sacar de la carpeta».
 
+**Ordenar las carpetas**: arrastra el asa **⠿** de una carpeta hacia arriba o abajo. Si llegas al borde de la pantalla, la lista se mueve sola. El orden se guarda donde está tu música. Al copiar a otro almacenamiento, las carpetas que no existían allí se añaden al final, sin mover las que ya había.
+
 **Borrar una carpeta no borra las playlists**: vuelven a la lista principal y todas las canciones siguen donde estaban.
 
 **Foto propia**: en **…** → «Elegir portada» y escoge una imagen de tu móvil. Para volver al mosaico automático, **…** → «Quitar portada».
 
-**Juntar dos playlists**: en **…** → «Juntar con otra playlist» y elige la otra. También puedes arrastrar una playlist sobre otra.
+**Juntar dos playlists**: en **…** → «Juntar con otra playlist» y elige la otra.
 - La playlist desde la que empiezas es la que se queda. Con **Cambiar el orden** eliges cuál se queda.
 - Las canciones de la otra se añaden al final, **sin repetir** las que ya estén.
 - La casilla **Borrar la otra** viene marcada: la otra playlist desaparece, pero **sus canciones no se borran** de tu biblioteca. Desmárcala si quieres conservarla.
@@ -106,11 +108,13 @@ Si cambias de almacenamiento, las carpetas y las fotos viajan con la copia: mira
 - Open the playlist, tap **…** → “Move to a folder” and pick one (or create a new one).
 - Or in the list, drag the playlist's **⠿** handle and drop it on the folder. To take it out, drop it on the “take out of the folder” area.
 
+**Sort the folders**: drag a folder's **⠿** handle up or down. If you reach the edge of the screen, the list scrolls by itself. The order is saved wherever your music is. When you copy to another storage, folders that were not there are added at the end, without moving the ones already there.
+
 **Deleting a folder does not delete the playlists**: they go back to the main list and every song stays where it was.
 
 **Your own photo**: **…** → “Choose cover” and pick an image from your phone. To go back to the automatic mosaic, **…** → “Remove cover”.
 
-**Merge two playlists**: **…** → “Merge with another playlist” and pick the other one. You can also drag one playlist onto another.
+**Merge two playlists**: **…** → “Merge with another playlist” and pick the other one.
 - The playlist you start from is the one that stays. **Swap the order** lets you choose which one stays.
 - Songs from the other one are added at the end, **without repeats**.
 - The **Delete the other one** box is ticked: the other playlist disappears, but **its songs are not deleted** from your library. Untick it to keep it.
@@ -123,11 +127,13 @@ If you change storage, folders and photos travel with the copy: see [[storage-co
 - Ireki zerrenda, sakatu **…** → «Eraman karpeta batera» eta aukeratu bat (edo sortu berri bat).
 - Edo zerrendan, arrastatu zerrendaren **⠿** heldulekua eta jaregin karpetaren gainean. Ateratzeko, jaregin «atera karpetatik» eremuan.
 
+**Karpetak ordenatu**: arrastatu karpeta baten **⠿** heldulekua gora edo behera. Pantailaren ertzera iristen bazara, zerrenda bere kabuz mugitzen da. Ordena zure musika dagoen lekuan gordetzen da. Beste biltegiratze batera kopiatzean, han ez zeuden karpetak amaieran gehitzen dira, lehendik zeudenak mugitu gabe.
+
 **Karpeta bat ezabatzeak ez ditu zerrendak ezabatzen**: zerrenda nagusira itzultzen dira eta abesti guztiak dauden tokian jarraitzen dute.
 
 **Zure argazkia**: **…** → «Aukeratu azala» eta hautatu irudi bat zure mugikorretik. Mosaiko automatikora itzultzeko, **…** → «Kendu azala».
 
-**Bi zerrenda batu**: **…** → «Batu beste zerrenda batekin» eta aukeratu bestea. Zerrenda bat bestearen gainera arrastatu ere dezakezu.
+**Bi zerrenda batu**: **…** → «Batu beste zerrenda batekin» eta aukeratu bestea.
 - Hasten zaren zerrenda geratzen da. **Aldatu ordena** botoiarekin zein geratzen den aukeratzen duzu.
 - Besteko abestiak amaieran gehitzen dira, **errepikatu gabe**.
 - **Ezabatu bestea** laukia markatuta dator: beste zerrenda desagertzen da, baina **bere abestiak ez dira ezabatzen** zure liburutegitik. Desmarkatu gordetzeko.

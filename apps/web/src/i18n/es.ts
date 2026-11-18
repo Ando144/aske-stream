@@ -342,7 +342,7 @@ export const es: Messages = {
   'tips.library':
     'Toca una canción para escucharla. Mantén pulsada una para elegir varias a la vez, y deslízala a la derecha para añadirla a la cola.',
   'tips.playlists':
-    'Crea playlists para ordenar tu música y agrúpalas en carpetas. Pulsa «…» en una playlist para más opciones, o arrastra el asa para moverla o juntarla con otra. «Canciones que te gustan» se llena sola cuando pulsas el corazón.',
+    'Crea playlists para ordenar tu música y agrúpalas en carpetas. Pulsa «…» para más opciones. Con el asa ⠿ llevas una playlist a una carpeta o cambias el orden de las carpetas. «Canciones que te gustan» se llena sola cuando pulsas el corazón.',
   'tips.podcasts':
     'Aquí van las charlas y entrevistas, separadas de la música. La app recuerda por dónde ibas en cada episodio.',
   'tips.radio':
@@ -417,7 +417,8 @@ export const es: Messages = {
   'merge.deleteOtherHint': 'Las canciones no se borran: siguen en tu biblioteca.',
   'merge.swap': 'Cambiar el orden',
   'merge.confirm': 'Juntar',
-  'drag.handle': 'Arrastra para mover o juntar',
+  'drag.handle': 'Arrastra para llevarla a una carpeta',
+  'drag.folderHandle': 'Arrastra para cambiar el orden de la carpeta',
   'drag.dropRoot': 'Suelta aquí para sacarla de la carpeta',
   'toast.merged': 'Juntadas: {count} canciones nuevas en «{name}»',
   'toast.merged.one': 'Juntadas: 1 canción nueva en «{name}»',

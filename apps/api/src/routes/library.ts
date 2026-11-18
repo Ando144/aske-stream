@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { Library } from '@aske/shared';
+import { sortFolders, type Library } from '@aske/shared';
 import type { AppEnv } from '../env';
 import {
   toFolder,
@@ -47,7 +47,7 @@ export const libraryRoutes = new Hono<AppEnv>()
       playlists: (playlistsRes!.results as unknown as PlaylistRow[]).map((p) =>
         toPlaylist(p, members.get(p.id) ?? []),
       ),
-      folders: (foldersRes!.results as unknown as FolderRow[]).map(toFolder),
+      folders: sortFolders((foldersRes!.results as unknown as FolderRow[]).map(toFolder)),
     };
     return c.json(library);
   });

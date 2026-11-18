@@ -336,7 +336,7 @@ export const en = {
   'tips.library':
     'Tap a song to play it. Press and hold one to pick several at once, and swipe it to the right to add it to the queue.',
   'tips.playlists':
-    'Create playlists to organise your music and group them into folders. Tap “…” on a playlist for more options, or drag its handle to move it or merge it with another. “Liked songs” fills itself when you tap the heart.',
+    'Create playlists to organise your music and group them into folders. Tap “…” for more options. With the ⠿ handle you move a playlist into a folder or change the order of the folders. “Liked songs” fills itself when you tap the heart.',
   'tips.podcasts':
     'Talks and interviews go here, apart from your music. The app remembers where you were in each episode.',
   'tips.radio':
@@ -410,7 +410,8 @@ export const en = {
   'merge.deleteOtherHint': 'Songs are not deleted: they stay in your library.',
   'merge.swap': 'Swap the order',
   'merge.confirm': 'Merge',
-  'drag.handle': 'Drag to move or merge',
+  'drag.handle': 'Drag to move it into a folder',
+  'drag.folderHandle': "Drag to change the folder's place in the list",
   'drag.dropRoot': 'Drop here to take it out of the folder',
   'toast.merged': 'Merged: {count} new songs in “{name}”',
   'toast.merged.one': 'Merged: 1 new song in “{name}”',

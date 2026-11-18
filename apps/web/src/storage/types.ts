@@ -56,6 +56,8 @@ export interface LibraryHome {
   renameFolder(id: string, name: string): Promise<Folder>;
   /** Its playlists go back to the top level; no playlist is deleted. */
   deleteFolder(id: string): Promise<void>;
+  /** Saves the folder order. Folders not in `ids` go after. Returns all folders in the new order. */
+  reorderFolders(ids: string[]): Promise<Folder[]>;
   /** folderId null = top level. Throws Error('folder_not_found') if the folder does not exist. */
   movePlaylist(id: string, folderId: string | null): Promise<Playlist>;
   /** jpeg: square JPEG already resized (≤ 300 px). null = back to the automatic mosaic. */

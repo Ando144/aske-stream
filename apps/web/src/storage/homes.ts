@@ -1,4 +1,4 @@
-import { LIMITS } from '@aske/shared';
+import { LIMITS, nextFolderPosition, reorderFolders, sortFolders } from '@aske/shared';
 import type { Folder, Playlist, Station, Track } from '@aske/shared';
 import { ApiError, api } from '../api/client';
 import { getDb } from '../offline/db';
@@ -55,13 +55,14 @@ export const cloudflareHome: LibraryHome = {
     return {
       tracks: res.library.tracks.map(fromRemote),
       playlists: res.library.playlists,
-      folders: res.library.folders ?? [],
+      folders: sortFolders(res.library.folders ?? []),
       etag: res.etag,
     };
   },
   createFolder: (name) => orOutdated(api.createFolder(name)),
   renameFolder: (id, name) => orOutdated(api.updateFolder(id, { name })),
   deleteFolder: (id) => orOutdated(api.deleteFolder(id)),
+  reorderFolders: (ids) => orOutdated(api.reorderFolders(ids)),
   movePlaylist: moveOnCloudflare,
   setPlaylistCover: (id, jpeg) =>
     orOutdated(jpeg ? api.setPlaylistCover(id, jpeg) : api.removePlaylistCover(id)),
@@ -107,17 +108,26 @@ export const deviceHome: LibraryHome & {
     const db = await getDb();
     const tracks = (await db.getAll('tracks')).sort((a, b) => b.createdAt - a.createdAt);
     const playlists = (await db.getAll('playlists')).sort((a, b) => a.createdAt - b.createdAt);
-    const folders = (await db.getAll('folders')).sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
-    );
+    const folders = sortFolders(await db.getAll('folders'));
     return { tracks, playlists, folders, etag: '' };
   },
 
   async createFolder(name) {
     const now = Date.now();
-    const folder: Folder = { id: newLocalId(), name, createdAt: now, updatedAt: now };
-    await (await getDb()).put('folders', folder);
+    const db = await getDb();
+    const position = nextFolderPosition(await db.getAll('folders'));
+    const folder: Folder = { id: newLocalId(), name, createdAt: now, updatedAt: now, position };
+    await db.put('folders', folder);
     return folder;
+  },
+
+  async reorderFolders(ids) {
+    const db = await getDb();
+    const tx = db.transaction('folders', 'readwrite');
+    const result = reorderFolders(await tx.store.getAll(), ids, Date.now());
+    for (const folder of result.changed) await tx.store.put(folder);
+    await tx.done;
+    return result.folders;
   },
 
   async renameFolder(id, name) {

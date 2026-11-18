@@ -1,4 +1,12 @@
-import { LIMITS, type Folder, type Playlist, type Station } from '@aske/shared';
+import {
+  LIMITS,
+  nextFolderPosition,
+  reorderFolders,
+  sortFolders,
+  type Folder,
+  type Playlist,
+  type Station,
+} from '@aske/shared';
 import { kvGet, kvSet } from '../../offline/db';
 import { newLocalId } from '../homes';
 import type { LibraryHome, LocalTrack, StationInput, TrackPatch } from '../types';
@@ -203,9 +211,7 @@ function snapshot(doc: LibraryDoc) {
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(toLocalTrack),
     playlists: Object.values(doc.playlists).sort((a, b) => a.createdAt - b.createdAt),
-    folders: Object.values(doc.folders).sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
-    ),
+    folders: sortFolders(Object.values(doc.folders)),
     etag: docFingerprint(doc),
   };
 }
@@ -394,9 +400,20 @@ export const driveHome: LibraryHome & {
     const now = Date.now();
     const created: Folder = { id: newLocalId(), name, createdAt: now, updatedAt: now };
     await change((doc) => {
+      created.position = nextFolderPosition(Object.values(doc.folders));
       doc.folders[created.id] = created;
     });
     return created;
+  },
+
+  async reorderFolders(ids) {
+    let ordered: Folder[] = [];
+    await change((doc, now) => {
+      const result = reorderFolders(Object.values(doc.folders), ids, now);
+      for (const folder of result.changed) doc.folders[folder.id] = folder;
+      ordered = result.folders;
+    });
+    return ordered;
   },
 
   async renameFolder(id, name) {

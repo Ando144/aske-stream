@@ -410,6 +410,50 @@ async function main() {
     assert.match(audio.headers.get('content-type'), /audio\/webm/);
   });
 
+  await step('playlist covers: JPEG only, served, removable', async () => {
+    const put = (bytes) => {
+      const form = new FormData();
+      form.set('cover', new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }), 'c.jpg');
+      return api(`/api/playlists/${state.playlistId}/cover`, { method: 'PUT', body: form });
+    };
+    const ok = await put([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
+    assert.equal(ok.status, 200, await ok.clone().text());
+    assert.equal(typeof (await ok.json()).coverAt, 'number');
+    const png = await put([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2]);
+    assert.equal(png.status, 415);
+    assert.equal((await png.json()).error, 'unsupported_cover');
+    const img = await api(`/media/playlist-cover/${state.playlistId}`);
+    assert.equal(img.status, 200);
+    assert.match(img.headers.get('content-type'), /image\/jpeg/);
+    const del = await api(`/api/playlists/${state.playlistId}/cover`, { method: 'DELETE' });
+    assert.equal((await json(del)).coverAt, null);
+    assert.equal((await api(`/media/playlist-cover/${state.playlistId}`)).status, 404);
+  });
+
+  await step('folder order: positions, reorder, ignore unknown ids, validation', async () => {
+    const make = async (name) =>
+      json(await api('/api/folders', { method: 'POST', json: { name } }));
+    const [a, b, c] = [await make('A'), await make('B'), await make('C')];
+    assert.deepEqual([a.position, b.position, c.position], [0, 1, 2]);
+    const names = async () => (await json(await api('/api/library'))).folders.map((f) => f.name);
+    assert.deepEqual(await names(), ['A', 'B', 'C']);
+    const res = await api('/api/folders/order', {
+      method: 'PUT',
+      json: { ids: [c.id, a.id, 'doesNotExist1234'] },
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(
+      (await res.json()).map((f) => f.name),
+      ['C', 'A', 'B'],
+    );
+    assert.deepEqual(await names(), ['C', 'A', 'B']);
+    const bad = await api('/api/folders/order', { method: 'PUT', json: { ids: 'nope' } });
+    assert.equal(bad.status, 400);
+    for (const f of [a, b, c]) {
+      assert.equal((await api(`/api/folders/${f.id}`, { method: 'DELETE' })).status, 204);
+    }
+  });
+
   await step('storage stats and the free-tier budget', async () => {
     const stats = await json(await api('/api/library/storage'));
     assert.equal(stats.limitBytes, 2_000_000);

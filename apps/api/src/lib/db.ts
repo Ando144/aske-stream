@@ -74,6 +74,7 @@ export interface FolderRow {
   name: string;
   created_at: number;
   updated_at: number;
+  position: number | null;
 }
 
 export const toFolder = (r: FolderRow): Folder => ({
@@ -81,6 +82,7 @@ export const toFolder = (r: FolderRow): Folder => ({
   name: r.name,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  position: r.position ?? null,
 });
 
 export interface StationRow {

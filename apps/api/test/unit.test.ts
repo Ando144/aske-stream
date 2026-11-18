@@ -4,6 +4,7 @@ import { newId } from '../src/lib/ids';
 import { ID_PATTERN } from '../src/lib/http';
 import { playlistCoverKey, toFolder, toPlaylist } from '../src/lib/db';
 import { isJpeg } from '../src/lib/image';
+import { FolderOrderBody } from '../src/routes/folders';
 import { PatchPlaylist } from '../src/routes/playlists';
 import { mapStation } from '../src/lib/radioBrowser';
 import { resolveRange } from '../src/routes/media';
@@ -12,12 +13,21 @@ const KEY = 'test-access-key-0123456789abcdef';
 
 describe('folders and covers', () => {
   it('maps a folder row', () => {
-    expect(toFolder({ id: 'f1', name: 'Gym', created_at: 1, updated_at: 2 })).toEqual({
-      id: 'f1',
-      name: 'Gym',
-      createdAt: 1,
-      updatedAt: 2,
-    });
+    expect(
+      toFolder({ id: 'f1', name: 'Gym', created_at: 1, updated_at: 2, position: null }),
+    ).toEqual({ id: 'f1', name: 'Gym', createdAt: 1, updatedAt: 2, position: null });
+    expect(
+      toFolder({ id: 'f1', name: 'Gym', created_at: 1, updated_at: 2, position: 3 }).position,
+    ).toBe(3);
+  });
+
+  it('validates the folder order body', () => {
+    const valid = ['abcdefgh', 'ABCDEFGH-_12'];
+    expect(FolderOrderBody.safeParse({ ids: valid }).success).toBe(true);
+    expect(FolderOrderBody.safeParse({ ids: ['short'] }).success).toBe(false);
+    expect(FolderOrderBody.safeParse({ ids: ['bad id!!!!'] }).success).toBe(false);
+    expect(FolderOrderBody.safeParse({ ids: Array(1001).fill('abcdefgh') }).success).toBe(false);
+    expect(FolderOrderBody.safeParse({ ids: Array(1000).fill('abcdefgh') }).success).toBe(true);
   });
 
   it('maps the new playlist columns, null when absent', () => {

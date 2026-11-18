@@ -1,4 +1,4 @@
-import { LIMITS, type Folder, type Playlist } from '@aske/shared';
+import { LIMITS, sortFolders, type Folder, type Playlist } from '@aske/shared';
 
 export type MergePlan =
   | { ok: true; trackIds: string[]; added: number }
@@ -29,7 +29,7 @@ export function planMerge(
 }
 
 export interface PlaylistGroups {
-  /** Sorted by name (localeCompare, sensitivity 'base'). */
+  /** In sortFolders order. */
   folders: { folder: Folder; playlists: Playlist[] }[];
   /** Playlists without a folder or whose folder no longer exists. */
   loose: Playlist[];
@@ -41,9 +41,10 @@ export function groupPlaylists(playlists: Playlist[], folders: Folder[]): Playli
   const known = new Set(folders.map((f) => f.id));
   const sorted = [...playlists].sort(byCreatedAt);
   return {
-    folders: [...folders]
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-      .map((folder) => ({ folder, playlists: sorted.filter((p) => p.folderId === folder.id) })),
+    folders: sortFolders(folders).map((folder) => ({
+      folder,
+      playlists: sorted.filter((p) => p.folderId === folder.id),
+    })),
     loose: sorted.filter((p) => !p.folderId || !known.has(p.folderId)),
   };
 }
@@ -59,32 +60,53 @@ export function applyFolderDelete(playlists: Playlist[], folderId: string): Play
 /** Drag & drop ids: 'pl:<id>', 'folder:<id>', 'root'. */
 export type DropResult =
   | { kind: 'move'; playlistId: string; folderId: string | null }
-  | { kind: 'merge'; targetId: string; sourceId: string }
+  | { kind: 'reorderFolders'; folderIds: string[] }
   | null;
+
+function arrayMove<T>(list: T[], from: number, to: number): T[] {
+  const out = [...list];
+  out.splice(to, 0, out.splice(from, 1)[0]!);
+  return out;
+}
+
+function dropPlaylist(
+  playlistId: string,
+  overId: string,
+  playlists: Playlist[],
+  folders: Folder[],
+): DropResult {
+  const dragged = playlists.find((p) => p.id === playlistId);
+  if (!dragged) return null;
+  const current = dragged.folderId ?? null;
+  if (overId === 'root') {
+    return current === null ? null : { kind: 'move', playlistId, folderId: null };
+  }
+  if (!overId.startsWith('folder:')) return null;
+  const folderId = overId.slice(7);
+  if (folderId === current || !folders.some((f) => f.id === folderId)) return null;
+  return { kind: 'move', playlistId, folderId };
+}
+
+function dropFolder(folderId: string, overId: string, folders: Folder[]): DropResult {
+  if (!overId.startsWith('folder:')) return null;
+  const overFolderId = overId.slice(7);
+  if (overFolderId === folderId) return null;
+  const ids = sortFolders(folders).map((f) => f.id);
+  const from = ids.indexOf(folderId);
+  const to = ids.indexOf(overFolderId);
+  if (from < 0 || to < 0) return null;
+  return { kind: 'reorderFolders', folderIds: arrayMove(ids, from, to) };
+}
 
 export function dropAction(
   activeId: string,
   overId: string | null,
   playlists: Playlist[],
+  folders: Folder[],
 ): DropResult {
-  if (!overId || !activeId.startsWith('pl:')) return null;
-  const dragged = playlists.find((p) => p.id === activeId.slice(3));
-  if (!dragged) return null;
-  const current = dragged.folderId ?? null;
-
-  if (overId === 'root') {
-    return current === null ? null : { kind: 'move', playlistId: dragged.id, folderId: null };
-  }
-  if (overId.startsWith('folder:')) {
-    const folderId = overId.slice(7);
-    return folderId === current ? null : { kind: 'move', playlistId: dragged.id, folderId };
-  }
-  if (overId.startsWith('pl:')) {
-    const targetId = overId.slice(3);
-    const exists = playlists.some((p) => p.id === targetId);
-    return exists && targetId !== dragged.id
-      ? { kind: 'merge', targetId, sourceId: dragged.id }
-      : null;
-  }
+  if (!overId) return null;
+  if (activeId.startsWith('pl:'))
+    return dropPlaylist(activeId.slice(3), overId, playlists, folders);
+  if (activeId.startsWith('folder:')) return dropFolder(activeId.slice(7), overId, folders);
   return null;
 }

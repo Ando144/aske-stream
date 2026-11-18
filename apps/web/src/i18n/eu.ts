@@ -343,7 +343,7 @@ export const eu: Messages = {
   'tips.library':
     'Ukitu abesti bat entzuteko. Eutsi bat sakatuta batzuk batera aukeratzeko, eta irristatu eskuinera ilarara gehitzeko.',
   'tips.playlists':
-    'Sortu zerrendak zure musika antolatzeko eta multzokatu karpetetan. Sakatu zerrenda baten «…» aukera gehiagorako, edo arrastatu heldulekua mugitzeko edo beste batekin batzeko. «Gogoko abestiak» bere kabuz betetzen da bihotza sakatzean.',
+    'Sortu zerrendak zure musika antolatzeko eta multzokatu karpetetan. Sakatu «…» aukera gehiagorako. ⠿ heldulekuarekin zerrenda bat karpeta batera eramaten duzu edo karpeten ordena aldatzen duzu. «Gogoko abestiak» bere kabuz betetzen da bihotza sakatzean.',
   'tips.podcasts':
     'Hemen doaz hitzaldiak eta elkarrizketak, musikatik bereizita. Aplikazioak gogoratzen du atal bakoitzean non zinen.',
   'tips.radio':
@@ -418,7 +418,8 @@ export const eu: Messages = {
   'merge.deleteOtherHint': 'Abestiak ez dira ezabatzen: zure liburutegian jarraitzen dute.',
   'merge.swap': 'Aldatu ordena',
   'merge.confirm': 'Batu',
-  'drag.handle': 'Arrastatu mugitzeko edo batzeko',
+  'drag.handle': 'Arrastatu karpeta batera eramateko',
+  'drag.folderHandle': 'Arrastatu karpetaren lekua aldatzeko',
   'drag.dropRoot': 'Askatu hemen karpetatik ateratzeko',
   'toast.merged': 'Batuta: {count} abesti berri «{name}» zerrendan',
   'toast.merged.one': 'Batuta: abesti berri 1 «{name}» zerrendan',

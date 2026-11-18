@@ -1,18 +1,17 @@
 # Estado del proyecto
 
-Actualizado: 2026-11-18
+Actualizado: 2026-11-19
 
 ## Hecho
 
-- **F1-F5.1 (v0.5.1):** biblioteca en dispositivo, Cloudflare o Drive; app Android; descarga de YouTube y playlists completas; ayuda eu/es/en; temporizador de apagado.
-- **F5.2 (v0.5.2 publicada: push, web desplegada y tag `v0.5.2`, el CI construye el APK):** copia en las 6 direcciones entre dispositivo, Drive y Cloudflare (canciones, «me gusta», playlists y radios), reanudable y sin borrar nada; guía en pantalla y en la ayuda para el aviso de Google «app no verificada».
+- **F1-F5.2 (v0.5.2):** biblioteca en dispositivo, Cloudflare o Drive; app Android; descarga de YouTube y playlists completas; ayuda eu/es/en; temporizador de apagado; copia en las 6 direcciones entre almacenamientos, reanudable y sin borrar nada.
+- **F5.3 (publicada en v0.5.3):** carpetas de un nivel, portada propia y juntar playlists. Pruebas en el móvil casi todas bien.
 - **Política de privacidad:** `docs/PRIVACY.md` (es/en), con enlace desde Google Cloud. En Branding está `github.com` como dominio autorizado.
-
-- **F5.3 (hecho, sin publicar):** carpetas de un nivel, portada propia y juntar playlists (borra la otra por defecto, casilla desmarcable). Antes de publicar: `npm run db:migrate:remote` y después `npm run deploy`.
 
 ## En curso / siguiente
 
-- **Ahora (lo hace Andoni):** en Google Cloud, Público → **Publicar aplicación** (sigue en Testing); comprobar el APK v0.5.2 en Actions/Releases; probar la copia en el móvil (6 direcciones, cancelar y seguir); comprobar los botones de Google en euskera (`docs/google-drive.md`); probar con un amigo; lo pendiente de la v0.5.1 (playlist de 168, descargas con pantalla apagada, temporizador).
+- **Fase 5.4 (Hecho, sin publicar):** pantalla sin scroll horizontal, ordenar carpetas arrastrando (con migración 0005), quitar «juntar arrastrando» y limpieza de código. **Antes del próximo deploy:** `npm run db:migrate:remote` (migración 0005) y después `npm run deploy`.
+- **Pendiente de Andoni:** repetir las pruebas de F5.3 con Drive y con Cloudflare; en Google Cloud, Público → **Publicar aplicación** (sigue en Testing); botones de Google en euskera (`docs/google-drive.md`); probar con un amigo; lo pendiente de la v0.5.1 (playlist de 168, descargas con pantalla apagada).
 - **F6** Asistente Cloudflare y QR. **F7** Playlists compartidas y Jams. **F8** Estadísticas y Recap anual (privadas); **8b** grupos de amigos. **F9** Modo estudio.
 
 ## Decisiones tomadas (y por qué)

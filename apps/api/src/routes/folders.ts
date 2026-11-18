@@ -1,12 +1,27 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { LIMITS } from '@aske/shared';
+import { LIMITS, reorderFolders, type Folder } from '@aske/shared';
 import type { AppEnv } from '../env';
 import { bumpVersion, toFolder, type FolderRow } from '../lib/db';
-import { assertId, notFound, readJson } from '../lib/http';
+import { assertId, ID_PATTERN, notFound, readJson } from '../lib/http';
 import { newId } from '../lib/ids';
 
 const FolderBody = z.object({ name: z.string().trim().min(1).max(LIMITS.nameMax) });
+
+export const FolderOrderBody = z.object({ ids: z.array(z.string().regex(ID_PATTERN)).max(1000) });
+
+async function saveFolderOrder(db: D1Database, ids: string[]): Promise<Folder[]> {
+  const { results } = await db.prepare('SELECT * FROM folders').all<FolderRow>();
+  const { folders, changed } = reorderFolders(results.map(toFolder), ids, Date.now());
+  if (changed.length) {
+    const update = db.prepare('UPDATE folders SET position = ?, updated_at = ? WHERE id = ?');
+    await db.batch([
+      ...changed.map((f) => update.bind(f.position, f.updatedAt, f.id)),
+      bumpVersion(db),
+    ]);
+  }
+  return folders;
+}
 
 export const folderRoutes = new Hono<AppEnv>()
   .post('/', async (c) => {
@@ -14,13 +29,22 @@ export const folderRoutes = new Hono<AppEnv>()
     const db = c.env.DB;
     const id = newId();
     const now = Date.now();
-    await db.batch([
+    const [, row] = await db.batch([
       db
-        .prepare('INSERT INTO folders (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)')
+        .prepare(
+          `INSERT INTO folders (id, name, created_at, updated_at, position)
+           VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM folders))`,
+        )
         .bind(id, name, now, now),
+      db.prepare('SELECT * FROM folders WHERE id = ?').bind(id),
       bumpVersion(db),
     ]);
-    return c.json(toFolder({ id, name, created_at: now, updated_at: now }), 201);
+    return c.json(toFolder(row!.results[0] as unknown as FolderRow), 201);
+  })
+
+  .put('/order', async (c) => {
+    const { ids } = await readJson(c, FolderOrderBody);
+    return c.json(await saveFolderOrder(c.env.DB, ids));
   })
 
   .patch('/:id', async (c) => {

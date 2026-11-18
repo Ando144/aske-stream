@@ -46,6 +46,19 @@ describe('apiFor', () => {
   });
 });
 
+describe('reorderFolders', () => {
+  it('PUTs the ids to /api/folders/order', async () => {
+    const fetchMock = stubFetch(
+      () => new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
+    await apiFor({ baseUrl: 'https://x', token: 'T' }).reorderFolders(['a', 'b']);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://x/api/folders/order');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual({ ids: ['a', 'b'] });
+  });
+});
+
 describe('ingestExists', () => {
   it('queries the exists endpoint', async () => {
     const fetchMock = stubFetch(() => new Response(JSON.stringify({ exists: true, id: 'a' })));

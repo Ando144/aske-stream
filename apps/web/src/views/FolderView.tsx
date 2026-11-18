@@ -32,8 +32,11 @@ export function FolderView({ id }: { id: string }) {
         <ChevronLeft size={24} />
       </Link>
       <header className="page-header">
-        <h1 className="row ellipsis">
-          <FolderIcon size={24} color="var(--accent)" /> {folder.name}
+        <h1 className="row">
+          <FolderIcon size={24} color="var(--accent)" style={{ flexShrink: 0 }} />
+          <span className="ellipsis" style={{ minWidth: 0 }}>
+            {folder.name}
+          </span>
         </h1>
         <button
           className="icon-btn"

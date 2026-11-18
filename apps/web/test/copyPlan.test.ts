@@ -230,6 +230,17 @@ describe('planFolders', () => {
   });
 });
 
+describe('planFolders order', () => {
+  it('returns names in the source order', () => {
+    const src = [
+      { ...folder('a', 'Zeta'), position: 0 },
+      { ...folder('b', 'Alfa'), position: 1 },
+      folder('c', 'Mid'),
+    ];
+    expect(planFolders(src, [folder('x', 'alfa')])).toEqual(['Mid', 'Zeta']);
+  });
+});
+
 describe('planPlaylists with folders and covers', () => {
   const lists = { src: [folder('fs', 'Rock')], dest: [folder('fd', 'Rock')] };
 

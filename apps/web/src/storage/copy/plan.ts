@@ -1,4 +1,4 @@
-import { LIMITS, type Folder, type Playlist, type Station } from '@aske/shared';
+import { LIMITS, sortFolders, type Folder, type Playlist, type Station } from '@aske/shared';
 import type { Destination, LocalTrack } from '../types';
 
 /** Source track id -> destination track id. */
@@ -79,11 +79,11 @@ export function nameKey(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** Names of the source folders that the destination does not have yet. */
+/** Names of the source folders the destination lacks, in the source's order. */
 export function planFolders(src: Folder[], dest: Folder[]): string[] {
   const seen = new Set(dest.map((f) => nameKey(f.name)));
   const out: string[] = [];
-  for (const f of src) {
+  for (const f of sortFolders(src)) {
     const key = nameKey(f.name);
     if (seen.has(key)) continue;
     seen.add(key);

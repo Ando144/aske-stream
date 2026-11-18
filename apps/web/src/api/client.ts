@@ -114,6 +114,8 @@ function folderMethods(json: JsonFn, call: CallFn) {
     updateFolder: (id: string, patch: { name: string }) =>
       json<Folder>(`/api/folders/${id}`, { method: 'PATCH', json: patch }),
     deleteFolder: (id: string) => json<void>(`/api/folders/${id}`, { method: 'DELETE' }),
+    reorderFolders: (ids: string[]) =>
+      json<Folder[]>('/api/folders/order', { method: 'PUT', json: { ids } }),
     setPlaylistCover: (id: string, jpeg: Blob) => {
       const form = new FormData();
       form.append('cover', jpeg, 'cover.jpg');

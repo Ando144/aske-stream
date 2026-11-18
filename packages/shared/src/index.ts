@@ -54,7 +54,11 @@ export interface Folder {
   name: string;
   createdAt: EpochMs;
   updatedAt: EpochMs;
+  /** Order chosen by the user (ascending). null/undefined = not ordered yet. */
+  position?: number | null;
 }
+
+export { sortFolders, nextFolderPosition, reorderFolders, type FolderReorder } from './folders';
 
 /** Full snapshot returned by `GET /api/library`. Small enough for one user. */
 export interface Library {

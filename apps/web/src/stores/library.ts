@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import { LIMITS, type Folder, type Playlist } from '@aske/shared';
+import { LIMITS, reorderFolders, sortFolders, type Folder, type Playlist } from '@aske/shared';
 import { ApiError } from '../api/client';
 import { t } from '../i18n';
 import { squareJpeg } from '../lib/cover';
@@ -38,6 +38,8 @@ interface LibraryState {
   renameFolder: (id: string, name: string) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
   movePlaylist: (id: string, folderId: string | null) => Promise<void>;
+  /** Optimistic: reorders at once and rolls back (with the usual toast) if saving fails. */
+  reorderFolders: (folderIds: string[]) => Promise<void>;
   /** Returns true when merged. Toast with the reason when not. */
   mergePlaylists: (targetId: string, sourceId: string, deleteSource: boolean) => Promise<boolean>;
   /** file: any image chosen by the user (null = back to the mosaic). Resized to a square. */
@@ -308,7 +310,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
     async createFolder(name) {
       try {
         const folder = await getHome().createFolder(name);
-        set({ folders: [...get().folders, folder] });
+        set({ folders: sortFolders([...get().folders, folder]) });
         await persist(get());
         toast(t('toast.folderCreated'));
         return folder;
@@ -348,6 +350,13 @@ export const useLibrary = create<LibraryState>((set, get) => {
           toast(folder ? t('toast.movedToFolder', { name: folder.name }) : t('toast.movedOut')),
         )
         .catch(() => undefined);
+    },
+
+    async reorderFolders(folderIds) {
+      await mutate(
+        (s) => ({ folders: reorderFolders(s.folders, folderIds, Date.now()).folders }),
+        async () => set({ folders: await getHome().reorderFolders(folderIds) }),
+      ).catch(() => undefined);
     },
 
     async mergePlaylists(targetId, sourceId, deleteSource) {
