@@ -302,6 +302,19 @@ describe('runCopy folders and covers', () => {
     expect(res.stopped).toBeNull();
   });
 
+  it('copies each cover by playlist id when two source playlists share a name', async () => {
+    const blob1 = new Blob(['one']);
+    const blob2 = new Blob(['two']);
+    const from = fake('device', {
+      playlists: [pl({ id: 'p1', coverAt: 5 }), pl({ id: 'p2', coverAt: 6 })],
+      covers: { p1: blob1, p2: blob2 },
+    });
+    const to = fake('cloudflare');
+    await runCopy(deps(from, to).d);
+    const covers = vi.mocked(to.setPlaylistCover).mock.calls.map((c) => c[1]);
+    expect(covers).toEqual([blob1, blob2]);
+  });
+
   it('carries on when the cover cannot be written', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const from = fake('device', {

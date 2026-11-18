@@ -163,6 +163,7 @@ describe('planPlaylists', () => {
     expect(actions).toEqual([
       {
         kind: 'add',
+        sourceId: 's1',
         playlistId: 'd1',
         name: 'Rock',
         trackIds: ['A'],
@@ -176,7 +177,14 @@ describe('planPlaylists', () => {
     const src = [playlist({ name: 'New', trackIds: ['a', 'a', 'b', 'x'] })];
     const { actions } = planPlaylists(src, [], { a: 'A', b: 'B' });
     expect(actions).toEqual([
-      { kind: 'create', name: 'New', trackIds: ['A', 'B'], folderName: null, copyCover: false },
+      {
+        kind: 'create',
+        sourceId: 'p',
+        name: 'New',
+        trackIds: ['A', 'B'],
+        folderName: null,
+        copyCover: false,
+      },
     ]);
   });
 
@@ -200,7 +208,14 @@ describe('planPlaylists', () => {
     ];
     const { actions } = planPlaylists(src, [], {});
     expect(actions).toEqual([
-      { kind: 'create', name: 'Empty', trackIds: [], folderName: null, copyCover: false },
+      {
+        kind: 'create',
+        sourceId: 'p',
+        name: 'Empty',
+        trackIds: [],
+        folderName: null,
+        copyCover: false,
+      },
     ]);
   });
 });
@@ -222,7 +237,14 @@ describe('planPlaylists with folders and covers', () => {
     const src = [playlist({ name: 'A', trackIds: ['a'], folderId: 'fs', coverAt: 9 })];
     const { actions } = planPlaylists(src, [], { a: 'A' }, 10, lists);
     expect(actions).toEqual([
-      { kind: 'create', name: 'A', trackIds: ['A'], folderName: 'Rock', copyCover: true },
+      {
+        kind: 'create',
+        sourceId: 'p',
+        name: 'A',
+        trackIds: ['A'],
+        folderName: 'Rock',
+        copyCover: true,
+      },
     ]);
   });
 
@@ -238,6 +260,7 @@ describe('planPlaylists with folders and covers', () => {
     expect(planPlaylists(src, dest, {}, 10, lists).actions).toEqual([
       {
         kind: 'add',
+        sourceId: 'p',
         playlistId: 'd',
         name: 'A',
         trackIds: [],

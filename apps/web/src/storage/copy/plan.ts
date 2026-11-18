@@ -63,6 +63,8 @@ export function buildCopyPlan(
 }
 
 interface ActionExtras {
+  /** Id of the source playlist, to read its cover (names may repeat). */
+  sourceId: string;
   /** Folder to put the playlist in (by name); null = leave as is. */
   folderName: string | null;
   copyCover: boolean;
@@ -125,7 +127,15 @@ function planExisting(
   const copyCover = !!pl.coverAt && !existing.coverAt;
   const worthIt = trackIds.length > 0 || folderName !== null || copyCover;
   const action: PlaylistAction | null = worthIt
-    ? { kind: 'add', playlistId: existing.id, name: pl.name, trackIds, folderName, copyCover }
+    ? {
+        kind: 'add',
+        sourceId: pl.id,
+        playlistId: existing.id,
+        name: pl.name,
+        trackIds,
+        folderName,
+        copyCover,
+      }
     : null;
   return { action, overflow: missing.length - trackIds.length };
 }
@@ -144,6 +154,7 @@ function planOne(
   return {
     action: {
       kind: 'create',
+      sourceId: pl.id,
       name: pl.name,
       trackIds,
       folderName: folderNameOf(pl, folders.src),

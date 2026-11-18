@@ -169,7 +169,7 @@ async function applyAction(
   if (action.copyCover)
     await copyCover(
       run,
-      src.find((p) => p.name === action.name),
+      src.find((p) => p.id === action.sourceId),
       destId,
     );
 }
