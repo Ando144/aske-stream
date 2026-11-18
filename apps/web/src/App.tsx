@@ -17,6 +17,7 @@ import { LibraryView } from './views/LibraryView';
 import { OfflineView } from './views/OfflineView';
 import { PairView } from './views/PairView';
 import { SetupView } from './views/SetupView';
+import { FolderView } from './views/FolderView';
 import { PlaylistsView } from './views/PlaylistsView';
 import { PlaylistView } from './views/PlaylistView';
 import { RadioView } from './views/RadioView';
@@ -121,6 +122,9 @@ function Shell() {
         <Switch>
           <Route path="/" component={LibraryView} />
           <Route path="/playlists" component={PlaylistsView} />
+          <Route path="/folder/:id">
+            {(params) => <FolderView key={params.id} id={params.id} />}
+          </Route>
           <Route path="/liked">{() => <PlaylistView liked />}</Route>
           <Route path="/playlist/:id">
             {(params) => <PlaylistView key={params.id} id={params.id} />}

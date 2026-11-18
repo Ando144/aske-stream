@@ -1,8 +1,8 @@
 import { LIMITS } from '@aske/shared';
-import type { Playlist, Station, Track } from '@aske/shared';
-import { api } from '../api/client';
+import type { Folder, Playlist, Station, Track } from '@aske/shared';
+import { ApiError, api } from '../api/client';
 import { getDb } from '../offline/db';
-import { deleteDeviceFile } from './deviceFiles';
+import { deleteDeviceFile, saveDeviceFile } from './deviceFiles';
 import type { LibraryHome, LocalTrack, StationInput, TrackPatch } from './types';
 
 export function newLocalId(): string {
@@ -24,6 +24,29 @@ export const fromRemote = (t: Track): LocalTrack => ({
   mime: 'audio/ogg',
 });
 
+/** A Worker without the 0004 migration answers 404 "Unknown endpoint" to folder/cover calls. */
+async function orOutdated<T>(call: Promise<T>): Promise<T> {
+  try {
+    return await call;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404 && err.code === 'not_found') {
+      if (err.message === 'Unknown endpoint') throw new Error('cloudflare_outdated');
+    }
+    throw err;
+  }
+}
+
+async function moveOnCloudflare(id: string, folderId: string | null): Promise<Playlist> {
+  try {
+    return await orOutdated(api.updatePlaylist(id, { folderId }));
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'folder_not_found') {
+      throw new Error('folder_not_found');
+    }
+    throw err;
+  }
+}
+
 export const cloudflareHome: LibraryHome = {
   kind: 'cloudflare',
   async load(etag) {
@@ -32,9 +55,16 @@ export const cloudflareHome: LibraryHome = {
     return {
       tracks: res.library.tracks.map(fromRemote),
       playlists: res.library.playlists,
+      folders: res.library.folders ?? [],
       etag: res.etag,
     };
   },
+  createFolder: (name) => orOutdated(api.createFolder(name)),
+  renameFolder: (id, name) => orOutdated(api.updateFolder(id, { name })),
+  deleteFolder: (id) => orOutdated(api.deleteFolder(id)),
+  movePlaylist: moveOnCloudflare,
+  setPlaylistCover: (id, jpeg) =>
+    orOutdated(jpeg ? api.setPlaylistCover(id, jpeg) : api.removePlaylistCover(id)),
   updateTrack: async (id, patch) => fromRemote(await api.updateTrack(id, patch)),
   deleteTrack: (id) => api.deleteTrack(id),
   createPlaylist: (name, ids) => api.createPlaylist(name, ids),
@@ -77,7 +107,48 @@ export const deviceHome: LibraryHome & {
     const db = await getDb();
     const tracks = (await db.getAll('tracks')).sort((a, b) => b.createdAt - a.createdAt);
     const playlists = (await db.getAll('playlists')).sort((a, b) => a.createdAt - b.createdAt);
-    return { tracks, playlists, etag: '' };
+    const folders = (await db.getAll('folders')).sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    );
+    return { tracks, playlists, folders, etag: '' };
+  },
+
+  async createFolder(name) {
+    const now = Date.now();
+    const folder: Folder = { id: newLocalId(), name, createdAt: now, updatedAt: now };
+    await (await getDb()).put('folders', folder);
+    return folder;
+  },
+
+  async renameFolder(id, name) {
+    const db = await getDb();
+    const folder = (await db.get('folders', id)) ?? notFound('Folder');
+    const updated = { ...folder, name, updatedAt: Date.now() };
+    await db.put('folders', updated);
+    return updated;
+  },
+
+  async deleteFolder(id) {
+    const db = await getDb();
+    for (const pl of await db.getAll('playlists')) {
+      if (pl.folderId === id) await putPlaylist({ ...pl, folderId: null });
+    }
+    await db.delete('folders', id);
+  },
+
+  async movePlaylist(id, folderId) {
+    const pl = await getPlaylist(id);
+    if (folderId !== null && !(await (await getDb()).get('folders', folderId))) {
+      throw new Error('folder_not_found');
+    }
+    return putPlaylist({ ...pl, folderId });
+  },
+
+  async setPlaylistCover(id, jpeg) {
+    const pl = await getPlaylist(id);
+    if (jpeg) await saveDeviceFile('playlist-covers', id, jpeg);
+    else await deleteDeviceFile('playlist-covers', id);
+    return putPlaylist({ ...pl, coverAt: jpeg ? Date.now() : null });
   },
 
   async addTrack(track) {
@@ -135,6 +206,7 @@ export const deviceHome: LibraryHome & {
 
   async deletePlaylist(id) {
     await (await getDb()).delete('playlists', id);
+    await deleteDeviceFile('playlist-covers', id);
   },
 
   async addToPlaylist(id, trackIds) {

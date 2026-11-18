@@ -3,6 +3,7 @@ import type {
   CatalogCountry,
   CatalogStation,
   CatalogTag,
+  Folder,
   Library,
   Playlist,
   SendItem,
@@ -102,6 +103,29 @@ async function request(
   return res;
 }
 
+type JsonFn = <T>(path: string, opts?: RequestOptions) => Promise<T>;
+type CallFn = (path: string, opts?: RequestOptions) => Promise<Response>;
+
+/** Folders and custom playlist covers (need the 0004 migration on the Worker). */
+function folderMethods(json: JsonFn, call: CallFn) {
+  return {
+    createFolder: (name: string) =>
+      json<Folder>('/api/folders', { method: 'POST', json: { name } }),
+    updateFolder: (id: string, patch: { name: string }) =>
+      json<Folder>(`/api/folders/${id}`, { method: 'PATCH', json: patch }),
+    deleteFolder: (id: string) => json<void>(`/api/folders/${id}`, { method: 'DELETE' }),
+    setPlaylistCover: (id: string, jpeg: Blob) => {
+      const form = new FormData();
+      form.append('cover', jpeg, 'cover.jpg');
+      return json<Playlist>(`/api/playlists/${id}/cover`, { method: 'PUT', form });
+    },
+    removePlaylistCover: (id: string) =>
+      json<Playlist>(`/api/playlists/${id}/cover`, { method: 'DELETE' }),
+    fetchPlaylistCover: async (id: string): Promise<Blob> =>
+      (await call(`/media/playlist-cover/${id}`)).blob(),
+  };
+}
+
 function createApi(
   getTarget: () => ApiTarget,
   { notifyUnauthorized }: { notifyUnauthorized: boolean },
@@ -141,8 +165,11 @@ function createApi(
 
     createPlaylist: (name: string, trackIds: string[] = []) =>
       json<Playlist>('/api/playlists', { method: 'POST', json: { name, trackIds } }),
-    updatePlaylist: (id: string, patch: { name?: string; description?: string }) =>
-      json<Playlist>(`/api/playlists/${id}`, { method: 'PATCH', json: patch }),
+    updatePlaylist: (
+      id: string,
+      patch: { name?: string; description?: string; folderId?: string | null },
+    ) => json<Playlist>(`/api/playlists/${id}`, { method: 'PATCH', json: patch }),
+    ...folderMethods(json, call),
     deletePlaylist: (id: string) => json<void>(`/api/playlists/${id}`, { method: 'DELETE' }),
     addToPlaylist: (id: string, trackIds: string[]) =>
       json<Playlist>(`/api/playlists/${id}/tracks`, { method: 'POST', json: { trackIds } }),
@@ -220,6 +247,12 @@ export function apiFor(conn: ApiTarget): ApiClient {
 export function mediaUrl(kind: 'audio' | 'cover', remoteId: string): string {
   const url = `${target.baseUrl}/media/${kind}/${remoteId}`;
   return target.token ? `${url}?t=${encodeURIComponent(target.token)}` : url;
+}
+
+/** Cover URL of a playlist; `v` breaks the browser cache when the cover changes. */
+export function playlistCoverUrl(id: string, coverAt: number): string {
+  const url = `${target.baseUrl}/media/playlist-cover/${id}?v=${coverAt}`;
+  return target.token ? `${url}&t=${encodeURIComponent(target.token)}` : url;
 }
 
 export const mediaCredentials = (): RequestCredentials => (target.baseUrl ? 'omit' : 'same-origin');

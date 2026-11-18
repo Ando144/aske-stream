@@ -40,6 +40,20 @@ export interface Playlist {
   trackIds: string[];
   createdAt: EpochMs;
   updatedAt: EpochMs;
+  /** Folder that holds it; null/undefined = top level. */
+  folderId?: string | null;
+  /** When the custom cover was set; null/undefined = automatic mosaic. */
+  coverAt?: EpochMs | null;
+  /** Google Drive only: file id of the custom cover. */
+  coverFileId?: string | null;
+}
+
+/** A single-level folder that only holds playlists. */
+export interface Folder {
+  id: string;
+  name: string;
+  createdAt: EpochMs;
+  updatedAt: EpochMs;
 }
 
 /** Full snapshot returned by `GET /api/library`. Small enough for one user. */
@@ -48,6 +62,7 @@ export interface Library {
   version: number;
   tracks: Track[];
   playlists: Playlist[];
+  folders: Folder[];
 }
 
 /** A radio station saved in the user's own list (liked from the catalog or added by URL). */
@@ -147,6 +162,7 @@ export const LIMITS = {
   playlistMaxTracks: 1000,
   audioMaxBytes: 95 * 1024 * 1024,
   coverMaxBytes: 2 * 1024 * 1024,
+  playlistCoverPx: 300,
   urlMax: 2048,
 } as const;
 

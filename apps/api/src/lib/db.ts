@@ -1,4 +1,4 @@
-import type { Playlist, Station, Track, TrackKind, TrackSource } from '@aske/shared';
+import type { Folder, Playlist, Station, Track, TrackKind, TrackSource } from '@aske/shared';
 
 /** Statement that marks the library as changed; append it to every write batch. */
 export const bumpVersion = (db: D1Database) =>
@@ -54,6 +54,8 @@ export interface PlaylistRow {
   description: string;
   created_at: number;
   updated_at: number;
+  folder_id: string | null;
+  cover_at: number | null;
 }
 
 export const toPlaylist = (r: PlaylistRow, trackIds: string[]): Playlist => ({
@@ -61,6 +63,22 @@ export const toPlaylist = (r: PlaylistRow, trackIds: string[]): Playlist => ({
   name: r.name,
   description: r.description,
   trackIds,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
+  folderId: r.folder_id ?? null,
+  coverAt: r.cover_at ?? null,
+});
+
+export interface FolderRow {
+  id: string;
+  name: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export const toFolder = (r: FolderRow): Folder => ({
+  id: r.id,
+  name: r.name,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -102,3 +120,4 @@ export const toStation = (r: StationRow): Station => ({
 /** R2 object keys are derived from the track id, so streaming needs no DB lookup. */
 export const audioKey = (trackId: string) => `tracks/${trackId}/audio.opus`;
 export const coverKey = (trackId: string) => `tracks/${trackId}/cover.jpg`;
+export const playlistCoverKey = (playlistId: string) => `playlists/${playlistId}/cover.jpg`;

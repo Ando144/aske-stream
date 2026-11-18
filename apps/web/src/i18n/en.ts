@@ -336,7 +336,7 @@ export const en = {
   'tips.library':
     'Tap a song to play it. Press and hold one to pick several at once, and swipe it to the right to add it to the queue.',
   'tips.playlists':
-    'Create playlists to organise your music. “Liked songs” fills itself when you tap a song’s heart.',
+    'Create playlists to organise your music and group them into folders. Tap “…” on a playlist for more options, or drag its handle to move it or merge it with another. “Liked songs” fills itself when you tap the heart.',
   'tips.podcasts':
     'Talks and interviews go here, apart from your music. The app remembers where you were in each episode.',
   'tips.radio':
@@ -383,6 +383,47 @@ export const en = {
   'settings.persistentOff': 'Off: if the computer runs out of space, the browser might delete them',
 
   'toast.offline': 'You are offline',
+  'folders.new': 'New folder',
+  'folders.namePlaceholder': 'Folder name',
+  'folders.rename': 'Rename',
+  'folders.delete': 'Delete folder',
+  'folders.deleteConfirm':
+    'Delete the folder “{name}”? Its playlists are not deleted: they go back to the main list.',
+  'folders.empty':
+    'This folder is empty. Move a playlist here from its “…” menu or by dragging it.',
+  'folders.notFound': 'This folder no longer exists.',
+  'folders.playlistCount': '{count} playlists',
+  'folders.playlistCount.one': '1 playlist',
+  'playlists.menu': 'More options',
+  'playlists.moveToFolder': 'Move to a folder',
+  'playlists.moveOut': 'Take out of the folder',
+  'playlists.pickFolder': 'Pick a folder',
+  'playlists.newFolderHere': 'Create new folder',
+  'playlists.merge': 'Merge with another playlist',
+  'playlists.mergePick': 'Pick the playlist you want to merge',
+  'playlists.coverPick': 'Choose cover',
+  'playlists.coverRemove': 'Remove cover',
+  'merge.title': 'Merge playlists',
+  'merge.explain':
+    'The songs of “{source}” will be added to the end of “{target}”. Songs already there are not repeated.',
+  'merge.deleteOther': 'Delete “{source}” afterwards',
+  'merge.deleteOtherHint': 'Songs are not deleted: they stay in your library.',
+  'merge.swap': 'Swap the order',
+  'merge.confirm': 'Merge',
+  'drag.handle': 'Drag to move or merge',
+  'drag.dropRoot': 'Drop here to take it out of the folder',
+  'toast.merged': 'Merged: {count} new songs in “{name}”',
+  'toast.merged.one': 'Merged: 1 new song in “{name}”',
+  'toast.mergeTooBig':
+    'They do not fit: merged they would have {total} songs and a playlist holds up to {max}. Remove some from one of them and try again.',
+  'toast.movedToFolder': 'Moved to the folder “{name}”',
+  'toast.movedOut': 'Taken out of the folder',
+  'toast.folderCreated': 'Folder created',
+  'toast.coverSaved': 'Cover saved',
+  'toast.coverBadImage': 'That image could not be used. Try another photo.',
+  'toast.coverStorageFull': 'There is no room to save the cover. Free up some space and try again.',
+  'toast.cloudflareOutdated':
+    'Your Cloudflare has an old version and does not support folders or covers yet. Your music and playlists are fine.',
   'toast.error': 'Something went wrong',
   'toast.playlistTooBig': 'A playlist can hold up to {max} songs. Pick fewer songs.',
   'toast.playlistFull':
@@ -572,7 +613,7 @@ export const en = {
   'copy.offer': 'Shall we copy {count} songs, with your likes, playlists and favourite radios?',
   'copy.offer.one': 'Shall we copy 1 song, with your likes, playlists and favourite radios?',
   'copy.explain':
-    'Nothing is deleted from the original place. You can stop at any time: when you tap again it continues where it left off and never copies anything twice. Wi-Fi is best.',
+    'Nothing is deleted from the original place. Your folders and playlist covers are copied too. You can stop at any time: when you tap again it continues where it left off and never copies anything twice. Wi-Fi is best.',
   'copy.start': 'Copy',
   'copy.later': 'Not now',
   'copy.resume': 'Continue copying',
@@ -608,7 +649,8 @@ export const en = {
   'sleep.custom': 'Other time',
   'sleep.customHint': 'Up to 8 hours',
   'sleep.endOfTrack': 'When the song ends',
-  'sleep.cancel': 'Cancel timer',
+  'sleep.remove': 'Remove timer',
+  'sleep.change': 'Change the time',
   'sleep.remaining': 'Stops in {time}',
   'sleep.set': 'The music will stop in {time}',
   'sleep.setEndOfTrack': 'The music will stop when this song ends',

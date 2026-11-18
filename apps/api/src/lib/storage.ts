@@ -16,13 +16,15 @@ export async function storageStats(env: Env): Promise<StorageStats> {
   const row = await env.DB.prepare(
     `SELECT COUNT(*) AS tracks,
             COALESCE(SUM(size_bytes), 0) AS audio,
-            COALESCE(SUM(CASE WHEN cover_key IS NOT NULL THEN 1 ELSE 0 END), 0) AS covers
+            COALESCE(SUM(CASE WHEN cover_key IS NOT NULL THEN 1 ELSE 0 END), 0) AS covers,
+            (SELECT COUNT(*) FROM playlists WHERE cover_at IS NOT NULL) AS playlistCovers
      FROM tracks`,
-  ).first<{ tracks: number; audio: number; covers: number }>();
+  ).first<{ tracks: number; audio: number; covers: number; playlistCovers: number }>();
   const limitBytes = storageLimit(env);
   return {
     trackCount: row?.tracks ?? 0,
-    usedBytes: (row?.audio ?? 0) + (row?.covers ?? 0) * COVER_ESTIMATE,
+    usedBytes:
+      (row?.audio ?? 0) + ((row?.covers ?? 0) + (row?.playlistCovers ?? 0)) * COVER_ESTIMATE,
     limitBytes,
     uploadLimitBytes: Math.floor(limitBytes * SAFETY),
   };

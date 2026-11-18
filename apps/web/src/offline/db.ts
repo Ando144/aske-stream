@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Playlist, Station } from '@aske/shared';
+import type { Folder, Playlist, Station } from '@aske/shared';
 import type { LocalTrack, LibrarySnapshot } from '../storage/types';
 import type { OfflineEntry } from './planner';
 
@@ -19,12 +19,13 @@ interface AskeDB extends DBSchema {
   tracks: { key: string; value: LocalTrack };
   playlists: { key: string; value: Playlist };
   stations: { key: string; value: Station };
+  folders: { key: string; value: Folder };
 }
 
 let dbPromise: Promise<IDBPDatabase<AskeDB>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<AskeDB>> {
-  dbPromise ??= openDB<AskeDB>('aske', 2, {
+  dbPromise ??= openDB<AskeDB>('aske', 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('kv');
@@ -35,6 +36,9 @@ export function getDb(): Promise<IDBPDatabase<AskeDB>> {
         db.createObjectStore('tracks', { keyPath: 'id' });
         db.createObjectStore('playlists', { keyPath: 'id' });
         db.createObjectStore('stations', { keyPath: 'id' });
+      }
+      if (oldVersion < 3) {
+        db.createObjectStore('folders', { keyPath: 'id' });
       }
     },
   });

@@ -1479,6 +1479,51 @@ h2,
   width: 32px;
 }
 
+.card-row-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+}
+
+.dnd-row {
+  border-radius: 10px;
+  transition: background 0.1s;
+}
+
+.dnd-row.dragging {
+  opacity: 0.4;
+}
+
+.dnd-row.drop-over,
+.drop-root.drop-over {
+  background: var(--accent-soft);
+  outline: 2px solid var(--accent);
+}
+
+.drop-root {
+  position: sticky;
+  bottom: 90px;
+  margin-top: 12px;
+  padding: 18px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--accent);
+  background: var(--bg-elevated);
+}
+
+.drag-overlay {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+  border: 1px solid var(--accent);
+}
+
 .queue-panel {
   margin-top: 8px;
 }

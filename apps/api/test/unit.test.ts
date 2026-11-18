@@ -2,10 +2,54 @@ import { describe, expect, it } from 'vitest';
 import { createSessionToken, safeEqual, verifySessionToken } from '../src/lib/crypto';
 import { newId } from '../src/lib/ids';
 import { ID_PATTERN } from '../src/lib/http';
+import { playlistCoverKey, toFolder, toPlaylist } from '../src/lib/db';
+import { isJpeg } from '../src/lib/image';
+import { PatchPlaylist } from '../src/routes/playlists';
 import { mapStation } from '../src/lib/radioBrowser';
 import { resolveRange } from '../src/routes/media';
 
 const KEY = 'test-access-key-0123456789abcdef';
+
+describe('folders and covers', () => {
+  it('maps a folder row', () => {
+    expect(toFolder({ id: 'f1', name: 'Gym', created_at: 1, updated_at: 2 })).toEqual({
+      id: 'f1',
+      name: 'Gym',
+      createdAt: 1,
+      updatedAt: 2,
+    });
+  });
+
+  it('maps the new playlist columns, null when absent', () => {
+    const row = { id: 'p', name: 'A', description: '', created_at: 1, updated_at: 2 };
+    expect(toPlaylist({ ...row, folder_id: null, cover_at: null }, [])).toMatchObject({
+      folderId: null,
+      coverAt: null,
+    });
+    expect(toPlaylist({ ...row, folder_id: 'f1', cover_at: 9 }, ['t'])).toMatchObject({
+      folderId: 'f1',
+      coverAt: 9,
+      trackIds: ['t'],
+    });
+  });
+
+  it('derives the playlist cover key from the id', () => {
+    expect(playlistCoverKey('abc')).toBe('playlists/abc/cover.jpg');
+  });
+
+  it('recognises JPEG files by their magic bytes', async () => {
+    const jpeg = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0])], 'a.jpg');
+    const png = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'a.png');
+    expect(await isJpeg(jpeg)).toBe(true);
+    expect(await isJpeg(png)).toBe(false);
+  });
+
+  it('PatchPlaylist accepts folderId null and rejects a malformed id', () => {
+    expect(PatchPlaylist.safeParse({ folderId: null }).success).toBe(true);
+    expect(PatchPlaylist.safeParse({ folderId: 'abcdefgh12' }).success).toBe(true);
+    expect(PatchPlaylist.safeParse({ folderId: 'no/valid id' }).success).toBe(false);
+  });
+});
 
 describe('session tokens', () => {
   it('accepts a token signed with the same key', async () => {

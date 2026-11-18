@@ -40,6 +40,9 @@ function homeParts(home: LibraryHome) {
   return {
     createPlaylist: (name: string, trackIds: string[]) => home.createPlaylist(name, trackIds),
     addToPlaylist: (id: string, trackIds: string[]) => home.addToPlaylist(id, trackIds),
+    createFolder: (name: string) => home.createFolder(name),
+    movePlaylist: (id: string, folderId: string | null) => home.movePlaylist(id, folderId),
+    setPlaylistCover: (id: string, jpeg: Blob) => home.setPlaylistCover(id, jpeg),
     saveStation: (s: Station) => home.saveStation(stationInput(s)),
   };
 }
@@ -57,6 +60,7 @@ const deviceEndpoint: CopyEndpoint = {
     return {
       tracks: snap?.tracks ?? [],
       playlists: snap?.playlists ?? [],
+      folders: snap?.folders ?? [],
       stations: await deviceHome.listStations(),
     };
   },
@@ -66,6 +70,7 @@ const deviceEndpoint: CopyEndpoint = {
     return file;
   },
   readCover: (t) => getDeviceFile('covers', t.id),
+  readPlaylistCover: (pl) => getDeviceFile('playlist-covers', pl.id),
   async writeTrack(t, audio, cover) {
     const id = newLocalId();
     await saveDeviceFile('audio', id, audio);
@@ -90,6 +95,7 @@ const driveEndpoint: CopyEndpoint = {
     return {
       tracks: snap?.tracks ?? [],
       playlists: snap?.playlists ?? [],
+      folders: snap?.folders ?? [],
       stations: await driveHome.listStations(),
     };
   },
@@ -99,6 +105,9 @@ const driveEndpoint: CopyEndpoint = {
   },
   async readCover(t) {
     return t.locations.driveCover ? driveApi.download(t.locations.driveCover) : null;
+  },
+  async readPlaylistCover(pl) {
+    return pl.coverFileId ? driveApi.download(pl.coverFileId) : null;
   },
   async writeTrack(t, audio, cover) {
     const track = await driveHome.addTrack(newTrackMeta(t, !!cover), audio, cover, {
@@ -151,12 +160,16 @@ function cloudflareEndpoint(conn: ApiTarget): CopyEndpoint {
       return {
         tracks: res?.library.tracks.map(fromRemote) ?? [],
         playlists: res?.library.playlists ?? [],
+        folders: res?.library.folders ?? [],
         stations: await api.stations(),
       };
     },
     readAudio: (t) => api.fetchMedia('audio', remoteId(t)),
     async readCover(t) {
       return t.hasCover ? api.fetchMedia('cover', remoteId(t)) : null;
+    },
+    async readPlaylistCover(pl) {
+      return pl.coverAt ? api.fetchPlaylistCover(pl.id) : null;
     },
     async writeTrack(t, audio, cover) {
       let existed = false;
@@ -176,6 +189,9 @@ function cloudflareEndpoint(conn: ApiTarget): CopyEndpoint {
     },
     createPlaylist: (name, trackIds) => api.createPlaylist(name, trackIds),
     addToPlaylist: (id, trackIds) => api.addToPlaylist(id, trackIds),
+    createFolder: (name) => api.createFolder(name),
+    movePlaylist: (id, folderId) => api.updatePlaylist(id, { folderId }),
+    setPlaylistCover: (id, jpeg) => api.setPlaylistCover(id, jpeg),
     saveStation: (s) => api.saveStation(stationInput(s)),
     async freeBytes() {
       const stats = await api.storage();

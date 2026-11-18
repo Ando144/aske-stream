@@ -1,7 +1,14 @@
 import { Hono } from 'hono';
 import type { Library } from '@aske/shared';
 import type { AppEnv } from '../env';
-import { toPlaylist, toTrack, type PlaylistRow, type TrackRow } from '../lib/db';
+import {
+  toFolder,
+  toPlaylist,
+  toTrack,
+  type FolderRow,
+  type PlaylistRow,
+  type TrackRow,
+} from '../lib/db';
 import { storageStats } from '../lib/storage';
 
 export const libraryRoutes = new Hono<AppEnv>()
@@ -11,13 +18,14 @@ export const libraryRoutes = new Hono<AppEnv>()
     const db = c.env.DB;
 
     // A batch runs as one transaction, so the version always matches the data.
-    const [versionRes, tracksRes, playlistsRes, membersRes] = await db.batch([
+    const [versionRes, tracksRes, playlistsRes, membersRes, foldersRes] = await db.batch([
       db.prepare("SELECT value FROM meta WHERE key = 'library_version'"),
       db.prepare('SELECT * FROM tracks ORDER BY created_at DESC'),
       db.prepare('SELECT * FROM playlists ORDER BY created_at ASC'),
       db.prepare(
         'SELECT playlist_id, track_id FROM playlist_tracks ORDER BY playlist_id, position ASC',
       ),
+      db.prepare('SELECT * FROM folders ORDER BY name COLLATE NOCASE ASC'),
     ]);
 
     const version = Number((versionRes!.results[0] as { value: string } | undefined)?.value ?? 0);
@@ -39,6 +47,7 @@ export const libraryRoutes = new Hono<AppEnv>()
       playlists: (playlistsRes!.results as unknown as PlaylistRow[]).map((p) =>
         toPlaylist(p, members.get(p.id) ?? []),
       ),
+      folders: (foldersRes!.results as unknown as FolderRow[]).map(toFolder),
     };
     return c.json(library);
   });

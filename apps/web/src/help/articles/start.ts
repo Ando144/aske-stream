@@ -114,7 +114,7 @@ Abesti arrunt batek 4 MB inguru hartzen ditu: 1.000 abesti 4 GB inguru dira.`,
 
 **Se puede copiar en las 6 direcciones:** de Este dispositivo a Google Drive o a Cloudflare, de Google Drive a Este dispositivo o a Cloudflare, y de Cloudflare a Este dispositivo o a Google Drive.
 
-**Qué se copia:** las canciones con sus portadas y tus «me gusta», tus playlists (de como mucho 1.000 canciones) y tus radios favoritas.
+**Qué se copia:** las canciones con sus portadas y tus «me gusta», tus playlists (de como mucho 1.000 canciones) con sus carpetas y sus fotos, y tus radios favoritas.
 
 **Qué no pasa:**
 - **No se borra nada** del sitio de origen. Si vuelves a elegirlo, todo sigue ahí.
@@ -132,7 +132,7 @@ Si algo se corta (internet, o Google te pide volver a conectar), la copia se pau
 
 **It works in all 6 directions:** from This device to Google Drive or Cloudflare, from Google Drive to This device or Cloudflare, and from Cloudflare to This device or Google Drive.
 
-**What is copied:** songs with their covers and your likes, your playlists (up to 1,000 songs each) and your favourite radio stations.
+**What is copied:** songs with their covers and your likes, your playlists (up to 1,000 songs each) with their folders and photos, and your favourite radio stations.
 
 **What does not happen:**
 - **Nothing is deleted** from the place you copy from. If you choose it again, everything is still there.
@@ -150,7 +150,7 @@ If something is interrupted (internet, or Google asks you to reconnect), the cop
 
 **6 norabidetan kopia daiteke:** Gailu hautik Google Drive-ra edo Cloudflare-ra, Google Drive-tik Gailu hautara edo Cloudflare-ra, eta Cloudflare-tik Gailu hautara edo Google Drive-ra.
 
-**Zer kopiatzen den:** abestiak azalekin eta zure «gustuko»ekin, zure playlistak (gehienez 1.000 abestikoak) eta zure irrati gogokoenak.
+**Zer kopiatzen den:** abestiak azalekin eta zure «gustuko»ekin, zure playlistak (gehienez 1.000 abestikoak) karpeta eta argazkiekin, eta zure irrati gogokoenak.
 
 **Zer ez den gertatzen:**
 - **Ez da ezer ezabatzen** jatorrizko lekutik. Berriro aukeratzen baduzu, dena hor dago.

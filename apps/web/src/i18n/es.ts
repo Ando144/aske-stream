@@ -342,7 +342,7 @@ export const es: Messages = {
   'tips.library':
     'Toca una canción para escucharla. Mantén pulsada una para elegir varias a la vez, y deslízala a la derecha para añadirla a la cola.',
   'tips.playlists':
-    'Crea playlists para ordenar tu música. «Canciones que te gustan» se llena sola cuando pulsas el corazón de una canción.',
+    'Crea playlists para ordenar tu música y agrúpalas en carpetas. Pulsa «…» en una playlist para más opciones, o arrastra el asa para moverla o juntarla con otra. «Canciones que te gustan» se llena sola cuando pulsas el corazón.',
   'tips.podcasts':
     'Aquí van las charlas y entrevistas, separadas de la música. La app recuerda por dónde ibas en cada episodio.',
   'tips.radio':
@@ -390,6 +390,48 @@ export const es: Messages = {
     'Desactivado: si el ordenador se queda sin espacio, el navegador podría borrarlas',
 
   'toast.offline': 'Estás sin conexión',
+  'folders.new': 'Nueva carpeta',
+  'folders.namePlaceholder': 'Nombre de la carpeta',
+  'folders.rename': 'Cambiar nombre',
+  'folders.delete': 'Eliminar carpeta',
+  'folders.deleteConfirm':
+    '¿Eliminar la carpeta «{name}»? Sus playlists no se borran: vuelven a la lista principal.',
+  'folders.empty':
+    'Esta carpeta está vacía. Mueve aquí alguna playlist desde su menú «…» o arrastrándola.',
+  'folders.notFound': 'Esta carpeta ya no existe.',
+  'folders.playlistCount': '{count} playlists',
+  'folders.playlistCount.one': '1 playlist',
+  'playlists.menu': 'Más opciones',
+  'playlists.moveToFolder': 'Mover a una carpeta',
+  'playlists.moveOut': 'Sacar de la carpeta',
+  'playlists.pickFolder': 'Elige una carpeta',
+  'playlists.newFolderHere': 'Crear carpeta nueva',
+  'playlists.merge': 'Juntar con otra playlist',
+  'playlists.mergePick': 'Elige la playlist que quieres juntar',
+  'playlists.coverPick': 'Elegir portada',
+  'playlists.coverRemove': 'Quitar portada',
+  'merge.title': 'Juntar playlists',
+  'merge.explain':
+    'Las canciones de «{source}» se añadirán al final de «{target}». Las que ya estén no se repiten.',
+  'merge.deleteOther': 'Borrar «{source}» después',
+  'merge.deleteOtherHint': 'Las canciones no se borran: siguen en tu biblioteca.',
+  'merge.swap': 'Cambiar el orden',
+  'merge.confirm': 'Juntar',
+  'drag.handle': 'Arrastra para mover o juntar',
+  'drag.dropRoot': 'Suelta aquí para sacarla de la carpeta',
+  'toast.merged': 'Juntadas: {count} canciones nuevas en «{name}»',
+  'toast.merged.one': 'Juntadas: 1 canción nueva en «{name}»',
+  'toast.mergeTooBig':
+    'No caben: juntas tendrían {total} canciones y una playlist admite hasta {max}. Quita algunas de una de las dos y vuelve a probar.',
+  'toast.movedToFolder': 'Movida a la carpeta «{name}»',
+  'toast.movedOut': 'Sacada de la carpeta',
+  'toast.folderCreated': 'Carpeta creada',
+  'toast.coverSaved': 'Portada guardada',
+  'toast.coverBadImage': 'No se ha podido usar esa imagen. Prueba con otra foto.',
+  'toast.coverStorageFull':
+    'No hay espacio para guardar la portada. Libera espacio y vuelve a probar.',
+  'toast.cloudflareOutdated':
+    'Tu Cloudflare tiene una versión antigua y todavía no admite carpetas ni portadas. Tu música y tus playlists siguen bien.',
   'toast.error': 'Algo ha salido mal',
   'toast.playlistTooBig':
     'Una playlist puede tener como máximo {max} canciones. Elige menos canciones.',
@@ -583,7 +625,7 @@ export const es: Messages = {
   'copy.offer.one':
     '¿Copiamos 1 canción, con tus «me gusta», tus playlists y tus radios favoritas?',
   'copy.explain':
-    'No se borra nada del sitio de origen. Puedes parar cuando quieras: al volver a pulsar, sigue por donde iba y no copia nada dos veces. Mejor con Wi-Fi.',
+    'No se borra nada del sitio de origen. Se copian también tus carpetas y las portadas de tus playlists. Puedes parar cuando quieras: al volver a pulsar, sigue por donde iba y no copia nada dos veces. Mejor con Wi-Fi.',
   'copy.start': 'Copiar',
   'copy.later': 'Ahora no',
   'copy.resume': 'Seguir copiando',
@@ -620,7 +662,8 @@ export const es: Messages = {
   'sleep.custom': 'Otro tiempo',
   'sleep.customHint': 'Hasta 8 horas',
   'sleep.endOfTrack': 'Al acabar la canción',
-  'sleep.cancel': 'Cancelar temporizador',
+  'sleep.remove': 'Quitar temporizador',
+  'sleep.change': 'Cambiar el tiempo',
   'sleep.remaining': 'Se apaga en {time}',
   'sleep.set': 'La música se parará en {time}',
   'sleep.setEndOfTrack': 'La música se parará al acabar esta canción',

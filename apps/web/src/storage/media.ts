@@ -1,5 +1,7 @@
-import { mediaCredentials, mediaUrl } from '../api/client';
+import type { Playlist } from '@aske/shared';
+import { mediaCredentials, mediaUrl, playlistCoverUrl } from '../api/client';
 import { getAudioBlob } from '../offline/audioCache';
+import { useSetup } from '../stores/setup';
 import { getDeviceFile } from './deviceFiles';
 import { driveAudio } from './drive/home';
 import { driveApi } from './drive/api';
@@ -63,6 +65,36 @@ export function resolveCoverUrl(track: LocalTrack): Promise<string | null> | str
     return url;
   }
   return null;
+}
+
+/** Custom playlist covers on this device, kept as object URLs keyed by id and version. */
+const devicePlaylistCoverUrls = new Map<string, Promise<string | null>>();
+
+function devicePlaylistCover(pl: Playlist): Promise<string | null> {
+  const key = `${pl.id}:${pl.coverAt}`;
+  let url = devicePlaylistCoverUrls.get(key);
+  if (!url) {
+    url = getDeviceFile('playlist-covers', pl.id).then((f) => (f ? URL.createObjectURL(f) : null));
+    devicePlaylistCoverUrls.set(key, url);
+  }
+  return url;
+}
+
+/** null when the playlist uses the mosaic or the image is unreachable. */
+export function resolvePlaylistCoverUrl(pl: Playlist): Promise<string | null> | string | null {
+  if (!pl.coverAt) return null;
+  const home = useSetup.getState().config?.home;
+  if (home === 'cloudflare') return playlistCoverUrl(pl.id, pl.coverAt);
+  if (home === 'drive') {
+    if (!pl.coverFileId) return null;
+    let url = driveCoverUrls.get(pl.coverFileId);
+    if (!url) {
+      url = loadDriveCover(pl.coverFileId);
+      driveCoverUrls.set(pl.coverFileId, url);
+    }
+    return url;
+  }
+  return devicePlaylistCover(pl);
 }
 
 /** Drive covers: kept on this device after the first time (they are tiny). */

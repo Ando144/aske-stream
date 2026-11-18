@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { Playlist, Station } from '@aske/shared';
+import type { Folder, Playlist, Station } from '@aske/shared';
 import {
   buildCopyPlan,
   canStore,
   findInDestination,
+  planFolders,
   planPlaylists,
   planStations,
   sameSong,
@@ -159,13 +160,24 @@ describe('planPlaylists', () => {
     const src = [playlist({ id: 's1', name: 'Rock', trackIds: ['a', 'b'] })];
     const dest = [playlist({ id: 'd1', name: '  rock ', trackIds: ['B'] })];
     const { actions } = planPlaylists(src, dest, { a: 'A', b: 'B' });
-    expect(actions).toEqual([{ kind: 'add', playlistId: 'd1', name: 'Rock', trackIds: ['A'] }]);
+    expect(actions).toEqual([
+      {
+        kind: 'add',
+        playlistId: 'd1',
+        name: 'Rock',
+        trackIds: ['A'],
+        folderName: null,
+        copyCover: false,
+      },
+    ]);
   });
 
   it('creates new playlists with translated, unique ids', () => {
     const src = [playlist({ name: 'New', trackIds: ['a', 'a', 'b', 'x'] })];
     const { actions } = planPlaylists(src, [], { a: 'A', b: 'B' });
-    expect(actions).toEqual([{ kind: 'create', name: 'New', trackIds: ['A', 'B'] }]);
+    expect(actions).toEqual([
+      { kind: 'create', name: 'New', trackIds: ['A', 'B'], folderName: null, copyCover: false },
+    ]);
   });
 
   it('caps at max and reports overflow', () => {
@@ -187,7 +199,52 @@ describe('planPlaylists', () => {
       playlist({ name: 'Empty', trackIds: [] }),
     ];
     const { actions } = planPlaylists(src, [], {});
-    expect(actions).toEqual([{ kind: 'create', name: 'Empty', trackIds: [] }]);
+    expect(actions).toEqual([
+      { kind: 'create', name: 'Empty', trackIds: [], folderName: null, copyCover: false },
+    ]);
+  });
+});
+
+const folder = (id: string, name: string): Folder => ({ id, name, createdAt: 0, updatedAt: 0 });
+
+describe('planFolders', () => {
+  it('does not duplicate folders with the same name in another format', () => {
+    const src = [folder('a', 'Rock'), folder('b', ' ROCK  '), folder('c', 'Jazz  Club')];
+    expect(planFolders(src, [folder('x', 'rock')])).toEqual(['Jazz  Club']);
+    expect(planFolders([folder('a', 'Pop'), folder('b', 'pop')], [])).toEqual(['Pop']);
+  });
+});
+
+describe('planPlaylists with folders and covers', () => {
+  const lists = { src: [folder('fs', 'Rock')], dest: [folder('fd', 'Rock')] };
+
+  it('creates a playlist inside the matching folder with its cover', () => {
+    const src = [playlist({ name: 'A', trackIds: ['a'], folderId: 'fs', coverAt: 9 })];
+    const { actions } = planPlaylists(src, [], { a: 'A' }, 10, lists);
+    expect(actions).toEqual([
+      { kind: 'create', name: 'A', trackIds: ['A'], folderName: 'Rock', copyCover: true },
+    ]);
+  });
+
+  it('keeps the folder and cover of an existing destination playlist', () => {
+    const src = [playlist({ name: 'A', folderId: 'fs', coverAt: 9 })];
+    const dest = [playlist({ id: 'd', name: 'A', folderId: 'fd', coverAt: 3 })];
+    expect(planPlaylists(src, dest, {}, 10, lists).actions).toEqual([]);
+  });
+
+  it('adds folder and cover to an existing playlist that lacks them, with no songs', () => {
+    const src = [playlist({ name: 'A', folderId: 'fs', coverAt: 9 })];
+    const dest = [playlist({ id: 'd', name: 'A' })];
+    expect(planPlaylists(src, dest, {}, 10, lists).actions).toEqual([
+      {
+        kind: 'add',
+        playlistId: 'd',
+        name: 'A',
+        trackIds: [],
+        folderName: 'Rock',
+        copyCover: true,
+      },
+    ]);
   });
 });
 

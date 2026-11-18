@@ -51,21 +51,89 @@ Arrastatu **⠿** heldulekua ordena aldatzeko eta sakatu **X** abesti bat kentze
 - **Cambiar el orden**: dentro de la playlist, pulsa **Cambiar orden** y arrastra.
 - **Quitar**: menú ⋮ → «Quitar de esta playlist». La canción sigue en tu biblioteca.
 
-Cada playlist admite hasta 1.000 canciones. «Canciones que te gustan» se llena sola con tus «Me gusta».`,
+Cada playlist admite hasta 1.000 canciones. «Canciones que te gustan» se llena sola con tus «Me gusta».
+
+Para ordenarlas en carpetas, ponerles foto o juntar dos, mira [[playlist-folders|Carpetas, portadas y juntar playlists]].`,
       en: `- **Create**: in **Playlists**, tap **New playlist**.
 - **Add one song**: song **⋮** menu → “Add to a playlist…”.
 - **Add many**: press and hold a song, tap the others and tap **Playlist** at the bottom. Or inside a playlist, tap **Add songs**.
 - **Reorder**: inside the playlist, tap **Reorder** and drag.
 - **Remove**: ⋮ menu → “Remove from this playlist”. The song stays in your library.
 
-Each playlist holds up to 1,000 songs. “Liked songs” fills itself with your likes.`,
+Each playlist holds up to 1,000 songs. “Liked songs” fills itself with your likes.
+
+To sort them into folders, give them a photo or merge two, see [[playlist-folders|Folders, covers and merging playlists]].`,
       eu: `- **Sortu**: **Zerrendak** atalean, sakatu **Zerrenda berria**.
 - **Abesti bat gehitu**: abestiaren **⋮** menua → «Gehitu zerrenda batera…».
 - **Asko gehitu**: eutsi sakatuta abesti bat, ukitu besteak eta sakatu behean **Zerrenda**. Edo zerrenda baten barruan, sakatu **Gehitu abestiak**.
 - **Ordena aldatu**: zerrendaren barruan, sakatu **Ordena aldatu** eta arrastatu.
 - **Kendu**: ⋮ menua → «Kendu zerrenda honetatik». Abestiak zure liburutegian jarraitzen du.
 
-Zerrenda bakoitzak 1.000 abesti arte onartzen ditu. «Gogoko abestiak» bere kabuz betetzen da zure «Gogokoetara» gehitutakoekin.`,
+Zerrenda bakoitzak 1.000 abesti arte onartzen ditu. «Gogoko abestiak» bere kabuz betetzen da zure «Gogokoetara» gehitutakoekin.
+
+Karpetetan antolatzeko, argazkia jartzeko edo bi batu nahi badituzu, ikusi [[playlist-folders|Karpetak, azalak eta zerrendak batzea]].`,
+    },
+  },
+  {
+    id: 'playlist-folders',
+    section: 'listen',
+    title: {
+      es: 'Carpetas, portadas y juntar playlists',
+      en: 'Folders, covers and merging playlists',
+      eu: 'Karpetak, azalak eta zerrendak batzea',
+    },
+    body: {
+      es: `**Crear una carpeta**: en **Playlists**, pulsa **Nueva carpeta**. Las carpetas son de un solo nivel.
+
+**Mover una playlist a una carpeta**:
+- Abre la playlist, pulsa **…** → «Mover a una carpeta» y elige una (o crea una nueva).
+- O en la lista, arrastra el asa **⠿** de la playlist y suéltala sobre la carpeta. Para sacarla, suéltala en la zona «sacar de la carpeta».
+
+**Borrar una carpeta no borra las playlists**: vuelven a la lista principal y todas las canciones siguen donde estaban.
+
+**Foto propia**: en **…** → «Elegir portada» y escoge una imagen de tu móvil. Para volver al mosaico automático, **…** → «Quitar portada».
+
+**Juntar dos playlists**: en **…** → «Juntar con otra playlist» y elige la otra. También puedes arrastrar una playlist sobre otra.
+- La playlist desde la que empiezas es la que se queda. Con **Cambiar el orden** eliges cuál se queda.
+- Las canciones de la otra se añaden al final, **sin repetir** las que ya estén.
+- La casilla **Borrar la otra** viene marcada: la otra playlist desaparece, pero **sus canciones no se borran** de tu biblioteca. Desmárcala si quieres conservarla.
+- Una playlist admite hasta **1.000 canciones**. Si al juntarlas no caben, la app te lo dice y no cambia nada: quita algunas canciones de una de ellas e inténtalo otra vez.
+
+Si cambias de almacenamiento, las carpetas y las fotos viajan con la copia: mira [[storage-copy|copiar tu música a otro sitio]]. Más sobre playlists en [[playlists|Playlists]].`,
+      en: `**Create a folder**: in **Playlists**, tap **New folder**. Folders have a single level.
+
+**Move a playlist into a folder**:
+- Open the playlist, tap **…** → “Move to a folder” and pick one (or create a new one).
+- Or in the list, drag the playlist's **⠿** handle and drop it on the folder. To take it out, drop it on the “take out of the folder” area.
+
+**Deleting a folder does not delete the playlists**: they go back to the main list and every song stays where it was.
+
+**Your own photo**: **…** → “Choose cover” and pick an image from your phone. To go back to the automatic mosaic, **…** → “Remove cover”.
+
+**Merge two playlists**: **…** → “Merge with another playlist” and pick the other one. You can also drag one playlist onto another.
+- The playlist you start from is the one that stays. **Swap the order** lets you choose which one stays.
+- Songs from the other one are added at the end, **without repeats**.
+- The **Delete the other one** box is ticked: the other playlist disappears, but **its songs are not deleted** from your library. Untick it to keep it.
+- A playlist holds up to **1,000 songs**. If they do not fit when merged, the app tells you and changes nothing: remove some songs from one of them and try again.
+
+If you change storage, folders and photos travel with the copy: see [[storage-copy|copying your music to another place]]. More about playlists in [[playlists|Playlists]].`,
+      eu: `**Karpeta bat sortu**: **Zerrendak** atalean, sakatu **Karpeta berria**. Karpetek maila bakarra dute.
+
+**Zerrenda bat karpeta batera eraman**:
+- Ireki zerrenda, sakatu **…** → «Eraman karpeta batera» eta aukeratu bat (edo sortu berri bat).
+- Edo zerrendan, arrastatu zerrendaren **⠿** heldulekua eta jaregin karpetaren gainean. Ateratzeko, jaregin «atera karpetatik» eremuan.
+
+**Karpeta bat ezabatzeak ez ditu zerrendak ezabatzen**: zerrenda nagusira itzultzen dira eta abesti guztiak dauden tokian jarraitzen dute.
+
+**Zure argazkia**: **…** → «Aukeratu azala» eta hautatu irudi bat zure mugikorretik. Mosaiko automatikora itzultzeko, **…** → «Kendu azala».
+
+**Bi zerrenda batu**: **…** → «Batu beste zerrenda batekin» eta aukeratu bestea. Zerrenda bat bestearen gainera arrastatu ere dezakezu.
+- Hasten zaren zerrenda geratzen da. **Aldatu ordena** botoiarekin zein geratzen den aukeratzen duzu.
+- Besteko abestiak amaieran gehitzen dira, **errepikatu gabe**.
+- **Ezabatu bestea** laukia markatuta dator: beste zerrenda desagertzen da, baina **bere abestiak ez dira ezabatzen** zure liburutegitik. Desmarkatu gordetzeko.
+- Zerrenda batek **1.000 abesti** onartzen ditu. Batzean ez badira sartzen, aplikazioak esango dizu eta ez du ezer aldatuko: kendu abesti batzuk haietako batetik eta saiatu berriro.
+
+Biltegiratzea aldatzen baduzu, karpetak eta argazkiak kopiarekin doaz: ikusi [[storage-copy|zure musika beste leku batera kopiatu]]. Zerrendei buruz gehiago: [[playlists|Zerrendak]].`,
     },
   },
   {
@@ -83,7 +151,7 @@ Zerrenda bakoitzak 1.000 abesti arte onartzen ditu. «Gogoko abestiak» bere kab
 2. Pulsa la **luna** de arriba.
 3. Elige un tiempo (15 min, 1 h…), **Al acabar la canción** u **Otro tiempo**.
 
-En los últimos 20 segundos la música baja poco a poco y se para. La luna se ve en ámbar mientras el temporizador está activo; púlsala otra vez para ver cuánto falta o para **Cancelar temporizador**.
+En los últimos 20 segundos la música baja poco a poco y se para. La luna se ve en ámbar mientras el temporizador está activo; púlsala otra vez y verás cuánto falta. **Quitar temporizador** lo apaga y **Cambiar el tiempo** pone otro.
 
 «Al acabar la canción» no está disponible con la radio. Mira también [[queue|la cola]].`,
       en: `To fall asleep to music without it playing all night:
@@ -92,7 +160,7 @@ En los últimos 20 segundos la música baja poco a poco y se para. La luna se ve
 2. Tap the **moon** at the top.
 3. Pick a time (15 min, 1 h…), **When the song ends** or **Other time**.
 
-In the last 20 seconds the music fades out and stops. The moon is amber while the timer is on; tap it again to see the time left or to **Cancel timer**.
+In the last 20 seconds the music fades out and stops. The moon is amber while the timer is on; tap it again to see the time left. **Remove timer** turns it off and **Change the time** sets a different one.
 
 “When the song ends” is not available with radio. See also [[queue|the queue]].`,
       eu: `Musikarekin lokartzeko, gau osoan jotzen egon gabe:
@@ -101,7 +169,7 @@ In the last 20 seconds the music fades out and stops. The moon is amber while th
 2. Sakatu goiko **ilargia**.
 3. Aukeratu denbora bat (15 min, 1 h…), **Abestia amaitzean** edo **Beste denbora bat**.
 
-Azken 20 segundoetan musika apurka-apurka jaisten da eta gelditu egiten da. Ilargia anbar kolorekoa da tenporizadorea aktibo dagoen bitartean; sakatu berriro zenbat falta den ikusteko edo **Utzi tenporizadorea** egiteko.
+Azken 20 segundoetan musika apurka-apurka jaisten da eta gelditu egiten da. Ilargia anbar kolorekoa da tenporizadorea aktibo dagoen bitartean; sakatu berriro eta zenbat falta den ikusiko duzu. **Kendu tenporizadorea** botoiak itzali egiten du eta **Aldatu denbora** botoiak beste bat jartzen du.
 
 «Abestia amaitzean» ez dago erabilgarri irratiarekin. Ikusi baita ere [[queue|ilara]].`,
     },

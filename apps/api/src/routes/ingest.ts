@@ -5,6 +5,7 @@ import type { AppEnv } from '../env';
 import { audioKey, bumpVersion, coverKey, toTrack, type TrackRow } from '../lib/db';
 import { newId } from '../lib/ids';
 import { HttpError } from '../lib/http';
+import { isJpeg, startsWith } from '../lib/image';
 import { storageStats } from '../lib/storage';
 
 const Metadata = z.object({
@@ -27,16 +28,8 @@ const ExistsQuery = z.object({
   ref: z.string().trim().min(1).max(200),
 });
 
-async function startsWith(file: File, signatures: number[][]): Promise<boolean> {
-  const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
-  return signatures.some((sig) => sig.every((byte, i) => head[i] === byte));
-}
-
 const OGG = [[0x4f, 0x67, 0x67, 0x53]]; // "OggS"
 const WEBM = [[0x1a, 0x45, 0xdf, 0xa3]]; // EBML header (WebM/Matroska)
-const IMAGE = [
-  [0xff, 0xd8, 0xff], // JPEG
-];
 
 /** Upload endpoint used by the ingest CLI (authenticated with the access key). */
 export const ingestRoutes = new Hono<AppEnv>()
@@ -96,7 +89,7 @@ export const ingestRoutes = new Hono<AppEnv>()
 
     const coverPart = form.get('cover');
     const cover = coverPart instanceof File && coverPart.size > 0 ? coverPart : null;
-    if (cover && (cover.size > LIMITS.coverMaxBytes || !(await startsWith(cover, IMAGE)))) {
+    if (cover && (cover.size > LIMITS.coverMaxBytes || !(await isJpeg(cover)))) {
       throw new HttpError(415, 'unsupported_cover', 'Cover must be a JPEG under 2 MB');
     }
 

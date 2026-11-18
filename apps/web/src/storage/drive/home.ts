@@ -1,4 +1,4 @@
-import { LIMITS, type Playlist, type Station } from '@aske/shared';
+import { LIMITS, type Folder, type Playlist, type Station } from '@aske/shared';
 import { kvGet, kvSet } from '../../offline/db';
 import { newLocalId } from '../homes';
 import type { LibraryHome, LocalTrack, StationInput, TrackPatch } from '../types';
@@ -60,7 +60,8 @@ let loadingState: Promise<DriveState> | null = null;
 function getState(): Promise<DriveState> {
   if (state) return Promise.resolve(state);
   loadingState ??= kvGet<DriveState>(STATE_KEY).then((saved) => {
-    state ??= saved ?? freshState();
+    // A copy saved by an older version has no folders yet.
+    state ??= saved ? { ...saved, doc: { ...emptyDoc(), ...saved.doc } } : freshState();
     return state;
   });
   return loadingState;
@@ -185,6 +186,7 @@ async function change(fn: (doc: LibraryDoc, now: number) => void) {
     ...st.doc,
     tracks: { ...st.doc.tracks },
     playlists: { ...st.doc.playlists },
+    folders: { ...st.doc.folders },
     stations: { ...st.doc.stations },
     deleted: { ...st.doc.deleted },
   };
@@ -201,6 +203,9 @@ function snapshot(doc: LibraryDoc) {
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(toLocalTrack),
     playlists: Object.values(doc.playlists).sort((a, b) => a.createdAt - b.createdAt),
+    folders: Object.values(doc.folders).sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    ),
     etag: docFingerprint(doc),
   };
 }
@@ -376,10 +381,81 @@ export const driveHome: LibraryHome & {
   },
 
   async deletePlaylist(id) {
+    let coverFileId: string | null = null;
     await change((doc, now) => {
+      coverFileId = doc.playlists[id]?.coverFileId ?? null;
       delete doc.playlists[id];
       doc.deleted[id] = now;
     });
+    trashFile(coverFileId);
+  },
+
+  async createFolder(name) {
+    const now = Date.now();
+    const created: Folder = { id: newLocalId(), name, createdAt: now, updatedAt: now };
+    await change((doc) => {
+      doc.folders[created.id] = created;
+    });
+    return created;
+  },
+
+  async renameFolder(id, name) {
+    let renamed: Folder | undefined;
+    await change((doc, now) => {
+      renamed = { ...need(doc.folders[id], 'Folder'), name, updatedAt: now };
+      doc.folders[id] = renamed;
+    });
+    return renamed!;
+  },
+
+  async deleteFolder(id) {
+    await change((doc, now) => {
+      delete doc.folders[id];
+      doc.deleted[id] = now;
+      for (const pl of Object.values(doc.playlists)) {
+        if (pl.folderId === id) doc.playlists[pl.id] = { ...pl, folderId: null, updatedAt: now };
+      }
+    });
+  },
+
+  async movePlaylist(id, folderId) {
+    const st = await getState();
+    if (folderId !== null && !st.doc.folders[folderId]) throw new Error('folder_not_found');
+    return editPlaylist(id, (pl) => ({ ...pl, folderId }));
+  },
+
+  async setPlaylistCover(id, jpeg) {
+    const st = await getState();
+    let uploaded: string | null = null;
+    if (jpeg) {
+      await serialized(() => ensureFolders(st));
+      const file = await driveApi.upload(
+        {
+          name: `playlist-${id}-${Date.now()}.jpg`,
+          mimeType: 'image/jpeg',
+          parentId: st.coversId!,
+        },
+        jpeg,
+      );
+      uploaded = file.id;
+    }
+    let previous: string | null = null;
+    try {
+      const saved = await editPlaylist(id, (pl) => {
+        previous = pl.coverFileId ?? null;
+        return {
+          ...pl,
+          coverFileId: uploaded,
+          coverAt: uploaded ? Date.now() : null,
+        };
+      });
+      trashFile(previous);
+      return saved;
+    } catch (err) {
+      // The playlist vanished meanwhile: do not leave an orphan file in Drive.
+      trashFile(uploaded);
+      throw err;
+    }
   },
 
   async addToPlaylist(id, trackIds) {
@@ -469,6 +545,12 @@ export const driveHome: LibraryHome & {
     });
   },
 };
+
+/** Sends a file to Drive's bin a moment later; nothing waits for it. */
+function trashFile(fileId: string | null) {
+  if (!fileId) return;
+  void serialized(() => driveApi.remove(fileId).catch(() => undefined));
+}
 
 async function editPlaylist(id: string, fn: (pl: Playlist) => Playlist): Promise<Playlist> {
   let result: Playlist | undefined;

@@ -99,6 +99,55 @@ describe('Drive library merge', () => {
     expect(Object.keys(merged.deleted)).toEqual(['new']);
   });
 
+  describe('folders', () => {
+    const folder = (id: string, name: string, updatedAt: number) => ({
+      id,
+      name,
+      createdAt: 1,
+      updatedAt,
+    });
+    const playlist = (id: string, folderId: string | null) => ({
+      id,
+      name: id,
+      description: '',
+      trackIds: [],
+      createdAt: 1,
+      updatedAt: 5,
+      folderId,
+    });
+
+    it('a folder deleted on one device does not come back and frees its playlists', () => {
+      const a = {
+        ...emptyDoc(),
+        folders: { f: folder('f', 'Rock', 3) },
+        playlists: { p: playlist('p', 'f') },
+      };
+      const b = { ...emptyDoc(), deleted: { f: 9 } };
+      for (const merged of [mergeDocs(a, b), mergeDocs(b, a)]) {
+        expect(merged.folders.f).toBeUndefined();
+        expect(merged.playlists.p!.folderId).toBeNull();
+      }
+    });
+
+    it('the most recent rename wins', () => {
+      const a = { ...emptyDoc(), folders: { f: folder('f', 'Old', 1) } };
+      const b = { ...emptyDoc(), folders: { f: folder('f', 'New', 2) } };
+      expect(mergeDocs(a, b).folders.f!.name).toBe('New');
+      expect(mergeDocs(b, a).folders.f!.name).toBe('New');
+    });
+
+    it('reads an old library.json without folders', () => {
+      const { folders: _f, ...old } = emptyDoc();
+      expect(parseDoc(JSON.stringify(old)).folders).toEqual({});
+    });
+
+    it('the fingerprint changes when a folder is renamed', () => {
+      const a = { ...emptyDoc(), folders: { f: folder('f', 'A', 1) } };
+      const b = { ...emptyDoc(), folders: { f: folder('f', 'B', 2) } };
+      expect(docFingerprint(a)).not.toBe(docFingerprint(b));
+    });
+  });
+
   it('reads damaged or foreign files as an empty library', () => {
     expect(parseDoc('not json').tracks).toEqual({});
     expect(parseDoc('{"hello":1}').tracks).toEqual({});

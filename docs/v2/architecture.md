@@ -101,7 +101,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 5   | Google Drive home & destination                                                      | ✅     |
 | 5.1 | Real-use fixes: batch counter, full imported playlists, sleep timer, tombstone prune | ✅     |
 | 5.2 | Copy in every direction when switching storage                                       | ✅     |
-| 5.3 | One-level folders, covers, merge playlists                                           |        |
+| 5.3 | One-level folders, covers, merge playlists                                           | ✅     |
 | 6   | Cloudflare guided setup inside the app (+ QR pairing)                                |        |
 | 7   | Hub: shared playlists and in-person Jams                                             |        |
 | 8   | Telemetry (opt-in), private yearly Recap and admin dashboard                         |        |

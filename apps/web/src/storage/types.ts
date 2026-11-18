@@ -1,4 +1,4 @@
-import type { Playlist, Station, Track } from '@aske/shared';
+import type { Folder, Playlist, Station, Track } from '@aske/shared';
 
 /** Where a library (metadata) or an audio file can live. */
 export type Destination = 'device' | 'drive' | 'cloudflare';
@@ -24,6 +24,8 @@ export interface LocalTrack extends Track {
 export interface LibrarySnapshot {
   tracks: LocalTrack[];
   playlists: Playlist[];
+  /** Optional: copies cached by older versions have none. */
+  folders?: Folder[];
   /** Opaque revalidation token (HTTP ETag for Cloudflare). */
   etag: string;
 }
@@ -50,6 +52,15 @@ export interface LibraryHome {
   removeFromPlaylist(id: string, trackId: string): Promise<Playlist>;
   /** New order; must contain the same songs. */
   reorderPlaylist(id: string, trackIds: string[]): Promise<Playlist>;
+  createFolder(name: string): Promise<Folder>;
+  renameFolder(id: string, name: string): Promise<Folder>;
+  /** Its playlists go back to the top level; no playlist is deleted. */
+  deleteFolder(id: string): Promise<void>;
+  /** folderId null = top level. Throws Error('folder_not_found') if the folder does not exist. */
+  movePlaylist(id: string, folderId: string | null): Promise<Playlist>;
+  /** jpeg: square JPEG already resized (≤ 300 px). null = back to the automatic mosaic. */
+  setPlaylistCover(id: string, jpeg: Blob | null): Promise<Playlist>;
+  // deletePlaylist(id) must also remove the custom cover, if any.
   listStations(): Promise<Station[]>;
   saveStation(station: StationInput): Promise<Station>;
   updateStation(id: string, patch: { liked?: boolean; name?: string }): Promise<Station>;

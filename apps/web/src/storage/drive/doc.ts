@@ -1,4 +1,4 @@
-import type { Playlist, Station, Track } from '@aske/shared';
+import type { Folder, Playlist, Station, Track } from '@aske/shared';
 import type { LocalTrack } from '../types';
 
 /**
@@ -27,6 +27,8 @@ export interface LibraryDoc {
   version: 1;
   tracks: Record<string, DocTrack>;
   playlists: Record<string, Playlist>;
+  /** Optional in old files; parseDoc always fills it. */
+  folders: Record<string, Folder>;
   stations: Record<string, DocStation>;
   /** id → when it was deleted. */
   deleted: Record<string, number>;
@@ -37,6 +39,7 @@ export const emptyDoc = (): LibraryDoc => ({
   version: 1,
   tracks: {},
   playlists: {},
+  folders: {},
   stations: {},
   deleted: {},
 });
@@ -50,6 +53,7 @@ export function parseDoc(text: string): LibraryDoc {
       ...emptyDoc(),
       tracks: raw.tracks ?? {},
       playlists: raw.playlists ?? {},
+      folders: raw.folders ?? {},
       stations: raw.stations ?? {},
       deleted: raw.deleted ?? {},
     };
@@ -101,14 +105,23 @@ export function mergeDocs(a: LibraryDoc, b: LibraryDoc, now = Date.now()): Libra
   const tracks = mergeMap(a.tracks, b.tracks, deleted);
   const playlists = mergeMap(a.playlists, b.playlists, deleted);
   // A playlist never points at a song that no longer exists.
+  const folders = mergeMap(a.folders, b.folders, deleted);
   for (const [id, pl] of Object.entries(playlists)) {
     const kept = pl.trackIds.filter((t) => tracks[t]);
-    if (kept.length !== pl.trackIds.length) playlists[id] = { ...pl, trackIds: kept };
+    const orphan = !!pl.folderId && !folders[pl.folderId];
+    if (kept.length !== pl.trackIds.length || orphan) {
+      playlists[id] = {
+        ...pl,
+        trackIds: kept,
+        ...(orphan ? { folderId: null } : {}),
+      };
+    }
   }
   return {
     ...emptyDoc(),
     tracks,
     playlists,
+    folders,
     stations: mergeMap(a.stations, b.stations, deleted),
     // Pruned last: the filtering above must still see recent and old marks alike.
     deleted: pruneDeleted(deleted, now),
@@ -132,7 +145,7 @@ export function docFingerprint(d: LibraryDoc): string {
     .sort()
     .join(',');
   let h = 0;
-  for (const ch of `${stamp(d.tracks)}|${stamp(d.playlists)}|${stamp(d.stations)}|${del}`) {
+  for (const ch of `${stamp(d.tracks)}|${stamp(d.playlists)}|${stamp(d.folders)}|${stamp(d.stations)}|${del}`) {
     h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0;
   }
   return `d${(h >>> 0).toString(36)}-${Object.keys(d.tracks).length}`;

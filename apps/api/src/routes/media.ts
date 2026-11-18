@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../env';
-import { audioKey, coverKey } from '../lib/db';
+import { audioKey, coverKey, playlistCoverKey } from '../lib/db';
 import { assertId, HttpError } from '../lib/http';
 
 /** Computes the byte window R2 actually returned for a ranged GET. */
@@ -78,6 +78,14 @@ export const mediaRoutes = new Hono<AppEnv>()
     serveObject(
       c.env.BUCKET,
       audioKey(assertId(c.req.param('id'), 'Track')),
+      c.req.raw,
+      'private, max-age=31536000, immutable',
+    ),
+  )
+  .get('/playlist-cover/:id', (c) =>
+    serveObject(
+      c.env.BUCKET,
+      playlistCoverKey(assertId(c.req.param('id'), 'Playlist')),
       c.req.raw,
       'private, max-age=31536000, immutable',
     ),

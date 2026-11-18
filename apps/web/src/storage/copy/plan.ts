@@ -1,4 +1,4 @@
-import { LIMITS, type Playlist, type Station } from '@aske/shared';
+import { LIMITS, type Folder, type Playlist, type Station } from '@aske/shared';
 import type { Destination, LocalTrack } from '../types';
 
 /** Source track id -> destination track id. */
@@ -62,12 +62,37 @@ export function buildCopyPlan(
   return plan;
 }
 
-export type PlaylistAction =
-  | { kind: 'create'; name: string; trackIds: string[] }
-  | { kind: 'add'; playlistId: string; name: string; trackIds: string[] };
+interface ActionExtras {
+  /** Folder to put the playlist in (by name); null = leave as is. */
+  folderName: string | null;
+  copyCover: boolean;
+}
 
-function nameKey(name: string): string {
-  return name.trim().toLowerCase();
+export type PlaylistAction =
+  | ({ kind: 'create'; name: string; trackIds: string[] } & ActionExtras)
+  | ({ kind: 'add'; playlistId: string; name: string; trackIds: string[] } & ActionExtras);
+
+/** Same name regardless of case and surrounding or repeated spaces. */
+export function nameKey(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** Names of the source folders that the destination does not have yet. */
+export function planFolders(src: Folder[], dest: Folder[]): string[] {
+  const seen = new Set(dest.map((f) => nameKey(f.name)));
+  const out: string[] = [];
+  for (const f of src) {
+    const key = nameKey(f.name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(f.name);
+  }
+  return out;
+}
+
+export interface FolderLists {
+  src: Folder[];
+  dest: Folder[];
 }
 
 function translateIds(trackIds: string[], idMap: IdMap): string[] {
@@ -79,27 +104,51 @@ function translateIds(trackIds: string[], idMap: IdMap): string[] {
   return [...out];
 }
 
+function folderNameOf(pl: Playlist, folders: Folder[]): string | null {
+  if (!pl.folderId) return null;
+  return folders.find((f) => f.id === pl.folderId)?.name ?? null;
+}
+
+function planExisting(
+  pl: Playlist,
+  existing: Playlist,
+  ids: string[],
+  max: number,
+  folders: FolderLists,
+): { action: PlaylistAction | null; overflow: number } {
+  const have = new Set(existing.trackIds);
+  const missing = ids.filter((id) => !have.has(id));
+  const room = Math.max(0, max - existing.trackIds.length);
+  const trackIds = missing.slice(0, room);
+  const folderName =
+    folderNameOf(existing, folders.dest) === null ? folderNameOf(pl, folders.src) : null;
+  const copyCover = !!pl.coverAt && !existing.coverAt;
+  const worthIt = trackIds.length > 0 || folderName !== null || copyCover;
+  const action: PlaylistAction | null = worthIt
+    ? { kind: 'add', playlistId: existing.id, name: pl.name, trackIds, folderName, copyCover }
+    : null;
+  return { action, overflow: missing.length - trackIds.length };
+}
+
 function planOne(
   pl: Playlist,
   existing: Playlist | undefined,
   idMap: IdMap,
   max: number,
+  folders: FolderLists,
 ): { action: PlaylistAction | null; overflow: number } {
   const ids = translateIds(pl.trackIds, idMap);
-  if (existing) {
-    const have = new Set(existing.trackIds);
-    const missing = ids.filter((id) => !have.has(id));
-    const room = Math.max(0, max - existing.trackIds.length);
-    const trackIds = missing.slice(0, room);
-    const action: PlaylistAction | null = trackIds.length
-      ? { kind: 'add', playlistId: existing.id, name: pl.name, trackIds }
-      : null;
-    return { action, overflow: missing.length - trackIds.length };
-  }
+  if (existing) return planExisting(pl, existing, ids, max, folders);
   if (ids.length === 0 && pl.trackIds.length > 0) return { action: null, overflow: 0 };
   const trackIds = ids.slice(0, max);
   return {
-    action: { kind: 'create', name: pl.name, trackIds },
+    action: {
+      kind: 'create',
+      name: pl.name,
+      trackIds,
+      folderName: folderNameOf(pl, folders.src),
+      copyCover: !!pl.coverAt,
+    },
     overflow: ids.length - trackIds.length,
   };
 }
@@ -109,12 +158,13 @@ export function planPlaylists(
   dest: Playlist[],
   idMap: IdMap,
   max: number = LIMITS.playlistMaxTracks,
+  folders: FolderLists = { src: [], dest: [] },
 ): { actions: PlaylistAction[]; overflow: { name: string; count: number }[] } {
   const byName = new Map(dest.map((p) => [nameKey(p.name), p]));
   const actions: PlaylistAction[] = [];
   const overflow: { name: string; count: number }[] = [];
   for (const pl of src) {
-    const res = planOne(pl, byName.get(nameKey(pl.name)), idMap, max);
+    const res = planOne(pl, byName.get(nameKey(pl.name)), idMap, max, folders);
     if (res.action) actions.push(res.action);
     if (res.overflow > 0) overflow.push({ name: pl.name, count: res.overflow });
   }

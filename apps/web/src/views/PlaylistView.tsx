@@ -5,11 +5,10 @@ import {
   CircleCheck,
   Heart,
   ArrowUpDown,
-  Pencil,
+  Ellipsis,
   Plus,
   Play,
   Shuffle,
-  Trash2,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import type { LocalTrack as Track } from '../storage/types';
@@ -18,16 +17,17 @@ import { formatLongDuration } from '../lib/format';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { usePlayer } from '../stores/player';
-import { confirmDialog, promptDialog } from '../stores/ui';
 import { Cover } from '../components/Cover';
 import { SortableList } from '../components/Sortable';
 import { TrackList } from '../components/TrackList';
 import { moveItem } from '../player/queue';
 import { useUi } from '../stores/ui';
-import { PlaylistArt } from './PlaylistsView';
+import { PlaylistArt } from '../components/PlaylistArt';
+import { PlaylistMenu } from '../components/PlaylistMenu';
 
 export function PlaylistView({ id, liked = false }: { id?: string; liked?: boolean }) {
   const [reordering, setReordering] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const t = useT();
   const [, navigate] = useLocation();
   const allTracks = useAllTracks();
@@ -61,31 +61,13 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
   const play = (startId: string | null, shuffle?: boolean) =>
     usePlayer.getState().playTracks(ids, startId, { shuffle, context });
 
-  const rename = async () => {
-    const name = await promptDialog({
-      title: t('playlists.rename'),
-      placeholder: t('playlists.namePlaceholder'),
-      initial: playlist!.name,
-      confirmLabel: t('common.save'),
-    });
-    if (name && name !== playlist!.name)
-      await useLibrary.getState().renamePlaylist(playlist!.id, name);
-  };
-
-  const remove = async () => {
-    const ok = await confirmDialog(
-      t('playlists.deleteConfirm', { name: playlist!.name }),
-      t('common.delete'),
-      true,
-    );
-    if (!ok) return;
-    navigate('/playlists');
-    await useLibrary.getState().deletePlaylist(playlist!.id);
-  };
-
   return (
     <div className="page">
-      <Link href="/playlists" className="icon-btn" aria-label={t('common.back')}>
+      <Link
+        href={playlist?.folderId ? `/folder/${playlist.folderId}` : '/playlists'}
+        className="icon-btn"
+        aria-label={t('common.back')}
+      >
         <ChevronLeft size={24} />
       </Link>
       <header className="collection-header">
@@ -145,17 +127,11 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
             </button>
             <button
               className="icon-btn"
-              onClick={() => void rename()}
-              aria-label={t('playlists.rename')}
+              onClick={() => setMenuOpen(true)}
+              aria-label={t('playlists.menu')}
+              title={t('playlists.menu')}
             >
-              <Pencil size={20} />
-            </button>
-            <button
-              className="icon-btn"
-              onClick={() => void remove()}
-              aria-label={t('playlists.delete')}
-            >
-              <Trash2 size={20} />
+              <Ellipsis size={20} />
             </button>
           </>
         )}
@@ -201,6 +177,9 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
           onPlay={(tid) => play(tid)}
           playlistId={liked ? undefined : id}
         />
+      )}
+      {menuOpen && playlist && (
+        <PlaylistMenu playlist={playlist} onClose={() => setMenuOpen(false)} />
       )}
     </div>
   );

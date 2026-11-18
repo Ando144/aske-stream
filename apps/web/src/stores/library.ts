@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import { LIMITS, type Playlist } from '@aske/shared';
+import { LIMITS, type Folder, type Playlist } from '@aske/shared';
 import { ApiError } from '../api/client';
 import { t } from '../i18n';
+import { squareJpeg } from '../lib/cover';
 import { kvGet, kvSet, type CachedLibrary } from '../offline/db';
+import { applyFolderDelete, applyMove, planMerge } from '../storage/playlistOps';
 import type { LibrarySnapshot, LocalTrack } from '../storage/types';
 import { getHome, useSetup } from './setup';
 import { toast } from './ui';
@@ -16,6 +18,7 @@ interface LibraryState {
   /** Track ids, newest first. */
   order: string[];
   playlists: Playlist[];
+  folders: Folder[];
 
   load: () => Promise<void>;
   /** Adds (or replaces) songs in memory after an import/download. */
@@ -31,6 +34,14 @@ interface LibraryState {
   /** `silent`: no toast (used by background downloads). */
   addToPlaylist: (id: string, trackIds: string[], silent?: boolean) => Promise<void>;
   removeFromPlaylist: (id: string, trackId: string) => Promise<void>;
+  createFolder: (name: string) => Promise<Folder | null>;
+  renameFolder: (id: string, name: string) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
+  movePlaylist: (id: string, folderId: string | null) => Promise<void>;
+  /** Returns true when merged. Toast with the reason when not. */
+  mergePlaylists: (targetId: string, sourceId: string, deleteSource: boolean) => Promise<boolean>;
+  /** file: any image chosen by the user (null = back to the mosaic). Resized to a square. */
+  setPlaylistCover: (id: string, file: Blob | null) => Promise<void>;
 }
 
 /** One cache per home, so switching storage never mixes libraries. */
@@ -41,6 +52,7 @@ function fromSnapshot(s: Omit<LibrarySnapshot, 'etag'>) {
     tracks: Object.fromEntries(s.tracks.map((tr) => [tr.id, tr])),
     order: s.tracks.map((tr) => tr.id),
     playlists: s.playlists,
+    folders: s.folders ?? [],
   };
 }
 
@@ -49,14 +61,29 @@ async function persist(state: LibraryState, etag = '') {
   const library = {
     tracks: state.order.map((id) => state.tracks[id]!).filter(Boolean),
     playlists: state.playlists,
+    folders: state.folders,
   };
   await kvSet(cacheKey(), { etag, library, savedAt: Date.now() } satisfies CachedLibrary);
 }
 
 function reportError(err: unknown) {
+  if (err instanceof Error && err.message === 'cloudflare_outdated') {
+    toast(t('toast.cloudflareOutdated'), 'error');
+    return;
+  }
+  if (err instanceof Error && err.message === 'folder_not_found') {
+    void useLibrary.getState().load();
+    toast(t('toast.error'), 'error');
+    return;
+  }
   if (err instanceof ApiError && err.status === 0) toast(t('toast.offline'), 'error');
   else if (err instanceof ApiError && err.status !== 401) toast(err.message, 'error');
   else if (!(err instanceof ApiError)) toast(t('toast.error'), 'error');
+}
+
+function isStorageFull(err: unknown): boolean {
+  if (err instanceof ApiError) return err.status === 507 || err.code === 'storage_full';
+  return err instanceof Error && err.message.includes('storage_full');
 }
 
 export const useLibrary = create<LibraryState>((set, get) => {
@@ -66,7 +93,12 @@ export const useLibrary = create<LibraryState>((set, get) => {
     call: () => Promise<unknown>,
   ) {
     const before = get();
-    const snapshot = { tracks: before.tracks, order: before.order, playlists: before.playlists };
+    const snapshot = {
+      tracks: before.tracks,
+      order: before.order,
+      playlists: before.playlists,
+      folders: before.folders,
+    };
     set(change(before));
     try {
       await call();
@@ -88,6 +120,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
     tracks: {},
     order: [],
     playlists: [],
+    folders: [],
 
     /** Local copy first (instant start, works offline), then revalidate with the home. */
     async load() {
@@ -270,6 +303,100 @@ export const useLibrary = create<LibraryState>((set, get) => {
       )
         .then(() => pl && toast(t('toast.removedFromPlaylist', { name: pl.name })))
         .catch(() => undefined);
+    },
+
+    async createFolder(name) {
+      try {
+        const folder = await getHome().createFolder(name);
+        set({ folders: [...get().folders, folder] });
+        await persist(get());
+        toast(t('toast.folderCreated'));
+        return folder;
+      } catch (err) {
+        reportError(err);
+        return null;
+      }
+    },
+
+    async renameFolder(id, name) {
+      try {
+        const folder = await getHome().renameFolder(id, name);
+        set({ folders: get().folders.map((f) => (f.id === id ? folder : f)) });
+        await persist(get());
+      } catch (err) {
+        reportError(err);
+      }
+    },
+
+    async deleteFolder(id) {
+      await mutate(
+        (s) => ({
+          folders: s.folders.filter((f) => f.id !== id),
+          playlists: applyFolderDelete(s.playlists, id),
+        }),
+        () => getHome().deleteFolder(id),
+      ).catch(() => undefined);
+    },
+
+    async movePlaylist(id, folderId) {
+      const folder = get().folders.find((f) => f.id === folderId);
+      await mutate(
+        (s) => ({ playlists: applyMove(s.playlists, id, folderId) }),
+        () => getHome().movePlaylist(id, folderId),
+      )
+        .then(() =>
+          toast(folder ? t('toast.movedToFolder', { name: folder.name }) : t('toast.movedOut')),
+        )
+        .catch(() => undefined);
+    },
+
+    async mergePlaylists(targetId, sourceId, deleteSource) {
+      const { playlists } = get();
+      const target = playlists.find((p) => p.id === targetId);
+      const source = playlists.find((p) => p.id === sourceId);
+      if (!target || !source) return false;
+      const plan = planMerge(target, source);
+      if (!plan.ok) {
+        if (plan.reason === 'too_many') {
+          toast(t('toast.mergeTooBig', { total: plan.total, max: plan.max }));
+        }
+        return false;
+      }
+      try {
+        await mutate(
+          (s) => ({
+            playlists: s.playlists
+              .map((p) => (p.id === targetId ? { ...p, trackIds: plan.trackIds } : p))
+              .filter((p) => !(deleteSource && p.id === sourceId)),
+          }),
+          async () => {
+            await getHome().addToPlaylist(targetId, source.trackIds);
+            if (deleteSource) await getHome().deletePlaylist(sourceId);
+          },
+        );
+      } catch {
+        // The first call may have gone through: resync with the real state.
+        void get().load();
+        return false;
+      }
+      toast(t('toast.merged', { count: plan.added, name: target.name }));
+      return true;
+    },
+
+    async setPlaylistCover(id, file) {
+      try {
+        const jpeg = file ? await squareJpeg(file, LIMITS.playlistCoverPx) : null;
+        if (file && !jpeg) {
+          toast(t('toast.coverBadImage'), 'error');
+          return;
+        }
+        replacePlaylist(await getHome().setPlaylistCover(id, jpeg));
+        await persist(get());
+        if (jpeg) toast(t('toast.coverSaved'));
+      } catch (err) {
+        if (isStorageFull(err)) toast(t('toast.coverStorageFull'), 'error');
+        else reportError(err);
+      }
     },
   };
 });

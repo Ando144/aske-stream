@@ -1,12 +1,25 @@
-import type { Playlist, Station } from '@aske/shared';
+import type { Folder, Playlist, Station } from '@aske/shared';
 import { ApiError } from '../../api/client';
 import { DriveAuthRequired } from '../drive/auth';
 import type { Destination, LocalTrack } from '../types';
-import { buildCopyPlan, planPlaylists, planStations, type IdMap } from './plan';
+import {
+  buildCopyPlan,
+  nameKey,
+  planFolders,
+  planPlaylists,
+  planStations,
+  type IdMap,
+  type PlaylistAction,
+} from './plan';
 
 export interface CopyEndpoint {
   kind: Destination;
-  load(): Promise<{ tracks: LocalTrack[]; playlists: Playlist[]; stations: Station[] }>;
+  load(): Promise<{
+    tracks: LocalTrack[];
+    playlists: Playlist[];
+    folders: Folder[];
+    stations: Station[];
+  }>;
   readAudio(t: LocalTrack): Promise<Blob>;
   readCover(t: LocalTrack): Promise<Blob | null>;
   /** Keeps likedAt (and createdAt where the storage allows it). */
@@ -15,8 +28,13 @@ export interface CopyEndpoint {
     audio: Blob,
     cover: Blob | null,
   ): Promise<{ track: LocalTrack; existed: boolean }>;
-  createPlaylist(name: string, trackIds: string[]): Promise<unknown>;
+  createPlaylist(name: string, trackIds: string[]): Promise<Playlist>;
   addToPlaylist(id: string, trackIds: string[]): Promise<unknown>;
+  createFolder(name: string): Promise<Folder>;
+  movePlaylist(id: string, folderId: string | null): Promise<unknown>;
+  /** null when the playlist has no custom cover (or it cannot be read). */
+  readPlaylistCover(pl: Playlist): Promise<Blob | null>;
+  setPlaylistCover(id: string, jpeg: Blob): Promise<unknown>;
   saveStation(s: Station): Promise<unknown>;
   /** null = unknown / unlimited. */
   freeBytes(): Promise<number | null>;
@@ -99,15 +117,82 @@ async function copyTracks(run: Run, todo: LocalTrack[]): Promise<CopyStop> {
   return null;
 }
 
-async function copyPlaylists(run: Run, destPlaylists: Playlist[], src: Playlist[]): Promise<void> {
-  const { actions, overflow } = planPlaylists(src, destPlaylists, run.map);
+/** Creates the missing folders; returns normalized name -> destination folder id. */
+async function copyFolders(run: Run, src: Folder[], dest: Folder[]): Promise<Map<string, string>> {
+  const ids = new Map(dest.map((f) => [nameKey(f.name), f.id]));
+  for (const name of planFolders(src, dest)) {
+    try {
+      ids.set(nameKey(name), (await run.deps.to.createFolder(name)).id);
+    } catch (err) {
+      console.warn('Copy: could not create folder', name, err);
+    }
+  }
+  return ids;
+}
+
+async function putInFolder(
+  run: Run,
+  playlistId: string,
+  folderName: string | null,
+  folderIds: Map<string, string>,
+): Promise<void> {
+  const folderId = folderName ? folderIds.get(nameKey(folderName)) : undefined;
+  if (!folderId) return;
+  try {
+    await run.deps.to.movePlaylist(playlistId, folderId);
+  } catch (err) {
+    console.warn('Copy: could not move playlist to its folder', folderName, err);
+  }
+}
+
+async function copyCover(run: Run, source: Playlist | undefined, destId: string): Promise<void> {
+  if (!source) return;
+  try {
+    const jpeg = await run.deps.from.readPlaylistCover(source);
+    if (jpeg) await run.deps.to.setPlaylistCover(destId, jpeg);
+  } catch (err) {
+    console.warn('Copy: could not copy playlist cover', source.name, err);
+  }
+}
+
+async function applyAction(
+  run: Run,
+  action: PlaylistAction,
+  src: Playlist[],
+  folderIds: Map<string, string>,
+): Promise<void> {
+  const { to } = run.deps;
+  let destId = action.kind === 'add' ? action.playlistId : '';
+  if (action.kind === 'create') destId = (await to.createPlaylist(action.name, action.trackIds)).id;
+  else if (action.trackIds.length) await to.addToPlaylist(destId, action.trackIds);
+  await putInFolder(run, destId, action.folderName, folderIds);
+  if (action.copyCover)
+    await copyCover(
+      run,
+      src.find((p) => p.name === action.name),
+      destId,
+    );
+}
+
+async function copyPlaylists(
+  run: Run,
+  source: { playlists: Playlist[]; folders: Folder[] },
+  dest: { playlists: Playlist[]; folders: Folder[] },
+): Promise<void> {
+  const folderIds = await copyFolders(run, source.folders, dest.folders);
+  const { actions, overflow } = planPlaylists(
+    source.playlists,
+    dest.playlists,
+    run.map,
+    undefined,
+    { src: source.folders, dest: dest.folders },
+  );
   run.progress.playlistOverflow = overflow;
   for (const action of actions) {
     try {
-      if (action.kind === 'create') await run.deps.to.createPlaylist(action.name, action.trackIds);
-      else await run.deps.to.addToPlaylist(action.playlistId, action.trackIds);
-    } catch {
-      // A playlist that cannot be written must not stop the rest of the copy.
+      await applyAction(run, action, source.playlists, folderIds);
+    } catch (err) {
+      console.warn('Copy: could not copy playlist', action.name, err);
     }
   }
 }
@@ -116,8 +201,8 @@ async function copyStations(run: Run, src: Station[], dest: Station[]): Promise<
   for (const s of planStations(src, dest)) {
     try {
       await run.deps.to.saveStation(s);
-    } catch {
-      // Same: radios are a bonus.
+    } catch (err) {
+      console.warn('Copy: could not save radio', s.name, err);
     }
   }
 }
@@ -145,7 +230,7 @@ export async function runCopy(
 
   const stopped = await copyTracks(run, plan.todo);
   if (!stopped) {
-    await copyPlaylists(run, dest.playlists, source.playlists);
+    await copyPlaylists(run, source, dest);
     await copyStations(run, source.stations, dest.stations);
     emit(run);
   }

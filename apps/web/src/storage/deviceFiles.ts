@@ -4,7 +4,7 @@
  * gallery, and survive app updates. The Android app uses the same API inside
  * its WebView.
  */
-type Kind = 'audio' | 'covers';
+type Kind = 'audio' | 'covers' | 'playlist-covers';
 
 export const deviceStorageSupported = () =>
   typeof navigator !== 'undefined' && typeof navigator.storage?.getDirectory === 'function';

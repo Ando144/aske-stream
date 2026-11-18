@@ -1,18 +1,24 @@
-import { Heart, ListMusic, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { EllipsisVertical, Folder as FolderIcon, FolderPlus, Heart, Plus } from 'lucide-react';
 import { Link } from 'wouter';
-import type { Playlist, Track } from '@aske/shared';
-import { songCount, useT } from '../i18n';
+import type { Folder, Playlist } from '@aske/shared';
+import { songCount, useT, type Translate } from '../i18n';
+import { groupPlaylists } from '../storage/playlistOps';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { promptDialog } from '../stores/ui';
-import { Cover } from '../components/Cover';
+import { FolderMenu } from '../components/FolderMenu';
+import { DraggablePlaylist, DroppableFolder, PlaylistDnd } from '../components/PlaylistDnd';
+import { PlaylistArt } from '../components/PlaylistArt';
+import { PlaylistMenu } from '../components/PlaylistMenu';
 import { SettingsLink } from '../components/SettingsLink';
 import { ScreenTip } from '../components/ScreenTip';
 
 export function PlaylistsView() {
   const t = useT();
   const playlists = useLibrary((s) => s.playlists);
-  const tracks = useLibrary((s) => s.tracks);
+  const folders = useLibrary((s) => s.folders);
   const liked = useAllTracks().filter((tr) => tr.likedAt !== null).length;
+  const groups = groupPlaylists(playlists, folders);
 
   const create = async () => {
     const name = await promptDialog({
@@ -24,11 +30,24 @@ export function PlaylistsView() {
     if (name) await useLibrary.getState().createPlaylist(name);
   };
 
+  const createFolder = async () => {
+    const name = await promptDialog({
+      title: t('folders.new'),
+      placeholder: t('folders.namePlaceholder'),
+      initial: '',
+      confirmLabel: t('common.create'),
+    });
+    if (name) await useLibrary.getState().createFolder(name);
+  };
+
   return (
     <div className="page">
       <header className="page-header">
         <h1>{t('playlists.title')}</h1>
         <div className="row">
+          <button className="btn small" onClick={() => void createFolder()}>
+            <FolderPlus size={16} /> {t('folders.new')}
+          </button>
           <button className="btn primary small" onClick={() => void create()}>
             <Plus size={16} /> {t('playlists.new')}
           </button>
@@ -37,64 +56,96 @@ export function PlaylistsView() {
       </header>
       <ScreenTip id="playlists" text="tips.playlists" helpId="playlists" />
 
-      <div className="card-list">
-        <Link href="/liked" className="card-row">
-          <div
-            className="collection-art liked single"
-            style={{ width: 56, height: 56, borderRadius: 8 }}
-          >
-            <Heart size={24} fill="currentColor" />
-          </div>
-          <div className="grow">
-            <div className="card-title">{t('liked.title')}</div>
-            <div className="muted small">{songCount(t, liked)}</div>
-          </div>
-        </Link>
-
-        {playlists.map((pl) => (
-          <Link key={pl.id} href={`/playlist/${pl.id}`} className="card-row">
-            <PlaylistArt playlist={pl} tracks={tracks} size={56} />
+      <PlaylistDnd playlists={playlists}>
+        <div className="card-list">
+          <Link href="/liked" className="card-row">
+            <div
+              className="collection-art liked single"
+              style={{ width: 56, height: 56, borderRadius: 8 }}
+            >
+              <Heart size={24} fill="currentColor" />
+            </div>
             <div className="grow">
-              <div className="card-title ellipsis">{pl.name}</div>
-              <div className="muted small">{songCount(t, pl.trackIds.length)}</div>
+              <div className="card-title">{t('liked.title')}</div>
+              <div className="muted small">{songCount(t, liked)}</div>
             </div>
           </Link>
-        ))}
-      </div>
 
-      {playlists.length === 0 && <p className="empty">{t('playlists.empty')}</p>}
+          {groups.folders.map(({ folder, playlists: inside }) => (
+            <FolderRow key={folder.id} folder={folder} count={inside.length} t={t} />
+          ))}
+
+          {groups.loose.map((pl) => (
+            <PlaylistRow key={pl.id} playlist={pl} />
+          ))}
+        </div>
+      </PlaylistDnd>
+
+      {playlists.length === 0 && folders.length === 0 && (
+        <p className="empty">{t('playlists.empty')}</p>
+      )}
     </div>
   );
 }
 
-/** 2×2 mosaic of the first covers, like Spotify. */
-export function PlaylistArt({
-  playlist,
-  tracks,
-  size,
-}: {
-  playlist: Playlist;
-  tracks: Record<string, Track>;
-  size?: number;
-}) {
-  const withCover = playlist.trackIds.filter((id) => tracks[id]?.hasCover).slice(0, 4);
-  const style = size ? { width: size, height: size, borderRadius: 8 } : undefined;
-  if (withCover.length < 4) {
-    return (
-      <div className="collection-art single" style={style}>
-        {withCover[0] ? (
-          <Cover trackId={withCover[0]} hasCover size={0} className="" />
-        ) : (
-          <ListMusic size={size ? size * 0.42 : 56} />
-        )}
-      </div>
-    );
-  }
+function FolderRow({ folder, count, t }: { folder: Folder; count: number; t: Translate }) {
+  const [menu, setMenu] = useState(false);
   return (
-    <div className="collection-art" style={style}>
-      {withCover.map((id) => (
-        <Cover key={id} trackId={id} hasCover size={0} className="" />
-      ))}
-    </div>
+    <DroppableFolder folderId={folder.id}>
+      <div className="card-row">
+        <Link href={`/folder/${folder.id}`} className="card-row-link">
+          <div className="collection-art single" style={{ width: 56, height: 56, borderRadius: 8 }}>
+            <FolderIcon size={26} color="var(--accent)" />
+          </div>
+          <div className="grow">
+            <div className="card-title ellipsis">{folder.name}</div>
+            <div className="muted small">
+              {count === 1 ? t('folders.playlistCount.one') : t('folders.playlistCount', { count })}
+            </div>
+          </div>
+        </Link>
+        <button
+          className="icon-btn"
+          onClick={() => setMenu(true)}
+          aria-label={t('playlists.menu')}
+          title={t('playlists.menu')}
+        >
+          <EllipsisVertical size={18} />
+        </button>
+      </div>
+      {menu && <FolderMenu folder={folder} onClose={() => setMenu(false)} />}
+    </DroppableFolder>
+  );
+}
+
+/** One playlist: link, "…" menu and the drag handle. Also used inside folders. */
+export function PlaylistRow({ playlist }: { playlist: Playlist }) {
+  const t = useT();
+  const tracks = useLibrary((s) => s.tracks);
+  const [menu, setMenu] = useState(false);
+  return (
+    <DraggablePlaylist playlist={playlist}>
+      {(handle) => (
+        <div className="card-row">
+          <Link href={`/playlist/${playlist.id}`} className="card-row-link">
+            <PlaylistArt playlist={playlist} tracks={tracks} size={56} />
+            <div className="grow">
+              <div className="card-title ellipsis">{playlist.name}</div>
+              <div className="muted small">{songCount(t, playlist.trackIds.length)}</div>
+            </div>
+          </Link>
+          <button
+            className="icon-btn"
+            onClick={() => setMenu(true)}
+            aria-label={t('playlists.menu')}
+            title={t('playlists.menu')}
+          >
+            <EllipsisVertical size={18} />
+          </button>
+          {handle}
+          {menu && <PlaylistMenu playlist={playlist} onClose={() => setMenu(false)} />}
+        </div>
+      )}
+    </DraggablePlaylist>
   );
 }

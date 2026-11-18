@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Playlist, Station } from '@aske/shared';
+import type { Folder, Playlist, Station } from '@aske/shared';
 import { ApiError } from '../src/api/client';
 import { DriveAuthRequired } from '../src/storage/drive/auth';
 import {
@@ -55,6 +55,9 @@ function station(n: number, over: Partial<Station> = {}): Station {
 interface FakeOpts {
   tracks?: LocalTrack[];
   playlists?: Playlist[];
+  folders?: Folder[];
+  covers?: Record<string, Blob>;
+  coverError?: unknown;
   stations?: Station[];
   writeError?: (t: LocalTrack, call: number) => unknown;
   existed?: (t: LocalTrack) => boolean;
@@ -69,6 +72,7 @@ function fake(kind: Destination, o: FakeOpts = {}) {
     load: async () => ({
       tracks: o.tracks ?? [],
       playlists: o.playlists ?? [],
+      folders: o.folders ?? [],
       stations: o.stations ?? [],
     }),
     readAudio: vi.fn(async () => new Blob(['a'])),
@@ -80,8 +84,26 @@ function fake(kind: Destination, o: FakeOpts = {}) {
       written.push(t.id);
       return { track: { ...t, id: `d-${t.id}` }, existed: o.existed?.(t) ?? false };
     }),
-    createPlaylist: vi.fn(async () => undefined),
+    createPlaylist: vi.fn(async (name: string) => ({
+      id: `new-${name}`,
+      name,
+      description: '',
+      trackIds: [],
+      createdAt: 1,
+      updatedAt: 1,
+    })),
     addToPlaylist: vi.fn(async () => undefined),
+    createFolder: vi.fn(async (name: string) => ({
+      id: `f-${name}`,
+      name,
+      createdAt: 1,
+      updatedAt: 1,
+    })),
+    movePlaylist: vi.fn(async () => undefined),
+    readPlaylistCover: vi.fn(async (pl: Playlist) => o.covers?.[pl.id] ?? null),
+    setPlaylistCover: vi.fn(async () => {
+      if (o.coverError) throw o.coverError;
+    }),
     saveStation: vi.fn(async () => undefined),
     freeBytes: async () => null,
   };
@@ -240,6 +262,73 @@ describe('runCopy', () => {
     const res = await runCopy(d);
     expect(res.stopped).toBe('cancelled');
     expect(to.saveStation).not.toHaveBeenCalled();
+  });
+});
+
+describe('runCopy folders and covers', () => {
+  const pl = (over: Partial<Playlist>): Playlist => ({
+    id: 'p1',
+    name: 'Mix',
+    description: '',
+    trackIds: [],
+    createdAt: 1,
+    updatedAt: 1,
+    ...over,
+  });
+  const rock: Folder = { id: 'fr', name: 'Rock', createdAt: 1, updatedAt: 1 };
+
+  it('creates the folder and moves the new playlist into it', async () => {
+    const from = fake('device', { playlists: [pl({ folderId: 'fr' })], folders: [rock] });
+    const to = fake('drive');
+    await runCopy(deps(from, to).d);
+    expect(to.createFolder).toHaveBeenCalledWith('Rock');
+    expect(to.movePlaylist).toHaveBeenCalledWith('new-Mix', 'f-Rock');
+  });
+
+  it('reuses a destination folder with the same name', async () => {
+    const from = fake('device', { playlists: [pl({ folderId: 'fr' })], folders: [rock] });
+    const to = fake('drive', { folders: [{ ...rock, id: 'dx', name: ' rock ' }] });
+    await runCopy(deps(from, to).d);
+    expect(to.createFolder).not.toHaveBeenCalled();
+    expect(to.movePlaylist).toHaveBeenCalledWith('new-Mix', 'dx');
+  });
+
+  it('copies the cover from the source to the destination', async () => {
+    const blob = new Blob(['img']);
+    const from = fake('device', { playlists: [pl({ coverAt: 5 })], covers: { p1: blob } });
+    const to = fake('cloudflare');
+    const res = await runCopy(deps(from, to).d);
+    expect(to.setPlaylistCover).toHaveBeenCalledWith('new-Mix', blob);
+    expect(res.stopped).toBeNull();
+  });
+
+  it('carries on when the cover cannot be written', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const from = fake('device', {
+      playlists: [pl({ coverAt: 5 })],
+      covers: { p1: new Blob(['img']) },
+      stations: [station(1)],
+    });
+    const to = fake('cloudflare', { coverError: new ApiError(507, 'storage_full', 'full') });
+    const res = await runCopy(deps(from, to).d);
+    expect(res.stopped).toBeNull();
+    expect(to.saveStation).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('does not stop when a playlist fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const from = fake('device', { playlists: [pl({})], stations: [station(1)] });
+    const to = fake('drive');
+    to.createPlaylist = vi.fn(async () => {
+      throw new Error('boom');
+    });
+    const res = await runCopy(deps(from, to).d);
+    expect(res.stopped).toBeNull();
+    expect(to.saveStation).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 

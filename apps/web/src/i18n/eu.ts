@@ -343,7 +343,7 @@ export const eu: Messages = {
   'tips.library':
     'Ukitu abesti bat entzuteko. Eutsi bat sakatuta batzuk batera aukeratzeko, eta irristatu eskuinera ilarara gehitzeko.',
   'tips.playlists':
-    'Sortu zerrendak zure musika antolatzeko. «Gogoko abestiak» bere kabuz betetzen da abesti baten bihotza sakatzean.',
+    'Sortu zerrendak zure musika antolatzeko eta multzokatu karpetetan. Sakatu zerrenda baten «…» aukera gehiagorako, edo arrastatu heldulekua mugitzeko edo beste batekin batzeko. «Gogoko abestiak» bere kabuz betetzen da bihotza sakatzean.',
   'tips.podcasts':
     'Hemen doaz hitzaldiak eta elkarrizketak, musikatik bereizita. Aplikazioak gogoratzen du atal bakoitzean non zinen.',
   'tips.radio':
@@ -391,6 +391,47 @@ export const eu: Messages = {
     'Desaktibatuta: ordenagailuak lekurik gabe geratzen bada, nabigatzaileak ezaba ditzake',
 
   'toast.offline': 'Konexiorik gabe zaude',
+  'folders.new': 'Karpeta berria',
+  'folders.namePlaceholder': 'Karpetaren izena',
+  'folders.rename': 'Aldatu izena',
+  'folders.delete': 'Ezabatu karpeta',
+  'folders.deleteConfirm':
+    '«{name}» karpeta ezabatu nahi duzu? Bertako zerrendak ez dira ezabatzen: zerrenda nagusira itzultzen dira.',
+  'folders.empty':
+    'Karpeta hau hutsik dago. Mugitu hona zerrenda bat bere «…» menutik edo arrastatuz.',
+  'folders.notFound': 'Karpeta hau ez da existitzen jada.',
+  'folders.playlistCount': '{count} zerrenda',
+  'folders.playlistCount.one': 'Zerrenda 1',
+  'playlists.menu': 'Aukera gehiago',
+  'playlists.moveToFolder': 'Mugitu karpeta batera',
+  'playlists.moveOut': 'Atera karpetatik',
+  'playlists.pickFolder': 'Aukeratu karpeta bat',
+  'playlists.newFolderHere': 'Sortu karpeta berria',
+  'playlists.merge': 'Batu beste zerrenda batekin',
+  'playlists.mergePick': 'Aukeratu batu nahi duzun zerrenda',
+  'playlists.coverPick': 'Aukeratu azala',
+  'playlists.coverRemove': 'Kendu azala',
+  'merge.title': 'Batu zerrendak',
+  'merge.explain':
+    '«{source}» zerrendako abestiak «{target}» zerrendaren amaieran gehituko dira. Dagoeneko daudenak ez dira errepikatzen.',
+  'merge.deleteOther': 'Ezabatu «{source}» gero',
+  'merge.deleteOtherHint': 'Abestiak ez dira ezabatzen: zure liburutegian jarraitzen dute.',
+  'merge.swap': 'Aldatu ordena',
+  'merge.confirm': 'Batu',
+  'drag.handle': 'Arrastatu mugitzeko edo batzeko',
+  'drag.dropRoot': 'Askatu hemen karpetatik ateratzeko',
+  'toast.merged': 'Batuta: {count} abesti berri «{name}» zerrendan',
+  'toast.merged.one': 'Batuta: abesti berri 1 «{name}» zerrendan',
+  'toast.mergeTooBig':
+    'Ez dira sartzen: batuta {total} abesti izango lituzkete eta zerrenda batek gehienez {max} onartzen ditu. Kendu batzuk bietako batetik eta saiatu berriro.',
+  'toast.movedToFolder': '«{name}» karpetara mugituta',
+  'toast.movedOut': 'Karpetatik atera da',
+  'toast.folderCreated': 'Karpeta sortuta',
+  'toast.coverSaved': 'Azala gordeta',
+  'toast.coverBadImage': 'Irudi hori ezin izan da erabili. Saiatu beste argazki batekin.',
+  'toast.coverStorageFull': 'Ez dago tokirik azala gordetzeko. Egin tokia eta saiatu berriro.',
+  'toast.cloudflareOutdated':
+    'Zure Cloudflare-k bertsio zaharra du eta oraindik ez ditu karpetak eta azalak onartzen. Zure musika eta zerrendak ondo daude.',
   'toast.error': 'Zerbait gaizki atera da',
   'toast.playlistTooBig':
     'Zerrenda batek gehienez {max} abesti izan ditzake. Aukeratu abesti gutxiago.',
@@ -582,7 +623,7 @@ export const eu: Messages = {
   'copy.offer': '{count} abesti kopiatuko ditugu, zure «gustuko», playlist eta irrati gogokoekin?',
   'copy.offer.one': 'Abesti 1 kopiatuko dugu, zure «gustuko», playlist eta irrati gogokoekin?',
   'copy.explain':
-    'Ez da ezer ezabatzen jatorrizko lekuan. Nahi duzunean gelditu dezakezu: berriro sakatzean, utzitako lekutik jarraitzen du eta ez du ezer bi aldiz kopiatzen. Hobe Wi-Fiarekin.',
+    'Ez da ezer ezabatzen jatorrizko lekuan. Zure karpetak eta zerrenden azalak ere kopiatzen dira. Nahi duzunean gelditu dezakezu: berriro sakatzean, utzitako lekutik jarraitzen du eta ez du ezer bi aldiz kopiatzen. Hobe Wi-Fiarekin.',
   'copy.start': 'Kopiatu',
   'copy.later': 'Orain ez',
   'copy.resume': 'Kopiatzen jarraitu',
@@ -619,7 +660,8 @@ export const eu: Messages = {
   'sleep.custom': 'Beste denbora bat',
   'sleep.customHint': '8 ordu arte',
   'sleep.endOfTrack': 'Abestia amaitzean',
-  'sleep.cancel': 'Utzi tenporizadorea',
+  'sleep.remove': 'Kendu tenporizadorea',
+  'sleep.change': 'Aldatu denbora',
   'sleep.remaining': '{time} barru amaituko da',
   'sleep.set': 'Musika {time} barru geldituko da',
   'sleep.setEndOfTrack': 'Musika abesti hau amaitzean geldituko da',

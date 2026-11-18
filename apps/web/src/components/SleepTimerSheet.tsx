@@ -87,6 +87,8 @@ export function SleepTimerSheet({
   const endOfTrack = useSleepTimer((s) => s.endOfTrack);
   const now = useNow(endsAt !== null);
   const active = endsAt !== null || endOfTrack;
+  const [changing, setChanging] = useState(false);
+  const showTimes = !active || changing;
 
   const pick = (minutes: number) => {
     useSleepTimer.getState().start({ minutes });
@@ -99,46 +101,58 @@ export function SleepTimerSheet({
         <Moon size={20} />
         <strong className="grow">{t('sleep.title')}</strong>
       </div>
-      {endsAt !== null && (
-        <div className="small" style={{ padding: '4px 14px', color: 'var(--accent)' }}>
-          {t('sleep.remaining', { time: formatSleepTime(endsAt - now) })}
-        </div>
-      )}
-      {endOfTrack && (
-        <div className="small" style={{ padding: '4px 14px', color: 'var(--accent)' }}>
-          {t('sleep.setEndOfTrack')}
-        </div>
-      )}
       {active && (
-        <button
-          className="menu-item"
-          onClick={() => {
-            useSleepTimer.getState().cancel();
-            onClose();
-          }}
-        >
-          <TimerOff size={20} /> {t('sleep.cancel')}
-        </button>
-      )}
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', padding: '8px 14px' }}>
-        {SLEEP_PRESETS_MIN.map((m) => (
-          <button key={m} className="chip" onClick={() => pick(m)}>
-            {presetLabel(t, m)}
+        <div className="row" style={{ gap: 10, padding: '4px 14px', flexWrap: 'wrap' }}>
+          <span className="small grow" style={{ color: 'var(--accent)' }}>
+            {endsAt !== null
+              ? t('sleep.remaining', { time: formatSleepTime(endsAt - now) })
+              : t('sleep.setEndOfTrack')}
+          </span>
+          <button
+            className="btn small"
+            onClick={() => {
+              useSleepTimer.getState().cancel();
+              onClose();
+            }}
+          >
+            <TimerOff size={16} /> {t('sleep.remove')}
           </button>
-        ))}
-      </div>
-      {allowEndOfTrack && (
-        <button
-          className="menu-item"
-          onClick={() => {
-            useSleepTimer.getState().start('endOfTrack');
-            onClose();
-          }}
-        >
-          <Moon size={20} /> {t('sleep.endOfTrack')}
-        </button>
+        </div>
       )}
-      <CustomTime onPick={pick} />
+      {active && !changing && (
+        <div style={{ padding: '8px 14px' }}>
+          <button
+            className="link-btn"
+            style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+            onClick={() => setChanging(true)}
+          >
+            {t('sleep.change')}
+          </button>
+        </div>
+      )}
+      {showTimes && (
+        <>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap', padding: '8px 14px' }}>
+            {SLEEP_PRESETS_MIN.map((m) => (
+              <button key={m} className="chip" onClick={() => pick(m)}>
+                {presetLabel(t, m)}
+              </button>
+            ))}
+          </div>
+          {allowEndOfTrack && (
+            <button
+              className="menu-item"
+              onClick={() => {
+                useSleepTimer.getState().start('endOfTrack');
+                onClose();
+              }}
+            >
+              <Moon size={20} /> {t('sleep.endOfTrack')}
+            </button>
+          )}
+          <CustomTime onPick={pick} />
+        </>
+      )}
     </Sheet>
   );
 }

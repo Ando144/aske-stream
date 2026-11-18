@@ -280,6 +280,32 @@ async function main() {
     state.playlistId = pl.id;
   });
 
+  await step('folders: create, move a playlist in, list, delete keeps the playlist', async () => {
+    const folder = await json(await api('/api/folders', { method: 'POST', json: { name: 'Mix' } }));
+    const missing = await api(`/api/playlists/${state.playlistId}`, {
+      method: 'PATCH',
+      json: { folderId: 'doesNotExist1234' },
+    });
+    assert.equal(missing.status, 400);
+    const moved = await json(
+      await api(`/api/playlists/${state.playlistId}`, {
+        method: 'PATCH',
+        json: { folderId: folder.id },
+      }),
+    );
+    assert.equal(moved.folderId, folder.id);
+    const lib = await json(await api('/api/library'));
+    assert.ok(lib.folders.some((f) => f.id === folder.id));
+    assert.equal(lib.playlists.find((p) => p.id === state.playlistId).folderId, folder.id);
+    assert.equal((await api(`/api/folders/${folder.id}`, { method: 'DELETE' })).status, 204);
+    const after = await json(await api('/api/library'));
+    assert.equal(
+      after.folders.some((f) => f.id === folder.id),
+      false,
+    );
+    assert.equal(after.playlists.find((p) => p.id === state.playlistId).folderId, null);
+  });
+
   await step('stations: custom URLs, like/unlike, catalog upsert', async () => {
     const ftp = await api('/api/stations', {
       method: 'POST',
