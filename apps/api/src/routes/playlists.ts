@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { LIMITS } from '@aske/shared';
+import { LIMITS, reorderPlaylists, type Playlist } from '@aske/shared';
 import type { AppEnv, Env } from '../env';
 import { bumpVersion, playlistCoverKey, toPlaylist, type PlaylistRow } from '../lib/db';
 import { isJpeg } from '../lib/image';
@@ -24,9 +24,47 @@ export const PatchPlaylist = z
     name: z.string().trim().min(1).max(LIMITS.nameMax),
     description: z.string().trim().max(LIMITS.descriptionMax),
     folderId: z.string().regex(ID_PATTERN).nullable(),
+    pinned: z.boolean(),
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+
+export const PlaylistOrderBody = z.object({
+  folderId: z.string().regex(ID_PATTERN).nullable(),
+  ids: z.array(z.string().regex(ID_PATTERN)).max(1000),
+});
+
+/** Next free position at the end of a container (null = top level). */
+const END_OF_CONTAINER = `(SELECT COALESCE(MAX(position), -1) + 1 FROM playlists WHERE folder_id IS ?)`;
+
+async function savePlaylistOrder(
+  db: D1Database,
+  folderId: string | null,
+  ids: string[],
+): Promise<Playlist[]> {
+  const [rows, members] = await db.batch([
+    db.prepare('SELECT * FROM playlists'),
+    db.prepare('SELECT playlist_id, track_id FROM playlist_tracks ORDER BY position ASC'),
+  ]);
+  const tracksOf = new Map<string, string[]>();
+  for (const m of members!.results as { playlist_id: string; track_id: string }[]) {
+    const list = tracksOf.get(m.playlist_id);
+    if (list) list.push(m.track_id);
+    else tracksOf.set(m.playlist_id, [m.track_id]);
+  }
+  const all = (rows!.results as unknown as PlaylistRow[]).map((r) =>
+    toPlaylist(r, tracksOf.get(r.id) ?? []),
+  );
+  const { playlists, changed } = reorderPlaylists(all, folderId, ids, Date.now());
+  if (changed.length) {
+    const update = db.prepare('UPDATE playlists SET position = ?, updated_at = ? WHERE id = ?');
+    await db.batch([
+      ...changed.map((p) => update.bind(p.position, p.updatedAt, p.id)),
+      bumpVersion(db),
+    ]);
+  }
+  return playlists;
+}
 
 const TrackIdsBody = z.object({ trackIds: TrackIds });
 
@@ -116,13 +154,19 @@ export const playlistRoutes = new Hono<AppEnv>()
     await db.batch([
       db
         .prepare(
-          'INSERT INTO playlists (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+          `INSERT INTO playlists (id, name, description, created_at, updated_at, position)
+           VALUES (?, ?, ?, ?, ?, ${END_OF_CONTAINER})`,
         )
-        .bind(id, body.name, body.description, now, now),
+        .bind(id, body.name, body.description, now, now, null),
       appendMembers(db, id, body.trackIds),
       bumpVersion(db),
     ]);
     return c.json(await loadPlaylist(db, id), 201);
+  })
+
+  .put('/order', async (c) => {
+    const { folderId, ids } = await readJson(c, PlaylistOrderBody);
+    return c.json({ playlists: await savePlaylistOrder(c.env.DB, folderId, ids) });
   })
 
   .patch('/:id', async (c) => {
@@ -141,8 +185,12 @@ export const playlistRoutes = new Hono<AppEnv>()
     }
     if (body.folderId !== undefined) {
       await assertFolderExists(db, body.folderId);
-      sets.push('folder_id = ?');
-      args.push(body.folderId);
+      sets.push('folder_id = ?', `position = ${END_OF_CONTAINER}`);
+      args.push(body.folderId, body.folderId);
+    }
+    if (body.pinned !== undefined) {
+      sets.push('pinned_at = ?');
+      args.push(body.pinned ? Date.now() : null);
     }
     const [res] = await db.batch([
       db.prepare(`UPDATE playlists SET ${sets.join(', ')} WHERE id = ?`).bind(...args, id),

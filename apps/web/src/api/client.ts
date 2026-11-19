@@ -111,11 +111,16 @@ function folderMethods(json: JsonFn, call: CallFn) {
   return {
     createFolder: (name: string) =>
       json<Folder>('/api/folders', { method: 'POST', json: { name } }),
-    updateFolder: (id: string, patch: { name: string }) =>
+    updateFolder: (id: string, patch: { name?: string; pinned?: boolean }) =>
       json<Folder>(`/api/folders/${id}`, { method: 'PATCH', json: patch }),
     deleteFolder: (id: string) => json<void>(`/api/folders/${id}`, { method: 'DELETE' }),
     reorderFolders: (ids: string[]) =>
       json<Folder[]>('/api/folders/order', { method: 'PUT', json: { ids } }),
+    orderPlaylists: (folderId: string | null, ids: string[]) =>
+      json<{ playlists: Playlist[] }>('/api/playlists/order', {
+        method: 'PUT',
+        json: { folderId, ids },
+      }),
     setPlaylistCover: (id: string, jpeg: Blob) => {
       const form = new FormData();
       form.append('cover', jpeg, 'cover.jpg');
@@ -169,7 +174,7 @@ function createApi(
       json<Playlist>('/api/playlists', { method: 'POST', json: { name, trackIds } }),
     updatePlaylist: (
       id: string,
-      patch: { name?: string; description?: string; folderId?: string | null },
+      patch: { name?: string; description?: string; folderId?: string | null; pinned?: boolean },
     ) => json<Playlist>(`/api/playlists/${id}`, { method: 'PATCH', json: patch }),
     ...folderMethods(json, call),
     deletePlaylist: (id: string) => json<void>(`/api/playlists/${id}`, { method: 'DELETE' }),

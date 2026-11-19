@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import { LIMITS, reorderFolders, sortFolders, type Folder, type Playlist } from '@aske/shared';
+import {
+  LIMITS,
+  reorderFolders,
+  reorderPlaylists,
+  sortFolders,
+  type Folder,
+  type Playlist,
+} from '@aske/shared';
 import { ApiError } from '../api/client';
 import { t } from '../i18n';
 import { squareJpeg } from '../lib/cover';
@@ -40,6 +47,9 @@ interface LibraryState {
   movePlaylist: (id: string, folderId: string | null) => Promise<void>;
   /** Optimistic: reorders at once and rolls back (with the usual toast) if saving fails. */
   reorderFolders: (folderIds: string[]) => Promise<void>;
+  setPlaylistPinned: (id: string, pinned: boolean) => Promise<void>;
+  setFolderPinned: (id: string, pinned: boolean) => Promise<void>;
+  orderPlaylists: (folderId: string | null, ids: string[]) => Promise<void>;
   /** Returns true when merged. Toast with the reason when not. */
   mergePlaylists: (targetId: string, sourceId: string, deleteSource: boolean) => Promise<boolean>;
   /** file: any image chosen by the user (null = back to the mosaic). Resized to a square. */
@@ -81,6 +91,12 @@ function reportError(err: unknown) {
   if (err instanceof ApiError && err.status === 0) toast(t('toast.offline'), 'error');
   else if (err instanceof ApiError && err.status !== 401) toast(err.message, 'error');
   else if (!(err instanceof ApiError)) toast(t('toast.error'), 'error');
+}
+
+/** `mutate` already reported generic errors; add the specific pin message unless outdated. */
+function reportPinError(err: unknown) {
+  if (err instanceof Error && err.message === 'cloudflare_outdated') return;
+  toast(t('toast.pinFailed'), 'error');
 }
 
 function isStorageFull(err: unknown): boolean {
@@ -356,6 +372,32 @@ export const useLibrary = create<LibraryState>((set, get) => {
       await mutate(
         (s) => ({ folders: reorderFolders(s.folders, folderIds, Date.now()).folders }),
         async () => set({ folders: await getHome().reorderFolders(folderIds) }),
+      ).catch(() => undefined);
+    },
+
+    async setPlaylistPinned(id, pinned) {
+      const pinnedAt = pinned ? Date.now() : null;
+      await mutate(
+        (s) => ({ playlists: s.playlists.map((p) => (p.id === id ? { ...p, pinnedAt } : p)) }),
+        async () => replacePlaylist(await getHome().setPlaylistPinned(id, pinned)),
+      ).catch(reportPinError);
+    },
+
+    async setFolderPinned(id, pinned) {
+      const pinnedAt = pinned ? Date.now() : null;
+      await mutate(
+        (s) => ({ folders: s.folders.map((f) => (f.id === id ? { ...f, pinnedAt } : f)) }),
+        async () => {
+          const folder = await getHome().setFolderPinned(id, pinned);
+          set({ folders: get().folders.map((f) => (f.id === id ? folder : f)) });
+        },
+      ).catch(reportPinError);
+    },
+
+    async orderPlaylists(folderId, ids) {
+      await mutate(
+        (s) => ({ playlists: reorderPlaylists(s.playlists, folderId, ids, Date.now()).playlists }),
+        async () => set({ playlists: await getHome().orderPlaylists(folderId, ids) }),
       ).catch(() => undefined);
     },
 

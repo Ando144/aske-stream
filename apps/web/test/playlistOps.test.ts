@@ -79,6 +79,21 @@ describe('groupPlaylists', () => {
     expect(groups.folders[0]!.playlists).toEqual([]);
   });
 
+  it('orders playlists by pin, then position, inside folders and loose', () => {
+    const groups = groupPlaylists(
+      [
+        pl('a', { createdAt: 1, position: 1 }),
+        pl('b', { createdAt: 2, position: 0 }),
+        pl('c', { createdAt: 3, pinnedAt: 5 }),
+        pl('x', { folderId: 'f', createdAt: 1, position: 1 }),
+        pl('y', { folderId: 'f', createdAt: 2, position: 0 }),
+      ],
+      [folder('f', 'F')],
+    );
+    expect(groups.loose.map((p) => p.id)).toEqual(['c', 'b', 'a']);
+    expect(groups.folders[0]!.playlists.map((p) => p.id)).toEqual(['y', 'x']);
+  });
+
   it('sends playlists with a missing folder to loose', () => {
     const groups = groupPlaylists(
       [pl('a', { folderId: 'gone', createdAt: 3 }), pl('b', { createdAt: 1 })],
@@ -120,9 +135,39 @@ describe('dropAction', () => {
     expect(drop('pl:B', 'folder:ZZ')).toBeNull();
   });
 
-  it('does nothing when a playlist is dropped on another playlist or itself', () => {
-    expect(drop('pl:B', 'pl:C')).toBeNull();
+  it('does nothing when a playlist is dropped on itself or on one of another container', () => {
     expect(drop('pl:B', 'pl:B')).toBeNull();
+    expect(drop('pl:B', 'pl:A')).toBeNull();
+    expect(drop('pl:B', 'pl:ZZ')).toBeNull();
+  });
+
+  it('reorders playlists of the same container', () => {
+    expect(drop('pl:B', 'pl:C')).toEqual({
+      kind: 'reorderPlaylists',
+      folderId: null,
+      playlistIds: ['C', 'B'],
+    });
+    expect(drop('pl:C', 'pl:B')).toEqual({
+      kind: 'reorderPlaylists',
+      folderId: null,
+      playlistIds: ['C', 'B'],
+    });
+  });
+
+  it('reorders inside a folder and never includes pinned playlists', () => {
+    const inside = [
+      pl('X', { folderId: 'F', createdAt: 1 }),
+      pl('Y', { folderId: 'F', createdAt: 2 }),
+      pl('Z', { folderId: 'F', createdAt: 3 }),
+      pl('P', { folderId: 'F', createdAt: 4, pinnedAt: 9 }),
+    ];
+    expect(dropAction('pl:X', 'pl:Z', inside, folders)).toEqual({
+      kind: 'reorderPlaylists',
+      folderId: 'F',
+      playlistIds: ['Y', 'Z', 'X'],
+    });
+    expect(dropAction('pl:X', 'pl:P', inside, folders)).toBeNull();
+    expect(dropAction('pl:P', 'pl:X', inside, folders)).toBeNull();
   });
 
   it('takes a playlist out of its folder with root', () => {

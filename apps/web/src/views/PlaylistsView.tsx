@@ -51,7 +51,7 @@ export function PlaylistsView() {
             aria-label={t('folders.new')}
             title={t('folders.new')}
           >
-            <FolderPlus size={16} /> <span className="btn-label">{t('folders.new')}</span>
+            <FolderPlus size={16} />
           </button>
           <button
             className="btn primary small"
@@ -59,7 +59,7 @@ export function PlaylistsView() {
             aria-label={t('playlists.new')}
             title={t('playlists.new')}
           >
-            <Plus size={16} /> <span className="btn-label">{t('playlists.new')}</span>
+            <Plus size={16} />
           </button>
           <SettingsLink />
         </div>
@@ -101,7 +101,7 @@ export function PlaylistsView() {
 function FolderRow({ folder, count, t }: { folder: Folder; count: number; t: Translate }) {
   const [menu, setMenu] = useState(false);
   return (
-    <SortableFolder folderId={folder.id}>
+    <SortableFolder folderId={folder.id} pinned={folder.pinnedAt != null}>
       {(handle) => (
         <>
           <div className="card-row">

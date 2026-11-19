@@ -32,6 +32,7 @@ import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
 import { DriveReconnect } from './components/DriveReconnect';
 import { useUi } from './stores/ui';
+import { mayDoBackgroundWork } from './lib/power';
 
 export function App() {
   const status = useSetup((s) => s.status);
@@ -89,8 +90,20 @@ function useBackgroundSync() {
       void sync();
       void useSend.getState().checkInbox();
     };
-    const interval = setInterval(() => useOffline.getState().scheduleRun(0), SYNC_INTERVAL_MS);
-    const inbox = setInterval(() => void useSend.getState().checkInbox(), 5 * 60 * 1000);
+    const mayRun = () =>
+      mayDoBackgroundWork({
+        hidden: document.visibilityState === 'hidden',
+        playing: usePlayer.getState().isPlaying,
+      });
+    const interval = setInterval(() => {
+      if (mayRun()) useOffline.getState().scheduleRun(0);
+    }, SYNC_INTERVAL_MS);
+    const inbox = setInterval(
+      () => {
+        if (mayRun()) void useSend.getState().checkInbox();
+      },
+      5 * 60 * 1000,
+    );
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
     return () => {

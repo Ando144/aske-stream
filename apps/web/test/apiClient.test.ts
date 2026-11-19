@@ -59,6 +59,36 @@ describe('reorderFolders', () => {
   });
 });
 
+describe('pin and playlist order', () => {
+  const jsonRes = () =>
+    new Response('{"playlists":[]}', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  const target = { baseUrl: 'https://x', token: 'T' };
+
+  it('PUTs folderId and ids to /api/playlists/order', async () => {
+    const fetchMock = stubFetch(jsonRes);
+    await apiFor(target).orderPlaylists(null, ['a', 'b']);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://x/api/playlists/order');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual({ folderId: null, ids: ['a', 'b'] });
+  });
+
+  it('PATCHes pinned on a playlist and on a folder', async () => {
+    const fetchMock = stubFetch(jsonRes);
+    await apiFor(target).updatePlaylist('p1', { pinned: true });
+    await apiFor(target).updateFolder('f1', { pinned: false });
+    const [plUrl, plInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const [foUrl, foInit] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect(plUrl).toBe('https://x/api/playlists/p1');
+    expect(JSON.parse(plInit.body as string)).toEqual({ pinned: true });
+    expect(foUrl).toBe('https://x/api/folders/f1');
+    expect(JSON.parse(foInit.body as string)).toEqual({ pinned: false });
+  });
+});
+
 describe('ingestExists', () => {
   it('queries the exists endpoint', async () => {
     const fetchMock = stubFetch(() => new Response(JSON.stringify({ exists: true, id: 'a' })));

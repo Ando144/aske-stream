@@ -56,6 +56,8 @@ export interface PlaylistRow {
   updated_at: number;
   folder_id: string | null;
   cover_at: number | null;
+  position?: number | null;
+  pinned_at?: number | null;
 }
 
 export const toPlaylist = (r: PlaylistRow, trackIds: string[]): Playlist => ({
@@ -67,6 +69,8 @@ export const toPlaylist = (r: PlaylistRow, trackIds: string[]): Playlist => ({
   updatedAt: r.updated_at,
   folderId: r.folder_id ?? null,
   coverAt: r.cover_at ?? null,
+  position: r.position ?? null,
+  pinnedAt: r.pinned_at ?? null,
 });
 
 export interface FolderRow {
@@ -75,6 +79,7 @@ export interface FolderRow {
   created_at: number;
   updated_at: number;
   position: number | null;
+  pinned_at?: number | null;
 }
 
 export const toFolder = (r: FolderRow): Folder => ({
@@ -83,6 +88,7 @@ export const toFolder = (r: FolderRow): Folder => ({
   createdAt: r.created_at,
   updatedAt: r.updated_at,
   position: r.position ?? null,
+  pinnedAt: r.pinned_at ?? null,
 });
 
 export interface StationRow {

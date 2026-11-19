@@ -60,6 +60,10 @@ export interface LibraryHome {
   reorderFolders(ids: string[]): Promise<Folder[]>;
   /** folderId null = top level. Throws Error('folder_not_found') if the folder does not exist. */
   movePlaylist(id: string, folderId: string | null): Promise<Playlist>;
+  setPlaylistPinned(id: string, pinned: boolean): Promise<Playlist>;
+  setFolderPinned(id: string, pinned: boolean): Promise<Folder>;
+  /** Saves the order of one container. Returns ALL playlists in sortPlaylists order. */
+  orderPlaylists(folderId: string | null, ids: string[]): Promise<Playlist[]>;
   /** jpeg: square JPEG already resized (≤ 300 px). null = back to the automatic mosaic. */
   setPlaylistCover(id: string, jpeg: Blob | null): Promise<Playlist>;
   // deletePlaylist(id) must also remove the custom cover, if any.

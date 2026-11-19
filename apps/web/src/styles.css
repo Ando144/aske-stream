@@ -191,21 +191,9 @@ a {
   flex-shrink: 0;
 }
 
-.btn-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@container page-header (max-width: 520px) {
-  .header-actions .btn-label {
-    display: none;
-  }
-
-  .header-actions .btn.small {
-    width: 32px;
-    padding: 0;
-  }
+.header-actions .btn.small {
+  width: 32px;
+  padding: 0;
 }
 
 .section-title {

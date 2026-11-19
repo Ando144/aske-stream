@@ -1,8 +1,11 @@
 import {
   LIMITS,
   nextFolderPosition,
+  nextPlaylistPosition,
   reorderFolders,
+  reorderPlaylists,
   sortFolders,
+  sortPlaylists,
   type Folder,
   type Playlist,
   type Station,
@@ -210,7 +213,7 @@ function snapshot(doc: LibraryDoc) {
     tracks: Object.values(doc.tracks)
       .sort((a, b) => b.createdAt - a.createdAt)
       .map(toLocalTrack),
-    playlists: Object.values(doc.playlists).sort((a, b) => a.createdAt - b.createdAt),
+    playlists: sortPlaylists(Object.values(doc.playlists)),
     folders: sortFolders(Object.values(doc.folders)),
     etag: docFingerprint(doc),
   };
@@ -377,6 +380,7 @@ export const driveHome: LibraryHome & {
       updatedAt: now,
     };
     await change((doc) => {
+      pl.position = nextPlaylistPosition(Object.values(doc.playlists), null);
       doc.playlists[pl.id] = pl;
     });
     return pl;
@@ -438,7 +442,38 @@ export const driveHome: LibraryHome & {
   async movePlaylist(id, folderId) {
     const st = await getState();
     if (folderId !== null && !st.doc.folders[folderId]) throw new Error('folder_not_found');
-    return editPlaylist(id, (pl) => ({ ...pl, folderId }));
+    return editPlaylist(id, (pl, all) => ({
+      ...pl,
+      folderId,
+      position: nextPlaylistPosition(all, folderId),
+    }));
+  },
+
+  async setPlaylistPinned(id, pinned) {
+    return editPlaylist(id, (pl, _all, now) => ({ ...pl, pinnedAt: pinned ? now : null }));
+  },
+
+  async setFolderPinned(id, pinned) {
+    let updated: Folder | undefined;
+    await change((doc, now) => {
+      updated = {
+        ...need(doc.folders[id], 'Folder'),
+        pinnedAt: pinned ? now : null,
+        updatedAt: now,
+      };
+      doc.folders[id] = updated;
+    });
+    return updated!;
+  },
+
+  async orderPlaylists(folderId, ids) {
+    let ordered: Playlist[] = [];
+    await change((doc, now) => {
+      const result = reorderPlaylists(Object.values(doc.playlists), folderId, ids, now);
+      for (const pl of result.changed) doc.playlists[pl.id] = pl;
+      ordered = result.playlists;
+    });
+    return ordered;
   },
 
   async setPlaylistCover(id, jpeg) {
@@ -569,11 +604,14 @@ function trashFile(fileId: string | null) {
   void serialized(() => driveApi.remove(fileId).catch(() => undefined));
 }
 
-async function editPlaylist(id: string, fn: (pl: Playlist) => Playlist): Promise<Playlist> {
+async function editPlaylist(
+  id: string,
+  fn: (pl: Playlist, all: Playlist[], now: number) => Playlist,
+): Promise<Playlist> {
   let result: Playlist | undefined;
   await change((doc, now) => {
     const pl = need(doc.playlists[id], 'Playlist');
-    result = { ...fn(pl), updatedAt: now };
+    result = { ...fn(pl, Object.values(doc.playlists), now), updatedAt: now };
     doc.playlists[id] = result;
   });
   return result!;

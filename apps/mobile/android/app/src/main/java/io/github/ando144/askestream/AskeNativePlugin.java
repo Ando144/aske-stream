@@ -6,6 +6,8 @@ import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
 import androidx.core.content.FileProvider;
@@ -39,6 +41,11 @@ public class AskeNativePlugin extends Plugin {
     private static final String UPDATE_DIR = "updates";
     private static final long MAX_APK_BYTES = 200L * 1024 * 1024;
 
+    private static final long RELEASE_DELAY_MS = 10_000L;
+    private static final long WAKE_LOCK_TIMEOUT_MS = 30L * 60 * 1000;
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable releaseTask = this::releaseLocks;
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -110,26 +117,41 @@ public class AskeNativePlugin extends Plugin {
     @PluginMethod
     public void keepAwake(PluginCall call) {
         boolean playing = Boolean.TRUE.equals(call.getBoolean("playing", false));
-        if (playing) acquireLocks();
-        else releaseLocks();
+        boolean streaming = Boolean.TRUE.equals(call.getBoolean("streaming", true));
+        mainHandler.removeCallbacks(releaseTask);
+        if (playing) {
+            acquireLocks(streaming);
+        } else {
+            // Delayed so a quick pause/resume does not churn the locks and
+            // so it does not depend on JS timers, which freeze in background.
+            mainHandler.postDelayed(releaseTask, RELEASE_DELAY_MS);
+        }
         call.resolve();
     }
 
-    private synchronized void acquireLocks() {
+    private synchronized void acquireLocks(boolean streaming) {
         Context ctx = getContext().getApplicationContext();
         if (wakeLock == null) {
             PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AskeStream:playback");
             wakeLock.setReferenceCounted(false);
         }
+        // Safety net: a forgotten lock is released after 30 minutes anyway;
+        // every keepAwake(playing: true) renews it.
+        wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS);
+        if (streaming) {
+            acquireWifiLock(ctx);
+        } else if (wifiLock != null && wifiLock.isHeld()) {
+            wifiLock.release();
+        }
+    }
+
+    private void acquireWifiLock(Context ctx) {
         if (wifiLock == null) {
             WifiManager wm = (WifiManager) ctx.getSystemService(Context.WIFI_SERVICE);
-            int mode = Build.VERSION.SDK_INT >= 29 ? WifiManager.WIFI_MODE_FULL_LOW_LATENCY : WifiManager.WIFI_MODE_FULL_HIGH_PERF;
-            wifiLock = wm.createWifiLock(mode, "AskeStream:streaming");
+            wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "AskeStream:streaming");
             wifiLock.setReferenceCounted(false);
         }
-        // Safety net: a forgotten lock is released after 6 hours anyway.
-        wakeLock.acquire(6 * 60 * 60 * 1000L);
         if (!wifiLock.isHeld()) wifiLock.acquire();
     }
 
@@ -140,6 +162,7 @@ public class AskeNativePlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        mainHandler.removeCallbacks(releaseTask);
         releaseLocks();
         executor.shutdownNow();
     }

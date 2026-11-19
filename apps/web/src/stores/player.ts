@@ -23,6 +23,7 @@ import { toast } from './ui';
 import { AskeNative } from '../native/askeNative';
 import { mediaControls } from '../native/mediaControls';
 import { isNative } from '../native/platform';
+import { isStreamingSource, mayDoBackgroundWork } from '../lib/power';
 
 /**
  * Playback engine + state.
@@ -105,6 +106,20 @@ interface PlayerState {
 }
 
 const audio = new Audio();
+
+const RUN_MIN_GAP_MS = 10 * 60 * 1000;
+let lastScheduledRun = 0;
+/** Offline rotation after loading a song, at most every 10 min and never in the background. */
+function scheduleRunThrottled() {
+  const now = Date.now();
+  const allowed = mayDoBackgroundWork({
+    hidden: document.visibilityState === 'hidden',
+    playing: usePlayer.getState().isPlaying,
+  });
+  if (!allowed || now - lastScheduledRun < RUN_MIN_GAP_MS) return;
+  lastScheduledRun = now;
+  useOffline.getState().scheduleRun(5000);
+}
 audio.preload = 'auto';
 let hls: Hls | null = null;
 let objectUrl: string | null = null;
@@ -218,7 +233,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     audio.defaultPlaybackRate = rate;
     updateMediaSession();
     persist();
-    useOffline.getState().scheduleRun(5000);
+    scheduleRunThrottled();
     if (autoplay) audio.play().catch(() => set({ isPlaying: false }));
   }
 
@@ -586,6 +601,8 @@ audio.addEventListener('play', () => {
 audio.addEventListener('playing', () => {
   consecutiveErrors = 0;
   usePlayer.setState({ buffering: false, isPlaying: true });
+  // The source may have switched between local and remote while already playing.
+  if (isNative) keepAwake(true);
 });
 audio.addEventListener('waiting', () => usePlayer.setState({ buffering: true }));
 audio.addEventListener('pause', () => {
@@ -665,20 +682,21 @@ function setPlaybackState(state: 'none' | 'paused' | 'playing') {
   if (isNative) keepAwake(state === 'playing');
 }
 
-/** Wake/Wi-Fi locks in the Android app; released a bit later so track changes don't flap. */
-let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+/** Wake/Wi-Fi locks in the Android app; the native side delays the release itself. */
 let awake = false;
+let awakeStreaming = false;
 function keepAwake(playing: boolean) {
-  clearTimeout(releaseTimer);
-  if (playing) {
-    if (!awake) void AskeNative.keepAwake({ playing: true }).catch(() => undefined);
-    awake = true;
-    return;
-  }
-  releaseTimer = setTimeout(() => {
+  if (!playing) {
     awake = false;
     void AskeNative.keepAwake({ playing: false }).catch(() => undefined);
-  }, 10_000);
+    return;
+  }
+  // hls.js feeds radios through a blob: URL, so the source alone can't tell it is a stream.
+  const streaming = usePlayer.getState().mode === 'radio' || isStreamingSource(audio.currentSrc);
+  if (awake && streaming === awakeStreaming) return;
+  awake = true;
+  awakeStreaming = streaming;
+  void AskeNative.keepAwake({ playing: true, streaming }).catch(() => undefined);
 }
 
 let lastPositionState = 0;

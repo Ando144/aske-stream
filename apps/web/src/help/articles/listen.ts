@@ -50,6 +50,8 @@ Arrastatu **⠿** heldulekua ordena aldatzeko eta sakatu **X** abesti bat kentze
 - **Añadir muchas**: mantén pulsada una canción, toca las demás y pulsa **Playlist** abajo. O dentro de una playlist, pulsa **Añadir canciones**.
 - **Cambiar el orden**: dentro de la playlist, pulsa **Cambiar orden** y arrastra.
 - **Quitar**: menú ⋮ → «Quitar de esta playlist». La canción sigue en tu biblioteca.
+- **Ordenar tus playlists**: en la lista de **Playlists**, arrastra una por su asa y suéltala sobre otra para cambiarla de sitio. Si la sueltas sobre una carpeta, entra en ella.
+- **Fijar arriba**: menú **…** de una playlist o carpeta → «Fijar arriba». Se queda la primera de la lista, debajo de «Canciones que te gustan».
 
 Cada playlist admite hasta 1.000 canciones. «Canciones que te gustan» se llena sola con tus «Me gusta».
 
@@ -59,6 +61,8 @@ Para ordenarlas en carpetas, ponerles foto o juntar dos, mira [[playlist-folders
 - **Add many**: press and hold a song, tap the others and tap **Playlist** at the bottom. Or inside a playlist, tap **Add songs**.
 - **Reorder**: inside the playlist, tap **Reorder** and drag.
 - **Remove**: ⋮ menu → “Remove from this playlist”. The song stays in your library.
+- **Sort your playlists**: in the **Playlists** list, drag one by its handle and drop it on another to change its place. Drop it on a folder to put it inside.
+- **Pin to the top**: **…** menu of a playlist or folder → “Pin to top”. It stays first in the list, below “Liked songs”.
 
 Each playlist holds up to 1,000 songs. “Liked songs” fills itself with your likes.
 
@@ -68,6 +72,8 @@ To sort them into folders, give them a photo or merge two, see [[playlist-folder
 - **Asko gehitu**: eutsi sakatuta abesti bat, ukitu besteak eta sakatu behean **Zerrenda**. Edo zerrenda baten barruan, sakatu **Gehitu abestiak**.
 - **Ordena aldatu**: zerrendaren barruan, sakatu **Ordena aldatu** eta arrastatu.
 - **Kendu**: ⋮ menua → «Kendu zerrenda honetatik». Abestiak zure liburutegian jarraitzen du.
+- **Zerrendak ordenatu**: **Zerrendak** atalean, arrastatu bat heldulekutik eta askatu beste baten gainean lekua aldatzeko. Karpeta baten gainean askatzen baduzu, barrura sartzen da.
+- **Goian finkatu**: zerrenda edo karpeta baten **…** menua → «Finkatu goian». Zerrendako lehena izaten da, «Gogoko abestiak» azpian.
 
 Zerrenda bakoitzak 1.000 abesti arte onartzen ditu. «Gogoko abestiak» bere kabuz betetzen da zure «Gogokoetara» gehitutakoekin.
 

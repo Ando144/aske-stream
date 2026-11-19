@@ -1,18 +1,22 @@
 # PLAN: Fase 5.5 — Ordenar y fijar playlists/carpetas, botones de cabecera y batería
-Fecha: 2026-11-19 · Estado: EN CURSO (pendiente de respuestas de Andoni, ver "Dudas abiertas")
+
+Fecha: 2026-11-19 · Estado: COMPLETADO
 
 ## Objetivo
+
 Arreglar cuatro problemas encontrados en uso real (v0.5.4): las playlists no se pueden ordenar;
 poder fijar playlists y carpetas arriba del todo; quitar el texto de los botones de la cabecera de
 Playlists (nunca se ve en el móvil); y reducir el consumo de batería en Android.
 
 ## Encaje en las fases (docs/v2/architecture.md)
+
 - Nueva fila **5.5 "Playlist order & pin, header buttons, battery"**, entre 5.4 (✅) y 6. Son
   arreglos de uso real, como 5.1. **Es la siguiente fase que toca** (antes de la 6, Cloudflare guiado).
 - Los cuatro problemas van en la 5.5. Si Andoni prefiere salir antes con la batería, se puede
   publicar T2 + T3 solos como v0.5.5 y el resto como v0.5.6 (ver dudas).
 
 ## Decisiones de arquitectura
+
 - Orden de playlists con `Playlist.position`, igual que `Folder.position` — una sola forma de ordenar, ya probada en 5.4.
 - El orden de playlists es **por contenedor** (sueltas = `folderId null`, o dentro de cada carpeta) — mover a otra carpeta la deja al final.
 - Fijar = campo `pinnedAt` (fecha) en `Playlist` y `Folder`; null = no fijada — se sincroniza como cualquier cambio (last-writer-wins por `updatedAt`).
@@ -26,17 +30,22 @@ Playlists (nunca se ve en el móvil); y reducir el consumo de batería en Androi
 ## Contratos (interfaces compartidas)
 
 ### Tipos (`packages/shared/src/index.ts`)
+
 ```ts
-interface Playlist { /* …campos actuales… */
+interface Playlist {
+  /* …campos actuales… */
   /** Order inside its container (top level or its folder). null/undefined = not ordered yet. */
   position?: number | null;
   /** When it was pinned; null/undefined = not pinned. */
   pinnedAt?: EpochMs | null;
 }
-interface Folder { /* …campos actuales… */ pinnedAt?: EpochMs | null; }
+interface Folder {
+  /* …campos actuales… */ pinnedAt?: EpochMs | null;
+}
 ```
 
 ### Funciones puras (`packages/shared/src/folders.ts` y nuevo `packages/shared/src/playlistOrder.ts`)
+
 ```ts
 // folders.ts (cambia sortFolders): pinned first (pinnedAt desc), then the current rule.
 export function sortFolders(folders: readonly Folder[]): Folder[];
@@ -44,17 +53,29 @@ export function sortFolders(folders: readonly Folder[]): Folder[];
 /** Pinned first (pinnedAt desc); then unordered (position null) by createdAt asc; then position asc (tie: createdAt). New array. */
 export function sortPlaylists(playlists: readonly Playlist[]): Playlist[];
 /** Max position + 1 among playlists whose (folderId ?? null) === folderId; 0 if none. */
-export function nextPlaylistPosition(playlists: readonly Playlist[], folderId: string | null): number;
-export interface PlaylistReorder { playlists: Playlist[]; changed: Playlist[]; }
+export function nextPlaylistPosition(
+  playlists: readonly Playlist[],
+  folderId: string | null,
+): number;
+export interface PlaylistReorder {
+  playlists: Playlist[];
+  changed: Playlist[];
+}
 /** Only touches playlists of that container: orderedIds first, the rest in sortPlaylists order;
  *  position = index, changed ones get updatedAt = now. `playlists` returned = ALL input playlists
  *  (other containers untouched), in sortPlaylists order. Unknown/repeated/other-container ids ignored. */
-export function reorderPlaylists(playlists: readonly Playlist[], folderId: string | null,
-  orderedIds: readonly string[], now: EpochMs): PlaylistReorder;
+export function reorderPlaylists(
+  playlists: readonly Playlist[],
+  folderId: string | null,
+  orderedIds: readonly string[],
+  now: EpochMs,
+): PlaylistReorder;
 ```
+
 Exportar todo desde `packages/shared/src/index.ts`.
 
 ### Base de datos (D1) — `apps/api/migrations/0006_playlist_order_pin.sql`
+
 ```sql
 ALTER TABLE playlists ADD COLUMN position INTEGER;
 ALTER TABLE playlists ADD COLUMN pinned_at INTEGER;
@@ -62,6 +83,7 @@ ALTER TABLE folders ADD COLUMN pinned_at INTEGER;
 ```
 
 ### API (Worker)
+
 - `PATCH /api/playlists/:id` acepta además `pinned?: boolean` (true → `pinned_at = now`, false → null).
   Si cambia `folderId`, `position = nextPlaylistPosition(destino)`. Devuelve `Playlist`.
 - `POST /api/playlists`: la nueva va al final de las sueltas (`position = max + 1`).
@@ -72,19 +94,23 @@ ALTER TABLE folders ADD COLUMN pinned_at INTEGER;
 - Worker antiguo (sin estas rutas): el cliente usa `orOutdated(...)` como ya hace con carpetas.
 
 ### `LibraryHome` (`apps/web/src/storage/types.ts`) — métodos nuevos
+
 ```ts
 setPlaylistPinned(id: string, pinned: boolean): Promise<Playlist>;
 setFolderPinned(id: string, pinned: boolean): Promise<Folder>;
 /** Saves the order of one container. Returns ALL playlists in sortPlaylists order. */
 orderPlaylists(folderId: string | null, ids: string[]): Promise<Playlist[]>;
 ```
+
 `createPlaylist` y `movePlaylist` asignan `position` al final del contenedor en los tres almacenamientos.
 
 ### Cliente API (`apps/web/src/api/client.ts`)
+
 `updatePlaylist(id, { …, pinned?: boolean })`, `updateFolder(id, { …, pinned?: boolean })`,
 `orderPlaylists(folderId: string | null, ids: string[]): Promise<{ playlists: Playlist[] }>`.
 
 ### Store (`apps/web/src/stores/library.ts`) — acciones nuevas (optimistas, revierten si falla)
+
 ```ts
 setPlaylistPinned(id: string, pinned: boolean): Promise<void>;
 setFolderPinned(id: string, pinned: boolean): Promise<void>;
@@ -92,6 +118,7 @@ orderPlaylists(folderId: string | null, ids: string[]): Promise<void>;
 ```
 
 ### Drag & drop (`apps/web/src/storage/playlistOps.ts`)
+
 ```ts
 export type DropResult =
   | { kind: 'move'; playlistId: string; folderId: string | null }
@@ -99,22 +126,26 @@ export type DropResult =
   | { kind: 'reorderPlaylists'; folderId: string | null; playlistIds: string[] }
   | null;
 ```
+
 Soltar `pl:A` sobre `pl:B` del mismo contenedor (ninguna fijada) → `reorderPlaylists`. Sobre una
 carpeta → `move` (como ahora). Ids fijados nunca entran en el reordenado.
 
 ### Puente nativo (`apps/web/src/native/askeNative.ts`)
+
 ```ts
 /** streaming = the audio comes from the internet (needs the Wi-Fi lock). */
 keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
 ```
 
 ### i18n (es, en, eu) — claves nuevas
+
 `pin.pin` ("Fijar arriba"), `pin.unpin` ("Quitar de arriba"), `pin.pinned` ("Fijada arriba", para
 `aria-label` del icono), `toast.pinFailed` (error en lenguaje sencillo). Textos en/eu equivalentes.
 
 ## Tareas
 
-### T1 · Reglas de orden y fijado en @aske/shared · Grupo A · Estado: PENDIENTE
+### T1 · Reglas de orden y fijado en @aske/shared · Grupo A · Estado: HECHA
+
 - Archivos (exclusivos): `packages/shared/src/index.ts`, `packages/shared/src/folders.ts`,
   `packages/shared/src/playlistOrder.ts` (nuevo), `packages/shared/test/folders.test.ts`,
   `packages/shared/test/playlistOrder.test.ts` (nuevo)
@@ -131,7 +162,8 @@ keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
   - [ ] Tests existentes de `sortFolders`/`reorderFolders` siguen pasando.
 - Verificación: `npx vitest run --root packages/shared` y `npm run typecheck -w @aske/shared` (o `npm run check`)
 
-### T2 · Batería: wake/Wi-Fi lock en Android · Grupo A · Estado: PENDIENTE
+### T2 · Batería: wake/Wi-Fi lock en Android · Grupo A · Estado: HECHA
+
 - Archivos (exclusivos): `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/AskeNativePlugin.java`
 - Leer como contexto: `apps/web/src/stores/player.ts` (líneas 660-682)
 - Qué hacer:
@@ -151,7 +183,8 @@ keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
 - Verificación: `npm run android:apk` (si hay ANDROID_HOME) y prueba manual en el Pixel con los
   comandos `adb` de arriba. Si no se puede compilar en local, lo compila el CI.
 
-### T3 · Batería: menos trabajo en segundo plano (web) · Grupo A · Estado: PENDIENTE
+### T3 · Batería: menos trabajo en segundo plano (web) · Grupo A · Estado: HECHA
+
 - Archivos (exclusivos): `apps/web/src/stores/player.ts`, `apps/web/src/App.tsx`,
   `apps/web/src/native/askeNative.ts`, `apps/web/test/fake-native/askeNative.ts`,
   `apps/web/src/lib/power.ts` (nuevo), `apps/web/test/power.test.ts` (nuevo)
@@ -176,7 +209,8 @@ keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
 - Verificación: `npx vitest run test/power.test.ts --root apps/web`, `npm run check`,
   `npx vite build --mode fakenative -w @aske/web`
 
-### T4 · Cabecera de Playlists solo con iconos · Grupo A · Estado: PENDIENTE
+### T4 · Cabecera de Playlists solo con iconos · Grupo A · Estado: HECHA
+
 - Archivos (exclusivos): `apps/web/src/views/PlaylistsView.tsx` (solo la cabecera), `apps/web/src/styles.css`
 - Qué hacer: quitar los `<span className="btn-label">` de "Nueva carpeta" y "Nueva playlist" (dejar
   icono + `title` + `aria-label`); borrar `.btn-label` y el bloque `@container page-header (max-width: 520px)`
@@ -188,7 +222,8 @@ keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
   - [ ] No queda `btn-label` en el código.
 - Verificación: `npm run check` y revisión visual con `npm run dev` a 360 px y 1280 px en es/en/eu.
 
-### T5 · API: orden y fijado en Cloudflare · Grupo B · Estado: PENDIENTE
+### T5 · API: orden y fijado en Cloudflare · Grupo B · Estado: HECHA
+
 - Archivos (exclusivos): `apps/api/migrations/0006_playlist_order_pin.sql` (nuevo),
   `apps/api/src/lib/db.ts`, `apps/api/src/routes/playlists.ts`, `apps/api/src/routes/folders.ts`,
   `apps/api/src/routes/library.ts`, `apps/api/test/unit.test.ts`
@@ -205,7 +240,8 @@ keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
   - [ ] Body inválido → 400; id inexistente → 404.
 - Verificación: `npx vitest run --root apps/api`, `npm run db:migrate:local`, `npm run test:e2e`
 
-### T6 · Almacenamientos web: dispositivo, Cloudflare y Drive · Grupo B · Estado: PENDIENTE
+### T6 · Almacenamientos web: dispositivo, Cloudflare y Drive · Grupo B · Estado: HECHA
+
 - Archivos (exclusivos): `apps/web/src/storage/types.ts`, `apps/web/src/storage/homes.ts`,
   `apps/web/src/storage/drive/home.ts`, `apps/web/src/api/client.ts`, `apps/web/test/apiClient.test.ts`
 - Leer como contexto: `apps/web/src/storage/drive/doc.ts`, implementación actual de `reorderFolders`
@@ -222,7 +258,8 @@ keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
   - [ ] `npm run typecheck` pasa (si falla solo por `stores/library.ts`, es esperado hasta T7).
 - Verificación: `npx vitest run test/apiClient.test.ts --root apps/web`, `npm run check`
 
-### T7 · Store, arrastre y pantalla: ordenar y fijar · Grupo C · Estado: PENDIENTE
+### T7 · Store, arrastre y pantalla: ordenar y fijar · Grupo C · Estado: HECHA
+
 - Archivos (exclusivos): `apps/web/src/stores/library.ts`, `apps/web/src/storage/playlistOps.ts`,
   `apps/web/test/playlistOps.test.ts`, `apps/web/src/components/PlaylistDnd.tsx`,
   `apps/web/src/views/PlaylistsView.tsx`, `apps/web/src/views/FolderView.tsx`,
@@ -250,6 +287,7 @@ keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
   `npm run test:e2e`, prueba manual en dispositivo, Drive y Cloudflare.
 
 ## Riesgos / dudas abiertas
+
 - **Batería: el % del Pixel puede no ser el que parece.** En Ajustes → Batería → Uso, el % de cada
   app es su parte del gasto de ese rato, no lo que bajó la batería. Hay que saber cuánto bajó en
   total de 12 a 14 y si sonaba música. T2-T3 arreglan lo más probable (Wi-Fi lock en modo "juegos"

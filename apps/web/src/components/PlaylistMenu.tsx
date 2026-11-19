@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Folder as FolderIcon, FolderMinus, Merge, Pencil, Trash2 } from 'lucide-react';
+import {
+  Folder as FolderIcon,
+  FolderMinus,
+  Merge,
+  Pencil,
+  Pin,
+  PinOff,
+  Trash2,
+} from 'lucide-react';
 import type { Playlist } from '@aske/shared';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
@@ -61,6 +69,11 @@ function PlaylistMainSheet({
   const [, navigate] = useLocation();
   const playlists = useLibrary((s) => s.playlists);
   const tracks = useLibrary((s) => s.tracks);
+  const pinned = playlist.pinnedAt != null;
+  const togglePin = () => {
+    onClose();
+    void useLibrary.getState().setPlaylistPinned(playlist.id, !pinned);
+  };
 
   return (
     <Sheet onClose={onClose} label={playlist.name}>
@@ -72,6 +85,9 @@ function PlaylistMainSheet({
       </div>
       <button className="menu-item" onClick={() => void renamePlaylistFlow(playlist, t, onClose)}>
         <Pencil size={20} /> {t('playlists.rename')}
+      </button>
+      <button className="menu-item" onClick={togglePin}>
+        {pinned ? <PinOff size={20} /> : <Pin size={20} />} {t(pinned ? 'pin.unpin' : 'pin.pin')}
       </button>
       <button className="menu-item" onClick={() => onStep('folders')}>
         <FolderIcon size={20} /> {t('playlists.moveToFolder')}

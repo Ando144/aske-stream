@@ -46,6 +46,10 @@ export interface Playlist {
   coverAt?: EpochMs | null;
   /** Google Drive only: file id of the custom cover. */
   coverFileId?: string | null;
+  /** Order inside its container (top level or its folder). null/undefined = not ordered yet. */
+  position?: number | null;
+  /** When it was pinned; null/undefined = not pinned. */
+  pinnedAt?: EpochMs | null;
 }
 
 /** A single-level folder that only holds playlists. */
@@ -56,9 +60,17 @@ export interface Folder {
   updatedAt: EpochMs;
   /** Order chosen by the user (ascending). null/undefined = not ordered yet. */
   position?: number | null;
+  /** When it was pinned; null/undefined = not pinned. */
+  pinnedAt?: EpochMs | null;
 }
 
 export { sortFolders, nextFolderPosition, reorderFolders, type FolderReorder } from './folders';
+export {
+  sortPlaylists,
+  nextPlaylistPosition,
+  reorderPlaylists,
+  type PlaylistReorder,
+} from './playlistOrder';
 
 /** Full snapshot returned by `GET /api/library`. Small enough for one user. */
 export interface Library {

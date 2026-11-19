@@ -3,8 +3,18 @@ import type { EpochMs, Folder } from './index';
 const byName = (a: Folder, b: Folder) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
 
-/** Unordered folders first (by name), then by position (tie: by name). Returns a new array. */
+/**
+ * Pinned first (most recently pinned on top), then unordered folders (by name), then by position
+ * (tie: by name). Returns a new array.
+ */
 export function sortFolders(folders: readonly Folder[]): Folder[] {
+  const pinned = folders
+    .filter((f) => f.pinnedAt != null)
+    .sort((a, b) => b.pinnedAt! - a.pinnedAt!);
+  return [...pinned, ...sortUnpinned(folders.filter((f) => f.pinnedAt == null))];
+}
+
+function sortUnpinned(folders: readonly Folder[]): Folder[] {
   const unordered = folders.filter((f) => f.position == null).sort(byName);
   const ordered = folders
     .filter((f) => f.position != null)

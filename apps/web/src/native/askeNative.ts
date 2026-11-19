@@ -14,7 +14,7 @@ export interface AskeNativePlugin {
   batteryStatus(): Promise<{ unrestricted: boolean }>;
   requestBatteryExemption(): Promise<void>;
   /** Keeps CPU and Wi-Fi awake while music plays with the screen off. */
-  keepAwake(options: { playing: boolean }): Promise<void>;
+  keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;
   downloadUpdate(options: {
     url: string;
     version: string;

@@ -8,7 +8,6 @@ import {
   TouchSensor,
   closestCenter,
   pointerWithin,
-  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
@@ -23,7 +22,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Pin } from 'lucide-react';
 import { sortFolders, type Folder, type Playlist } from '@aske/shared';
 import { useT } from '../i18n';
 import { dropAction } from '../storage/playlistOps';
@@ -70,7 +69,8 @@ export function PlaylistDnd({ playlists, folders = NO_FOLDERS, rootZone, childre
     if (!result) return;
     const library = useLibrary.getState();
     if (result.kind === 'move') void library.movePlaylist(result.playlistId, result.folderId);
-    else void library.reorderFolders(result.folderIds);
+    else if (result.kind === 'reorderFolders') void library.reorderFolders(result.folderIds);
+    else void library.orderPlaylists(result.folderId, result.playlistIds);
   };
 
   const dragged = draggedName(activeId, playlists, folders);
@@ -110,7 +110,10 @@ function RootDropZone({ label }: { label: string }) {
   );
 }
 
-/** A playlist row: draggable by its handle only. It is not a drop target any more. */
+/**
+ * A playlist row: draggable by its handle, and a drop target for other playlists of the same
+ * place (to reorder). Pinned rows show a pin instead of the handle and take no part in dragging.
+ */
 export function DraggablePlaylist({
   playlist,
   children,
@@ -119,8 +122,14 @@ export function DraggablePlaylist({
   children: (handle: ReactNode) => ReactNode;
 }) {
   const t = useT();
-  const drag = useDraggable({ id: `pl:${playlist.id}` });
-  const handle = (
+  const pinned = playlist.pinnedAt != null;
+  const drag = useSortable({ id: `pl:${playlist.id}`, disabled: pinned });
+  const draggingOther = String(drag.active?.id ?? '').startsWith('pl:') && !drag.isDragging;
+  const handle = pinned ? (
+    <span className="icon-btn pinned-mark" role="img" aria-label={t('pin.pinned')}>
+      <Pin size={18} />
+    </span>
+  ) : (
     <button
       ref={drag.setActivatorNodeRef}
       className="icon-btn drag-handle"
@@ -132,8 +141,12 @@ export function DraggablePlaylist({
       <GripVertical size={18} />
     </button>
   );
+  const highlight = drag.isOver && draggingOther && !pinned;
   return (
-    <div ref={drag.setNodeRef} className={`dnd-row${drag.isDragging ? ' dragging' : ''}`}>
+    <div
+      ref={drag.setNodeRef}
+      className={`dnd-row${drag.isDragging ? ' dragging' : ''}${highlight ? ' drop-over' : ''}`}
+    >
       {children(handle)}
     </div>
   );
@@ -142,15 +155,22 @@ export function DraggablePlaylist({
 /** A folder row: sortable by its handle, and a drop target for playlists. */
 export function SortableFolder({
   folderId,
+  pinned = false,
   children,
 }: {
   folderId: string;
+  pinned?: boolean;
   children: (handle: ReactNode) => ReactNode;
 }) {
   const t = useT();
-  const sortable = useSortable({ id: `folder:${folderId}` });
+  // A pinned folder cannot be dragged, but it still receives dropped playlists.
+  const sortable = useSortable({ id: `folder:${folderId}`, disabled: { draggable: pinned } });
   const draggingPlaylist = String(sortable.active?.id ?? '').startsWith('pl:');
-  const handle = (
+  const handle = pinned ? (
+    <span className="icon-btn pinned-mark" role="img" aria-label={t('pin.pinned')}>
+      <Pin size={18} />
+    </span>
+  ) : (
     <button
       ref={sortable.setActivatorNodeRef}
       className="icon-btn drag-handle"

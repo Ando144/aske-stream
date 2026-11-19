@@ -1,0 +1,3 @@
+ALTER TABLE playlists ADD COLUMN position INTEGER;
+ALTER TABLE playlists ADD COLUMN pinned_at INTEGER;
+ALTER TABLE folders ADD COLUMN pinned_at INTEGER;

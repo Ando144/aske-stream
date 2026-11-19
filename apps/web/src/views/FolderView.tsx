@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, EllipsisVertical, Folder as FolderIcon } from 'lucide-react';
 import { Link } from 'wouter';
+import { sortPlaylists } from '@aske/shared';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { FolderMenu } from '../components/FolderMenu';
@@ -24,7 +25,7 @@ export function FolderView({ id }: { id: string }) {
     );
   }
 
-  const inside = playlists.filter((p) => p.folderId === id);
+  const inside = sortPlaylists(playlists.filter((p) => p.folderId === id));
 
   return (
     <div className="page">

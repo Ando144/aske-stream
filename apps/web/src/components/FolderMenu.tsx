@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import type { Folder } from '@aske/shared';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
@@ -20,6 +20,12 @@ export function FolderMenu({ folder, onClose }: { folder: Folder; onClose: () =>
     if (name && name !== folder.name) await useLibrary.getState().renameFolder(folder.id, name);
   };
 
+  const pinned = folder.pinnedAt != null;
+  const togglePin = async () => {
+    onClose();
+    await useLibrary.getState().setFolderPinned(folder.id, !pinned);
+  };
+
   const remove = async () => {
     onClose();
     const ok = await confirmDialog(
@@ -39,6 +45,9 @@ export function FolderMenu({ folder, onClose }: { folder: Folder; onClose: () =>
       </div>
       <button className="menu-item" onClick={() => void rename()}>
         <Pencil size={20} /> {t('folders.rename')}
+      </button>
+      <button className="menu-item" onClick={() => void togglePin()}>
+        {pinned ? <PinOff size={20} /> : <Pin size={20} />} {t(pinned ? 'pin.unpin' : 'pin.pin')}
       </button>
       <button className="menu-item danger" onClick={() => void remove()}>
         <Trash2 size={20} /> {t('folders.delete')}

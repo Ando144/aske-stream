@@ -1,4 +1,12 @@
-import { LIMITS, nextFolderPosition, reorderFolders, sortFolders } from '@aske/shared';
+import {
+  LIMITS,
+  nextFolderPosition,
+  nextPlaylistPosition,
+  reorderFolders,
+  reorderPlaylists,
+  sortFolders,
+  sortPlaylists,
+} from '@aske/shared';
 import type { Folder, Playlist, Station, Track } from '@aske/shared';
 import { ApiError, api } from '../api/client';
 import { getDb } from '../offline/db';
@@ -36,6 +44,18 @@ async function orOutdated<T>(call: Promise<T>): Promise<T> {
   }
 }
 
+/** An old Worker rejects the unknown `pinned` field with 400 validation_error, not 404. */
+async function orOutdatedPin<T>(call: Promise<T>): Promise<T> {
+  try {
+    return await orOutdated(call);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 400 && err.code === 'validation_error') {
+      throw new Error('cloudflare_outdated');
+    }
+    throw err;
+  }
+}
+
 async function moveOnCloudflare(id: string, folderId: string | null): Promise<Playlist> {
   try {
     return await orOutdated(api.updatePlaylist(id, { folderId }));
@@ -54,7 +74,7 @@ export const cloudflareHome: LibraryHome = {
     if (!res) return null;
     return {
       tracks: res.library.tracks.map(fromRemote),
-      playlists: res.library.playlists,
+      playlists: sortPlaylists(res.library.playlists),
       folders: sortFolders(res.library.folders ?? []),
       etag: res.etag,
     };
@@ -64,6 +84,10 @@ export const cloudflareHome: LibraryHome = {
   deleteFolder: (id) => orOutdated(api.deleteFolder(id)),
   reorderFolders: (ids) => orOutdated(api.reorderFolders(ids)),
   movePlaylist: moveOnCloudflare,
+  setPlaylistPinned: (id, pinned) => orOutdatedPin(api.updatePlaylist(id, { pinned })),
+  setFolderPinned: (id, pinned) => orOutdatedPin(api.updateFolder(id, { pinned })),
+  orderPlaylists: async (folderId, ids) =>
+    (await orOutdated(api.orderPlaylists(folderId, ids))).playlists,
   setPlaylistCover: (id, jpeg) =>
     orOutdated(jpeg ? api.setPlaylistCover(id, jpeg) : api.removePlaylistCover(id)),
   updateTrack: async (id, patch) => fromRemote(await api.updateTrack(id, patch)),
@@ -107,7 +131,7 @@ export const deviceHome: LibraryHome & {
   async load() {
     const db = await getDb();
     const tracks = (await db.getAll('tracks')).sort((a, b) => b.createdAt - a.createdAt);
-    const playlists = (await db.getAll('playlists')).sort((a, b) => a.createdAt - b.createdAt);
+    const playlists = sortPlaylists(await db.getAll('playlists'));
     const folders = sortFolders(await db.getAll('folders'));
     return { tracks, playlists, folders, etag: '' };
   },
@@ -151,7 +175,30 @@ export const deviceHome: LibraryHome & {
     if (folderId !== null && !(await (await getDb()).get('folders', folderId))) {
       throw new Error('folder_not_found');
     }
-    return putPlaylist({ ...pl, folderId });
+    const position = nextPlaylistPosition(await (await getDb()).getAll('playlists'), folderId);
+    return putPlaylist({ ...pl, folderId, position });
+  },
+
+  async setPlaylistPinned(id, pinned) {
+    const pl = await getPlaylist(id);
+    return putPlaylist({ ...pl, pinnedAt: pinned ? Date.now() : null });
+  },
+
+  async setFolderPinned(id, pinned) {
+    const db = await getDb();
+    const folder = (await db.get('folders', id)) ?? notFound('Folder');
+    const updated = { ...folder, pinnedAt: pinned ? Date.now() : null, updatedAt: Date.now() };
+    await db.put('folders', updated);
+    return updated;
+  },
+
+  async orderPlaylists(folderId, ids) {
+    const db = await getDb();
+    const tx = db.transaction('playlists', 'readwrite');
+    const result = reorderPlaylists(await tx.store.getAll(), folderId, ids, Date.now());
+    for (const pl of result.changed) await tx.store.put(pl);
+    await tx.done;
+    return result.playlists;
   },
 
   async setPlaylistCover(id, jpeg) {
@@ -198,6 +245,7 @@ export const deviceHome: LibraryHome & {
 
   async createPlaylist(name, trackIds) {
     const now = Date.now();
+    const db = await getDb();
     const pl: Playlist = {
       id: newLocalId(),
       name,
@@ -205,8 +253,9 @@ export const deviceHome: LibraryHome & {
       trackIds: [...new Set(trackIds)],
       createdAt: now,
       updatedAt: now,
+      position: nextPlaylistPosition(await db.getAll('playlists'), null),
     };
-    await (await getDb()).put('playlists', pl);
+    await db.put('playlists', pl);
     return pl;
   },
 

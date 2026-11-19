@@ -24,6 +24,15 @@ describe('sortFolders', () => {
     expect(ids(out)).toEqual(['n', 'u', 'p1b', 'p1', 'p2']);
   });
 
+  it('puts pinned folders first, most recently pinned on top', () => {
+    const out = sortFolders([
+      folder('a', 'A'),
+      { ...folder('p1', 'Z', 5), pinnedAt: 5 },
+      { ...folder('p2', 'Y'), pinnedAt: 9 },
+    ]);
+    expect(ids(out)).toEqual(['p2', 'p1', 'a']);
+  });
+
   it('does not mutate the input', () => {
     const input = [folder('b', 'B', 1), folder('a', 'A', 0)];
     sortFolders(input);

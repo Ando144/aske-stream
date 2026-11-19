@@ -8,6 +8,11 @@ import { newId } from '../lib/ids';
 
 const FolderBody = z.object({ name: z.string().trim().min(1).max(LIMITS.nameMax) });
 
+export const FolderPatchBody = z
+  .object({ name: FolderBody.shape.name, pinned: z.boolean() })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+
 export const FolderOrderBody = z.object({ ids: z.array(z.string().regex(ID_PATTERN)).max(1000) });
 
 async function saveFolderOrder(db: D1Database, ids: string[]): Promise<Folder[]> {
@@ -49,12 +54,17 @@ export const folderRoutes = new Hono<AppEnv>()
 
   .patch('/:id', async (c) => {
     const id = assertId(c.req.param('id'), 'Folder');
-    const { name } = await readJson(c, FolderBody);
+    const { name, pinned } = await readJson(c, FolderPatchBody);
     const db = c.env.DB;
+    const now = Date.now();
     const [res, row] = await db.batch([
       db
-        .prepare('UPDATE folders SET name = ?, updated_at = ? WHERE id = ?')
-        .bind(name, Date.now(), id),
+        .prepare(
+          `UPDATE folders SET name = COALESCE(?1, name),
+             pinned_at = CASE WHEN ?2 IS NULL THEN pinned_at WHEN ?2 = 1 THEN ?3 ELSE NULL END,
+             updated_at = ?3 WHERE id = ?4`,
+        )
+        .bind(name ?? null, pinned === undefined ? null : Number(pinned), now, id),
       db.prepare('SELECT * FROM folders WHERE id = ?').bind(id),
       bumpVersion(db),
     ]);

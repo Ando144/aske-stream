@@ -4,8 +4,8 @@ import { newId } from '../src/lib/ids';
 import { ID_PATTERN } from '../src/lib/http';
 import { playlistCoverKey, toFolder, toPlaylist } from '../src/lib/db';
 import { isJpeg } from '../src/lib/image';
-import { FolderOrderBody } from '../src/routes/folders';
-import { PatchPlaylist } from '../src/routes/playlists';
+import { FolderOrderBody, FolderPatchBody } from '../src/routes/folders';
+import { PatchPlaylist, PlaylistOrderBody } from '../src/routes/playlists';
 import { mapStation } from '../src/lib/radioBrowser';
 import { resolveRange } from '../src/routes/media';
 
@@ -15,7 +15,14 @@ describe('folders and covers', () => {
   it('maps a folder row', () => {
     expect(
       toFolder({ id: 'f1', name: 'Gym', created_at: 1, updated_at: 2, position: null }),
-    ).toEqual({ id: 'f1', name: 'Gym', createdAt: 1, updatedAt: 2, position: null });
+    ).toEqual({
+      id: 'f1',
+      name: 'Gym',
+      createdAt: 1,
+      updatedAt: 2,
+      position: null,
+      pinnedAt: null,
+    });
     expect(
       toFolder({ id: 'f1', name: 'Gym', created_at: 1, updated_at: 2, position: 3 }).position,
     ).toBe(3);
@@ -41,6 +48,36 @@ describe('folders and covers', () => {
       coverAt: 9,
       trackIds: ['t'],
     });
+  });
+
+  it('maps position and pinned_at for playlists and folders', () => {
+    const row = { id: 'p', name: 'A', description: '', created_at: 1, updated_at: 2 };
+    expect(toPlaylist({ ...row, folder_id: null, cover_at: null }, [])).toMatchObject({
+      position: null,
+      pinnedAt: null,
+    });
+    expect(
+      toPlaylist({ ...row, folder_id: null, cover_at: null, position: 4, pinned_at: 7 }, []),
+    ).toMatchObject({ position: 4, pinnedAt: 7 });
+    const folder = { id: 'f', name: 'G', created_at: 1, updated_at: 2, position: null };
+    expect(toFolder(folder).pinnedAt).toBeNull();
+    expect(toFolder({ ...folder, pinned_at: 5 }).pinnedAt).toBe(5);
+  });
+
+  it('validates the playlist order and pin bodies', () => {
+    expect(PlaylistOrderBody.safeParse({ folderId: null, ids: ['abcdefgh'] }).success).toBe(true);
+    expect(PlaylistOrderBody.safeParse({ folderId: 'abcdefgh', ids: [] }).success).toBe(true);
+    expect(PlaylistOrderBody.safeParse({ ids: [] }).success).toBe(false);
+    expect(PlaylistOrderBody.safeParse({ folderId: null, ids: ['bad id!!!!'] }).success).toBe(
+      false,
+    );
+    expect(
+      PlaylistOrderBody.safeParse({ folderId: null, ids: Array(1001).fill('abcdefgh') }).success,
+    ).toBe(false);
+    expect(PatchPlaylist.safeParse({ pinned: true }).success).toBe(true);
+    expect(PatchPlaylist.safeParse({ pinned: 'yes' }).success).toBe(false);
+    expect(FolderPatchBody.safeParse({ pinned: false }).success).toBe(true);
+    expect(FolderPatchBody.safeParse({}).success).toBe(false);
   });
 
   it('derives the playlist cover key from the id', () => {
