@@ -1,6 +1,6 @@
 {
   "name": "@aske/shared",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "type": "module",
   "description": "Types and constants shared by the API, the web app and the ingest CLI.",
