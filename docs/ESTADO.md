@@ -7,12 +7,12 @@ Actualizado: 2026-11-19
 - **F1-F5.2:** biblioteca en dispositivo, Cloudflare o Drive; Android; YouTube; ayuda eu/es/en; copia entre almacenamientos.
 - **F5.3 (v0.5.3) y F5.4 (v0.5.4, push y tag hechos; el CI construye el APK):** carpetas de un nivel (solo playlists), portada propia, juntar desde «…», «Quitar temporizador», sin scroll horizontal, carpetas ordenables arrastrando (`Folder.position`, migración 0005).
 - **5.4 en producción:** migración 0005 y deploy hechos (primero `db:migrate:remote`, luego `deploy`; al revés da 500).
-- **F5.5 (en curso, sin publicar):** playlists ordenables arrastrando y fijar playlists/carpetas arriba (`Playlist.position`, `pinnedAt`, migración 0006: `db:migrate:remote` antes de `deploy`), cabecera de Playlists con iconos y menos gasto de batería.
+- **F5.5 (v0.5.5, publicada: migración 0006 y deploy hechos, push y tag hechos; el CI construye el APK):** playlists ordenables arrastrando y fijar playlists/carpetas arriba (`Playlist.position`, `pinnedAt`, migración 0006: `db:migrate:remote` antes de `deploy`), cabecera de Playlists con iconos y menos gasto de batería.
 - **Privacidad:** `docs/PRIVACY.md` (es/en) enlazada desde Google Cloud.
 
 ## En curso / siguiente
 
-- **Pendiente de Andoni:** probar arrastre de carpetas y ancho en es/en/eu (umbral 520 px sin medir); repetir pruebas de 5.3 con Drive y Cloudflare; Google Cloud → **Publicar aplicación** (sigue en Testing); botones de Google en euskera; probar con un amigo.
+- **Pendiente de Andoni:** medir la batería con v0.5.5 en el Pixel (Ajustes → Batería) y probar ordenar/fijar playlists; probar arrastre de carpetas y ancho en es/en/eu (umbral 520 px sin medir); repetir pruebas de 5.3 con Drive y Cloudflare; Google Cloud → **Publicar aplicación** (sigue en Testing); botones de Google en euskera; probar con un amigo.
 - **F6** Asistente Cloudflare y QR (con actualización guiada del Worker). **F7** Playlists compartidas y Jams. **F8** Estadísticas y Recap; **8b** grupos. **F9** Modo estudio.
 
 ## Decisiones tomadas (y por qué)
