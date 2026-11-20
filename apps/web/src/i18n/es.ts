@@ -3,6 +3,7 @@ import { cloudflareSetupEs } from './cloudflareSetup';
 import { pairingEs } from './pairing';
 import { shareEs } from './share';
 import { jamEs } from './jam';
+import { statsEs } from './stats';
 
 export const es: Messages = {
   'app.name': 'Aske Stream',
@@ -681,5 +682,6 @@ export const es: Messages = {
   ...pairingEs,
   ...shareEs,
   ...jamEs,
+  ...statsEs,
   ...cloudflareSetupEs,
 };

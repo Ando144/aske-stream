@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Folder, Playlist, Station } from '@aske/shared';
 import type { LocalTrack, LibrarySnapshot } from '../storage/types';
+import type { PlayRecord } from '../stats/recap';
 import type { OfflineEntry } from './planner';
 
 export interface CachedLibrary {
@@ -20,12 +21,14 @@ interface AskeDB extends DBSchema {
   playlists: { key: string; value: Playlist };
   stations: { key: string; value: Station };
   folders: { key: string; value: Folder };
+  /** Local listening history (opt-in) for the Recap. */
+  plays: { key: string; value: PlayRecord; indexes: { 'by-startedAt': number } };
 }
 
 let dbPromise: Promise<IDBPDatabase<AskeDB>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<AskeDB>> {
-  dbPromise ??= openDB<AskeDB>('aske', 3, {
+  dbPromise ??= openDB<AskeDB>('aske', 4, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('kv');
@@ -39,6 +42,9 @@ export function getDb(): Promise<IDBPDatabase<AskeDB>> {
       }
       if (oldVersion < 3) {
         db.createObjectStore('folders', { keyPath: 'id' });
+      }
+      if (oldVersion < 4) {
+        db.createObjectStore('plays', { keyPath: 'id' }).createIndex('by-startedAt', 'startedAt');
       }
     },
   });

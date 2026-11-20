@@ -2,6 +2,7 @@ import type { HelpArticle, HelpSection } from './articles/types';
 import { startArticles } from './articles/start';
 import { musicArticles } from './articles/music';
 import { listenArticles } from './articles/listen';
+import { statsArticles } from './articles/stats';
 import { offlineArticles } from './articles/offline';
 import { driveArticles } from './articles/drive';
 import { cloudflareArticles } from './articles/cloudflare';
@@ -62,6 +63,7 @@ export const ARTICLES: HelpArticle[] = [
   ...startArticles,
   ...musicArticles,
   ...listenArticles,
+  ...statsArticles,
   ...offlineArticles,
   ...driveArticles,
   ...cloudflareArticles,

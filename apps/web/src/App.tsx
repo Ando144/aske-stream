@@ -21,6 +21,7 @@ import { useSetup } from './stores/setup';
 import { LibraryView } from './views/LibraryView';
 import { OfflineView } from './views/OfflineView';
 import { PairView } from './views/PairView';
+import { RecapView } from './views/RecapView';
 import { SetupView } from './views/SetupView';
 import { FolderView } from './views/FolderView';
 import { PlaylistsView } from './views/PlaylistsView';
@@ -214,6 +215,7 @@ function Shell() {
             {(params) => <SharedListView key={params.id} id={params.id} />}
           </Route>
           <Route path="/jam">{() => <JamView />}</Route>
+          <Route path="/recap" component={RecapView} />
           <Route path="/podcasts" component={PodcastsView} />
           <Route path="/radio" component={RadioView} />
           <Route path="/download" component={DownloadView} />

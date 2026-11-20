@@ -3,6 +3,7 @@ import { cloudflareSetupEu } from './cloudflareSetup';
 import { pairingEu } from './pairing';
 import { shareEu } from './share';
 import { jamEu } from './jam';
+import { statsEu } from './stats';
 
 export const eu: Messages = {
   'app.name': 'Aske Stream',
@@ -679,5 +680,6 @@ export const eu: Messages = {
   ...pairingEu,
   ...shareEu,
   ...jamEu,
+  ...statsEu,
   ...cloudflareSetupEu,
 };

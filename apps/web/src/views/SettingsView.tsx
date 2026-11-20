@@ -27,6 +27,7 @@ import { LinkDevicePanel } from '../components/LinkDevicePanel';
 import { AppUpdatePanel } from '../components/AppUpdatePanel';
 import { ServerUpdatePanel } from '../components/ServerUpdatePanel';
 import { StoragePanel } from '../components/StoragePanel';
+import { StatsSettingsPanel } from '../components/stats/StatsSettingsPanel';
 import { AUTHOR, REPO_URL } from '../config';
 import { isNative } from '../native/platform';
 
@@ -166,6 +167,9 @@ export function SettingsView() {
           </span>
         </div>
       </div>
+
+      <h2 className="section-title">{t('stats.settings.section')}</h2>
+      <StatsSettingsPanel />
 
       <h2 className="section-title">{t('storage.title')}</h2>
       <StoragePanel />
