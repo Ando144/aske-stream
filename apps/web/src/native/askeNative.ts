@@ -11,7 +11,7 @@ export interface AskeNativePlugin {
   }>;
   /** Free / total internal storage of the phone. */
   storageInfo(): Promise<{ freeBytes: number; totalBytes: number }>;
-  batteryStatus(): Promise<{ unrestricted: boolean }>;
+  batteryStatus(): Promise<{ unrestricted: boolean; powerSave?: boolean; charging?: boolean }>;
   requestBatteryExemption(): Promise<void>;
   /** Keeps CPU and Wi-Fi awake while music plays with the screen off. */
   keepAwake(options: { playing: boolean; streaming?: boolean }): Promise<void>;

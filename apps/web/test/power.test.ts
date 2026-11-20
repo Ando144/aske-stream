@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isStreamingSource, mayDoBackgroundWork } from '../src/lib/power';
+import { isStreamingSource, mayDoBackgroundWork, mayRotateOffline } from '../src/lib/power';
 
 describe('isStreamingSource', () => {
   it('is false for local sources', () => {
@@ -25,5 +25,42 @@ describe('mayDoBackgroundWork', () => {
 
   it('blocks work when hidden and paused', () => {
     expect(mayDoBackgroundWork({ hidden: true, playing: false })).toBe(false);
+  });
+});
+
+describe('mayRotateOffline', () => {
+  const hiddenPlaying = { hidden: true, playing: true };
+
+  it('always allows it with the app visible', () => {
+    expect(mayRotateOffline({ hidden: false, playing: false, power: {} })).toBe(true);
+  });
+
+  it('blocks it hidden and paused, even when charging', () => {
+    const power = { charging: true };
+    expect(mayRotateOffline({ hidden: true, playing: false, power })).toBe(false);
+  });
+
+  it('allows it hidden while charging', () => {
+    expect(mayRotateOffline({ ...hiddenPlaying, power: { charging: true } })).toBe(true);
+  });
+
+  it('allows it hidden on Wi-Fi with battery saver off', () => {
+    const power = { charging: false, wifi: true, powerSave: false };
+    expect(mayRotateOffline({ ...hiddenPlaying, power })).toBe(true);
+  });
+
+  it('blocks it hidden on Wi-Fi with battery saver on', () => {
+    const power = { charging: false, wifi: true, powerSave: true };
+    expect(mayRotateOffline({ ...hiddenPlaying, power })).toBe(false);
+  });
+
+  it('blocks it hidden on mobile data', () => {
+    const power = { charging: false, wifi: false, powerSave: false };
+    expect(mayRotateOffline({ ...hiddenPlaying, power })).toBe(false);
+  });
+
+  it('blocks it hidden when the data is unknown', () => {
+    expect(mayRotateOffline({ ...hiddenPlaying, power: {} })).toBe(false);
+    expect(mayRotateOffline({ ...hiddenPlaying, power: { wifi: true } })).toBe(false);
   });
 });

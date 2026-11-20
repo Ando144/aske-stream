@@ -89,7 +89,16 @@ public class AskeNativePlugin extends Plugin {
         PowerManager pm = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
         JSObject ret = new JSObject();
         ret.put("unrestricted", pm.isIgnoringBatteryOptimizations(getContext().getPackageName()));
+        ret.put("powerSave", pm.isPowerSaveMode());
+        ret.put("charging", isCharging());
         call.resolve(ret);
+    }
+
+    /** True while the phone is plugged in (read from the sticky battery broadcast, no permission). */
+    private boolean isCharging() {
+        Intent battery = getContext().registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if (battery == null) return false;
+        return battery.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
     }
 
     /** Shows Android's own "Let the app always run in the background?" question. */

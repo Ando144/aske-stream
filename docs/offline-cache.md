@@ -55,7 +55,9 @@ Guarantees, each covered by a unit test:
 
 On app start, when the connection comes back, when you return to the app (at most once a minute),
 every 30 minutes while open, after a song starts, and when you change a setting or press
-**Sync now**. Downloads are sequential and stop as soon as the connection drops.
+**Sync now**. Downloads are sequential and stop as soon as the connection drops. With the app in
+the background (music playing), the periodic run only happens while the phone is charging, or on
+Wi-Fi with battery saver off; without reliable data it does not run.
 
 > A PWA cannot download while closed: browsers give web apps no reliable background
 > execution. A native Android client (Kotlin + WorkManager) could do it on top of the same API —

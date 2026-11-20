@@ -23,13 +23,13 @@ apps/mobile/
 Playback stays in the WebView's `<audio>` element, so the queue, offline cache,
 device files, podcasts and radio share one code path with the web app.
 
-| Problem on Android                                       | Solution                                                                                     |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| WebViews have no system media notification               | `@capgo/capacitor-media-session`: native media session + notification + lock-screen controls |
-| The OS may kill a background app                         | That plugin runs a `mediaPlayback` foreground service while something is playing or paused   |
-| Streaming can stall with the screen off                  | `AskeNative.keepAwake` holds a partial wake lock + Wi-Fi lock only while playing             |
-| `http://` radio streams are blocked inside an https page | `allowMixedContent` + `usesCleartextTraffic` (only audio streams are http)                   |
-| Back button would close the app and stop the music       | Back closes what is open, goes back, and on the home screen moves the app to the background  |
+| Problem on Android                                       | Solution                                                                                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| WebViews have no system media notification               | `@capgo/capacitor-media-session`: native media session + notification + lock-screen controls                              |
+| The OS may kill a background app                         | That plugin runs a `mediaPlayback` foreground service while something is playing or paused                                |
+| Streaming can stall with the screen off                  | `AskeNative.keepAwake` holds a partial wake lock + Wi-Fi lock only while playing (renewed every 10 min, expires after 30) |
+| `http://` radio streams are blocked inside an https page | `allowMixedContent` + `usesCleartextTraffic` (only audio streams are http)                                                |
+| Back button would close the app and stop the music       | Back closes what is open, goes back, and on the home screen moves the app to the background                               |
 
 `apps/web/src/native/mediaControls.ts` hides the difference: the browser uses
 the standard Media Session API, the app uses the native plugin.

@@ -23,7 +23,7 @@ import { toast } from './ui';
 import { AskeNative } from '../native/askeNative';
 import { mediaControls } from '../native/mediaControls';
 import { isNative } from '../native/platform';
-import { isStreamingSource, mayDoBackgroundWork } from '../lib/power';
+import { isStreamingSource, mayRotateOfflineNow } from '../lib/power';
 
 /**
  * Playback engine + state.
@@ -109,16 +109,14 @@ const audio = new Audio();
 
 const RUN_MIN_GAP_MS = 10 * 60 * 1000;
 let lastScheduledRun = 0;
-/** Offline rotation after loading a song, at most every 10 min and never in the background. */
+/** Offline rotation after loading a song, at most every 10 min; in the background only if cheap. */
 function scheduleRunThrottled() {
   const now = Date.now();
-  const allowed = mayDoBackgroundWork({
-    hidden: document.visibilityState === 'hidden',
-    playing: usePlayer.getState().isPlaying,
-  });
-  if (!allowed || now - lastScheduledRun < RUN_MIN_GAP_MS) return;
+  if (now - lastScheduledRun < RUN_MIN_GAP_MS) return;
   lastScheduledRun = now;
-  useOffline.getState().scheduleRun(5000);
+  void mayRotateOfflineNow(usePlayer.getState().isPlaying).then((ok) => {
+    if (ok) useOffline.getState().scheduleRun(5000);
+  });
 }
 audio.preload = 'auto';
 let hls: Hls | null = null;
@@ -669,7 +667,9 @@ useLibrary.subscribe((state, prev) => {
 
 window.addEventListener('pagehide', () => engine.persist());
 setInterval(() => {
-  if (!audio.paused) engine.persist();
+  if (audio.paused) return;
+  engine.persist();
+  renewAwake();
 }, 15_000);
 
 /* ---------- Media Session (lock screen & notification controls) ---------- */
@@ -696,7 +696,17 @@ function keepAwake(playing: boolean) {
   if (awake && streaming === awakeStreaming) return;
   awake = true;
   awakeStreaming = streaming;
+  lastAwakeCall = Date.now();
   void AskeNative.keepAwake({ playing: true, streaming }).catch(() => undefined);
+}
+
+/** The native wake lock expires after 30 min, so renew it every 10 min while music plays. */
+const AWAKE_RENEW_MS = 10 * 60 * 1000;
+let lastAwakeCall = 0;
+function renewAwake() {
+  if (!isNative || !awake || Date.now() - lastAwakeCall < AWAKE_RENEW_MS) return;
+  lastAwakeCall = Date.now();
+  void AskeNative.keepAwake({ playing: true, streaming: awakeStreaming }).catch(() => undefined);
 }
 
 let lastPositionState = 0;

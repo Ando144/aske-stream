@@ -1,6 +1,7 @@
 import type { JamClientMessage, JamServerMessage } from '@aske/shared/hub';
 
-export type JamSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'closed';
+export type JamSocketStatus =
+  'connecting' | 'open' | 'reconnecting' | 'replaced' | 'gaveUp' | 'closed';
 
 /** The small part of WebSocket we use, so tests can fake it. */
 export interface SocketLike {
@@ -25,6 +26,8 @@ const OPEN = 1;
 const MAX_PENDING = 20;
 const MIN_DELAY_MS = 1000;
 const MAX_DELAY_MS = 30_000;
+/** Stop retrying after this long without a connection; the user can reconnect by hand. */
+export const MAX_RETRY_WINDOW_MS = 5 * 60 * 1000;
 
 export class JamSocket {
   onMessage: (msg: JamServerMessage) => void = () => undefined;
@@ -35,6 +38,7 @@ export class JamSocket {
   private hello: JamClientMessage | null = null;
   private pending: JamClientMessage[] = [];
   private attempts = 0;
+  private firstFailureAt: number | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private stopped = true;
 
@@ -46,6 +50,7 @@ export class JamSocket {
     this.hello = hello;
     this.stopped = false;
     this.attempts = 0;
+    this.firstFailureAt = null;
     this.onStatus('connecting');
     this.open();
   }
@@ -86,6 +91,7 @@ export class JamSocket {
 
   private handleOpen(socket: SocketLike): void {
     this.attempts = 0;
+    this.firstFailureAt = null;
     if (this.hello) socket.send(JSON.stringify(this.hello));
     const queued = this.pending;
     this.pending = [];
@@ -115,6 +121,13 @@ export class JamSocket {
     if (this.stopped || code === JAM_CLOSE_FINAL || code === JAM_CLOSE_FULL) {
       this.stopped = true;
       this.onStatus('closed');
+      return;
+    }
+    this.firstFailureAt ??= Date.now();
+    if (Date.now() - this.firstFailureAt >= MAX_RETRY_WINDOW_MS) {
+      this.stopped = true;
+      this.pending = [];
+      this.onStatus('gaveUp');
       return;
     }
     const delay = Math.min(MIN_DELAY_MS * 2 ** this.attempts, MAX_DELAY_MS);

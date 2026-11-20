@@ -42,7 +42,7 @@ import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
 import { DriveReconnect } from './components/DriveReconnect';
 import { useUi } from './stores/ui';
-import { mayDoBackgroundWork } from './lib/power';
+import { mayDoBackgroundWork, mayRotateOfflineNow } from './lib/power';
 
 const PENDING_LINK_KEY = 'pending-hub-link';
 
@@ -147,7 +147,9 @@ function useBackgroundSync() {
         playing: usePlayer.getState().isPlaying,
       });
     const interval = setInterval(() => {
-      if (mayRun()) useOffline.getState().scheduleRun(0);
+      void mayRotateOfflineNow(usePlayer.getState().isPlaying).then((ok) => {
+        if (ok) useOffline.getState().scheduleRun(0);
+      });
     }, SYNC_INTERVAL_MS);
     const inbox = setInterval(
       () => {

@@ -83,6 +83,44 @@ describe('JamSocket', () => {
     expect(statuses.at(-1)).toBe('replaced');
   });
 
+  it('gives up after 5 minutes without connecting and reports gaveUp', () => {
+    const statuses: string[] = [];
+    js.onStatus = (s) => statuses.push(s);
+    js.connect('wss://x', hello);
+    for (let i = 0; i < 100 && statuses.at(-1) !== 'gaveUp'; i++) {
+      sockets.at(-1)!.drop(1006);
+      vi.advanceTimersByTime(30_000);
+    }
+    expect(statuses.at(-1)).toBe('gaveUp');
+    const count = sockets.length;
+    vi.advanceTimersByTime(10 * 60_000);
+    expect(sockets).toHaveLength(count);
+    expect(count).toBeLessThan(20);
+  });
+
+  it('restarts the retry window after a successful connection', () => {
+    const statuses: string[] = [];
+    js.onStatus = (s) => statuses.push(s);
+    js.connect('wss://x', hello);
+    sockets[0]!.drop(1006);
+    vi.advanceTimersByTime(4 * 60_000);
+    sockets.at(-1)!.open();
+    vi.advanceTimersByTime(4 * 60_000);
+    sockets.at(-1)!.drop(1006);
+    expect(statuses.at(-1)).toBe('reconnecting');
+  });
+
+  it('can connect again by hand after giving up', () => {
+    js.connect('wss://x', hello);
+    for (let i = 0; i < 30; i++) {
+      sockets.at(-1)!.drop(1006);
+      vi.advanceTimersByTime(30_000);
+    }
+    const count = sockets.length;
+    js.connect('wss://x', hello);
+    expect(sockets).toHaveLength(count + 1);
+  });
+
   it('does not reconnect with code 1013 (jam full)', () => {
     js.connect('wss://x', hello);
     sockets[0]!.open();

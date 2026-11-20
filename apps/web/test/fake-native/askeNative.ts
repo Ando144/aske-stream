@@ -9,7 +9,7 @@ export const AskeNative: AskeNativePlugin = {
     androidVersion: '16',
   }),
   keepAwake: async () => undefined,
-  batteryStatus: async () => ({ unrestricted: false }),
+  batteryStatus: async () => ({ unrestricted: false, powerSave: false, charging: false }),
   requestBatteryExemption: async () => undefined,
   storageInfo: async () => ({ freeBytes: 21_474_836_480, totalBytes: 128_849_018_880 }),
   downloadUpdate: async () => ({ path: '/fake.apk', bytes: 1 }),

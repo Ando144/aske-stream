@@ -25,6 +25,9 @@ export const jamEn = {
   'jam.reconnecting': 'Connection lost. Trying to reconnect…',
   'jam.replaced.text': 'This Jam is open in another tab or window. It can only be active in one.',
   'jam.replaced.useHere': 'Use it here',
+  'jam.lost.text':
+    'We could not reconnect to the Jam. Check your internet connection and try again.',
+  'jam.lost.retry': 'Reconnect',
   'jam.room.code': 'Code',
   'jam.room.qrLabel': 'QR code to join the Jam',
   'jam.room.members': '{count} connected',
@@ -104,6 +107,9 @@ export const jamEs: Record<keyof typeof jamEn, string> = {
   'jam.replaced.text':
     'Esta Jam está abierta en otra pestaña o ventana. Solo puede estar activa en una.',
   'jam.replaced.useHere': 'Usar aquí',
+  'jam.lost.text':
+    'No hemos podido volver a conectar con la Jam. Comprueba tu conexión a internet e inténtalo de nuevo.',
+  'jam.lost.retry': 'Volver a conectar',
   'jam.room.code': 'Código',
   'jam.room.qrLabel': 'Código QR para unirse a la Jam',
   'jam.room.members': '{count} conectados',
@@ -183,6 +189,9 @@ export const jamEu: Record<keyof typeof jamEn, string> = {
   'jam.replaced.text':
     'Jam hau beste fitxa edo leiho batean irekita dago. Bakar batean bakarrik egon daiteke aktibo.',
   'jam.replaced.useHere': 'Erabili hemen',
+  'jam.lost.text':
+    'Ezin izan gara Jam-era berriro konektatu. Egiaztatu zure internet konexioa eta saiatu berriro.',
+  'jam.lost.retry': 'Berriro konektatu',
   'jam.room.code': 'Kodea',
   'jam.room.qrLabel': 'Jam-ean sartzeko QR kodea',
   'jam.room.members': '{count} konektatuta',

@@ -89,6 +89,18 @@ function ReplacedNotice() {
   );
 }
 
+function LostNotice() {
+  const t = useT();
+  return (
+    <section className="jam-card">
+      <p>{t('jam.lost.text')}</p>
+      <button className="btn primary" onClick={() => useJam.getState().takeOver()}>
+        {t('jam.lost.retry')}
+      </button>
+    </section>
+  );
+}
+
 /** Inside a Jam: code and QR, now playing, the voted queue and the actions. */
 export function JamRoom({ hasLibrary }: { hasLibrary: boolean }) {
   const t = useT();
@@ -100,6 +112,7 @@ export function JamRoom({ hasLibrary }: { hasLibrary: boolean }) {
 
   if (!session) return null;
   if (connection === 'replaced') return <ReplacedNotice />;
+  if (connection === 'lost') return <LostNotice />;
   if (!snapshot) {
     return (
       <p className="muted">
