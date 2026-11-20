@@ -1,5 +1,10 @@
 import { CapacitorHttp, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
-import type { YtInfo } from '@aske/shared/youtube';
+import type {
+  NativeJob,
+  NativePending,
+  NativeResult,
+  NotificationTemplates,
+} from '../downloads/types';
 import {
   buildBrowseRequest,
   buildSearchRequest,
@@ -22,16 +27,15 @@ export interface DownloaderPlugin {
     uploader: string;
     entries: { id: string; title: string; uploader: string; duration: number }[];
   }>;
-  download(options: { jobId: string; videoId: string }): Promise<{
-    path: string;
-    bytes: number;
-    ext: string;
-    info: YtInfo & { duration?: number; abr?: number; acodec?: string };
-  }>;
+  /** Appends jobs to the phone's own queue (dedupe by jobId) and starts the service. */
+  queue(options: { jobs: NativeJob[]; texts: NotificationTemplates }): Promise<void>;
+  /** What the phone has queued, is downloading and finished (also while the app was closed). */
+  pending(): Promise<NativePending>;
+  /** Forgets a finished job's result and deletes its folder. */
+  ack(options: { jobId: string }): Promise<void>;
   cancel(options: { jobId: string }): Promise<{ canceled: boolean }>;
   fetchImage(options: { url: string; jobId: string }): Promise<{ path: string }>;
   deleteFile(options: { path: string }): Promise<void>;
-  clearAll(): Promise<void>;
   setNotification(options: {
     active: boolean;
     title?: string;
@@ -42,6 +46,14 @@ export interface DownloaderPlugin {
   addListener(
     event: 'progress',
     listener: (p: { jobId: string; progress: number; eta: number }) => void,
+  ): Promise<PluginListenerHandle>;
+  addListener(
+    event: 'finished',
+    listener: (r: NativeResult) => void,
+  ): Promise<PluginListenerHandle>;
+  addListener(
+    event: 'network',
+    listener: (p: { waiting: boolean }) => void,
   ): Promise<PluginListenerHandle>;
 }
 

@@ -286,7 +286,8 @@ export const driveHome: LibraryHome & {
 
   async addTrack(meta, audio, cover, keep) {
     const st = await getState();
-    await serialized(() => ensureFolders(st));
+    // Folders already known: do not queue behind a pending library.json sync.
+    if (!(st.rootId && st.audioId && st.coversId)) await serialized(() => ensureFolders(st));
     const id = newLocalId();
     const ext = EXT[meta.mime] ?? 'audio';
     const base = safeName(meta.artist ? `${meta.artist} - ${meta.title}` : meta.title) || id;
@@ -480,7 +481,7 @@ export const driveHome: LibraryHome & {
     const st = await getState();
     let uploaded: string | null = null;
     if (jpeg) {
-      await serialized(() => ensureFolders(st));
+      if (!(st.rootId && st.audioId && st.coversId)) await serialized(() => ensureFolders(st));
       const file = await driveApi.upload(
         {
           name: `playlist-${id}-${Date.now()}.jpg`,

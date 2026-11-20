@@ -254,7 +254,8 @@ export const eu: Messages = {
   'dl.err.age':
     'YouTubek saioa hastea eskatzen du bideo honetarako (adin-murriztapena). Ezin da deskargatu.',
   'dl.err.blocked': 'Bideo hau blokeatuta dago zure herrialdean edo egile-eskubideengatik.',
-  'dl.err.network': 'Konexioa eten da. Saiatu berriro Internetekin.',
+  'dl.err.network':
+    'Ezin izan da deskargatu konexio faltagatik, hainbat saiakeraren ondoren ere. Sakatu «Saiatu berriro» estaldura ona duzunean.',
   'dl.err.tooBig': 'Fitxategia handiegia da (95 MB baino gehiago).',
   'dl.err.generic':
     'Zerbait gaizki atera da deskargatzean. Eguneratu deskargatzailea (behean) eta saiatu berriro.',
@@ -302,6 +303,21 @@ export const eu: Messages = {
   'dl.st.preparing': 'Deskargatzailea prestatzen… (lehen aldian luzeago)',
   'dl.notifText.one': '{title} · 1 gehiago ilaran',
   'dl.notifTextLast': '{title} · azkena',
+  'dl.st.downloaded': 'Deskargatuta · laster gordeko da zure liburutegian',
+  'dl.st.retrying': 'Konexioak huts egin du gordetzean. Berriro saiatuko da bere kabuz laster',
+  'dl.st.waitingNetwork': 'Estaldura zain',
+  'dl.waitingNetwork':
+    'Ez dago konexiorik. Deskargak geldituta daude eta bere kabuz jarraituko dute estaldura itzultzean. Ez duzu ezer egin beharrik.',
+  'dl.resumed': 'Konexioa itzuli da: deskargek aurrera jarraitzen dute',
+  'dl.closeOk':
+    'Aplikazioa itxi dezakezu: abestiek jaisten jarraituko dute. Berriro irekitzean gordeko dira zure liburutegian.',
+  'dl.savedAfterClose':
+    'Aplikazioa itxita zegoela deskargatutako {count} abesti zure liburutegian daude jada',
+  'dl.savedAfterClose.one':
+    'Aplikazioa itxita zegoela deskargatutako abesti 1 zure liburutegian dago jada',
+  'dl.notifWaiting': 'Konexiorik gabe · bere kabuz jarraituko du estaldura itzultzean',
+  'dl.notifOpenToSave': '{count} abesti deskargatuta. Ireki Aske Stream gordetzeko',
+  'dl.notifOpenToSave.one': 'Abesti 1 deskargatuta. Ireki Aske Stream gordetzeko',
   'dl.batteryText':
     'Pantaila itzalita deskargek jarraitzeko, Androidek aplikazioari atzeko planoan funtzionatzen utzi behar dio. Sakatu «Baimendu» eta onartu.',
   'dl.batteryButton': 'Baimendu',

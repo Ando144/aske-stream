@@ -46,6 +46,8 @@
 
     <!-- Stream music and talk to your Cloudflare / GitHub. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Know when the phone has no internet, so downloads wait and go on by themselves. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Keep playing with the screen off: media notification + CPU/Wi-Fi awake while playing. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />

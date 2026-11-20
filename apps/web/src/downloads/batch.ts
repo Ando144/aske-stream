@@ -1,7 +1,8 @@
 // Pure helpers for download batches and imported playlists (no stores, no Capacitor).
 
-export type BatchJobStatus =
-  'queued' | 'downloading' | 'saving' | 'done' | 'skipped' | 'error' | 'canceled';
+import type { JobStatus } from './types';
+
+export type BatchJobStatus = JobStatus;
 
 export interface BatchJob {
   status: BatchJobStatus;
@@ -15,10 +16,16 @@ export interface PlaylistImport {
 }
 
 const LEGACY_BATCH = 'legacy';
-const ACTIVE: ReadonlySet<BatchJobStatus> = new Set(['queued', 'downloading', 'saving']);
+const ACTIVE: ReadonlySet<BatchJobStatus> = new Set([
+  'queued',
+  'downloading',
+  'downloaded',
+  'saving',
+]);
 const COUNTED: ReadonlySet<BatchJobStatus> = new Set([
   'queued',
   'downloading',
+  'downloaded',
   'saving',
   'done',
   'error',

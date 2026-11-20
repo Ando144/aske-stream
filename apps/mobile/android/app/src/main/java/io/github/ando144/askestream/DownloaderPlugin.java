@@ -24,11 +24,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import kotlin.Unit;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -47,10 +46,7 @@ import org.json.JSONObject;
 public class DownloaderPlugin extends Plugin {
 
     private static final String DIR = "downloads";
-    /** One download at a time; searches and playlist reads never wait for it. */
-    private final ExecutorService downloads = Executors.newSingleThreadExecutor();
     private final ExecutorService lookups = Executors.newFixedThreadPool(2);
-    private volatile boolean ready = false;
 
     private File workDir() {
         File dir = new File(getContext().getCacheDir(), DIR);
@@ -59,13 +55,7 @@ public class DownloaderPlugin extends Plugin {
     }
 
     private void ensureReady() throws Exception {
-        if (ready) return;
-        synchronized (this) {
-            if (!ready) {
-                YoutubeDL.getInstance().init(getContext().getApplicationContext());
-                ready = true;
-            }
-        }
+        DownloadWorker.ensureReady(getContext());
     }
 
     private String engineVersion() {
@@ -91,7 +81,8 @@ public class DownloaderPlugin extends Plugin {
     /** Downloads the latest stable yt-dlp from its official GitHub releases. */
     @PluginMethod
     public void updateEngine(PluginCall call) {
-        downloads.execute(() -> {
+        // Same thread as the downloads, so an update never runs while a song downloads.
+        DownloadWorker.EXEC.execute(() -> {
             try {
                 ensureReady();
                 YoutubeDL.UpdateStatus status = YoutubeDL.getInstance()
@@ -146,91 +137,93 @@ public class DownloaderPlugin extends Plugin {
                 ret.put("entries", out);
                 call.resolve(ret);
             } catch (Exception e) {
-                call.reject(shortError(e), "list_failed", e);
+                call.reject(DownloadWorker.shortError(e), "list_failed", e);
             }
         });
     }
 
     /**
-     * Downloads the audio of one video (Opus in WebM, kept as-is) plus a
-     * summary of its metadata. Emits "progress" events.
+     * Adds songs to the phone's own queue and starts the service. The queue keeps going (and is
+     * saved to disk) when the app is closed. `texts` are the notification texts for that case.
      */
     @PluginMethod
-    public void download(PluginCall call) {
-        String jobId = call.getString("jobId");
-        String videoId = call.getString("videoId");
-        if (jobId == null || videoId == null || !videoId.matches("[\\w-]{6,20}")) {
-            call.reject("jobId and a valid videoId are required");
+    public void queue(PluginCall call) {
+        JSONArray jobs = call.getArray("jobs");
+        JSObject texts = call.getObject("texts");
+        if (jobs == null) {
+            call.reject("jobs are required");
             return;
         }
-        downloads.execute(() -> {
-            File dir = new File(workDir(), jobId.replaceAll("[^\\w-]", ""));
-            try {
-                ensureReady();
-                deleteRecursive(dir);
-                dir.mkdirs();
-                YoutubeDLRequest req = new YoutubeDLRequest("https://www.youtube.com/watch?v=" + videoId);
-                req.addOption("-f", "bestaudio[ext=webm]/bestaudio[acodec=opus]/bestaudio");
-                req.addOption("-o", dir.getAbsolutePath() + "/audio.%(ext)s");
-                req.addOption("--no-playlist");
-                req.addOption("--no-mtime");
-                req.addOption("--write-info-json");
-                req.addOption("--no-write-playlist-metafiles");
-                req.addOption("--newline");
-                YoutubeDL.getInstance().execute(req, jobId, (progress, eta, line) -> {
-                    JSObject p = new JSObject();
-                    p.put("jobId", jobId);
-                    p.put("progress", progress);
-                    p.put("eta", eta);
-                    notifyListeners("progress", p);
-                    return Unit.INSTANCE;
-                });
-
-                File audio = null;
-                File info = null;
-                File[] files = dir.listFiles();
-                if (files != null) {
-                    for (File f : files) {
-                        if (f.getName().endsWith(".info.json")) info = f;
-                        else if (f.getName().startsWith("audio.") && !f.getName().endsWith(".part")) audio = f;
-                    }
-                }
-                if (audio == null) throw new Exception("yt-dlp finished without an audio file");
-
-                JSObject ret = new JSObject();
-                ret.put("path", audio.getAbsolutePath());
-                ret.put("bytes", audio.length());
-                ret.put("ext", audio.getName().substring(audio.getName().lastIndexOf('.') + 1));
-                ret.put("info", info != null ? summary(info) : new JSObject());
-                call.resolve(ret);
-            } catch (YoutubeDL.CanceledException e) {
-                deleteRecursive(dir);
-                call.reject("Canceled", "canceled");
-            } catch (Exception e) {
-                deleteRecursive(dir);
-                call.reject(shortError(e), "download_failed", e);
+        List<DownloadQueue.Job> parsed = new ArrayList<>();
+        for (int i = 0; i < jobs.length(); i++) {
+            JSONObject j = jobs.optJSONObject(i);
+            String jobId = j == null ? "" : j.optString("jobId");
+            String videoId = j == null ? "" : j.optString("videoId");
+            if (jobId.isEmpty() || !videoId.matches("[\\w-]{6,20}")) {
+                call.reject("jobId and a valid videoId are required");
+                return;
             }
-        });
-    }
-
-    /** Only what the app needs from yt-dlp's (large) info file. */
-    private JSObject summary(File info) throws Exception {
-        JSONObject j = new JSONObject(new String(Files.readAllBytes(info.toPath()), StandardCharsets.UTF_8));
-        JSObject s = new JSObject();
-        for (String key : new String[] { "id", "title", "track", "artist", "creator", "album", "uploader", "channel", "acodec", "ext" }) {
-            if (j.has(key) && !j.isNull(key)) s.put(key, j.optString(key));
+            parsed.add(new DownloadQueue.Job(jobId, videoId, 0));
         }
-        if (j.has("artists") && j.optJSONArray("artists") != null) s.put("artists", j.optJSONArray("artists"));
-        s.put("duration", j.optDouble("duration", 0));
-        s.put("abr", j.optDouble("abr", 0));
-        return s;
+        DownloadQueue.get(getContext()).add(parsed, texts);
+        startService(null);
+        call.resolve();
     }
 
+    /** What is queued, running and finished (including what finished while the app was closed). */
+    @PluginMethod
+    public void pending(PluginCall call) {
+        DownloadService.clearDoneNotice(getContext());
+        JSObject ret = DownloadQueue.get(getContext()).snapshot();
+        ret.put("waitingNetwork", DownloadService.waitingNetwork);
+        call.resolve(ret);
+    }
+
+    /** The app has taken a finished song: forget it and delete its files. */
+    @PluginMethod
+    public void ack(PluginCall call) {
+        String jobId = call.getString("jobId", "");
+        DownloadQueue.get(getContext()).ack(jobId);
+        call.resolve();
+    }
+
+    private final DownloadService.Listener serviceListener = new DownloadService.Listener() {
+        @Override
+        public void onProgress(String jobId, float progress, long eta) {
+            JSObject p = new JSObject();
+            p.put("jobId", jobId);
+            p.put("progress", progress);
+            p.put("eta", eta);
+            notifyListeners("progress", p);
+        }
+
+        @Override
+        public void onFinished(JSObject result) {
+            notifyListeners("finished", result);
+        }
+
+        @Override
+        public void onNetwork(boolean waiting) {
+            JSObject p = new JSObject();
+            p.put("waiting", waiting);
+            notifyListeners("network", p);
+        }
+    };
+
+    @Override
+    public void load() {
+        DownloadService.listener = serviceListener;
+    }
+
+    /** Removes a song that has not started, or stops the one downloading. */
     @PluginMethod
     public void cancel(PluginCall call) {
         String jobId = call.getString("jobId", "");
+        DownloadQueue q = DownloadQueue.get(getContext());
+        boolean canceled = q.remove(jobId);
+        if (!canceled && q.isCurrent(jobId)) canceled = YoutubeDL.getInstance().destroyProcessById(jobId);
         JSObject ret = new JSObject();
-        ret.put("canceled", YoutubeDL.getInstance().destroyProcessById(jobId));
+        ret.put("canceled", canceled);
         call.resolve(ret);
     }
 
@@ -268,24 +261,25 @@ public class DownloaderPlugin extends Plugin {
                 ret.put("path", out.getAbsolutePath());
                 call.resolve(ret);
             } catch (Exception e) {
-                call.reject(shortError(e), "image_failed", e);
+                call.reject(DownloadWorker.shortError(e), "image_failed", e);
             } finally {
                 if (c != null) c.disconnect();
             }
         });
     }
 
-    /** Removes a finished job's files (only inside the downloads folder). */
+    /** Removes a finished job's files (only inside the app's download folders). */
     @PluginMethod
     public void deleteFile(PluginCall call) {
-        String path = call.getString("path", "");
-        File f = new File(path);
+        File f = new File(call.getString("path", ""));
         try {
-            String root = workDir().getCanonicalPath();
-            if (f.getCanonicalPath().startsWith(root + File.separator)) {
+            File[] roots = { workDir(), DownloadWorker.rootDir(getContext()) };
+            for (File root : roots) {
+                String rootPath = root.getCanonicalPath();
+                if (!f.getCanonicalPath().startsWith(rootPath + File.separator)) continue;
                 File parent = f.getParentFile();
-                deleteRecursive(f);
-                if (parent != null && !parent.getCanonicalPath().equals(root)) {
+                DownloadWorker.deleteRecursive(f);
+                if (parent != null && !parent.getCanonicalPath().equals(rootPath)) {
                     String[] left = parent.list();
                     if (left == null || left.length == 0) parent.delete();
                 }
@@ -296,11 +290,11 @@ public class DownloaderPlugin extends Plugin {
         }
     }
 
-    /** Clears every leftover download (e.g. after the app was closed mid-download). */
+    /** Clears the old cache folder of downloads (never the queue's own folder). */
     @PluginMethod
     public void clearAll(PluginCall call) {
-        downloads.execute(() -> {
-            deleteRecursive(workDir());
+        lookups.execute(() -> {
+            DownloadWorker.deleteRecursive(workDir());
             call.resolve();
         });
     }
@@ -322,15 +316,16 @@ public class DownloaderPlugin extends Plugin {
         });
     }
 
-    /** Shows/updates (active=true) or removes (active=false) the download notification. */
+    /** Shows/updates (active=true) or hands the notification back to the phone (active=false). */
     @PluginMethod
     public void setNotification(PluginCall call) {
         Context ctx = getContext();
         boolean active = Boolean.TRUE.equals(call.getBoolean("active", false));
-        Intent intent = new Intent(ctx, DownloadService.class);
         setRendererPriority(active);
+        DownloadService.jsKeepAlive = active;
         if (!active) {
-            ctx.stopService(intent);
+            // The service stops by itself when the phone's queue is empty.
+            DownloadService.appStateChanged();
             call.resolve();
             return;
         }
@@ -343,16 +338,24 @@ public class DownloaderPlugin extends Plugin {
             call.resolve();
             return;
         }
-        intent.putExtra("title", title);
-        intent.putExtra("text", text);
-        intent.putExtra("progress", progress);
+        startService(new Object[] { title, text, progress });
+        call.resolve();
+    }
+
+    /** Starts the foreground service; extras = {title, text, progress} when the app writes the notification. */
+    private void startService(Object[] extras) {
+        Context ctx = getContext();
+        Intent intent = new Intent(ctx, DownloadService.class);
+        if (extras != null) {
+            intent.putExtra("title", (String) extras[0]);
+            intent.putExtra("text", (String) extras[1]);
+            intent.putExtra("progress", (Integer) extras[2]);
+        }
         try {
             ContextCompat.startForegroundService(ctx, intent);
-            call.resolve();
         } catch (Exception e) {
-            // Android refuses to start it from the background: downloads go on without it.
+            // Android refuses to start it from the background; the queue is saved and runs on the next start.
             Log.w("DownloaderPlugin", "Could not start the download service: " + e);
-            call.resolve();
         }
     }
 
@@ -376,28 +379,10 @@ public class DownloaderPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
-        downloads.shutdownNow();
+        // Downloads go on without the app: only forget this (dead) listener and tell the service.
+        if (DownloadService.listener == serviceListener) DownloadService.listener = null;
+        DownloadService.jsKeepAlive = false;
+        DownloadService.appStateChanged();
         lookups.shutdownNow();
-    }
-
-    /* ---------------------------------- utils -------------------------------- */
-
-    /** yt-dlp errors are long; keep the line that says what went wrong. */
-    private static String shortError(Exception e) {
-        String msg = e.getMessage() == null ? e.toString() : e.getMessage();
-        for (String line : msg.split("\n")) {
-            if (line.startsWith("ERROR:")) return line.length() > 400 ? line.substring(0, 400) : line;
-        }
-        msg = msg.trim();
-        return msg.length() > 400 ? msg.substring(msg.length() - 400) : msg;
-    }
-
-    private static void deleteRecursive(File f) {
-        if (f == null || !f.exists()) return;
-        if (f.isDirectory()) {
-            File[] children = f.listFiles();
-            if (children != null) for (File c : children) deleteRecursive(c);
-        }
-        f.delete();
     }
 }

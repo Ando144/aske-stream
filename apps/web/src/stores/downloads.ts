@@ -1,66 +1,52 @@
 import { create } from 'zustand';
-import { Capacitor } from '@capacitor/core';
 import { LIMITS } from '@aske/shared';
-import { metadataFromYoutube, youtubePlaylistId, youtubeVideoId } from '@aske/shared/youtube';
-import { api, ApiError } from '../api/client';
+import { youtubePlaylistId, youtubeVideoId } from '@aske/shared/youtube';
+import { api } from '../api/client';
+import { batchForRetry, notificationCounts } from '../downloads/batch';
 import {
-  arrangeImportedPlaylist,
-  importsToKeep,
-  batchForRetry,
-  notificationCounts,
-  uniquePlaylistName,
-  type PlaylistImport,
-} from '../downloads/batch';
+  findInLibrary,
+  flushImportSync,
+  pruneImports,
+  rememberImport,
+  resolvePlaylist,
+  scheduleImportSync,
+  syncImport,
+} from '../downloads/imports';
+import {
+  jobsForNative,
+  nextToSave,
+  nextWakeAt,
+  reconcile,
+  saveConcurrency,
+  type HomeKind,
+} from '../downloads/pipeline';
+import { classifyFailure, planRetry } from '../downloads/retry';
+import { saveDownloaded } from '../downloads/save';
+import type {
+  DownloadJob,
+  JobStatus,
+  NativePending,
+  NativeResult,
+  NotificationTemplates,
+} from '../downloads/types';
 import { t, useI18n } from '../i18n';
-import { squareJpeg } from '../lib/cover';
 import { loadValue, savePref } from '../lib/storage';
 import { Downloader, listPlaylistOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
-import { deleteDeviceFile, saveDeviceFile } from '../storage/deviceFiles';
 import { DriveAuthRequired } from '../storage/drive/auth';
-import { driveHome } from '../storage/drive/home';
-import { deviceHome, fromRemote, newLocalId } from '../storage/homes';
-import type { LocalTrack } from '../storage/types';
-import { useLibrary } from './library';
-import { useOffline } from './offline';
 import { useSetup } from './setup';
 import { toast } from './ui';
 
 /**
  * YouTube downloads on the phone.
  *
- * Every song is a job in a queue that survives closing the app. One job at a
- * time: yt-dlp downloads the audio (Opus, kept as-is, no re-encoding), the
- * cover is cut to a square, and the song goes to where this library lives:
- * the phone itself, or the owner's Cloudflare (optionally keeping a copy on
- * the phone to listen without internet).
+ * The phone's native queue downloads the audio (Opus, kept as-is) even with the
+ * app closed. This store is the orchestrator: it hands jobs to that queue, and
+ * saves each finished file to where the library lives (this phone, Drive or
+ * Cloudflare), retrying by itself when the connection fails.
  */
 
-export type JobStatus =
-  'queued' | 'downloading' | 'saving' | 'done' | 'skipped' | 'error' | 'canceled';
-
-export interface DownloadJob {
-  id: string;
-  videoId: string;
-  title: string;
-  author: string;
-  thumbnail: string;
-  status: JobStatus;
-  /** 0–100 while downloading. */
-  progress: number;
-  error?: string;
-  /** Library playlist the song is added to when it is ready. */
-  playlistId?: string | null;
-  /** Group of songs queued together; drives the "1 of N" notification. Older jobs have none. */
-  batchId?: string;
-  /** "Send to phone" item this job comes from. */
-  sendId?: string | null;
-  /** Cloudflare library: also keep the file on this phone. */
-  keepOffline: boolean;
-  trackId?: string;
-  createdAt: number;
-  finishedAt?: number;
-}
+export type { DownloadJob, JobStatus };
 
 export interface NewDownload {
   videoId: string;
@@ -73,9 +59,12 @@ type EngineStatus = 'idle' | 'starting' | 'updating' | 'ready' | 'error';
 
 interface DownloadsState {
   jobs: DownloadJob[];
-  running: boolean;
   engine: { status: EngineStatus; version: string | null; updatedAt: number; error?: string };
   keepOffline: boolean;
+  /** true while the phone or the app is waiting for internet to come back. */
+  waitingNetwork: boolean;
+  /** jobIds being saved right now. */
+  saving: string[];
   init: () => Promise<void>;
   /** Returns how many songs were really queued (songs already in the library are skipped). */
   enqueue: (
@@ -96,19 +85,17 @@ interface DownloadsState {
   clearFinished: () => void;
   setKeepOffline: (keep: boolean) => void;
   updateEngine: (manual?: boolean) => Promise<void>;
-  run: () => Promise<void>;
+  /** Re-sends queued jobs to the phone and saves what is ready (app reopened / internet back). */
+  resume: () => Promise<void>;
 }
 
 const STORE_KEY = 'downloads-v1';
 const ENGINE_KEY = 'downloader-engine';
 const ENGINE_MAX_AGE = 7 * 24 * 3600 * 1000;
 const KEEP_FINISHED = 300;
-const IMPORTS_KEY = 'downloads-imports-v1';
 
-const normalizeName = (name: string) => name.trim().toLowerCase();
-
-const isActive = (j: DownloadJob) =>
-  j.status === 'queued' || j.status === 'downloading' || j.status === 'saving';
+const ACTIVE: ReadonlySet<JobStatus> = new Set(['queued', 'downloading', 'downloaded', 'saving']);
+const isActive = (j: DownloadJob) => ACTIVE.has(j.status);
 const isFinished = (j: DownloadJob) => !isActive(j);
 
 /** Turns yt-dlp's English errors into something the user can act on. */
@@ -137,6 +124,15 @@ export function friendlyError(raw: string): string {
   return t('dl.err.generic');
 }
 
+/** Raw text that `friendlyError` understands for a failed save. */
+function saveErrorText(err: unknown): string {
+  const code = (err as { code?: string }).code;
+  if (code === 'drive_full' || err instanceof DriveAuthRequired) {
+    return code ?? 'drive_auth';
+  }
+  return String((err as Error)?.message ?? err);
+}
+
 /** Saves at most every 400 ms, and never later than that (progress events are frequent). */
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSave: DownloadJob[] | null = null;
@@ -150,58 +146,35 @@ function persist(jobs: DownloadJob[]) {
   }, 400);
 }
 
-/** Playlists being imported: what YouTube lists, so late downloads still land in order. */
-let importsCache: PlaylistImport[] | null = null;
-function readImports(): PlaylistImport[] {
-  importsCache ??= loadValue<PlaylistImport[]>(IMPORTS_KEY, []);
-  return importsCache;
-}
-function writeImports(next: PlaylistImport[]) {
-  importsCache = next;
-  savePref(IMPORTS_KEY, next);
-}
+const notificationTemplates = (): NotificationTemplates => ({
+  progress: t('dl.notifTitle', { done: '{done}', total: '{total}' }),
+  waiting: t('dl.notifWaiting'),
+  openToSave: t('dl.notifOpenToSave', { count: '{count}' }),
+  openToSaveOne: t('dl.notifOpenToSave', { count: 1 }),
+});
 
-function mimeFor(ext: string): string {
-  if (ext === 'webm' || ext === 'weba') return 'audio/webm';
-  if (ext === 'm4a' || ext === 'mp4') return 'audio/mp4';
-  return 'audio/ogg';
-}
-
-async function readNativeFile(path: string): Promise<Blob> {
-  const res = await fetch(Capacitor.convertFileSrc(path));
-  if (!res.ok) throw new Error(`Could not read the downloaded file (${res.status})`);
-  return res.blob();
-}
-
-async function fetchCover(job: DownloadJob): Promise<{ blob: Blob | null; paths: string[] }> {
-  const paths: string[] = [];
-  for (const name of ['maxresdefault', 'hqdefault']) {
-    try {
-      const { path } = await Downloader.fetchImage({
-        url: `https://i.ytimg.com/vi/${job.videoId}/${name}.jpg`,
-        jobId: job.id,
-      });
-      paths.push(path);
-      const square = await squareJpeg(await readNativeFile(path));
-      if (square && square.size <= LIMITS.coverMaxBytes) return { blob: square, paths };
-    } catch {
-      // try the next size
-    }
-  }
-  return { blob: null, paths };
-}
-
-function findInLibrary(videoId: string): LocalTrack | undefined {
-  const { tracks } = useLibrary.getState();
-  return Object.values(tracks).find((tr) => tr.source === 'youtube' && tr.sourceRef === videoId);
-}
+const knownToNative = (p: NativePending | null): Set<string> =>
+  new Set(
+    p ? [...p.queued, ...(p.current ? [p.current] : []), ...p.results.map((r) => r.jobId)] : [],
+  );
 
 export const useDownloads = create<DownloadsState>((set, get) => {
+  let listening = false;
+  let wakeTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Set when a save failed for lack of internet: no more attempts until `resume()`. */
+  let saveBlocked = false;
+  let nativeWaiting = false;
+  let hadWork = false;
+  /** Jobs whose download finished while the app was closed. */
+  const finishedWhileClosed = new Set<string>();
+
   const update = (id: string, patch: Partial<DownloadJob>) => {
     const jobs = get().jobs.map((j) => (j.id === id ? { ...j, ...patch } : j));
     set({ jobs });
     persist(jobs);
   };
+
+  const homeKind = (): HomeKind => useSetup.getState().config?.home ?? 'device';
 
   async function ensureEngine() {
     const { engine } = get();
@@ -234,7 +207,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       await Downloader.setNotification({ active: false }).catch(() => undefined);
       return;
     }
-    const current = active.find((j) => j.status !== 'queued') ?? active[0]!;
+    const current =
+      active.find((j) => j.status === 'downloading' || j.status === 'saving') ?? active[0]!;
     const counts = notificationCounts(jobs) ?? { position: 1, total: active.length };
     const left = active.length - 1;
     await Downloader.setNotification({
@@ -246,75 +220,6 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           : t('dl.notifTextLast', { title: current.title }),
       progress: Math.round(current.progress),
     }).catch(() => undefined);
-  }
-
-  /** Makes the playlist hold every imported song that is in the library, in YouTube order. */
-  async function syncImport(playlistId: string) {
-    const lib = useLibrary.getState();
-    const playlist = lib.playlists.find((p) => p.id === playlistId);
-    const entry = readImports().find((i) => i.playlistId === playlistId);
-    if (!entry) return;
-    if (!playlist) {
-      writeImports(readImports().filter((i) => i.playlistId !== playlistId));
-      return;
-    }
-    const trackIdOf = (videoId: string) => findInLibrary(videoId)?.id;
-    const wanted = arrangeImportedPlaylist(
-      entry.videoIds,
-      playlist.trackIds,
-      trackIdOf,
-      LIMITS.playlistMaxTracks,
-    );
-    const have = new Set(playlist.trackIds);
-    const missing = wanted.filter((id) => !have.has(id));
-    if (missing.length) await lib.addToPlaylist(playlistId, missing, true);
-    const after = useLibrary.getState().playlists.find((p) => p.id === playlistId);
-    const same =
-      after &&
-      after.trackIds.length === wanted.length &&
-      after.trackIds.every((id, i) => id === wanted[i]);
-    if (!same) await useLibrary.getState().reorderPlaylist(playlistId, wanted);
-  }
-
-  /** A song just became available (or was skipped): update every import that lists it. */
-  async function syncImportsFor(videoId: string) {
-    for (const entry of readImports().filter((i) => i.videoIds.includes(videoId))) {
-      await syncImport(entry.playlistId);
-    }
-    pruneImports();
-  }
-
-  /** Forget imports whose songs are all finished: nothing left to add to the playlist. */
-  function pruneImports() {
-    const current = readImports();
-    const kept = importsToKeep(current, get().jobs);
-    if (kept.length !== current.length) writeImports(kept);
-  }
-
-  /** Playlist that receives an import; creates it, or "Name (n)" when asked for a new one. */
-  async function resolvePlaylist(rawName: string, mode: 'merge' | 'new'): Promise<string | null> {
-    const lib = useLibrary.getState();
-    let name = rawName.slice(0, LIMITS.nameMax);
-    const same = lib.playlists.find((p) => normalizeName(p.name) === normalizeName(name));
-    if (same && mode === 'merge') return same.id;
-    if (same) {
-      name = uniquePlaylistName(
-        name,
-        lib.playlists.map((p) => p.name),
-        LIMITS.nameMax,
-      );
-    }
-    return (await lib.createPlaylist(name))?.id ?? null;
-  }
-
-  function rememberImport(playlistId: string, items: NewDownload[]) {
-    const ids = items.map((i) => i.videoId);
-    const previous = readImports().find((i) => i.playlistId === playlistId);
-    const videoIds = previous ? [...new Set([...ids, ...previous.videoIds])] : ids;
-    writeImports([
-      ...readImports().filter((i) => i.playlistId !== playlistId),
-      { playlistId, videoIds },
-    ]);
   }
 
   /** Jobs for new songs: queued, or already skipped when the library has them. */
@@ -351,153 +256,210 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     return fresh;
   }
 
-  async function process(job: DownloadJob) {
-    const existing = findInLibrary(job.videoId);
-    if (existing) {
-      update(job.id, { status: 'skipped', trackId: existing.id, finishedAt: Date.now() });
-      await syncImportsFor(job.videoId);
+  /** Hands the queued jobs the phone does not know yet to its own queue. */
+  async function sendToNative() {
+    const pending = await Downloader.pending().catch(() => null);
+    const jobs = jobsForNative(get().jobs, knownToNative(pending));
+    if (!jobs.length) return;
+    try {
+      await ensureEngine();
+    } catch (err) {
+      // The phone reports `init_failed` per job; the engine panel shows the detail.
+      set({ engine: { ...get().engine, status: 'error', error: String((err as Error).message) } });
+    }
+    try {
+      await Downloader.queue({ jobs, texts: notificationTemplates() });
+    } catch (err) {
+      toast(friendlyError(String((err as Error).message ?? err)), 'error');
+    }
+  }
+
+  /** What the phone reports for a job: the audio is ready, or it failed for good. */
+  function applyResult(result: NativeResult) {
+    const job = get().jobs.find((j) => j.id === result.jobId);
+    if (!job || (job.status !== 'queued' && job.status !== 'downloading')) {
+      void Downloader.ack({ jobId: result.jobId }).catch(() => undefined);
       return;
     }
-
-    await ensureEngine();
-    update(job.id, { status: 'downloading', progress: 0, error: undefined });
-    void notify();
-    const result = await Downloader.download({ jobId: job.id, videoId: job.videoId });
-    update(job.id, { status: 'saving', progress: 100 });
-    const cleanup = [result.path];
-    try {
-      const meta = metadataFromYoutube({ ...result.info, id: job.videoId });
-      const durationMs = Math.round((result.info.duration ?? 0) * 1000);
-      if (durationMs <= 0) throw new Error('Unknown duration');
-      const mime = mimeFor(result.ext);
-      const audio = new File([await readNativeFile(result.path)], `${job.videoId}.${result.ext}`, {
-        type: mime,
+    if (result.ok && result.path && result.info) {
+      update(job.id, {
+        status: 'downloaded',
+        progress: 100,
+        error: undefined,
+        file: {
+          path: result.path,
+          bytes: result.bytes ?? 0,
+          ext: result.ext ?? 'webm',
+          info: result.info,
+        },
+        timings: { ...job.timings, downloadMs: result.elapsedMs },
       });
-      const cover = await fetchCover(job);
-      cleanup.push(...cover.paths);
-      const bitrateKbps =
-        Math.round(result.info.abr ?? 0) || Math.round((audio.size * 8) / durationMs) || null;
-      const home = useSetup.getState().config?.home;
-      let track: LocalTrack;
-
-      if (home === 'cloudflare') {
-        if (mime === 'audio/mp4') throw new Error('Only Opus audio can be stored in Cloudflare');
-        if (!navigator.onLine) throw new ApiError(0, 'network_error', 'No connection');
-        const form = new FormData();
-        form.append(
-          'meta',
-          JSON.stringify({
-            title: meta.title.slice(0, LIMITS.titleMax) || job.title,
-            artist: meta.artist.slice(0, LIMITS.titleMax),
-            album: meta.album.slice(0, LIMITS.titleMax),
-            durationMs,
-            bitrateKbps,
-            source: 'youtube',
-            sourceRef: job.videoId,
-            kind: 'music',
-          }),
-        );
-        form.append('audio', audio);
-        if (cover.blob)
-          form.append('cover', new File([cover.blob], 'cover.jpg', { type: 'image/jpeg' }));
-        try {
-          track = fromRemote(await api.uploadTrack(form));
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 409) {
-            await useLibrary.getState().load();
-            const dup = findInLibrary(job.videoId);
-            update(job.id, { status: 'skipped', trackId: dup?.id, finishedAt: Date.now() });
-            await syncImportsFor(job.videoId);
-            return;
-          }
-          throw err;
-        }
-        useLibrary.getState().upsertTracks([track]);
-        if (job.keepOffline) await useOffline.getState().adopt(track.id, audio, durationMs);
-      } else if (home === 'drive') {
-        if (!navigator.onLine) throw new ApiError(0, 'network_error', 'No connection');
-        track = await driveHome.addTrack(
-          {
-            title: meta.title || job.title,
-            artist: meta.artist,
-            album: meta.album,
-            durationMs,
-            sizeBytes: audio.size,
-            bitrateKbps,
-            hasCover: !!cover.blob,
-            kind: 'music',
-            source: 'youtube',
-            sourceRef: job.videoId,
-            mime,
-          },
-          audio,
-          cover.blob,
-        );
-        useLibrary.getState().upsertTracks([track]);
-        if (job.keepOffline) await useOffline.getState().adopt(track.id, audio, durationMs);
-      } else {
-        const id = newLocalId();
-        try {
-          await saveDeviceFile('audio', id, audio);
-          if (cover.blob) await saveDeviceFile('covers', id, cover.blob);
-          track = await deviceHome.addTrack({
-            id,
-            title: meta.title || job.title,
-            artist: meta.artist,
-            album: meta.album,
-            durationMs,
-            sizeBytes: audio.size,
-            bitrateKbps,
-            hasCover: !!cover.blob,
-            kind: 'music',
-            source: 'youtube',
-            sourceRef: job.videoId,
-            likedAt: null,
-            createdAt: Date.now(),
-            locations: { device: true },
-            mime,
-          });
-        } catch (err) {
-          await deleteDeviceFile('audio', id).catch(() => undefined);
-          await deleteDeviceFile('covers', id).catch(() => undefined);
-          throw err;
-        }
-        useLibrary.getState().upsertTracks([track]);
-      }
-
-      update(job.id, { status: 'done', trackId: track.id, finishedAt: Date.now() });
-      await syncImportsFor(job.videoId);
-    } finally {
-      for (const path of cleanup) await Downloader.deleteFile({ path }).catch(() => undefined);
+      return;
     }
+    const canceled = result.code === 'canceled';
+    if (result.code === 'init_failed') {
+      set({ engine: { ...get().engine, status: 'error', error: result.error } });
+    }
+    const raw = result.code === 'network' ? 'network' : (result.error ?? '');
+    update(job.id, {
+      status: canceled ? 'canceled' : 'error',
+      error: canceled ? undefined : friendlyError(raw),
+      finishedAt: Date.now(),
+    });
+    void Downloader.ack({ jobId: result.jobId }).catch(() => undefined);
+    if (job.sendId) void reportSend(job.sendId);
+  }
+
+  function scheduleWake() {
+    if (wakeTimer) clearTimeout(wakeTimer);
+    wakeTimer = undefined;
+    const now = Date.now();
+    const wake = nextWakeAt(get().jobs, now);
+    if (wake !== null) wakeTimer = setTimeout(pump, Math.max(0, wake - now));
+  }
+
+  /** The queue just emptied: sync playlists and tell the user how it went. */
+  function finishQueue() {
+    hadWork = false;
+    // Flush before pruning: pruning drops the finished imports the flush still needs.
+    void flushImportSync()
+      .then(() => pruneImports(get().jobs))
+      .catch(() => toast(t('dl.err.generic'), 'error'));
+    const recent = get().jobs.filter((j) => j.finishedAt && Date.now() - j.finishedAt < 60_000);
+    const ok = recent.filter((j) => j.status === 'done').length;
+    if (ok) toast(t('dl.allDone', { count: ok }));
+    const late = [...finishedWhileClosed].filter(
+      (id) => get().jobs.find((j) => j.id === id)?.status === 'done',
+    ).length;
+    finishedWhileClosed.clear();
+    if (late) toast(t('dl.savedAfterClose', { count: late }));
+  }
+
+  function pump() {
+    if (!saveBlocked) {
+      const home = homeKind();
+      for (
+        let job = nextToSave(get().jobs, Date.now(), new Set(get().saving));
+        job && get().saving.length < saveConcurrency(home);
+        job = nextToSave(get().jobs, Date.now(), new Set(get().saving))
+      ) {
+        void saveJob(job, home);
+      }
+    }
+    scheduleWake();
+    if (hadWork && !get().jobs.some(isActive)) finishQueue();
+  }
+
+  /** A save failed: wait for internet, try again later, or give up. */
+  function handleSaveFailure(job: DownloadJob, err: unknown) {
+    const kind = classifyFailure(err);
+    if (kind === 'network') {
+      const plan = planRetry(job.attempts ?? 0, Date.now(), navigator.onLine);
+      if (plan.action === 'wait-network') {
+        saveBlocked = true;
+        set({ waitingNetwork: true });
+        update(job.id, { status: 'downloaded', retryAt: undefined });
+        return;
+      }
+      if (plan.action === 'retry') {
+        update(job.id, { status: 'downloaded', attempts: plan.attempts, retryAt: plan.retryAt });
+        return;
+      }
+    }
+    const canceled = kind === 'canceled';
+    update(job.id, {
+      status: canceled ? 'canceled' : 'error',
+      error: canceled ? undefined : friendlyError(saveErrorText(err)),
+      finishedAt: Date.now(),
+    });
+    void Downloader.ack({ jobId: job.id }).catch(() => undefined);
+    if (job.sendId) void reportSend(job.sendId);
+  }
+
+  async function saveJob(job: DownloadJob, home: HomeKind) {
+    hadWork = true;
+    set({ saving: [...get().saving, job.id] });
+    update(job.id, { status: 'saving', error: undefined });
+    void notify();
+    try {
+      if (!job.file) throw new Error('The downloaded file is missing');
+      const outcome = await saveDownloaded(job, job.file, home);
+      const saved = outcome.kind === 'saved';
+      update(job.id, {
+        status: saved ? 'done' : 'skipped',
+        trackId: saved ? outcome.track.id : outcome.trackId,
+        timings: saved ? { ...job.timings, ...outcome.timings } : job.timings,
+        finishedAt: Date.now(),
+      });
+      void Downloader.ack({ jobId: job.id }).catch(() => undefined);
+      scheduleImportSync(job.videoId);
+      if (job.sendId) await reportSend(job.sendId);
+    } catch (err) {
+      handleSaveFailure(job, err);
+    } finally {
+      set({ saving: get().saving.filter((id) => id !== job.id) });
+      void notify();
+      pump();
+    }
+  }
+
+  /** Results the phone holds that the app has not applied (e.g. the event was missed). */
+  function applyPendingResults(pending: NativePending) {
+    for (const result of pending.results) {
+      const job = get().jobs.find((j) => j.id === result.jobId);
+      if (!job) void Downloader.ack({ jobId: result.jobId }).catch(() => undefined);
+      else if (job.status === 'queued' || job.status === 'downloading') applyResult(result);
+    }
+  }
+
+  function listenToNative() {
+    if (listening) return;
+    listening = true;
+    void Downloader.addListener('progress', ({ jobId, progress }) => {
+      const job = get().jobs.find((j) => j.id === jobId);
+      if (!job || (job.status !== 'downloading' && job.status !== 'queued')) return;
+      if (job.status === 'downloading' && Math.abs(progress - job.progress) < 1 && progress < 100)
+        return;
+      update(jobId, { status: 'downloading', progress: Math.max(0, Math.min(100, progress)) });
+      void notify();
+    });
+    void Downloader.addListener('finished', (result) => {
+      applyResult(result);
+      pump();
+      void notify();
+    });
+    void Downloader.addListener('network', ({ waiting }) => {
+      nativeWaiting = waiting;
+      set({ waitingNetwork: waiting || !navigator.onLine });
+    });
   }
 
   return {
     jobs: [],
-    running: false,
     engine: { status: 'idle', version: null, updatedAt: loadValue<number>(ENGINE_KEY, 0) },
     keepOffline: loadValue<boolean>('downloads-keep-offline', true),
+    waitingNetwork: false,
+    saving: [],
 
     async init() {
       if (!isNative) return;
       const saved = loadValue<DownloadJob[]>(STORE_KEY, []);
-      // Interrupted when the app closed: start those again from the beginning.
-      const jobs = saved.map((j) =>
-        j.status === 'downloading' || j.status === 'saving'
-          ? { ...j, status: 'queued' as const, progress: 0 }
-          : j,
-      );
-      set({ jobs });
-      pruneImports();
-      await Downloader.clearAll().catch(() => undefined);
-      void Downloader.addListener('progress', ({ jobId, progress }) => {
-        const job = get().jobs.find((j) => j.id === jobId);
-        if (!job || job.status !== 'downloading') return;
-        if (Math.abs(progress - job.progress) < 1 && progress < 100) return;
-        update(jobId, { progress: Math.max(0, Math.min(100, progress)) });
-        void notify();
-      });
-      if (jobs.some((j) => j.status === 'queued')) void get().run();
+      // Listen first so a `finished` event fired while `pending()` runs is not lost.
+      listenToNative();
+      const pending = await Downloader.pending().catch(() => null);
+      const native = pending ?? { queued: [], current: null, results: [], waitingNetwork: false };
+      const { jobs, finished, orphans } = reconcile(saved, native);
+      set({ jobs, waitingNetwork: native.waitingNetwork });
+      nativeWaiting = native.waitingNetwork;
+      pruneImports(jobs);
+      for (const jobId of orphans) void Downloader.ack({ jobId }).catch(() => undefined);
+      for (const result of finished) {
+        finishedWhileClosed.add(result.jobId);
+        applyResult(result);
+      }
+      await sendToNative();
+      pump();
+      void notify();
     },
 
     async enqueue(items, opts = {}) {
@@ -515,9 +477,12 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       set({ jobs });
       persist(jobs);
       if (playlistId) {
-        rememberImport(playlistId, list);
+        rememberImport(
+          playlistId,
+          list.map((i) => i.videoId),
+        );
         await syncImport(playlistId);
-        pruneImports();
+        pruneImports(get().jobs);
       }
       const skipped = fresh.filter((j) => j.status === 'skipped').length;
       const queued = fresh.length - skipped;
@@ -525,8 +490,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       if (queued) {
         toast(t('dl.queued', { count: queued }));
         // The foreground service must start while the app is still visible.
-        await notify();
-        void get().run();
+        await sendToNative();
+        void notify();
       } else if (opts.sendId) await reportSend(opts.sendId);
       return queued;
     },
@@ -548,10 +513,11 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
     async cancel(jobId) {
       const job = get().jobs.find((j) => j.id === jobId);
-      if (!job || !isActive(job)) return;
-      if (job.status !== 'queued') await Downloader.cancel({ jobId }).catch(() => undefined);
+      if (!job || !isActive(job) || job.status === 'saving') return;
+      if (job.status === 'downloaded') await Downloader.ack({ jobId }).catch(() => undefined);
+      else await Downloader.cancel({ jobId }).catch(() => undefined);
       update(jobId, { status: 'canceled', finishedAt: Date.now() });
-      pruneImports();
+      pruneImports(get().jobs);
       if (job.sendId) void reportSend(job.sendId);
       void notify();
     },
@@ -567,9 +533,11 @@ export const useDownloads = create<DownloadsState>((set, get) => {
         progress: 0,
         error: undefined,
         finishedAt: undefined,
+        attempts: 0,
+        retryAt: undefined,
         batchId,
       });
-      void get().run();
+      void get().resume();
     },
 
     retryFailed() {
@@ -580,17 +548,19 @@ export const useDownloads = create<DownloadsState>((set, get) => {
           progress: 0,
           error: undefined,
           finishedAt: undefined,
+          attempts: 0,
+          retryAt: undefined,
           batchId,
         });
       }
-      void get().run();
+      void get().resume();
     },
 
     clearFinished() {
       const jobs = get().jobs.filter(isActive);
       set({ jobs });
       persist(jobs);
-      pruneImports();
+      pruneImports(jobs);
     },
 
     setKeepOffline(keepOffline) {
@@ -621,48 +591,16 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       }
     },
 
-    async run() {
-      if (!isNative || get().running) return;
-      set({ running: true });
-      try {
-        let job: DownloadJob | undefined;
-        while ((job = get().jobs.find((j) => j.status === 'queued'))) {
-          try {
-            await process(job);
-          } catch (err) {
-            const current = get().jobs.find((j) => j.id === job!.id);
-            if (current?.status === 'canceled') continue;
-            const code = (err as { code?: string }).code;
-            const raw = String((err as Error).message ?? err);
-            update(job.id, {
-              status: code === 'canceled' ? 'canceled' : 'error',
-              error:
-                code === 'canceled'
-                  ? undefined
-                  : friendlyError(
-                      code === 'drive_full' || err instanceof DriveAuthRequired
-                        ? (code ?? 'drive_auth')
-                        : raw,
-                    ),
-              finishedAt: Date.now(),
-            });
-            if (code === 'init_failed') {
-              set({ engine: { ...get().engine, status: 'error', error: raw } });
-            }
-          }
-          pruneImports();
-          if (job.sendId) await reportSend(job.sendId);
-          void notify();
-        }
-        const finished = get().jobs.filter(
-          (j) => j.finishedAt && Date.now() - j.finishedAt < 60_000,
-        );
-        const ok = finished.filter((j) => j.status === 'done').length;
-        if (ok) toast(t('dl.allDone', { count: ok }));
-      } finally {
-        set({ running: false });
-        void notify();
-      }
+    async resume() {
+      if (!isNative) return;
+      if (navigator.onLine) saveBlocked = false;
+      const hasWork = get().jobs.some(isActive);
+      set({ waitingNetwork: hasWork && (!navigator.onLine || nativeWaiting) });
+      const pending = await Downloader.pending().catch(() => null);
+      if (pending) applyPendingResults(pending);
+      await sendToNative();
+      pump();
+      void notify();
     },
   };
 });

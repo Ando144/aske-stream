@@ -1,351 +1,369 @@
-# PLAN: Pendientes de F6/F7 + F8a (estadísticas locales y Recap)
+# PLAN: Botón de Radios, parpadeo de la guía y descargas fiables y más rápidas
 
 Fecha: 2026-11-20 · Estado: COMPLETADO
 
 ## Objetivo
 
-1. Cerrar los pendientes MEDIO de la F6 (asistente de Cloudflare) y la F7 (Jams), y revisar el euskera de `share.ts` y `jam.ts`.
-2. F8a: registrar en este dispositivo (IndexedDB) qué canciones se escuchan, solo con consentimiento explícito, y mostrar una pantalla «Recap» con tarjetas por mes o por año. Los datos nunca salen del dispositivo. Nada de 8b (grupos).
+1. Radios: el botón «Añadir emisora» muestra solo el icono (como en Playlists) para que el título no se recorte.
+2. Guía de primeros pasos: que no aparezca un instante al abrir la app cuando ya está completa.
+3. Descargas: que sobrevivan a cerrar la app arrastrando y a la mala cobertura (reintentos con espera creciente y reanudación sola), y que guardar en la biblioteca sea más rápido (medir, guardar mientras baja la siguiente, menos escrituras por canción).
+
+## Diagnóstico (lo que se ha encontrado en el código)
+
+- **Guía (causa):** `FirstSteps` se pinta en cuanto la biblioteca sale de la caché (`LibraryView` solo espera `useLibrary.loaded`), pero las emisoras (`useRadio.load()`, llamada en `App.tsx`) llegan después, y en Cloudflare vienen de la red. Durante ese rato «Añadir una radio» cuenta como no hecho → se ve 3/4 y al llegar las emisoras pasa a 4/4 y desaparece. Además «completa» no se guarda nunca: se recalcula en cada arranque. Por eso es «a veces» (depende de lo que tarde la red).
+- **Descargas que no siguen tras el tren:**
+  - La cola vive en el JavaScript del WebView. Al cerrar arrastrando, Capacitor destruye la actividad: `DownloaderPlugin.handleOnDestroy()` hace `shutdownNow()` y yt-dlp se corta; el servicio en primer plano queda con su aviso y el wake lock (hasta 3 h) sin hacer nada.
+  - `api.uploadTrack` (Cloudflare) no tiene tiempo máximo y yt-dlp no tiene `--socket-timeout`: con cobertura mala una subida o descarga puede quedarse colgada para siempre; `run()` queda con `running: true` y `retry()`/`retryFailed()` no hacen nada hasta reiniciar la app. Es la causa más probable de «hubo que reiniciar».
+  - Sin cobertura, cada canción falla al momento (`navigator.onLine` o yt-dlp) y pasa a `error` sin reintento: la cola se «vacía» fallando todas.
+  - `init()` llama a `Downloader.clearAll()` y borra cualquier audio ya descargado que estuviera pendiente de guardar.
+- **Lentitud al guardar:**
+  - Todo en serie: no empieza la siguiente descarga hasta terminar de guardar la anterior.
+  - Drive: `driveHome.addTrack` hace `serialized(() => ensureFolders(st))`, que espera detrás del `sync()` diferido (descarga + fusión + subida de `library.json` entero). Como cada canción tarda más de 3 s (`PUSH_DELAY_MS`), entre canción y canción hay un sync completo y la siguiente subida espera a que acabe.
+  - Por canción hay 3 cambios de biblioteca (`upsertTracks`, `addToPlaylist`, `reorderPlaylist` en `syncImport`): cada uno escribe la biblioteca entera en IndexedDB (`persist` de `library.ts`) y, en Drive, el documento entero (`save()` de `home.ts`); en Cloudflare son 2 llamadas extra a la API.
+  - `findInLibrary` recorre todas las canciones por cada vídeo de la playlist importada (coste cuadrático en `syncImport`).
+  - La portada (dos descargas nativas + recorte en canvas) va antes de subir, en serie con la lectura del audio.
 
 ## Decisiones de arquitectura
 
-- Pendiente F7: el cierre 4001 (`replaced`) pasa a ser final en `JamSocket` y se muestra un aviso «La Jam está abierta en otra pestaña» con un botón «Usar aquí» — así dos pestañas no se echan en bucle y el usuario sabe qué pasa.
-- Pendiente F7: en `room.ts` cada `send()`/`close()` del broadcast va en try/catch con `console.error` — un socket roto no debe tumbar el aviso al resto.
-- Pendiente F6: tras `subdomain_taken` se conserva el token en memoria (variable de módulo, como ahora) y «Intentarlo de nuevo» vuelve a «Elige un nombre»; solo ese error lo conserva.
-- Pendiente F6: `RunningStep` exporta su lista de pasos y un test la compara con el orden real de `runSetup`/`runUpdate` (hoy en `setup` el orden de `storage`/`database` está cambiado y en `update` falta `database`).
-- F8a: nuevo módulo `apps/web/src/stats/` (lógica pura + repositorio) en vez de tocar `stores/player.ts` (ya tiene ~790 líneas): un «tracker» se suscribe a `usePlayer` y lee `position`, `isPlaying`, `currentId`.
-- F8a: cada escucha guarda una foto de título/artista/álbum, no solo el `trackId` — los ids cambian entre almacenamientos (dispositivo, Drive, Cloudflare) y el Recap debe sobrevivir a borrar canciones o cambiar de almacenamiento.
-- F8a: se guardan las escuchas que llegan al umbral y también las saltadas antes del umbral (`skipped: true`, decisión de Andoni). Las saltadas quedan fuera de minutos, tops y rachas; solo se cuentan aparte en una tarjeta «Saltadas».
-- F8a: el consentimiento se guarda con `loadPref/savePref` (`lib/storage`, síncrono) con tres estados `unset | on | off`; por defecto `unset` = no se registra nada.
-- F8a: DESACTIVAR borra todo el historial (decisión de Andoni), con confirmación previa «Se borrará tu historial». Sigue existiendo «Borrar historial» sin desactivar.
-- F8a: IndexedDB `aske` pasa a versión 4 con el almacén `plays` (índice por fecha). Los tests usan un repositorio en memoria (no hay `fake-indexeddb` en el proyecto).
-- F8a: radio y podcasts NO cuentan, solo música (solo `mode === 'track'` y `kind !== 'podcast'`).
-- F8a: umbral = el menor entre 30 s y la mitad de la canción.
-- F8a: nombres de meses con `Intl.DateTimeFormat` en el idioma actual, sin claves nuevas.
+- **La descarga del audio pasa al servicio Android** (cola nativa persistente en `filesDir`); el **guardado en la biblioteca sigue en JavaScript** — así las descargas siguen con la app cerrada y no hay que reescribir Drive/Cloudflare/dispositivo en Java. Lo descargado con la app cerrada se guarda al volver a abrirla (el aviso lo dice).
+- **Tubería de 2 etapas:** el servicio baja canciones de una en una; JS guarda en paralelo lo ya bajado (1 a la vez en dispositivo, 2 en Drive/Cloudflare) — se solapan bajar y guardar sin forzar a YouTube.
+- **Reintentos en dos sitios con la misma tabla:** el servicio reintenta la descarga (esperando sin contar intentos mientras no haya red, `ConnectivityManager.NetworkCallback`); JS reintenta el guardado (subidas). Esperas: 15 s, 30 s, 1 min, 2 min, 5 min, 10 min; 6 intentos — tabla única en el contrato para que Java y TS coincidan.
+- **Tiempos máximos en todo lo que usa la red:** yt-dlp `--socket-timeout 30 --retries 3`; subida a Cloudflare con `AbortSignal` proporcional al tamaño — nada puede volver a colgar la cola.
+- **Lógica pura en `apps/web/src/downloads/`** (`types.ts`, `retry.ts`, `pipeline.ts`) con tests; la tienda solo orquesta — cumple «lógica pura con tests» y mantiene `stores/downloads.ts` < 800 líneas.
+- **Guardado extraído** a `downloads/save.ts` y la sincronización de playlists importadas a `downloads/imports.ts`, agrupada (una vez cada 4 s o al vaciarse la cola) con un índice `videoId → track` — de 3 escrituras por canción a 1 + 1 por grupo.
+- **Drive:** `ensureFolders` sin pasar por la cadena `serialized` cuando las carpetas ya se conocen — la subida no espera al sync de `library.json`.
+- **Medir solo internamente:** cada trabajo guarda sus tiempos por etapa (`timings`) dentro del propio trabajo (se persiste con la cola en `aske:downloads-v1`, visible con `chrome://inspect`). Sin UI ni textos nuevos (decisión de Andoni) — sirve para decidir la siguiente optimización sin ensuciar pantallas.
+- **Textos de la notificación nativa:** JS pasa plantillas ya traducidas con `{done}`, `{total}`, `{count}` sin rellenar (el `t()` actual deja intactas las variables que no recibe) — sin cadenas en `strings.xml` en 3 idiomas.
+- **Guía:** nuevo flag persistido `firstStepsDone` y no pintar hasta que biblioteca **y** emisoras estén cargadas.
+- **`DownloadView.tsx` (876 líneas)**: se extraen cola, fila, aviso de batería y panel del motor a `components/downloads/` — la vista baja de 800.
 
 ## Contratos (interfaces compartidas)
 
-### F7 · `apps/web/src/hub/jamSocket.ts`
+### 1. Tipos de trabajo — `apps/web/src/downloads/types.ts` (T3; `stores/downloads.ts` los reexporta)
 
 ```ts
-export type JamSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'closed';
-/** Another tab/device of the same member took over this seat. Final: never reconnect. */
-export const JAM_CLOSE_REPLACED = 4001;
+import type { YtInfo } from '@aske/shared/youtube';
+
+export type JobStatus =
+  | 'queued' // waiting for the phone's downloader (native queue)
+  | 'downloading' // native is downloading it (progress 0-100)
+  | 'downloaded' // audio file ready on the phone, waiting to be saved to the library
+  | 'saving'
+  | 'done'
+  | 'skipped'
+  | 'error'
+  | 'canceled';
+
+export type NativeInfo = YtInfo & { duration?: number; abr?: number; acodec?: string };
+
+export interface DownloadedFile {
+  path: string;
+  bytes: number;
+  ext: string;
+  info: NativeInfo;
+}
+
+export interface JobTimings {
+  downloadMs?: number; // native, from start to file ready
+  readMs?: number; // reading the file into the WebView
+  coverMs?: number;
+  uploadMs?: number; // Drive/Cloudflare upload or device write
+  libraryMs?: number; // upsert + playlist sync
+}
+
+export interface DownloadJob {
+  // fields that already exist (id, videoId, title, author, thumbnail, status, progress, error,
+  // playlistId, batchId, sendId, keepOffline, trackId, createdAt, finishedAt) — unchanged
+  attempts?: number; // save attempts already failed (network)
+  retryAt?: number; // epoch ms; do not try to save before this
+  file?: DownloadedFile; // set when status becomes 'downloaded'
+  timings?: JobTimings;
+}
 ```
 
-### F7 · `apps/web/src/stores/jam.ts`
+`downloads/batch.ts`: `BatchJobStatus` = `JobStatus`; `'downloaded'` cuenta como ACTIVO y como CONTADO.
+
+### 2. Reintentos — `apps/web/src/downloads/retry.ts` (T3)
 
 ```ts
-export type JamConnection = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'ended';
-// new action in JamState:
-takeOver(): void; // reconnects the current session in this tab (the other one gets 4001)
+export const RETRY_DELAYS_MS = [15_000, 30_000, 60_000, 120_000, 300_000, 600_000] as const;
+export const MAX_ATTEMPTS = 6;
+export type FailureKind = 'network' | 'canceled' | 'fatal';
+/** Duck typing only (no imports from api/ or storage/): code, status, name, message. */
+export function classifyFailure(err: unknown): FailureKind;
+export type RetryPlan =
+  | { action: 'wait-network' } // offline: does not count an attempt
+  | { action: 'retry'; attempts: number; retryAt: number }
+  | { action: 'give-up' };
+export function planRetry(attempts: number, now: number, online: boolean): RetryPlan;
 ```
 
-Claves nuevas en `i18n/jam.ts` (es/en/eu): `jam.replaced.text`, `jam.replaced.useHere`.
+Reglas de `classifyFailure`: `code === 'canceled'` → canceled; `code` `network` → network; `code` `drive_full`/`storage_full`/`drive_auth`, `DriveAuthRequired` (por `name`), `status` 4xx salvo 408/429 → fatal; `status === 0`, `status` 408/429/5xx, `name` `TypeError` (fetch), `TimeoutError`, `AbortError` → network; mensaje con `network`, `timed out`, `timeout`, `connection`, `unable to resolve host`, `failed to fetch`, `no connection` → network; resto → fatal.
+`planRetry`: offline → wait-network; `attempts >= MAX_ATTEMPTS` → give-up; si no → `{ attempts: attempts + 1, retryAt: now + RETRY_DELAYS_MS[attempts] }`.
 
-### F6 · `apps/web/src/components/cloudflareSetup/RunningStep.tsx`
+### 3. Tubería — `apps/web/src/downloads/pipeline.ts` (T3)
 
 ```ts
-export const RUNNING_STEPS: Record<SetupMode, SetupStep[]>;
-// setup:  ['account','subdomain','storage','database','migrations','files','worker','publish','waiting']
-// update: ['account','database','migrations','files','worker','waiting']
+export type HomeKind = 'device' | 'drive' | 'cloudflare';
+export function saveConcurrency(home: HomeKind): number; // device 1, drive 2, cloudflare 2
+export function nextToSave(
+  jobs: readonly DownloadJob[],
+  now: number,
+  busy: ReadonlySet<string>,
+): DownloadJob | undefined;
+// 'downloaded', not in busy, (retryAt ?? 0) <= now; oldest createdAt first
+export function nextWakeAt(jobs: readonly DownloadJob[], now: number): number | null; // earliest future retryAt of 'downloaded'
+export function jobsForNative(
+  jobs: readonly DownloadJob[],
+  known: ReadonlySet<string>,
+): NativeJob[];
+// status 'queued' and jobId not in known (native queue + current + results)
+export function reconcile(
+  saved: readonly DownloadJob[],
+  native: NativePending,
+): {
+  jobs: DownloadJob[];
+  finished: NativeResult[]; // results for active jobs, to apply like a 'finished' event
+  orphans: string[]; // jobIds native has results for but JS does not want (unknown/canceled/done): ack them
+};
 ```
 
-Clave nueva en `i18n/cloudflareSetup.ts` (es/en/eu): `cfsetup.error.otherName` («Elegir otro nombre»).
+Reglas de `reconcile`: `saving` → `downloaded` si tiene `file`, si no `queued`; `downloading` que no está en `native.queued` ni es `native.current` y no tiene resultado → `queued` con progress 0; resultados nativos de trabajos activos → van a `finished` (no se aplican aquí); resto igual.
 
-### F8a · `apps/web/src/stats/listen.ts` (lógica pura, sin imports de stores)
+### 4. Plugin nativo — `apps/web/src/native/downloader.ts` (T4 añade; T6 quita lo marcado)
 
 ```ts
-export const MIN_LISTEN_SEC = 30;
-/** Forward jumps bigger than this between two samples are seeks, not listening. */
-export const MAX_STEP_SEC = 3;
-
-export interface PlayerSample {
-  trackId: string | null; // null = nothing countable is playing
-  isPlaying: boolean;
-  position: number; // seconds
-  durationSec: number; // 0 when unknown
-  now: number; // epoch ms
+export interface NativeJob { jobId: string; videoId: string }
+export interface NativeResult {
+  jobId: string;
+  ok: boolean;
+  path?: string; bytes?: number; ext?: string; info?: NativeInfo; // when ok
+  elapsedMs?: number;                                              // when ok
+  error?: string;                                                  // when !ok (short yt-dlp line)
+  code?: 'download_failed' | 'network' | 'canceled' | 'init_failed';
 }
-export interface ListenSession {
-  trackId: string;
-  startedAt: number; // epoch ms of the first sample
-  lastPosition: number;
-  listenedSec: number; // real listened time, seeks excluded
-  durationSec: number;
-  counted: boolean; // threshold already reached
+export interface NativePending {
+  queued: string[];        // jobIds waiting in the native queue, in order
+  current: string | null;  // jobId being downloaded now
+  results: NativeResult[]; // finished and not yet acknowledged (also those done while the app was closed)
+  waitingNetwork: boolean;
 }
-/** min(30, duration / 2); 30 when the duration is unknown. */
-export function countThreshold(durationSec: number): number;
-export function startSession(sample: PlayerSample & { trackId: string }): ListenSession;
-/** Adds `position - lastPosition` only when playing and 0 < delta <= MAX_STEP_SEC. */
-export function advanceSession(
-  s: ListenSession,
-  sample: PlayerSample,
-): { session: ListenSession; justCounted: boolean };
-/** Same track restarted from the start after reaching the end (repeat one): a new listen. */
-export function isRestart(s: ListenSession, sample: PlayerSample): boolean;
-// isRestart: sample.position < 2 && s.durationSec > 0 && s.lastPosition >= s.durationSec - 3
+export interface NotificationTemplates {
+  progress: string;    // e.g. 'Descargando {done} de {total}'  ({done}, {total} filled natively)
+  waiting: string;     // 'Sin conexión: seguirá sola cuando vuelva la cobertura'
+  openToSave: string;  // '{count} canciones descargadas. Abre Aske Stream para guardarlas' ({count})
+  openToSaveOne: string;
+}
+// New plugin methods:
+queue(o: { jobs: NativeJob[]; texts: NotificationTemplates }): Promise<void>; // appends (dedupe by jobId), starts the service
+pending(): Promise<NativePending>;
+ack(o: { jobId: string }): Promise<void>;   // forgets the result and deletes its folder
+cancel(o: { jobId: string }): Promise<{ canceled: boolean }>; // removes from queue or kills the process
+// New events:
+addListener('finished', (r: NativeResult) => void)
+addListener('network', (p: { waiting: boolean }) => void)
+// Unchanged: init, updateEngine, list, fetchImage, deleteFile, setNotification, requestNotifications, 'progress'
+// Deprecated (kept by T4 only so the app still compiles; T6 removes them): download(), clearAll()
 ```
 
-### F8a · `apps/web/src/stats/recap.ts` (lógica pura)
+Comportamiento nativo: archivos en `filesDir/yt-downloads/<jobId>/`; estado en `filesDir/downloads-queue.json` (`queue`, `results`, `texts`, `attempts` por trabajo). Un solo hilo de descarga dentro del servicio (no del plugin). Sin red validada → `waitingNetwork = true`, evento `network`, aviso con `texts.waiting`, espera al `NetworkCallback` sin contar intentos. Error con red → reintenta con `RETRY_DELAYS_MS`/`MAX_ATTEMPTS` (mismos valores); al agotarlos → resultado `ok:false, code:'network'` (o `download_failed` si el error no es de red). El servicio sigue vivo mientras la cola nativa no esté vacía **o** JS haya pedido `setNotification({active:true})`; si el plugin se destruye (app cerrada) se olvida lo de JS y usa las plantillas; al vaciarse sin JS deja un aviso normal (no fijo) con `openToSave[One]` y se para.
+
+### 5. Guardado — `apps/web/src/downloads/save.ts` y `imports.ts` (T5)
 
 ```ts
-export interface PlayRecord {
-  id: string; // crypto.randomUUID()
-  trackId: string;
-  title: string;
-  artist: string; // '' when unknown
-  album: string;
-  startedAt: number; // epoch ms
-  listenedSec: number;
-  durationSec: number;
-  /** true = ended before the threshold (skipped). Excluded from minutes, tops and streaks. */
-  skipped: boolean;
-}
-export type RecapPeriod =
-  | { kind: 'month'; year: number; month: number } // month 1-12
-  | { kind: 'year'; year: number };
-/** Local time, half-open range [from, to) in epoch ms. */
-export function periodRange(p: RecapPeriod): { from: number; to: number };
-/** Moves the period by `delta` months or years. */
-export function shiftPeriod(p: RecapPeriod, delta: number): RecapPeriod;
-export function currentPeriod(kind: RecapPeriod['kind'], now: number): RecapPeriod;
+// save.ts
+export type SaveOutcome =
+  | { kind: 'saved'; track: LocalTrack; timings: JobTimings }
+  | { kind: 'duplicate'; trackId: string | undefined }; // Cloudflare 409
+export function saveDownloaded(
+  job: DownloadJob,
+  file: DownloadedFile,
+  home: HomeKind,
+): Promise<SaveOutcome>;
+// Throws on failure (the store classifies with classifyFailure). Does NOT delete the native file (the store calls ack).
+export function uploadTimeoutMs(bytes: number): number; // max(120_000, bytes / 16_384 * 1000)
 
-export interface TopTrack {
-  title: string;
-  artist: string;
-  plays: number;
-  minutes: number;
-}
-export interface TopArtist {
-  artist: string;
-  plays: number;
-  minutes: number;
-}
-export interface RecapSummary {
-  plays: number; // only skipped === false
-  skipped: number; // only skipped === true; nothing else uses them
-  minutes: number; // Math.round(sum(listenedSec of non-skipped) / 60)
-  distinctTracks: number; // non-skipped
-  distinctArtists: number; // non-skipped; '' does not count as an artist
-  activeDays: number; // days with >= 1 non-skipped play
-  longestStreakDays: number; // consecutive local days with >= 1 non-skipped play, inside the period
-  topTracks: TopTrack[]; // max 5
-  topArtists: TopArtist[]; // max 5, '' excluded
-}
-/** Only records inside the period are used. */
-export function buildRecap(records: PlayRecord[], period: RecapPeriod): RecapSummary;
+// imports.ts
+export function resolvePlaylist(rawName: string, mode: 'merge' | 'new'): Promise<string | null>;
+export function rememberImport(playlistId: string, videoIds: string[]): void;
+export function syncImport(playlistId: string): Promise<void>;
+export function scheduleImportSync(videoId: string): void; // debounced 4 s, groups videoIds
+export function flushImportSync(): Promise<void>; // runs the pending sync now
+export function pruneImports(jobs: readonly { videoId: string; status: JobStatus }[]): void;
+export function findInLibrary(videoId: string): LocalTrack | undefined; // uses an index rebuilt when useLibrary.tracks changes
 ```
 
-- Agrupar canciones por `title.trim().toLowerCase() + '|' + artist.trim().toLowerCase()`; artistas por `artist.trim().toLowerCase()`. Mostrar el texto tal como aparece en la primera escucha.
-- Orden de los tops: más escuchas, luego más minutos, luego título/artista alfabético.
+`api/client.ts`: `uploadTrack(form: FormData, signal?: AbortSignal)`.
 
-### F8a · `apps/web/src/stats/repo.ts`
+### 6. Tienda — `useDownloads` (T6), lo que usa la UI (T7)
 
 ```ts
-export interface StatsRepo {
-  put(record: PlayRecord): Promise<void>; // insert or update by id
-  listBetween(from: number, to: number): Promise<PlayRecord[]>;
-  clear(): Promise<void>;
+interface DownloadsState {
+  jobs: DownloadJob[];
+  engine: ...;            // unchanged
+  keepOffline: boolean;   // unchanged
+  /** true while the phone or the app is waiting for internet to come back. */
+  waitingNetwork: boolean;
+  /** jobIds being saved right now. */
+  saving: string[];
+  init, enqueue, enqueueUrl, cancel, cancelAll, retry, retryFailed, clearFinished,
+  setKeepOffline, updateEngine,   // same signatures as today
+  /** Re-sends queued jobs to the phone and saves what is ready (app reopened / internet back). */
+  resume: () => Promise<void>;
 }
-export const idbStatsRepo: StatsRepo; // uses getDb() from offline/db.ts
-export function memoryStatsRepo(): StatsRepo; // for tests
 ```
 
-### F8a · `apps/web/src/offline/db.ts` (versión 4)
+`running` y `run()` desaparecen. `JobRow` deja de usar `s.running` (el «preparando» pasa a: `engine.status` starting/updating y el trabajo es el primero `queued`).
 
-```ts
-plays: { key: string; value: PlayRecord; indexes: { 'by-startedAt': number } };
-// upgrade: if (oldVersion < 4) createObjectStore('plays', { keyPath: 'id' }).createIndex('by-startedAt', 'startedAt')
-```
+### 7. Claves i18n nuevas (T6 las añade en `es.ts`, `en.ts`, `eu.ts`; T7 solo las usa)
 
-### F8a · `apps/web/src/stores/stats.ts`
-
-```ts
-export type StatsConsent = 'unset' | 'on' | 'off';
-interface StatsState {
-  consent: StatsConsent; // persisted with savePref('stats-consent', …)
-  /** on → 'on'. off → 'off' at once (stops recording) and then clears the whole history;
-   *  returns false if clearing failed (console.error + toast t('stats.err.clear')). */
-  setEnabled(on: boolean): Promise<boolean>;
-  clearHistory(): Promise<boolean>; // keeps consent; true = ok; on error console.error + toast t('stats.err.clear')
-  loadRecap(period: RecapPeriod): Promise<RecapSummary>; // throws; the view shows t('stats.err.load')
-}
-export const useStats: UseBoundStore<StoreApi<StatsState>>;
-export function setStatsRepo(repo: StatsRepo): void; // tests only
-export function getStatsRepo(): StatsRepo;
-```
-
-### F8a · `apps/web/src/stats/tracker.ts`
-
-```ts
-export interface TrackInfo {
-  title: string;
-  artist: string;
-  album: string;
-  durationSec: number;
-}
-export interface ListenTrackerDeps {
-  repo: StatsRepo;
-  isEnabled(): boolean; // useStats.getState().consent === 'on'
-  lookupTrack(id: string): TrackInfo | null; // null for podcasts or unknown tracks
-  newId(): string;
-}
-export interface ListenTracker {
-  onSample(sample: PlayerSample): void;
-  flush(): void; // writes the open session if counted
-}
-export function createListenTracker(deps: ListenTrackerDeps): ListenTracker;
-/** Wires the tracker to usePlayer, useLibrary and pagehide. Returns an unsubscribe. */
-export function startListeningTracker(): () => void;
-```
-
-Reglas del tracker: cambia el `trackId` o `isRestart` → se cierra la sesión y empieza otra; `justCounted` → `repo.put` del registro con `skipped: false`; después vuelve a hacer `put` (mismo `id`) cada 15 s de escucha añadida, al pausar, al cambiar de canción y en `pagehide`. Al CERRAR una sesión (cambio de canción, repetir-una, `mode` deja de ser `track`) que no llegó al umbral y tiene `listenedSec >= 1`, se guarda con `skipped: true` (por debajo de 1 s no es una escucha: pasar canciones rápido no llena el historial). `pagehide` NO guarda sesiones sin contar (la app se cerró, no se saltó). Si `isEnabled()` es false no guarda nada y descarta la sesión. Errores de `put` → `console.warn`, sin toast (no molestar en cada canción).
-
-### F8a · Claves i18n (archivo nuevo `apps/web/src/i18n/stats.ts`, exporta `statsEn`, `statsEs`, `statsEu`)
-
-`nav.recap`, `stats.title`, `stats.help`,
-`stats.consent.title`, `stats.consent.body`, `stats.consent.accept`, `stats.consent.decline`,
-`stats.off.text`, `stats.off.enable`,
-`stats.period.month`, `stats.period.year`, `stats.period.prev`, `stats.period.next`,
-`stats.empty`,
-`stats.card.minutes`, `stats.card.plays`, `stats.card.skipped`, `stats.card.tracks`, `stats.card.artists`, `stats.card.activeDays`, `stats.card.streak`, `stats.card.topTracks`, `stats.card.topArtists`,
-`stats.days` + `stats.days.one` (`{count} días`), `stats.playsCount` + `stats.playsCount.one` (`{count} escuchas`), `stats.minutesCount` + `stats.minutesCount.one` (`{count} min`), `stats.unknownArtist`,
-`stats.settings.section`, `stats.settings.open`, `stats.settings.openHint`, `stats.settings.enable`, `stats.settings.enableHint`, `stats.settings.clear`, `stats.settings.clearHint`, `stats.settings.clearConfirm`, `stats.settings.clearButton`, `stats.settings.disableConfirm`, `stats.settings.disableButton`, `stats.cleared`,
-`stats.err.load`, `stats.err.clear`.
-
-### F8a · Ayuda y rutas
-
-- Artículo id `listening-stats`, sección `listen`, archivo `apps/web/src/help/articles/stats.ts` (exporta `statsArticles`).
-- Ruta `/recap` → `RecapView`. Barra lateral: `{ to: '/recap', key: 'nav.recap', Icon: BarChart3 }`. En móvil se llega desde Ajustes.
+| Clave                                           | es (orientativo; en/eu equivalentes)                                                                                     |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `dl.st.downloaded`                              | Descargada · se guardará en tu biblioteca enseguida                                                                      |
+| `dl.st.retrying`                                | La conexión falló al guardar. Lo intentará de nuevo sola en un momento                                                   |
+| `dl.st.waitingNetwork`                          | Esperando cobertura                                                                                                      |
+| `dl.waitingNetwork`                             | No hay conexión. Las descargas están en pausa y seguirán solas cuando vuelva la cobertura. No hace falta que hagas nada. |
+| `dl.resumed`                                    | Ha vuelto la conexión: las descargas siguen                                                                              |
+| `dl.closeOk`                                    | Puedes cerrar la app: las canciones seguirán bajando. Se guardarán en tu biblioteca cuando vuelvas a abrirla.            |
+| `dl.savedAfterClose` / `.one`                   | {count} canciones descargadas mientras la app estaba cerrada ya están en tu biblioteca                                   |
+| `dl.notifWaiting`                               | Sin conexión · seguirá sola cuando vuelva la cobertura                                                                   |
+| `dl.notifOpenToSave` / `dl.notifOpenToSave.one` | {count} canciones descargadas. Abre Aske Stream para guardarlas / 1 canción descargada. Abre Aske Stream para guardarla  |
+| `dl.err.network` (cambia el texto)              | No se pudo descargar por falta de conexión, ni tras varios intentos. Pulsa «Reintentar» cuando tengas buena cobertura.   |
 
 ## Tareas
 
-### T1 · Jam: cierre 4001 final y broadcast a prueba de fallos · Grupo A · Estado: HECHA
+### T1 · Botón de Radios solo con icono · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/hub/jamSocket.ts`, `apps/web/src/stores/jam.ts`, `apps/web/src/components/jam/JamRoom.tsx`, `apps/web/src/i18n/jam.ts`, `apps/web/test/jamSocket.test.ts`, `apps/web/test/jamStore.test.ts`, `apps/hub/src/jam/room.ts`, `apps/hub/test/jamRoom.test.ts`
-- Leer como contexto: `apps/web/src/views/JamView.tsx`
-- Qué hacer:
-  1. `jamSocket.ts`: añadir `JAM_CLOSE_REPLACED = 4001` y el estado `'replaced'` (ver Contratos). En `handleClose`, si `code === 4001`: `stopped = true`, `onStatus('replaced')`, sin programar reconexión.
-  2. `stores/jam.ts`: `JamConnection` incluye `'replaced'`; `connectionOf.replaced = 'replaced'`. Al llegar `'replaced'`: si es anfitrión, `stopWatching()` (deja de mandar en el reproductor); NO borrar la sesión guardada (`SESSION_KEY` es compartida con la otra pestaña). Nueva acción `takeOver()`: si hay `session`, `connect(session)`.
-  3. `JamRoom.tsx`: si `connection === 'replaced'`, mostrar `jam.replaced.text` y un botón primario `jam.replaced.useHere` que llama a `takeOver()` (en vez de la sala). Mantener funciones < 50 líneas.
-  4. `i18n/jam.ts`: añadir las 2 claves en en/es/eu. Textos: es «Esta Jam está abierta en otra pestaña o ventana. Solo puede estar activa en una.» / «Usar aquí»; en «This Jam is open in another tab or window. It can only be active in one.» / «Use it here»; eu «Jam hau beste fitxa edo leiho batean irekita dago. Bakar batean bakarrik egon daiteke aktibo.» / «Erabili hemen».
-  5. `apps/hub/src/jam/room.ts`: en `broadcast`, `endJam` y `webSocketClose`, envolver cada `send()`/`ws.close()` en try/catch; en el catch `console.error('jam: send failed', err)` y seguir con el resto de sockets. Si queda una función > 50 líneas, extraer un helper `safeSend(ws, msg)`.
-- TDD: sí
-- Criterios de aceptación:
-  - [ ] Test: un cierre 4001 emite `'replaced'` y no se vuelve a abrir el socket aunque avancen los timers.
-  - [ ] Test: un cierre 1006 sigue reconectando (no se rompe lo que ya había).
-  - [ ] Test del store: tras `'replaced'`, `connection === 'replaced'` y la sesión sigue en memoria; `takeOver()` vuelve a conectar.
-  - [ ] Test del Hub: si `send()` de un socket lanza error, `webSocketClose` termina sin lanzar y los demás sockets reciben el estado.
-- Verificación: `npx vitest run test/jamSocket.test.ts test/jamStore.test.ts test/i18n.test.ts --root apps/web` y `npx vitest run test/jamRoom.test.ts --root apps/hub`
-
-### T2 · Asistente de Cloudflare: reintento, pasos y limpieza · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/stores/cloudflareSetup.ts`, `apps/web/src/components/cloudflareSetup/RunningStep.tsx`, `apps/web/src/components/cloudflareSetup/ErrorStep.tsx`, `apps/web/src/views/CloudflareSetupView.tsx`, `apps/web/src/views/PairView.tsx`, `apps/web/src/i18n/cloudflareSetup.ts`, `apps/web/test/cloudflareSetup.test.ts`
-- Leer como contexto: `apps/web/src/cloudflare/setup.ts`, `apps/web/src/lib/` (busca `takeFromHash` con Grep)
-- Qué hacer:
-  1. `stores/cloudflareSetup.ts`: en `run()`, si el error es `subdomain_taken` NO borrar `token` (en el resto de casos se sigue borrando). En `retry()`: si `error === 'subdomain_taken' && token`, ir a `phase: 'chooseSubdomain'` con un `suggestedSubdomain` nuevo y `error: null`. Actualizar el comentario «The token was already discarded» para que siga siendo cierto. `cancel()` ya borra los secretos.
-  2. `ErrorStep.tsx`: para `subdomain_taken` el botón usa la clave nueva `cfsetup.error.otherName` (es «Elegir otro nombre», en «Choose another name», eu «Aukeratu beste izen bat»). Añadirla en `i18n/cloudflareSetup.ts` en los 3 idiomas.
-  3. `RunningStep.tsx`: exportar `RUNNING_STEPS` con el orden de Contratos (corrige `storage`/`database` en `setup` y añade `database` en `update`).
-  4. `CloudflareSetupView.tsx`: bajar la función de 52 a < 50 líneas extrayendo el `useEffect` + `exit` a un hook `useSetupLifecycle(mode, onExit)` en el mismo archivo. Sin cambiar comportamiento.
-  5. `PairView.tsx`: comentar el porqué de `useHashCredentials` (por qué las dependencias vacías son intencionadas y por qué se lee del hash y se quita: no dejar la clave en la URL/historial). Comprueba qué hace `takeFromHash` antes de escribirlo.
-- TDD: sí (puntos 1 y 3)
-- Criterios de aceptación:
-  - [ ] Test: tras `subdomain_taken`, `retry()` lleva a `chooseSubdomain` sin pedir token, y `chooseSubdomain('otro')` despliega hasta `done` con la API simulada.
-  - [ ] Test: `expectNoSecret` sigue pasando en el estado de zustand (el token solo vive en la variable de módulo).
-  - [ ] Test: `RUNNING_STEPS.setup` es `['account', ...pasos emitidos por runSetup]` y `RUNNING_STEPS.update` es igual a los pasos de `runUpdate`.
-  - [ ] Ninguna función de `CloudflareSetupView.tsx` pasa de 50 líneas.
-- Verificación: `npx vitest run test/cloudflareSetup.test.ts test/i18n.test.ts --root apps/web`
-
-### T3 · Lógica pura de escuchas y Recap · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/stats/listen.ts`, `apps/web/src/stats/recap.ts`, `apps/web/test/statsListen.test.ts`, `apps/web/test/statsRecap.test.ts`
-- Leer como contexto: `apps/web/src/offline/planner.ts` y `apps/web/test/planner.test.ts` (estilo de lógica pura + tests)
-- Qué hacer: implementar exactamente las firmas de Contratos para `listen.ts` y `recap.ts`. Sin imports de stores, React ni IndexedDB. Fechas en hora local (`new Date(year, month - 1, 1)`). Racha: días locales consecutivos con al menos una escucha dentro del periodo. Funciones < 50 líneas.
-- TDD: sí
-- Criterios de aceptación:
-  - [ ] `countThreshold(200) === 30`, `countThreshold(40) === 20`, `countThreshold(0) === 30`.
-  - [ ] Muestras cada 0,25 s sumando hasta 30 s → `justCounted` true una sola vez; en pausa no suma; un salto de +60 s (seek) no suma; un salto atrás no resta.
-  - [ ] `isRestart` detecta repetir-una y no confunde un seek atrás a mitad de canción.
-  - [ ] `buildRecap`: los registros `skipped: true` solo suman en `skipped` (no en `plays`, minutos, tops, canciones/artistas distintos, días activos ni racha); un día con solo saltadas rompe la racha.
-  - [ ] `buildRecap`: ignora registros fuera del periodo; agrupa «Song»/«song » del mismo artista; excluye artista vacío del top y del recuento; minutos redondeados; racha correcta con huecos y con cambio de mes; tops limitados a 5 con el orden de Contratos.
-  - [ ] `periodRange`/`shiftPeriod` cruzan bien diciembre → enero y años.
-- Verificación: `npx vitest run test/statsListen.test.ts test/statsRecap.test.ts --root apps/web`
-
-### T4 · Revisión del euskera de share.ts y jam.ts · Grupo B · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/i18n/share.ts`, `apps/web/src/i18n/jam.ts`, `docs/eu-revision-share-jam.md` (nuevo)
-- Leer como contexto: `apps/web/src/i18n/eu.ts` (tono y vocabulario ya usados: «abestia», «zerrenda», «Saiatu berriro»…)
-- Qué hacer: revisar SOLO los objetos `shareEu` y `jamEu` (incluidas las 2 claves nuevas de T1). Corregir únicamente lo evidente: erratas, concordancia, palabras en castellano/inglés sin traducir, inconsistencias con `eu.ts`. NO inventar ni reescribir por estilo. Todo lo dudoso se deja como está y se apunta en `docs/eu-revision-share-jam.md` con una tabla: clave · texto actual · propuesta · por qué hay duda. Al principio del archivo, lista breve de lo que SÍ se cambió.
+- Archivos (exclusivos): `apps/web/src/views/RadioView.tsx`
+- Leer como contexto: `apps/web/src/views/PlaylistsView.tsx` (líneas 57-91, botones solo icono)
+- Qué hacer: en la cabecera (línea ~56) el botón `radio.addCustom` pasa a mostrar solo `<Plus size={16} />`, con `aria-label={t('radio.addCustom')}` y `title={t('radio.addCustom')}`, clase `btn primary small` como «Nueva playlist». Cambiar el contenedor `className="row"` por `className="header-actions"` como en Playlists. No tocar el diálogo (su `<h2>` sigue con el texto).
 - TDD: no
 - Criterios de aceptación:
-  - [ ] Solo cambian valores en euskera; ninguna clave nueva ni borrada.
-  - [ ] Existe `docs/eu-revision-share-jam.md` con «Cambios hechos» y «Dudas para Andoni».
-  - [ ] El test de paridad sigue verde.
-- Verificación: `npx vitest run test/i18n.test.ts --root apps/web`
+  - [ ] El título «Radios» no se recorta en un móvil de 360 px de ancho.
+  - [ ] El botón tiene nombre accesible y tooltip traducidos.
+- Verificación: `npm run check`; comprobación visual en `npm run dev` con el navegador a 360 px.
 
-### T5 · Guardar escuchas: IndexedDB, store y tracker · Grupo B · Estado: HECHA
+### T2 · La guía no parpadea al abrir · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/offline/db.ts`, `apps/web/src/stats/repo.ts`, `apps/web/src/stats/tracker.ts`, `apps/web/src/stores/stats.ts`, `apps/web/test/statsTracker.test.ts`, `apps/web/test/statsStore.test.ts`
-- Leer como contexto: `apps/web/src/stats/listen.ts`, `apps/web/src/stats/recap.ts` (de T3), `apps/web/src/stores/player.ts` (líneas 57-110 y 564-620: estado y eventos), `apps/web/src/stores/prefs.ts`, `apps/web/src/lib/storage.ts`, `apps/web/src/stores/library.ts` (forma de `tracks`), `apps/web/src/stores/ui.ts` (busca `toast`)
+- Archivos (exclusivos): `apps/web/src/components/FirstSteps.tsx`, `apps/web/src/stores/tips.ts`, `apps/web/src/lib/firstSteps.ts` (nuevo), `apps/web/test/firstSteps.test.ts` (nuevo)
+- Leer como contexto: `apps/web/src/stores/radio.ts` (campo `loaded`), `apps/web/src/views/LibraryView.tsx` línea 91, `apps/web/src/views/HelpView.tsx` línea 19
 - Qué hacer:
-  1. `offline/db.ts`: subir a versión 4 y crear `plays` con índice `by-startedAt` (Contratos). No tocar las migraciones anteriores.
-  2. `stats/repo.ts`: `idbStatsRepo` (`listBetween` con `IDBKeyRange.bound(from, to, false, true)` sobre el índice) y `memoryStatsRepo()`.
-  3. `stores/stats.ts`: según Contratos. `consent` se lee con `loadPref('stats-consent', 'unset')`. `loadRecap` = `repo.listBetween(periodRange)` + `buildRecap`.
-  4. `stats/tracker.ts`: `createListenTracker` (lógica testeable con dependencias inyectadas) y `startListeningTracker()` que: se suscribe a `usePlayer` y construye el `PlayerSample` (`trackId` null si `mode !== 'track'`); `lookupTrack` usa `useLibrary.getState().tracks[id]` y devuelve null si `kind === 'podcast'`; `durationSec` = `track.durationMs / 1000` o, si es 0, `usePlayer.getState().duration`; añade `pagehide` → `flush()`; al pasar el consentimiento a `off` descarta la sesión abierta. No modificar `stores/player.ts`.
+  - `lib/firstSteps.ts`: función pura `firstStepsView(input: { hidden: boolean; completed: boolean; libraryLoaded: boolean; radioLoaded: boolean; steps: boolean[] }): 'none' | 'wait' | 'complete' | 'show'`. Orden: `hidden || completed` → `'none'`; `!libraryLoaded || !radioLoaded` → `'wait'`; todos los pasos hechos → `'complete'`; si no → `'show'`.
+  - `tips.ts`: nuevo campo persistido `firstStepsDone: boolean` (en `Saved`, `DEFAULTS` = false, en `save`), acción `markFirstStepsDone()` (solo guarda si no lo estaba). `resetAll` lo vuelve a false (ya pasa al usar `DEFAULTS`). Guardados antiguos sin el campo → false.
+  - `FirstSteps.tsx`: leer `useRadio((s) => s.loaded)` y `useLibrary((s) => s.loaded)`; usar `firstStepsView`; `'none'`/`'wait'`/`'complete'` → `null`; en `'complete'` llamar a `markFirstStepsDone()` en un `useEffect` (no durante el render).
 - TDD: sí
 - Criterios de aceptación:
-  - [ ] Test tracker: con consentimiento `unset` u `off` no se llama a `repo.put` aunque se escuche 5 min.
-  - [ ] Test tracker: con `on`, una canción de 3 min escuchada 40 s guarda 1 registro con título/artista, `skipped: false` y `listenedSec ≈ 40`.
-  - [ ] Test tracker: escuchada 10 s y pasar a otra canción guarda 1 registro con `skipped: true` y `listenedSec ≈ 10`; escuchada 0,5 s no guarda nada; cerrar la app (`flush` por `pagehide`) a los 10 s no guarda nada.
-  - [ ] Test tracker: repetir-una produce 2 registros; un podcast o la radio (lookup null / `trackId` null) ninguno.
-  - [ ] Test store: `setEnabled(true)` persiste `'on'`; `setEnabled(false)` persiste `'off'` y deja el repo vacío; `clearHistory()` vacía el repo sin cambiar `consent`; si el repo falla, ambos devuelven false y `consent` queda en `'off'` igualmente al desactivar.
-  - [ ] Funciona igual con los tres almacenamientos porque solo depende de `usePlayer`/`useLibrary` (comprobar que no hay nada específico de un almacenamiento).
-- Verificación: `npx vitest run test/statsTracker.test.ts test/statsStore.test.ts --root apps/web` y `npm run typecheck -w @aske/web` (si no existe ese script, `npx tsc -p apps/web --noEmit`)
+  - [ ] Test: con radio sin cargar devuelve `'wait'` aunque falten pasos.
+  - [ ] Test: completa → `'complete'`; con `completed: true` → `'none'` aunque los datos aún no hayan cargado.
+  - [ ] Test de la tienda: `markFirstStepsDone()` persiste en `localStorage` (`aske:tips-v1`) y `resetAll()` lo vuelve a false.
+  - [ ] Reactivar la guía, completar todo y reabrir la app: no se ve la guía ni un instante.
+- Verificación: `npx vitest run test/firstSteps.test.ts --root apps/web` y `npm run check`.
 
-### T6 · Textos, ayuda y documentación de la F8a · Grupo B · Estado: HECHA
+### T3 · Lógica pura de la cola: tipos, reintentos y tubería · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/i18n/stats.ts` (nuevo), `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/eu.ts`, `apps/web/src/help/articles/stats.ts` (nuevo), `apps/web/src/help/articles.ts`, `docs/v2/architecture.md`, `docs/PRIVACY.md`
-- Leer como contexto: `apps/web/src/i18n/jam.ts` (patrón de archivo por función), `apps/web/src/help/articles/listen.ts` y `privacy.ts` (estilo e ids para enlazar), `apps/web/test/help.test.ts`
+- Archivos (exclusivos): `apps/web/src/downloads/types.ts` (nuevo), `apps/web/src/downloads/retry.ts` (nuevo), `apps/web/src/downloads/pipeline.ts` (nuevo), `apps/web/src/downloads/batch.ts`, `apps/web/test/downloadRetry.test.ts` (nuevo), `apps/web/test/downloadPipeline.test.ts` (nuevo), `apps/web/test/batch.test.ts`
+- Leer como contexto: `apps/web/src/stores/downloads.ts` (líneas 39-70, tipos actuales; `friendlyError` para los patrones de red), `apps/web/src/native/downloader.ts`
+- Qué hacer: implementar exactamente los contratos 1, 2 y 3. `types.ts` define también `NativeJob`, `NativeResult`, `NativePending` (contrato 4) para que `pipeline.ts` no importe Capacitor; T4 los importará desde aquí. Sin imports de stores, api ni Capacitor en estos tres archivos. En `batch.ts`, `BatchJobStatus` pasa a ser `JobStatus` y `'downloaded'` entra en `ACTIVE` y `COUNTED`.
+- TDD: sí
+- Criterios de aceptación:
+  - [ ] `classifyFailure`: casos de cada regla (status 0, 503, 429, 404, `TypeError`, `TimeoutError`, `code: 'canceled'`, `code: 'drive_full'`, `name: 'DriveAuthRequired'`, mensaje yt-dlp «Unable to resolve host», «Private video» → fatal).
+  - [ ] `planRetry`: offline → wait-network sin sumar; intentos 0..5 dan las esperas de la tabla; 6 → give-up.
+  - [ ] `nextToSave` respeta `retryAt`, `busy` y el orden; `nextWakeAt` devuelve el menor `retryAt` futuro o null.
+  - [ ] `reconcile`: los 4 casos de la regla + huérfanos (resultado de trabajo cancelado o desconocido).
+  - [ ] `batch.test.ts` cubre `'downloaded'` en `notificationCounts` e `importsToKeep`.
+- Verificación: `npx vitest run test/downloadRetry.test.ts test/downloadPipeline.test.ts test/batch.test.ts --root apps/web`; `npx tsc -p apps/web --noEmit`.
+
+### T4 · Servicio Android con cola propia que sobrevive al cierre · Grupo A · Estado: HECHA
+
+- Archivos (exclusivos): `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/DownloadService.java`, `.../DownloadQueue.java` (nuevo), `.../DownloadWorker.java` (nuevo), `.../NetworkWatcher.java` (nuevo), `.../DownloaderPlugin.java`, `apps/mobile/android/app/src/main/AndroidManifest.xml`, `apps/web/src/native/downloader.ts`, `apps/web/test/fake-native/downloader.ts`
+- Leer como contexto: contrato 4 de este plan; `apps/web/src/downloads/types.ts` (lo crea T3: si aún no existe, declara los tipos `NativeJob`/`NativeResult`/`NativePending`/`NotificationTemplates` en `native/downloader.ts` con la forma exacta del contrato y T6 unificará el import)
 - Qué hacer:
-  1. `i18n/stats.ts` con todas las claves de Contratos en en/es/eu (`statsEs`/`statsEu` tipados como `Record<keyof typeof statsEn, string>`), y añadir `...statsEn` / `...statsEs` / `...statsEu` en `en.ts`, `es.ts`, `eu.ts`. Lenguaje sencillo, sin jerga. El texto de consentimiento debe decir: qué se guarda (qué canciones escuchas, cuánto tiempo, y también las que saltas antes de tiempo), que la radio y los podcasts no se guardan, dónde (solo en este móvil u ordenador), que nunca se envía a nadie, que está apagado hasta que aceptes, y que **si lo desactivas se borra todo tu historial** (también puedes borrarlo sin desactivarlo en Ajustes). `stats.settings.disableConfirm` es «Si lo desactivas, se borrará tu historial de escuchas y no se podrá recuperar.» y `stats.settings.disableButton` «Desactivar y borrar». `stats.card.skipped` es «Saltadas». `stats.empty` explica que una canción cuenta a los 30 segundos (o a la mitad si es muy corta). Errores: `stats.err.load` «No se ha podido abrir tu resumen. Cierra la app y vuelve a abrirla.»; `stats.err.clear` «No se ha podido borrar el historial. Inténtalo de nuevo.» (traducir igual a en/eu).
-  2. `help/articles/stats.ts`: artículo `listening-stats` (sección `listen`) en es/en/eu: qué es el Recap, cómo activarlo, que **desactivarlo borra todo el historial**, cuándo cuenta una escucha (30 s o la mitad si la canción es corta), que también se guardan las canciones saltadas antes pero no suman minutos ni salen en los tops (solo en «Saltadas»), que la radio y los podcasts no cuentan, que los datos solo están en este dispositivo (no pasan a otro móvil ni al cambiar de almacenamiento; si borras los datos de la app se pierden) y cómo borrar el historial. Enlazar a algún artículo de privacidad existente con `[[id|texto]]`. Registrarlo en `articles.ts`.
-  3. `docs/v2/architecture.md`: en la tabla de fases, la fila 7 pasa a «✅» (el Hub ya está desplegado) y la fila 8 se divide en «8a Local listening stats (opt-in, on this device only) and monthly/yearly Recap» (estado «🚧 in progress») y dejar 8b como está.
-  4. `docs/PRIVACY.md` (aprobado por Andoni): añadir un párrafo corto: las estadísticas de escucha son opcionales y están apagadas por defecto; si se activan, se guarda qué canciones escuchas, cuánto tiempo y cuáles saltas (no radio ni podcasts); se guardan solo en el dispositivo y no se envían a nadie (ni a Andoni ni a Google ni a Cloudflare); desactivarlas borra todo el historial y también se puede borrar desde Ajustes.
+  - `DownloadQueue.java`: estado sincronizado (cola, actual, resultados, plantillas, intentos) guardado en `filesDir/downloads-queue.json` tras cada cambio; métodos `add`, `takeNext`, `finish(result)`, `ack`, `remove`, `snapshot`.
+  - `DownloadWorker.java`: el código de yt-dlp que hoy está en `DownloaderPlugin.download()` (mismas opciones) + `--socket-timeout 30` y `--retries 3`, escribiendo en `filesDir/yt-downloads/<jobId>/`; mide `elapsedMs`; clasifica el error como red (`UnknownHost`, `timed out`, `Connection`, `Unable to download`, `network`) o no. Un único `ExecutorService` estático compartido con `updateEngine` (que no corran a la vez).
+  - `NetworkWatcher.java`: `ConnectivityManager.registerDefaultNetworkCallback`; `hasValidatedInternet()` y aviso al volver la red.
+  - `DownloadService.java`: arranca el bucle de la cola; sin red → espera (evento `network`, aviso con `texts.waiting`); con fallo de red → reintento con `RETRY_DELAYS_MS = {15s,30s,60s,120s,300s,600s}`, `MAX_ATTEMPTS = 6`; `START_STICKY` y al reiniciarse con `intent == null` recarga la cola del archivo; `onTaskRemoved` no para nada; mantiene wake lock y Wi-Fi lock solo mientras descarga o espera reintento; al vaciarse la cola: si JS no está, aviso normal `openToSave[One]` y `stopSelf()`; si JS está y no pidió mantenerlo, `stopSelf()`. Comunica progreso/fin/red al plugin mediante un listener estático (nulo si la app está cerrada).
+  - `DownloaderPlugin.java`: métodos `queue`, `pending`, `ack`; `cancel` quita de la cola o mata el proceso; `download()` se elimina en Java (lo hace el servicio) pero `download`/`clearAll` se mantienen en el tipo TS con `/** @deprecated removed in T6 */`; `clearAll` solo borra la carpeta antigua `cacheDir/downloads` (nunca `yt-downloads`). `deleteFile` acepta rutas bajo `cacheDir/downloads` y `filesDir/yt-downloads`. `handleOnDestroy` ya no para descargas: solo quita el listener y avisa al servicio de que JS se ha ido.
+  - Manifest: permiso `ACCESS_NETWORK_STATE`; el servicio sigue `dataSync`.
+  - `native/downloader.ts` y `fake-native/downloader.ts`: nuevos métodos y eventos del contrato 4; el falso simula una cola que termina cada trabajo tras un pequeño retraso.
+- TDD: no (nativo; lo prueba Andoni en el móvil)
+- Criterios de aceptación:
+  - [ ] Compila: `.\gradlew.bat compileReleaseJavaWithJavac` en `apps/mobile/android` (JAVA_HOME = jbr de Android Studio).
+  - [ ] `npm run check` verde (la app web sigue usando los métodos antiguos del tipo hasta T6).
+  - [ ] Manual (Andoni): encolar 5 canciones, cerrar la app arrastrando → el aviso sigue avanzando; al acabar dice «Abre Aske Stream para guardarlas».
+  - [ ] Manual: modo avión a mitad → aviso «Sin conexión…»; quitarlo → sigue solo.
+- Verificación: los dos comandos de arriba y `npm run build -w @aske/web -- --mode fakenative` (después reconstruir el dist normal).
+
+### T5 · Guardado extraído y más rápido · Grupo A · Estado: HECHA
+
+- Archivos (exclusivos): `apps/web/src/downloads/save.ts` (nuevo), `apps/web/src/downloads/imports.ts` (nuevo), `apps/web/src/api/client.ts`, `apps/web/src/storage/drive/home.ts`, `apps/web/test/downloadSave.test.ts` (nuevo)
+- Leer como contexto: `apps/web/src/stores/downloads.ts` (funciones `process`, `fetchCover`, `readNativeFile`, `mimeFor`, `syncImport`, `syncImportsFor`, `resolvePlaylist`, `rememberImport`, `pruneImports`, `findInLibrary`), `apps/web/src/downloads/batch.ts`, contrato 5
+- Qué hacer:
+  - `save.ts`: mover la parte de guardado de `process()` (desde «leer el archivo» hasta `upsertTracks` y `adopt`) a `saveDownloaded`, partida en funciones < 50 líneas por destino (`saveToCloudflare`, `saveToDrive`, `saveToDevice`). Leer el audio y preparar la portada **en paralelo** (`Promise.all`). Medir `readMs`, `coverMs`, `uploadMs`. Cloudflare: `api.uploadTrack(form, AbortSignal.timeout(uploadTimeoutMs(audio.size)))`. No borrar archivos nativos (lo hará la tienda con `ack`), salvo los de la portada (`Downloader.deleteFile`). Tipos desde `downloads/types.ts` (T3); si aún no existe, impórtalos igualmente con esas rutas: el grupo A se integra junto.
+  - `imports.ts`: mover la lógica de playlists importadas tal cual, más: índice `Map<videoId, LocalTrack>` reconstruido solo cuando cambia la referencia `useLibrary.getState().tracks`; `scheduleImportSync(videoId)` agrupa y ejecuta `syncImport` de las importaciones afectadas tras 4 s sin novedades; `flushImportSync()` lo hace ya. `pruneImports` recibe los trabajos por parámetro (no importa la tienda de descargas: evita ciclos).
+  - `api/client.ts`: `uploadTrack(form, signal?)` pasa `signal` a `json(...)` (ya admite `signal`).
+  - `drive/home.ts`: en `addTrack` y `setPlaylistCover`, si `st.rootId && st.audioId && st.coversId` no llamar a `serialized(...)` (sin cambiar el resto).
+  - No tocar `stores/downloads.ts` (lo hace T6).
+- TDD: sí (para `uploadTimeoutMs` y la agrupación de `scheduleImportSync` con temporizadores falsos de Vitest y `syncImport` simulado); el resto se cubre con `npm run check`.
+- Criterios de aceptación:
+  - [ ] Test: `uploadTimeoutMs(1 MB) === 120 000`; `uploadTimeoutMs(10 MB)` > 120 000.
+  - [ ] Test: 5 llamadas a `scheduleImportSync` en 3 s → una sola sincronización por importación; `flushImportSync` la adelanta.
+  - [ ] `npm run check` verde (los tests de Drive existentes siguen pasando).
+- Verificación: `npx vitest run test/downloadSave.test.ts test/driveDoc.test.ts --root apps/web`; `npm run check`.
+
+### T6 · Tienda de descargas con tubería, reintentos y reanudación · Grupo B · Estado: HECHA
+
+- Archivos (exclusivos): `apps/web/src/stores/downloads.ts`, `apps/web/src/App.tsx`, `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/eu.ts`, `apps/web/src/native/downloader.ts`, `apps/web/test/fake-native/downloader.ts`, `apps/web/src/views/DownloadView.tsx` (solo adaptar a la tienda nueva, sin añadir líneas netas), `apps/web/test/downloadsStore.test.ts` (nuevo)
+- Leer como contexto: contratos 1-7; `apps/web/src/downloads/{types,retry,pipeline,save,imports,batch}.ts`
+- Qué hacer:
+  - Reescribir `stores/downloads.ts` como orquestador (< 500 líneas, funciones < 50): quitar el código movido a `save.ts`/`imports.ts` y reexportar los tipos de `downloads/types.ts`.
+  - `init()`: cargar trabajos; `Downloader.pending()` → `reconcile`; aplicar `finished`; `ack` de `orphans`; escuchar `progress`, `finished`, `network`; enviar `jobsForNative` con `queue({ jobs, texts })` (plantillas: `t('dl.notifTitle', { done: '{done}', total: '{total}' })`, `t('dl.notifWaiting')`, `t('dl.notifOpenToSave')`, `t('dl.notifOpenToSave.one')`); `pump()`. Si hubo resultados hechos con la app cerrada, al terminar de guardarlos toast `dl.savedAfterClose`. Ya **no** llama a `clearAll`.
+  - Evento `finished`: ok → `downloaded` con `file` y `timings.downloadMs = elapsedMs`; `code: 'canceled'` → `canceled` + `ack`; otro → `error` con `friendlyError` + `ack`.
+  - `pump()`: mientras `saving.length < saveConcurrency(home)` y haya `nextToSave` → `saveJob` sin esperar. `saveJob`: `saving` → `saveDownloaded` → `done` (+ `libraryMs`), `ack`, `scheduleImportSync`, `reportSend`. Si falla: `classifyFailure` + `planRetry(job.attempts ?? 0, now, navigator.onLine)` → `retry` (vuelve a `downloaded` con `attempts`/`retryAt`), `wait-network` (vuelve a `downloaded`, `waitingNetwork = true`), `give-up`/`fatal` → `error` + `ack`. Programar un único `setTimeout` a `nextWakeAt`. Al quedar la cola vacía: `flushImportSync()` y toast `dl.allDone` como hoy.
+  - `resume()`: reenvía `jobsForNative`, pone `waitingNetwork` según `navigator.onLine` y el último evento nativo, `pump()`. En `App.tsx` llamar a `useDownloads.getState().resume()` en los manejadores `online` y `visibilitychange` (visible) que ya existen; en `online`, si estaba esperando, toast `dl.resumed`.
+  - `enqueue`: igual que hoy pero enviando a la cola nativa (`queue`) mientras la app está visible; `cancel` llama a `Downloader.cancel` y, si estaba `downloaded`, a `ack`. `retry`/`retryFailed`: `queued`, `attempts: 0`, sin `retryAt`, y `resume()`.
+  - `notify()` sigue llamando a `setNotification` mientras haya trabajos activos (incluido guardar).
+  - Quitar `download` y `clearAll` de `native/downloader.ts` y `fake-native/downloader.ts`, y los imports de esos tipos pasan a `downloads/types.ts`. Quitar el método Java `clearAll` de `DownloaderPlugin.java` **no** (es de T4 y ya solo limpia la carpeta antigua: dejarlo es inofensivo; anotarlo en Riesgos si molesta).
+  - `DownloadView.tsx`: solo los cambios mínimos para compilar (p. ej. `JobRow` deja de usar `running`, `statusText` cubre `downloaded`). No añadir UI nueva aquí (es T7).
+  - i18n: añadir todas las claves del contrato 7 en es, en y eu (con `.one` donde haya `{count}`).
+- TDD: sí (test de la tienda con `vi.mock` de `../native/downloader`, `../native/platform` (`isNative: true`), `../downloads/save` e `../downloads/imports`)
+- Criterios de aceptación:
+  - [ ] Test: un `finished` ok pasa el trabajo a `downloaded` y `pump` lo guarda → `done` y llama a `ack`.
+  - [ ] Test: guardado que falla con `status: 0` estando offline → sigue `downloaded`, `waitingNetwork` true; `resume()` online → se guarda.
+  - [ ] Test: fallo de red online → `attempts` 1 y `retryAt` = ahora + 15 s; con temporizadores falsos se reintenta solo.
+  - [ ] Test: con 3 `downloaded` en Cloudflare se guardan como máximo 2 a la vez.
+  - [ ] Test: un error que no es de red pasa a `error` sin reintentar.
+  - [ ] Test de paridad i18n verde; `npm run check` verde.
+- Verificación: `npx vitest run test/downloadsStore.test.ts test/i18n.test.ts --root apps/web`; `npm run check`; `npm run test:e2e` (cerrar wrangler/workerd colgados después).
+
+### T7 · UI de Descargas: extraer y aviso de cobertura · Grupo C · Estado: HECHA
+
+- Archivos (exclusivos): `apps/web/src/views/DownloadView.tsx`, `apps/web/src/components/downloads/DownloadQueue.tsx` (nuevo: `Queue`, `JobRow`, `statusText`), `apps/web/src/components/downloads/BatteryHint.tsx` (nuevo), `apps/web/src/components/downloads/EnginePanel.tsx` (nuevo), `apps/web/src/components/downloads/NetworkBanner.tsx` (nuevo), `apps/web/src/help/articles/music.ts`, `docs/ESTADO.md`
+- Leer como contexto: `apps/web/src/stores/downloads.ts` (contrato 6), `apps/web/src/i18n/es.ts` (claves `dl.*`), `apps/web/src/views/DownloadView.tsx` líneas 559-810
+- Qué hacer:
+  - Mover `statusText`, `Queue`, `JobRow`, `BatteryHint` y `EnginePanel` de `DownloadView.tsx` a los archivos nuevos sin cambiar su comportamiento y luego:
+  - `statusText`: `downloaded` → `dl.st.downloaded`; `downloaded` con `retryAt` futuro → `dl.st.retrying`; activo con `waitingNetwork` → `dl.st.waitingNetwork`. `downloaded` cuenta como activo en la cola (con botón cancelar).
+  - `NetworkBanner`: si `waitingNetwork` y hay activos, panel ámbar con `dl.waitingNetwork` (`role="status"`).
+  - `BatteryHint`: añadir la línea `dl.closeOk` cuando hay activos.
+  - `EnginePanel`: solo se mueve, sin cambios. No mostrar tiempos medidos en ninguna pantalla (decisión de Andoni).
+  - Ayuda (`music.ts`, artículos `download-youtube` y `download-playlist`, en es/en/eu): explicar en lenguaje sencillo que se puede cerrar la app, que sin cobertura se pausa y sigue sola, y que lo bajado con la app cerrada se guarda al abrirla. Respetar el formato de enlaces entre artículos.
+  - `DownloadView.tsx` debe quedar < 800 líneas (objetivo < 600).
+  - `docs/ESTADO.md`: quitar «`DownloadView.tsx` 876 líneas» de problemas conocidos y anotar lo que queda por probar en el móvil.
 - TDD: no
 - Criterios de aceptación:
-  - [ ] Test de paridad i18n verde (incluidas las `.one`).
-  - [ ] Test de ayuda verde (enlaces entre artículos válidos).
-  - [ ] Tabla de fases actualizada.
-- Verificación: `npx vitest run test/i18n.test.ts test/help.test.ts --root apps/web`
+  - [ ] `DownloadView.tsx` < 800 líneas y cada componente nuevo < 200.
+  - [ ] Con el modo avión en `fakenative` (o `navigator.onLine` falso) se ve el aviso de cobertura.
+  - [ ] Test de ayuda (enlaces) y de i18n verdes.
+- Verificación: `npm run check`; `npm run build -w @aske/web -- --mode fakenative`, mirar la pantalla Descargas, y reconstruir el dist normal; `npm run test:e2e`.
 
-### T7 · Pantalla Recap, consentimiento y ajustes · Grupo C · Estado: HECHA
+## Decisiones de Andoni (dudas cerradas)
 
-- Archivos (exclusivos): `apps/web/src/views/RecapView.tsx` (nuevo), `apps/web/src/components/stats/ConsentSheet.tsx` (nuevo), `apps/web/src/components/stats/RecapCards.tsx` (nuevo), `apps/web/src/components/stats/PeriodPicker.tsx` (nuevo), `apps/web/src/components/stats/StatsSettingsPanel.tsx` (nuevo), `apps/web/src/App.tsx`, `apps/web/src/main.tsx`, `apps/web/src/components/Nav.tsx`, `apps/web/src/views/SettingsView.tsx`, `apps/web/src/styles.css`
-- Leer como contexto: `apps/web/src/stores/stats.ts`, `apps/web/src/stats/recap.ts`, `apps/web/src/i18n/stats.ts`, `apps/web/src/components/Sheet.tsx`, `apps/web/src/components/HelpSheet.tsx` (`HelpButton`), `apps/web/src/views/OfflineView.tsx` (estructura de página), `apps/web/src/stores/ui.ts` (`confirmDialog`, `toast`)
-- Qué hacer:
-  1. `main.tsx`: llamar una vez a `startListeningTracker()`.
-  2. `App.tsx`: ruta `/recap` → `RecapView`. `Nav.tsx`: añadir el elemento de barra lateral de Contratos (después de `/jam`).
-  3. `RecapView`: cabecera con `stats.title` y `HelpButton id="listening-stats"`. Si `consent === 'unset'` abre `ConsentSheet` (Aceptar → `setEnabled(true)`; No, gracias → `setEnabled(false)`). Si `'off'`: texto `stats.off.text` + botón `stats.off.enable`. Si `'on'`: `PeriodPicker` (conmutador Mes/Año y flechas anterior/siguiente; no dejar ir más allá del periodo actual; nombre del mes con `Intl.DateTimeFormat(language, { month: 'long', year: 'numeric' })`) y `RecapCards` con el resultado de `loadRecap`. Estado vacío `stats.empty`; error → `stats.err.load` en `error-text`.
-  4. `RecapCards`: tarjetas de minutos, escuchas, saltadas (`stats.card.skipped`, más discreta), canciones distintas, artistas distintos, días con música y racha más larga; listas Top 5 canciones y Top 5 artistas (artista vacío → `stats.unknownArtist`). Plurales con `{count}` y `.one`.
-  5. `StatsSettingsPanel` en `SettingsView` (nueva sección `stats.settings.section` tras «Reproducción»): enlace a `/recap`, interruptor `stats.settings.enable` (mismo patrón `toggle` que «Ahorro de datos»); al APAGARLO, primero `confirmDialog(t('stats.settings.disableConfirm'), t('stats.settings.disableButton'), true)` y solo si acepta `setEnabled(false)` (si cancela, el interruptor sigue encendido); y botón «Borrar historial» con `confirmDialog(t('stats.settings.clearConfirm'), t('stats.settings.clearButton'), true)`; si va bien, toast `stats.cleared`.
-  6. `styles.css`: estilos de tarjetas en rejilla usando solo variables existentes (`--accent`, etc.). Sin colores nuevos fuera de la paleta ámbar.
-- TDD: no
-- Criterios de aceptación:
-  - [ ] Primera visita a `/recap`: aparece el diálogo; hasta aceptar no se guarda nada (comprobar en DevTools → IndexedDB → `aske` → `plays` vacío).
-  - [ ] Tras aceptar y escuchar > 30 s una canción, el Recap del mes muestra 1 escucha; en Año también.
-  - [ ] Desactivar en Ajustes pide confirmación, deja de registrar y deja `plays` vacío; cancelar la confirmación no cambia nada; «Borrar historial» deja el Recap vacío y sigue activado.
-  - [ ] Saltar una canción a los 10 s suma 1 en «Saltadas» y no cambia minutos ni tops.
-  - [ ] Probado con almacenamiento «Este dispositivo» y con Cloudflare en `npm run dev` (Drive comparte el mismo camino de reproductor).
-  - [ ] Todas las funciones < 50 líneas; ningún texto sin traducir.
-- Verificación: `npm run check`, después `npm run test:e2e` (reiniciar wrangler tras el build) y prueba manual en `npm run dev`.
+- Lo descargado con la app cerrada se guarda en la biblioteca **al volver a abrir la app** (nada de guardar desde Java).
+- **Una descarga a la vez**; el guardado va en paralelo (1 en dispositivo, 2 en Drive/Cloudflare).
+- Los tiempos medidos **no se muestran en ninguna pantalla** ni tienen textos: solo se guardan dentro de cada trabajo (`timings`) para consultarlos con `chrome://inspect`.
 
-## Riesgos / dudas abiertas
+## Riesgos
 
-- `player.ts` está cerca de 800 líneas: por eso el tracker va aparte; si `position` dejara de actualizarse cada 250 ms el cálculo seguiría funcionando, pero con más error.
-- Pueden quedar procesos wrangler/workerd colgados tras `test:e2e` en Windows (ver CLAUDE.md).
-- `docs/ESTADO.md` (incluida la batería v0.7.0 medida en el Pixel) lo actualiza el orquestador al cerrar.
-- Desactivar borra el historial: un toque sin querer lo perdería todo; por eso hay confirmación obligatoria antes de desactivar.
-- Las dudas de euskera que deje T4 en `docs/eu-revision-share-jam.md` necesitan la validación de Andoni.
-- Decisiones de Andoni ya aplicadas (2026-11-20): solo música; desactivar borra; las saltadas se guardan aparte; aviso Jam con «Usar aquí»; párrafo en PRIVACY.md; umbral = menor entre 30 s y la mitad.
+- Riesgo: `START_STICKY` y arrancar el servicio en segundo plano tienen límites en Android 12+ (y 6 h/día de `dataSync` en Android 15, ya gestionado con `onTimeout`). Si Android no deja reiniciarlo, lo pendiente se reanuda al abrir la app (T6).
+- Riesgo: si yt-dlp devuelve un `.m4a` y la biblioteca es Cloudflare, el guardado falla como hoy (fatal); no cambia con este plan.
+- Riesgo: la siguiente optimización (p. ej. no reescribir la biblioteca entera en IndexedDB en cada `upsertTracks`) queda para cuando se consulten los `timings` internos en el móvil.
+- Nota: el método Java `clearAll` queda limpiando solo la carpeta antigua; se puede quitar en una versión posterior.

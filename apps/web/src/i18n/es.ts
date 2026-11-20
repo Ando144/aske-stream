@@ -253,7 +253,8 @@ export const es: Messages = {
   'dl.err.age':
     'YouTube pide iniciar sesión para este vídeo (restricción de edad). No se puede descargar.',
   'dl.err.blocked': 'Este vídeo está bloqueado en tu país o por derechos de autor.',
-  'dl.err.network': 'Se cortó la conexión. Vuelve a intentarlo con internet.',
+  'dl.err.network':
+    'No se pudo descargar por falta de conexión, ni tras varios intentos. Pulsa «Reintentar» cuando tengas buena cobertura.',
   'dl.err.tooBig': 'El archivo es demasiado grande (más de 95 MB).',
   'dl.err.generic':
     'Algo falló al descargar. Actualiza el descargador (abajo) y vuelve a intentarlo.',
@@ -301,6 +302,21 @@ export const es: Messages = {
   'dl.st.preparing': 'Preparando el descargador… (la primera vez tarda un poco)',
   'dl.notifText.one': '{title} · queda 1 en la cola',
   'dl.notifTextLast': '{title} · es la última',
+  'dl.st.downloaded': 'Descargada · se guardará en tu biblioteca enseguida',
+  'dl.st.retrying': 'La conexión falló al guardar. Lo intentará de nuevo sola en un momento',
+  'dl.st.waitingNetwork': 'Esperando cobertura',
+  'dl.waitingNetwork':
+    'No hay conexión. Las descargas están en pausa y seguirán solas cuando vuelva la cobertura. No hace falta que hagas nada.',
+  'dl.resumed': 'Ha vuelto la conexión: las descargas siguen',
+  'dl.closeOk':
+    'Puedes cerrar la app: las canciones seguirán bajando. Se guardarán en tu biblioteca cuando vuelvas a abrirla.',
+  'dl.savedAfterClose':
+    '{count} canciones descargadas mientras la app estaba cerrada ya están en tu biblioteca',
+  'dl.savedAfterClose.one':
+    '1 canción descargada mientras la app estaba cerrada ya está en tu biblioteca',
+  'dl.notifWaiting': 'Sin conexión · seguirá sola cuando vuelva la cobertura',
+  'dl.notifOpenToSave': '{count} canciones descargadas. Abre Aske Stream para guardarlas',
+  'dl.notifOpenToSave.one': '1 canción descargada. Abre Aske Stream para guardarla',
   'dl.batteryText':
     'Para que las descargas sigan con la pantalla apagada, Android tiene que dejar a la app funcionar en segundo plano. Pulsa «Permitir» y acepta.',
   'dl.batteryButton': 'Permitir',

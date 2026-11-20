@@ -195,7 +195,8 @@ function createApi(
     storage: () => json<StorageStats>('/api/library/storage'),
 
     /** multipart: meta (JSON), audio (Opus in Ogg/WebM), cover (JPEG, optional). */
-    uploadTrack: (form: FormData) => json<Track>('/api/ingest/tracks', { method: 'POST', form }),
+    uploadTrack: (form: FormData, signal?: AbortSignal) =>
+      json<Track>('/api/ingest/tracks', { method: 'POST', form, signal }),
 
     ingestExists: (source: 'youtube' | 'file', ref: string) =>
       json<{ exists: boolean; id: string | null }>(

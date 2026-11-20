@@ -1,5 +1,6 @@
 import type { SearchKind, SearchResult } from '@aske/shared/youtube';
 import type { DownloaderPlugin, PlaylistListing } from '../../src/native/downloader';
+import type { NativeResult } from '../../src/downloads/types';
 
 /**
  * Fake yt-dlp for browser tests: "downloads" serve a small real WebM Opus
@@ -8,6 +9,12 @@ import type { DownloaderPlugin, PlaylistListing } from '../../src/native/downloa
  */
 type Listener = (p: { jobId: string; progress: number; eta: number }) => void;
 const listeners = new Set<Listener>();
+const finishedListeners = new Set<(r: NativeResult) => void>();
+const networkListeners = new Set<(p: { waiting: boolean }) => void>();
+const nativeQueue: { jobId: string; videoId: string }[] = [];
+let nativeCurrent: string | null = null;
+const nativeResults: NativeResult[] = [];
+let pumping = false;
 const canceled = new Set<string>();
 const w = window as unknown as { __fakeNative: { calls: string[]; notification: unknown } };
 w.__fakeNative = { calls: [], notification: null };
@@ -15,7 +22,78 @@ const log = (s: string) => w.__fakeNative.calls.push(s);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+async function fakeDownload(jobId: string, videoId: string) {
+  log(`download ${videoId}`);
+  for (const progress of [10, 45, 80, 100]) {
+    await sleep(80);
+    if (canceled.has(jobId)) throw Object.assign(new Error('Canceled'), { code: 'canceled' });
+    listeners.forEach((l) => l({ jobId, progress, eta: 1 }));
+  }
+  if (videoId.startsWith('fail')) {
+    throw Object.assign(new Error('ERROR: [youtube] fail: Video unavailable'), {
+      code: 'download_failed',
+    });
+  }
+  return {
+    path: '/test-media/song.webm',
+    bytes: 38931,
+    ext: 'webm',
+    info: {
+      id: videoId,
+      title: `Band - Song ${videoId} (Official Video)`,
+      uploader: 'BandVEVO',
+      duration: 4,
+      abr: 64,
+    },
+  };
+}
+
+async function runNativeJob(jobId: string, videoId: string): Promise<NativeResult> {
+  try {
+    const done = await fakeDownload(jobId, videoId);
+    return { jobId, ok: true, ...done, elapsedMs: 320 };
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    const code = err.code === 'canceled' ? 'canceled' : 'download_failed';
+    return { jobId, ok: false, error: err.message, code };
+  }
+}
+
+/** Simulates the phone's queue: one job at a time, each finishing after a short delay. */
+async function pump(): Promise<void> {
+  if (pumping) return;
+  pumping = true;
+  for (let next = nativeQueue.shift(); next; next = nativeQueue.shift()) {
+    nativeCurrent = next.jobId;
+    const result = await runNativeJob(next.jobId, next.videoId);
+    nativeCurrent = null;
+    nativeResults.push(result);
+    finishedListeners.forEach((l) => l(result));
+  }
+  pumping = false;
+}
+
 export const Downloader: DownloaderPlugin = {
+  queue: async ({ jobs }) => {
+    log(`queue ${jobs.map((j) => j.videoId).join(',')}`);
+    const known = new Set<string | null>([
+      ...nativeQueue.map((j) => j.jobId),
+      ...nativeResults.map((r) => r.jobId),
+      nativeCurrent,
+    ]);
+    nativeQueue.push(...jobs.filter((j) => !known.has(j.jobId)));
+    void pump();
+  },
+  pending: async () => ({
+    queued: nativeQueue.map((j) => j.jobId),
+    current: nativeCurrent,
+    results: [...nativeResults],
+    waitingNetwork: false,
+  }),
+  ack: async ({ jobId }) => {
+    const i = nativeResults.findIndex((r) => r.jobId === jobId);
+    if (i >= 0) nativeResults.splice(i, 1);
+  },
   init: async () => (log('init'), { version: '2025.11.12' }),
   updateEngine: async () => (log('update'), { updated: true, version: '2026.11.01' }),
   list: async ({ url }) => {
@@ -36,43 +114,25 @@ export const Downloader: DownloaderPlugin = {
       })),
     };
   },
-  download: async ({ jobId, videoId }) => {
-    log(`download ${videoId}`);
-    for (const progress of [10, 45, 80, 100]) {
-      await sleep(80);
-      if (canceled.has(jobId)) throw Object.assign(new Error('Canceled'), { code: 'canceled' });
-      listeners.forEach((l) => l({ jobId, progress, eta: 1 }));
-    }
-    if (videoId.startsWith('fail')) {
-      throw Object.assign(new Error('ERROR: [youtube] fail: Video unavailable'), {
-        code: 'download_failed',
-      });
-    }
-    return {
-      path: '/test-media/song.webm',
-      bytes: 38931,
-      ext: 'webm',
-      info: {
-        id: videoId,
-        title: `Band - Song ${videoId} (Official Video)`,
-        uploader: 'BandVEVO',
-        duration: 4,
-        abr: 64,
-      },
-    };
+  cancel: async ({ jobId }) => {
+    canceled.add(jobId);
+    const i = nativeQueue.findIndex((j) => j.jobId === jobId);
+    if (i >= 0) nativeQueue.splice(i, 1);
+    return { canceled: true };
   },
-  cancel: async ({ jobId }) => (canceled.add(jobId), { canceled: true }),
   fetchImage: async () => ({ path: '/test-media/thumb.jpg' }),
   deleteFile: async ({ path }) => void log(`delete ${path}`),
-  clearAll: async () => void log('clearAll'),
   setNotification: async (n) => {
     w.__fakeNative.notification = n;
   },
   requestNotifications: async () => ({ granted: true }),
-  addListener: async (_event, listener) => {
-    listeners.add(listener);
-    return { remove: async () => void listeners.delete(listener) };
-  },
+  addListener: (async (event: string, listener: unknown) => {
+    const set = (
+      event === 'finished' ? finishedListeners : event === 'network' ? networkListeners : listeners
+    ) as Set<unknown>;
+    set.add(listener);
+    return { remove: async () => void set.delete(listener) };
+  }) as DownloaderPlugin['addListener'],
 };
 
 export async function searchOnPhone(query: string, kind: SearchKind): Promise<SearchResult[]> {

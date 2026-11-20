@@ -43,6 +43,17 @@ describe('notificationCounts', () => {
     expect(notificationCounts(jobs)).toEqual({ position: 3, total: 9 });
   });
 
+  it('counts downloaded jobs as active and still pending', () => {
+    const jobs = [...many(2, 'done', 'a'), ...many(2, 'downloaded', 'a')];
+    expect(notificationCounts(jobs)).toEqual({ position: 3, total: 4 });
+    expect(notificationCounts(many(1, 'downloaded', 'a'))).toEqual({ position: 1, total: 1 });
+  });
+
+  it('keeps imports whose songs are downloaded but not saved yet', () => {
+    const imports = [{ playlistId: 'p', videoIds: ['v1'] }];
+    expect(importsToKeep(imports, [{ videoId: 'v1', status: 'downloaded' }])).toEqual(imports);
+  });
+
   it('subtracts canceled jobs from the total', () => {
     const jobs = [...many(3, 'canceled', 'a'), ...many(2, 'queued', 'a')];
     expect(notificationCounts(jobs)).toEqual({ position: 1, total: 2 });

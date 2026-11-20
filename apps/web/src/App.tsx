@@ -41,7 +41,8 @@ import { useDownloads } from './stores/downloads';
 import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
 import { DriveReconnect } from './components/DriveReconnect';
-import { useUi } from './stores/ui';
+import { toast, useUi } from './stores/ui';
+import { t } from './i18n';
 import { mayDoBackgroundWork, mayRotateOfflineNow } from './lib/power';
 
 const PENDING_LINK_KEY = 'pending-hub-link';
@@ -132,11 +133,23 @@ function useBackgroundSync() {
     })();
 
     const onOnline = () => {
+      const downloads = useDownloads.getState();
+      const hasWork = downloads.jobs.some(
+        (j) =>
+          j.status !== 'done' &&
+          j.status !== 'error' &&
+          j.status !== 'canceled' &&
+          j.status !== 'skipped',
+      );
+      if (downloads.waitingNetwork && hasWork) toast(t('dl.resumed'));
+      void downloads.resume();
       void sync();
       void useSend.getState().checkInbox();
     };
     const onVisible = () => {
-      if (document.visibilityState !== 'visible' || Date.now() - lastFocusSync < 60_000) return;
+      if (document.visibilityState !== 'visible') return;
+      void useDownloads.getState().resume();
+      if (Date.now() - lastFocusSync < 60_000) return;
       lastFocusSync = Date.now();
       void sync();
       void useSend.getState().checkInbox();

@@ -7,10 +7,12 @@ interface TipsState {
   dismissed: string[];
   firstStepsHidden: boolean;
   helpVisited: boolean;
+  firstStepsDone: boolean;
   finishWelcome: () => void;
   dismiss: (id: string) => void;
   hideFirstSteps: () => void;
   markHelpVisited: () => void;
+  markFirstStepsDone: () => void;
   /** Settings → Help → "Show tips again". */
   resetAll: () => void;
 }
@@ -22,6 +24,7 @@ interface Saved {
   dismissed: string[];
   firstStepsHidden: boolean;
   helpVisited: boolean;
+  firstStepsDone: boolean;
 }
 
 const DEFAULTS: Saved = {
@@ -29,12 +32,16 @@ const DEFAULTS: Saved = {
   dismissed: [],
   firstStepsHidden: false,
   helpVisited: false,
+  firstStepsDone: false,
 };
 
 export const useTips = create<TipsState>((set, get) => {
   const save = (patch: Partial<Saved>) => {
-    const { welcomeSeen, dismissed, firstStepsHidden, helpVisited } = { ...get(), ...patch };
-    savePref(KEY, { welcomeSeen, dismissed, firstStepsHidden, helpVisited });
+    const { welcomeSeen, dismissed, firstStepsHidden, helpVisited, firstStepsDone } = {
+      ...get(),
+      ...patch,
+    };
+    savePref(KEY, { welcomeSeen, dismissed, firstStepsHidden, helpVisited, firstStepsDone });
     set(patch);
   };
   // Installations from before the introduction existed have already set things up.
@@ -52,6 +59,9 @@ export const useTips = create<TipsState>((set, get) => {
     hideFirstSteps: () => save({ firstStepsHidden: true }),
     markHelpVisited: () => {
       if (!get().helpVisited) save({ helpVisited: true });
+    },
+    markFirstStepsDone: () => {
+      if (!get().firstStepsDone) save({ firstStepsDone: true });
     },
     resetAll: () => {
       savePref('dl-intro-seen', false);

@@ -247,7 +247,8 @@ export const en = {
   'dl.err.age':
     'YouTube requires signing in for this video (age restriction). It cannot be downloaded.',
   'dl.err.blocked': 'This video is blocked in your country or for copyright reasons.',
-  'dl.err.network': 'The connection dropped. Try again with internet.',
+  'dl.err.network':
+    'It could not be downloaded for lack of connection, even after several tries. Tap "Try again" when you have good signal.',
   'dl.err.tooBig': 'The file is too big (over 95 MB).',
   'dl.err.generic':
     'Something went wrong downloading. Update the downloader (below) and try again.',
@@ -295,6 +296,19 @@ export const en = {
   'dl.st.preparing': 'Getting the downloader ready… (slower the first time)',
   'dl.notifText.one': '{title} · 1 more in the queue',
   'dl.notifTextLast': '{title} · last one',
+  'dl.st.downloaded': 'Downloaded · it will be saved to your library shortly',
+  'dl.st.retrying': 'The connection failed while saving. It will try again by itself in a moment',
+  'dl.st.waitingNetwork': 'Waiting for signal',
+  'dl.waitingNetwork':
+    'No connection. Downloads are paused and will carry on by themselves when the signal is back. You do not need to do anything.',
+  'dl.resumed': 'The connection is back: downloads carry on',
+  'dl.closeOk':
+    'You can close the app: songs will keep downloading. They will be saved to your library when you open it again.',
+  'dl.savedAfterClose': '{count} songs downloaded while the app was closed are now in your library',
+  'dl.savedAfterClose.one': '1 song downloaded while the app was closed is now in your library',
+  'dl.notifWaiting': 'No connection · it will carry on when the signal is back',
+  'dl.notifOpenToSave': '{count} songs downloaded. Open Aske Stream to save them',
+  'dl.notifOpenToSave.one': '1 song downloaded. Open Aske Stream to save it',
   'dl.batteryText':
     'For downloads to go on with the screen off, Android has to let the app run in the background. Tap “Allow” and accept.',
   'dl.batteryButton': 'Allow',

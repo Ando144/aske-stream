@@ -1,6 +1,8 @@
 import { Check, X } from 'lucide-react';
+import { useEffect } from 'react';
 import { Link } from 'wouter';
 import { useT, type MessageKey } from '../i18n';
+import { firstStepsView } from '../lib/firstSteps';
 import { useLibrary } from '../stores/library';
 import { useRadio } from '../stores/radio';
 import { useTips } from '../stores/tips';
@@ -19,6 +21,9 @@ export function FirstSteps() {
   const hasSongs = useLibrary((s) => s.order.length > 0);
   const hasPlaylist = useLibrary((s) => s.playlists.length > 0);
   const hasStation = useRadio((s) => s.stations.length > 0);
+  const completed = useTips((s) => s.firstStepsDone);
+  const libraryLoaded = useLibrary((s) => s.loaded);
+  const radioLoaded = useRadio((s) => s.loaded);
 
   const steps: Step[] = [
     { key: 'firstSteps.song', done: hasSongs, href: '/download' },
@@ -27,7 +32,19 @@ export function FirstSteps() {
     { key: 'firstSteps.help', done: helpVisited, href: '/help' },
   ];
   const done = steps.filter((s) => s.done).length;
-  if (hidden || done === steps.length) return null;
+  const view = firstStepsView({
+    hidden,
+    completed,
+    libraryLoaded,
+    radioLoaded,
+    steps: steps.map((s) => s.done),
+  });
+
+  useEffect(() => {
+    if (view === 'complete') useTips.getState().markFirstStepsDone();
+  }, [view]);
+
+  if (view !== 'show') return null;
 
   return (
     <section className="panel first-steps">

@@ -52,9 +52,14 @@ export function RadioView() {
     <div className="page">
       <header className="page-header">
         <h1>{t('radio.title')}</h1>
-        <div className="row">
-          <button className="btn small" onClick={() => setAddOpen(true)}>
-            <Plus size={16} /> {t('radio.addCustom')}
+        <div className="header-actions">
+          <button
+            className="btn primary small"
+            onClick={() => setAddOpen(true)}
+            aria-label={t('radio.addCustom')}
+            title={t('radio.addCustom')}
+          >
+            <Plus size={16} />
           </button>
           <SettingsLink />
         </div>

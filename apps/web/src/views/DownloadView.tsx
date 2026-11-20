@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BatteryWarning,
   Check,
-  CircleAlert,
   Download,
   ListMusic,
   LoaderCircle,
-  RefreshCw,
-  RotateCcw,
   Search,
   Send,
   Smartphone,
@@ -30,15 +26,16 @@ import { useI18n, useT } from '../i18n';
 import { formatBytes, formatTime } from '../lib/format';
 import { uniquePlaylistName } from '../downloads/batch';
 import { loadValue, savePref } from '../lib/storage';
-import { AskeNative } from '../native/askeNative';
 import { listPlaylistOnPhone, searchOnPhone, type PlaylistListing } from '../native/downloader';
 import { isNative } from '../native/platform';
-import { useDownloads, type DownloadJob } from '../stores/downloads';
+import { useDownloads } from '../stores/downloads';
 import { useLibrary } from '../stores/library';
 import { useSend } from '../stores/send';
 import { useSetup } from '../stores/setup';
 import { toast } from '../stores/ui';
 import { HelpButton } from '../components/HelpSheet';
+import { Queue } from '../components/downloads/DownloadQueue';
+import { EnginePanel } from '../components/downloads/EnginePanel';
 
 /**
  * Find music on YouTube and get it into the library.
@@ -214,7 +211,7 @@ function ResultRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
     s.jobs.some(
       (j) =>
         j.videoId === result.id &&
-        (j.status === 'queued' || j.status === 'downloading' || j.status === 'saving'),
+        ['queued', 'downloading', 'downloaded', 'saving'].includes(j.status),
     ),
   );
   const sendItem = useSend((s) => s.send);
@@ -558,180 +555,6 @@ const emptyListing = (): PlaylistListing => ({
 
 const videoThumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 
-/* ------------------------------- phone queue ------------------------------- */
-
-function statusText(t: ReturnType<typeof useT>, j: DownloadJob): string {
-  switch (j.status) {
-    case 'queued':
-      return t('dl.st.queued');
-    case 'downloading':
-      return t('dl.st.downloading', { percent: Math.round(j.progress) });
-    case 'saving':
-      return t('dl.st.saving');
-    case 'done':
-      return t('dl.st.done');
-    case 'skipped':
-      return t('dl.st.skipped');
-    case 'canceled':
-      return t('dl.st.canceled');
-    default:
-      return j.error ?? t('dl.err.generic');
-  }
-}
-
-function Queue() {
-  const t = useT();
-  const jobs = useDownloads((s) => s.jobs);
-  const [showDone, setShowDone] = useState(false);
-
-  const active = jobs.filter(
-    (j) => j.status === 'queued' || j.status === 'downloading' || j.status === 'saving',
-  );
-  const failed = jobs.filter((j) => j.status === 'error');
-  const finished = jobs.filter((j) => !active.includes(j) && j.status !== 'error').reverse();
-
-  return (
-    <>
-      {active.length > 0 && <BatteryHint />}
-      {(active.length > 0 || failed.length > 0) && (
-        <section>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h2 className="section-title">
-              {active.length ? t('dl.queueTitle', { count: active.length }) : t('dl.failedTitle')}
-            </h2>
-            <div className="row">
-              {failed.length > 0 && (
-                <button className="btn small" onClick={() => useDownloads.getState().retryFailed()}>
-                  <RotateCcw size={16} /> {t('dl.retryAll')}
-                </button>
-              )}
-              {active.length > 0 && (
-                <button
-                  className="btn small"
-                  onClick={() => void useDownloads.getState().cancelAll()}
-                >
-                  <X size={16} /> {t('dl.cancelAll')}
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="card-list">
-            {[...active, ...failed].map((j) => (
-              <JobRow key={j.id} job={j} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {finished.length > 0 && (
-        <section>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <button className="section-title link-btn" onClick={() => setShowDone(!showDone)}>
-              {t('dl.finishedTitle', { count: finished.length })} {showDone ? '▾' : '▸'}
-            </button>
-            <button className="btn small" onClick={() => useDownloads.getState().clearFinished()}>
-              <Trash2 size={16} /> {t('dl.clearList')}
-            </button>
-          </div>
-          {showDone && (
-            <div className="card-list">
-              {finished.slice(0, 100).map((j) => (
-                <JobRow key={j.id} job={j} />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-    </>
-  );
-}
-
-function JobRow({ job }: { job: DownloadJob }) {
-  const t = useT();
-  const preparing = useDownloads(
-    (s) =>
-      job.status === 'queued' &&
-      s.running &&
-      (s.engine.status === 'starting' || s.engine.status === 'updating') &&
-      s.jobs.find((j) => j.status === 'queued')?.id === job.id,
-  );
-  const active = job.status === 'queued' || job.status === 'downloading' || job.status === 'saving';
-  return (
-    <div className={`card-row dl-job ${job.status}`}>
-      <img
-        className="dl-thumb"
-        src={job.thumbnail}
-        alt=""
-        loading="lazy"
-        referrerPolicy="no-referrer"
-      />
-      <div className="grow" style={{ minWidth: 0 }}>
-        <div className="card-title ellipsis">{job.title}</div>
-        <div className={`small ${job.status === 'error' ? 'error-text' : 'muted ellipsis'}`}>
-          {job.status === 'error' && <CircleAlert size={12} />}{' '}
-          {preparing ? t('dl.st.preparing') : statusText(t, job)}
-        </div>
-        {job.status === 'downloading' && (
-          <div className="meter dl-meter" aria-hidden>
-            <div className="auto" style={{ width: `${job.progress}%` }} />
-          </div>
-        )}
-      </div>
-      {active ? (
-        <button
-          className="icon-btn"
-          aria-label={t('common.cancel')}
-          onClick={() => void useDownloads.getState().cancel(job.id)}
-        >
-          <X size={20} />
-        </button>
-      ) : job.status === 'error' || job.status === 'canceled' ? (
-        <button
-          className="icon-btn"
-          aria-label={t('dl.retry')}
-          onClick={() => useDownloads.getState().retry(job.id)}
-        >
-          <RotateCcw size={20} />
-        </button>
-      ) : (
-        <Check size={20} color="var(--accent)" />
-      )}
-    </div>
-  );
-}
-
-/**
- * Android may pause apps in the background to save battery. Downloads with
- * the screen off need the app to be exempt: ask, explained in plain words.
- */
-function BatteryHint() {
-  const t = useT();
-  const [restricted, setRestricted] = useState(false);
-  useEffect(() => {
-    const check = () =>
-      void AskeNative.batteryStatus()
-        .then((s) => setRestricted(!s.unrestricted))
-        .catch(() => setRestricted(false));
-    check();
-    const onVisible = () => document.visibilityState === 'visible' && check();
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []);
-  if (!restricted) return null;
-  return (
-    <div className="banner dl-battery">
-      <BatteryWarning size={20} />
-      <div className="grow small">{t('dl.batteryText')}</div>
-      <button
-        className="btn small primary"
-        onClick={() => void AskeNative.requestBatteryExemption()}
-      >
-        {t('dl.batteryButton')}
-      </button>
-    </div>
-  );
-}
-
 /** Where downloaded songs go (and, with Cloudflare, whether to keep a copy here). */
 function WherePanel() {
   const t = useT();
@@ -775,33 +598,6 @@ function WherePanel() {
       ) : (
         <div>{t('dl.whereDevice')}</div>
       )}
-    </div>
-  );
-}
-
-function EnginePanel() {
-  const t = useT();
-  const engine = useDownloads((s) => s.engine);
-  const busy = engine.status === 'starting' || engine.status === 'updating';
-  return (
-    <div className="panel dl-engine small">
-      <div className="grow">
-        <div>
-          {t('dl.engine')}
-          {engine.version ? ` · ${engine.version}` : ''}
-        </div>
-        <div className="faint">
-          {engine.status === 'error' ? t('dl.engineError') : t('dl.engineHint')}
-        </div>
-      </div>
-      <button
-        className="btn small"
-        disabled={busy}
-        onClick={() => void useDownloads.getState().updateEngine(true)}
-      >
-        {busy ? <LoaderCircle size={16} className="spin" /> : <RefreshCw size={16} />}
-        {engine.status === 'updating' ? t('dl.engineUpdating') : t('dl.engineUpdate')}
-      </button>
     </div>
   );
 }
