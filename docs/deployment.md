@@ -93,6 +93,15 @@ npm run ingest -- "D:\Music\Some Album"
 
 See [ingest.md](ingest.md) for options.
 
+## Without a computer (Android app)
+
+People without a technical profile can skip this guide: the Android app has a wizard
+(**Cloudflare → Set it up with the app**) that creates the database, the bucket and the Worker
+from a pasted API token, and later updates the Worker the same way. Extra devices are linked
+with a QR or a short code (Settings → Link another device). The wizard uses the same names as
+this guide (`aske-stream`, `aske-stream-media`), so `npm run db:migrate:remote` and
+`npm run deploy` keep working on a server it created, and the other way round.
+
 ## Updating
 
 ```powershell

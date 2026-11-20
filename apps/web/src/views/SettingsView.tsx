@@ -23,7 +23,9 @@ import { useCopy } from '../stores/copy';
 import type { Destination } from '../storage/types';
 import { confirmDialog, toast } from '../stores/ui';
 import { useTips } from '../stores/tips';
+import { LinkDevicePanel } from '../components/LinkDevicePanel';
 import { AppUpdatePanel } from '../components/AppUpdatePanel';
+import { ServerUpdatePanel } from '../components/ServerUpdatePanel';
 import { StoragePanel } from '../components/StoragePanel';
 import { AUTHOR, REPO_URL } from '../config';
 import { isNative } from '../native/platform';
@@ -242,6 +244,9 @@ export function SettingsView() {
           </div>
         )}
       </div>
+
+      {home === 'cloudflare' && <LinkDevicePanel />}
+      {home === 'cloudflare' && <ServerUpdatePanel />}
 
       <h2 className="section-title">{t('settings.app')}</h2>
       <AppUpdatePanel />

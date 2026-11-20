@@ -1,3 +1,4 @@
+import { normalizePairingCode } from '@aske/shared/pairing';
 import { create } from 'zustand';
 import { api, ApiError, configureApi, onUnauthorized } from '../api/client';
 import { loadValue, savePref } from '../lib/storage';
@@ -24,7 +25,7 @@ export interface SetupConfig {
   cloudflare?: CloudflareConnection;
 }
 
-type Status = 'loading' | 'choose' | 'pair' | 'ready';
+type Status = 'loading' | 'choose' | 'pair' | 'ready' | 'cloudflareSetup';
 
 interface SetupState {
   status: Status;
@@ -54,12 +55,18 @@ interface SetupState {
   /** Reuses the saved connection when it still works; otherwise asks for the key. */
   chooseCloudflare: () => Promise<void>;
   connectCloudflare: (key: string, baseUrl?: string) => Promise<void>;
+  /** Same as connectCloudflare but with a one-time pairing code instead of the key. */
+  connectWithCode: (code: string, baseUrl?: string) => Promise<void>;
   /** From Settings: shows the storage choice without leaving the current storage. */
   changeStorage: () => void;
   /** Leaves the storage choice and keeps everything as it was. */
   cancelChange: () => void;
   /** From the key screen back to the storage choice. */
   backToChoice: () => void;
+  /** Opens the "set up Cloudflare for me" assistant; remembers where to come back to. */
+  openCloudflareSetup: () => void;
+  /** Leaves the assistant: back to the key screen, or to the app if already connected. */
+  closeCloudflareSetup: () => void;
   /** Signs out of Cloudflare and forgets the connection on this device. */
   unpair: () => Promise<void>;
 }
@@ -94,6 +101,19 @@ export const useSetup = create<SetupState>((set, get) => {
     }
     apply(config);
     set({ config, status: 'ready', changing: false });
+  }
+
+  /** Pairs against `baseUrl` with the given credential and starts using it; reverts on failure. */
+  async function connect(pairCall: () => Promise<{ token: string }>, baseUrl: string) {
+    configureApi(baseUrl, null);
+    try {
+      const { token } = await pairCall();
+      // Same origin: the HttpOnly cookie is enough. Other origin: keep the device token.
+      use({ home: 'cloudflare', cloudflare: { baseUrl, token: baseUrl ? token : null } });
+    } catch (err) {
+      apply(get().config);
+      throw err;
+    }
   }
 
   return {
@@ -210,15 +230,13 @@ export const useSetup = create<SetupState>((set, get) => {
     },
 
     async connectCloudflare(key, baseUrl = '') {
-      configureApi(baseUrl, null);
-      try {
-        const { token } = await api.pair(key);
-        // Same origin: the HttpOnly cookie is enough. Other origin: keep the device token.
-        use({ home: 'cloudflare', cloudflare: { baseUrl, token: baseUrl ? token : null } });
-      } catch (err) {
-        apply(get().config);
-        throw err;
-      }
+      await connect(() => api.pair(key), baseUrl);
+    },
+
+    async connectWithCode(code, baseUrl = '') {
+      const normalized = normalizePairingCode(code);
+      if (!normalized) throw new ApiError(401, 'invalid_code', 'Invalid pairing code');
+      await connect(() => api.pairWithCode(normalized), baseUrl);
     },
 
     changeStorage() {
@@ -233,6 +251,15 @@ export const useSetup = create<SetupState>((set, get) => {
     backToChoice() {
       apply(get().config);
       set({ status: 'choose' });
+    },
+
+    openCloudflareSetup() {
+      set({ status: 'cloudflareSetup' });
+    },
+
+    closeCloudflareSetup() {
+      apply(get().config);
+      set({ status: get().config?.home === 'cloudflare' ? 'ready' : 'pair' });
     },
 
     async unpair() {

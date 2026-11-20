@@ -103,8 +103,8 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 5.2 | Copy in every direction when switching storage                                       | ✅     |
 | 5.3 | One-level folders, covers, merge playlists                                           | ✅     |
 | 5.4 | Folder order, screen-width fixes, drag clean-up                                      | ✅     |
-| 5.5 | Playlist order & pin, header buttons, battery                                        | 🚧     |
-| 6   | Cloudflare guided setup inside the app (+ QR pairing)                                |        |
+| 5.5 | Playlist order & pin, header buttons, battery                                        | ✅     |
+| 6   | Cloudflare guided setup inside the app (+ QR pairing)                                | ✅     |
 | 7   | Hub: shared playlists and in-person Jams                                             |        |
 | 8   | Telemetry (opt-in), private yearly Recap and admin dashboard                         |        |
 | 8b  | Friend groups through the Hub                                                        |        |
@@ -154,3 +154,13 @@ deleted at the source and songs already present (same id map, or same song) are 
 Cloudflare only accepts Opus, so other formats are skipped and counted; playlists are capped at
 1 000 songs. Radios are copied too. The Google "unverified app" warning is guided in the setup
 screen and the help centre.
+
+Phase 6 notes: the Android app can create the whole Cloudflare backend by itself. The user
+pastes an API token (never stored, only held in memory) and the app calls the Cloudflare API
+through the native `CloudflareApi` plugin (the WebView cannot, CORS): creates D1 and R2, runs
+the migrations, uploads the Worker plus the web files from the `cf-bundle` shipped inside the
+APK, and enables the `workers.dev` address. The same flow updates an old Worker
+(`keep_bindings` keeps `ACCESS_KEY`). Linking more devices uses a one-use pairing code (8
+characters, 10 minutes, 5 attempts) shown as a QR and a short code; Android scans it with the
+`QrScanner` plugin. `GET /api/health` reports the Worker version so the app can warn when it
+is older than the app. Not tested against a real Cloudflare account yet.

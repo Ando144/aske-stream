@@ -11,6 +11,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AskeNativePlugin.class);
         registerPlugin(DownloaderPlugin.class);
         registerPlugin(GoogleDrivePlugin.class);
+        registerPlugin(QrScannerPlugin.class);
+        registerPlugin(CloudflareApiPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

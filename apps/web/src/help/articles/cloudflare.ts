@@ -49,6 +49,8 @@ Prestatzeak 10 minutu inguru behar ditu ordenagailu batekin. Badago [urratsez ur
 
 ¿Dónde están? Las tiene quien montó tu Cloudflare. Si fuiste tú, en la carpeta del proyecto hay un archivo llamado **.env**: ábrelo con el Bloc de notas y busca las líneas **ASKE_URL** (la dirección) y **ASKE_ACCESS_KEY** (la clave).
 
+Más fácil: si ya tienes un dispositivo vinculado, no necesitas la clave. Mira [[link-device|Vincular otro dispositivo con un QR o un código]].
+
 Consejo: mándate la clave a ti mismo por un medio privado y cópiala y pégala en el móvil, en vez de escribirla.
 
 Para desconectar un dispositivo: **Ajustes → Desconectar de Cloudflare**.`,
@@ -58,6 +60,8 @@ Para desconectar un dispositivo: **Ajustes → Desconectar de Cloudflare**.`,
 2. **The key**: a long secret phrase created during setup.
 
 Where are they? Whoever set up your Cloudflare has them. If it was you, the project folder has a file called **.env**: open it with Notepad and look for the **ASKE_URL** (address) and **ASKE_ACCESS_KEY** (key) lines.
+
+Easier: if you already have a linked device, you do not need the key. See [[link-device|Linking another device with a QR or a code]].
 
 Tip: send the key to yourself privately and copy-paste it on the phone instead of typing it.
 
@@ -69,9 +73,58 @@ To disconnect a device: **Settings → Disconnect from Cloudflare**.`,
 
 Non daude? Zure Cloudflare prestatu zuenak ditu. Zu izan bazinen, proiektuaren karpetan **.env** izeneko fitxategi bat dago: ireki Ohar-blokearekin eta bilatu **ASKE_URL** (helbidea) eta **ASKE_ACCESS_KEY** (gakoa) lerroak.
 
+Errazagoa: dagoeneko gailu bat lotuta baduzu, ez duzu gakorik behar. Ikusi [[link-device|Beste gailu bat QR edo kode batekin lotu]].
+
 Aholkua: bidali gakoa zeure buruari bide pribatu batetik eta kopiatu eta itsatsi mugikorrean, idatzi beharrean.
 
 Gailu bat deskonektatzeko: **Ezarpenak → Deskonektatu Cloudflaretik**.`,
+    },
+  },
+  {
+    id: 'link-device',
+    section: 'cloudflare',
+    title: {
+      es: 'Vincular otro dispositivo con un QR o un código',
+      en: 'Linking another device with a QR or a code',
+      eu: 'Beste gailu bat QR edo kode batekin lotu',
+    },
+    body: {
+      es: `Si ya tienes tu Aske Stream en un dispositivo, puedes vincular otro sin buscar la clave.
+
+**En el dispositivo que ya funciona:** ve a **Ajustes → Vincular otro dispositivo**. Verás un código QR y un código corto de 8 letras y números.
+
+- **Móvil Android:** en la pantalla de entrada pulsa **Escanear código QR** y apunta al QR. También puedes escanearlo con la cámara del móvil: abre la web y se vincula sola.
+- **Ordenador:** escribe el código corto en la pantalla de entrada (da igual si usas mayúsculas, minúsculas o guion).
+
+El código **caduca a los 10 minutos** y **sirve una sola vez**. Si caduca o falla, crea otro. Tras 5 intentos fallidos también deja de valer.
+
+**Si el escáner no se abre:** en algunos móviles falta una actualización de Google Play. Escribe el código corto, o pega el enlace que te da el botón **Compartir enlace**.
+
+No compartas el QR ni el código con nadie que no quieras que entre en tu música.`,
+      en: `If you already have your Aske Stream on one device, you can link another one without looking for the key.
+
+**On the device that already works:** go to **Settings → Link another device**. You will see a QR code and a short code of 8 letters and numbers.
+
+- **Android phone:** on the entry screen tap **Scan QR code** and point at the QR. You can also scan it with the phone camera: it opens the web and links by itself.
+- **Computer:** type the short code on the entry screen (capitals, lower case or dashes do not matter).
+
+The code **expires after 10 minutes** and **works only once**. If it expires or fails, create another one. After 5 wrong tries it stops working too.
+
+**If the scanner does not open:** some phones are missing a Google Play update. Type the short code, or paste the link given by the **Share link** button.
+
+Do not share the QR or the code with anyone you do not want inside your music.`,
+      eu: `Zure Aske Stream gailu batean badaukazu, beste bat lot dezakezu gakoa bilatu gabe.
+
+**Dagoeneko dabilen gailuan:** joan **Ezarpenak → Lotu beste gailu bat** atalera. QR kode bat eta 8 letra eta zenbakiko kode labur bat ikusiko dituzu.
+
+- **Android mugikorra:** sarrera-pantailan sakatu **Eskaneatu QR kodea** eta zuzendu QRra. Mugikorreko kamerarekin ere eskaneatu dezakezu: webgunea irekitzen da eta berez lotzen da.
+- **Ordenagailua:** idatzi kode laburra sarrera-pantailan (berdin dio maiuskulak, minuskulak edo gidoia erabiltzen badituzu).
+
+Kodeak **10 minutuan iraungitzen da** eta **behin bakarrik balio du**. Iraungitzen bada edo huts egiten badu, sortu beste bat. 5 saiakera okerren ondoren ere ez du balio.
+
+**Eskanerra irekitzen ez bada:** mugikor batzuek Google Playren eguneraketa bat falta dute. Idatzi kode laburra, edo itsatsi **Partekatu esteka** botoiak ematen duen esteka.
+
+Ez partekatu QRa edo kodea zure musikan sartzea nahi ez duzun inorekin.`,
     },
   },
   {

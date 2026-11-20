@@ -14,6 +14,7 @@ import { squareJpeg } from '../lib/cover';
 import { kvGet, kvSet, type CachedLibrary } from '../offline/db';
 import { applyFolderDelete, applyMove, planMerge } from '../storage/playlistOps';
 import type { LibrarySnapshot, LocalTrack } from '../storage/types';
+import { useServerUpdate } from './serverUpdate';
 import { getHome, useSetup } from './setup';
 import { toast } from './ui';
 
@@ -80,7 +81,8 @@ async function persist(state: LibraryState, etag = '') {
 
 function reportError(err: unknown) {
   if (err instanceof Error && err.message === 'cloudflare_outdated') {
-    toast(t('toast.cloudflareOutdated'), 'error');
+    useServerUpdate.getState().markOutdated();
+    toast(t('toast.serverOutdated'), 'error');
     return;
   }
   if (err instanceof Error && err.message === 'folder_not_found') {

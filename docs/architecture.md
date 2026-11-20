@@ -69,18 +69,19 @@ served with `Cache-Control: private, max-age=31536000, immutable`.
 
 ## API
 
-| Method & path                                                                | Purpose                                           |
-| ---------------------------------------------------------------------------- | ------------------------------------------------- |
-| `GET /api/health`                                                            | Liveness (public)                                 |
-| `GET /api/auth/status` · `POST /api/auth/pair` · `POST /api/auth/logout`     | Device pairing                                    |
-| `GET /api/library`                                                           | Full snapshot (tracks + playlists), ETag/304      |
-| `PATCH /api/tracks/:id` · `DELETE /api/tracks/:id`                           | Edit metadata, like/unlike, delete (also from R2) |
-| `POST /api/playlists` · `PATCH/DELETE /api/playlists/:id`                    | Playlist CRUD                                     |
-| `POST/PUT /api/playlists/:id/tracks` · `DELETE …/tracks/:trackId`            | Add, reorder, remove songs                        |
-| `GET/POST /api/stations` · `PATCH/DELETE /api/stations/:id`                  | Saved and liked radio stations                    |
-| `GET /api/radio/stations · tags · countries` · `POST /api/radio/click/:uuid` | Radio Browser proxy                               |
-| `GET /api/ingest/exists` · `POST /api/ingest/tracks`                         | Used by the CLI (multipart upload)                |
-| `GET /media/audio/:id` · `GET /media/cover/:id`                              | Streaming with `Range`, `ETag`, `304`, `416`      |
+| Method & path                                                                | Purpose                                               |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `GET /api/health`                                                            | Liveness and Worker `version` (public)                |
+| `GET /api/auth/status` · `POST /api/auth/pair` · `POST /api/auth/logout`     | Device pairing (`pair` takes `{ key }` or `{ code }`) |
+| `POST /api/auth/pairing-codes`                                               | New one-use pairing code (paired devices only)        |
+| `GET /api/library`                                                           | Full snapshot (tracks + playlists), ETag/304          |
+| `PATCH /api/tracks/:id` · `DELETE /api/tracks/:id`                           | Edit metadata, like/unlike, delete (also from R2)     |
+| `POST /api/playlists` · `PATCH/DELETE /api/playlists/:id`                    | Playlist CRUD                                         |
+| `POST/PUT /api/playlists/:id/tracks` · `DELETE …/tracks/:trackId`            | Add, reorder, remove songs                            |
+| `GET/POST /api/stations` · `PATCH/DELETE /api/stations/:id`                  | Saved and liked radio stations                        |
+| `GET /api/radio/stations · tags · countries` · `POST /api/radio/click/:uuid` | Radio Browser proxy                                   |
+| `GET /api/ingest/exists` · `POST /api/ingest/tracks`                         | Used by the CLI (multipart upload)                    |
+| `GET /media/audio/:id` · `GET /media/cover/:id`                              | Streaming with `Range`, `ETag`, `304`, `416`          |
 
 All inputs are validated with Zod; errors are JSON `{ error, message }`.
 
@@ -95,6 +96,23 @@ sequenceDiagram
   Worker-->>Phone: Set-Cookie: aske_session=v1.<issuedAt>.<HMAC> (HttpOnly, Secure, SameSite=Strict, ~1 year)
   Phone->>Worker: GET /media/audio/… (cookie sent automatically)
   Note over Worker: CLI uses Authorization: Bearer ACCESS_KEY instead
+```
+
+- A paired device can also link another one without the key: `POST /api/auth/pairing-codes`
+  returns an 8-character code (10 minutes, one use, only its SHA-256 is stored in D1). The code
+  travels in a QR as `https://<worker>/#code=…` or is typed on a computer; `POST /api/auth/pair`
+  `{ code }` consumes it and answers like the key flow. Five wrong tries invalidate it.
+
+```mermaid
+sequenceDiagram
+  participant Old as Paired device
+  participant Worker
+  participant New as New device
+  Old->>Worker: POST /api/auth/pairing-codes
+  Worker-->>Old: { code, expiresAt }
+  Old-->>New: QR or typed code
+  New->>Worker: POST /api/auth/pair { code }
+  Worker-->>New: Set-Cookie: aske_session=… (code deleted)
 ```
 
 - Stateless: the cookie is an HMAC of its issue time signed with the key. Rotating

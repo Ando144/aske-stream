@@ -1,13 +1,15 @@
 {
   "name": "@aske/shared",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "Types and constants shared by the API, the web app and the ingest CLI.",
   "author": "Andoni Ortiz de Zarate Urruela (https://github.com/Ando144)",
   "exports": {
     ".": "./src/index.ts",
+    "./pairing": "./src/pairing.ts",
     "./radio-browser": "./src/radioBrowser.ts",
+    "./version": "./src/version.ts",
     "./youtube": "./src/youtube.ts"
   },
   "scripts": {

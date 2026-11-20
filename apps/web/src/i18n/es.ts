@@ -1,4 +1,6 @@
 import type { Messages } from './en';
+import { cloudflareSetupEs } from './cloudflareSetup';
+import { pairingEs } from './pairing';
 
 export const es: Messages = {
   'app.name': 'Aske Stream',
@@ -435,8 +437,6 @@ export const es: Messages = {
   'toast.coverBadImage': 'No se ha podido usar esa imagen. Prueba con otra foto.',
   'toast.coverStorageFull':
     'No hay espacio para guardar la portada. Libera espacio y vuelve a probar.',
-  'toast.cloudflareOutdated':
-    'Tu Cloudflare tiene una versión antigua y todavía no admite carpetas ni portadas. Tu música y tus playlists siguen bien.',
   'toast.error': 'Algo ha salido mal',
   'toast.playlistTooBig':
     'Una playlist puede tener como máximo {max} canciones. Elige menos canciones.',
@@ -676,4 +676,6 @@ export const es: Messages = {
   'sleep.start': 'Activar',
   'sleep.hoursLabel': 'Horas',
   'sleep.minutesLabel': 'Minutos',
+  ...pairingEs,
+  ...cloudflareSetupEs,
 };

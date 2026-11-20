@@ -15,4 +15,5 @@ ext {
     cordovaAndroidVersion = '14.0.1'
     youtubedlAndroidVersion = '0.18.1'
     playServicesAuthVersion = '21.6.0'
+    playServicesCodeScannerVersion = '16.1.0'
 }

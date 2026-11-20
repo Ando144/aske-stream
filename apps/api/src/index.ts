@@ -5,6 +5,7 @@ import type { AppEnv } from './env';
 import { requireAuth } from './lib/auth';
 import { RadioBrowserUnavailable } from './lib/radioBrowser';
 import { HttpError } from './lib/http';
+import { WORKER_VERSION } from './version';
 import { authRoutes } from './routes/auth';
 import { ingestRoutes } from './routes/ingest';
 import { sendRoutes, youtubeRoutes } from './routes/youtube';
@@ -42,7 +43,7 @@ app.use('/api/*', async (c, next) => {
 });
 
 // Public endpoints
-app.get('/api/health', (c) => c.json({ ok: true }));
+app.get('/api/health', (c) => c.json({ ok: true, version: WORKER_VERSION }));
 app.route('/api/auth', authRoutes);
 
 // Everything else requires a paired device or the access key

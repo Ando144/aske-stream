@@ -5,6 +5,7 @@ import { listenArticles } from './articles/listen';
 import { offlineArticles } from './articles/offline';
 import { driveArticles } from './articles/drive';
 import { cloudflareArticles } from './articles/cloudflare';
+import { cloudflareSetupArticles } from './articles/cloudflareSetup';
 import { androidArticles } from './articles/android';
 import { problemsArticles } from './articles/problems';
 import { privacyArticles } from './articles/privacy';
@@ -62,6 +63,7 @@ export const ARTICLES: HelpArticle[] = [
   ...offlineArticles,
   ...driveArticles,
   ...cloudflareArticles,
+  ...cloudflareSetupArticles,
   ...androidArticles,
   ...problemsArticles,
   ...privacyArticles,

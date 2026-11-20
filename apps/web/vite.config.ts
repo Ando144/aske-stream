@@ -26,6 +26,8 @@ export default defineConfig(({ mode }) => ({
             { find: /^.*\/native\/askeNative$/, replacement: fake('askeNative.ts') },
             { find: /^.*\/native\/downloader$/, replacement: fake('downloader.ts') },
             { find: /^.*\/native\/googleDrive$/, replacement: fake('googleDrive.ts') },
+            { find: /^.*\/native\/qrScanner$/, replacement: fake('qrScanner.ts') },
+            { find: /^.*\/native\/cloudflareApi$/, replacement: fake('cloudflareApi.ts') },
           ],
         }
       : undefined,

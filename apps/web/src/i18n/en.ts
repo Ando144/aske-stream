@@ -1,3 +1,5 @@
+import { cloudflareSetupEn } from './cloudflareSetup';
+import { pairingEn } from './pairing';
 /** English is the source of truth: the other languages must define every key. */
 export const en = {
   'app.name': 'Aske Stream',
@@ -427,8 +429,6 @@ export const en = {
   'toast.coverSaved': 'Cover saved',
   'toast.coverBadImage': 'That image could not be used. Try another photo.',
   'toast.coverStorageFull': 'There is no room to save the cover. Free up some space and try again.',
-  'toast.cloudflareOutdated':
-    'Your Cloudflare has an old version and does not support folders or covers yet. Your music and playlists are fine.',
   'toast.error': 'Something went wrong',
   'toast.playlistTooBig': 'A playlist can hold up to {max} songs. Pick fewer songs.',
   'toast.playlistFull':
@@ -663,6 +663,8 @@ export const en = {
   'sleep.start': 'Start',
   'sleep.hoursLabel': 'Hours',
   'sleep.minutesLabel': 'Minutes',
+  ...pairingEn,
+  ...cloudflareSetupEn,
 } as const;
 
 export type MessageKey = keyof typeof en;

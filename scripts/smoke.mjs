@@ -147,6 +147,32 @@ async function main() {
   });
 
   await step('health is public', async () => assert.equal((await api('/api/health')).status, 200));
+  await step('health returns the Worker version', async () => {
+    const health = await json(await api('/api/health'));
+    assert.match(health.version, /^\d+\.\d+\.\d+/);
+  });
+  await step('pairing codes: create, pair once, reject reuse and wrong codes', async () => {
+    const pairWith = (code) =>
+      fetch(`${baseUrl}/api/auth/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+    const url = `${baseUrl}/api/auth/pairing-codes`;
+    assert.equal((await fetch(url, { method: 'POST' })).status, 401);
+    const made = await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${key}` } });
+    assert.equal(made.status, 201);
+    const { code, expiresAt } = await made.json();
+    assert.match(code, /^[2-9A-HJ-NP-Z]{8}$/);
+    assert.ok(expiresAt > Date.now());
+    const paired = await pairWith(`${code.slice(0, 4)}-${code.slice(4).toLowerCase()}`);
+    assert.equal(paired.status, 200, await paired.clone().text());
+    assert.match((await paired.json()).token, /^v1\./);
+    const again = await pairWith(code);
+    assert.equal(again.status, 401);
+    assert.equal((await again.json()).error, 'invalid_code');
+    assert.equal((await pairWith('ZZZZZZZZ')).status, 401);
+  });
   await step('library requires pairing', async () => {
     assert.equal((await api('/api/library')).status, 401);
     assert.equal((await api('/media/audio/AAAAAAAAAAAAAAAA')).status, 401);

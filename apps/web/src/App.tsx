@@ -8,6 +8,10 @@ import { MiniPlayer, PlayerBar } from './components/player/MiniPlayer';
 import { NowPlaying } from './components/player/NowPlaying';
 import { Toasts } from './components/Toasts';
 import { TrackMenu } from './components/TrackMenu';
+import { ServerUpdateBanner } from './components/ServerUpdateBanner';
+import { useCloudflareSetup } from './stores/cloudflareSetup';
+import { useServerUpdate } from './stores/serverUpdate';
+import { CloudflareSetupView } from './views/CloudflareSetupView';
 import { useLibrary } from './stores/library';
 import { useOffline } from './stores/offline';
 import { usePlayer } from './stores/player';
@@ -39,6 +43,9 @@ export function App() {
   const home = useSetup((s) => s.config?.home);
   const changing = useSetup((s) => s.changing);
   const welcomeSeen = useTips((s) => s.welcomeSeen);
+  const setupFlowActive = useCloudflareSetup(
+    (s) => s.mode === 'setup' && (s.phase === 'running' || s.phase === 'done'),
+  );
 
   useEffect(() => {
     void useSetup.getState().init();
@@ -56,6 +63,8 @@ export function App() {
   }
   if (status === 'choose') return <SetupView />;
   if (status === 'pair') return <PairView />;
+  // connectCloudflare() marks the app "ready" before the assistant shows its "done" screen.
+  if (status === 'cloudflareSetup' || setupFlowActive) return <CloudflareSetupView mode="setup" />;
   // Re-mount everything when the storage changes so no state leaks between libraries.
   return <Shell key={home} />;
 }
@@ -117,8 +126,11 @@ function useBackgroundSync() {
 
 function Shell() {
   useBackgroundSync();
+  useEffect(() => {
+    void useServerUpdate.getState().check();
+  }, []);
   const hasPlayer = usePlayer((s) => s.mode !== 'idle');
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -132,6 +144,7 @@ function Shell() {
       <Sidebar />
       <main ref={mainRef} className={`main${hasPlayer ? '' : ' no-player'}`}>
         <DriveReconnect />
+        <ServerUpdateBanner />
         <Switch>
           <Route path="/" component={LibraryView} />
           <Route path="/playlists" component={PlaylistsView} />
@@ -150,6 +163,9 @@ function Shell() {
           <Route path="/welcome">{() => <Replay />}</Route>
           <Route path="/offline" component={OfflineView} />
           <Route path="/settings" component={SettingsView} />
+          <Route path="/server-update">
+            {() => <CloudflareSetupView mode="update" onExit={() => navigate('/settings')} />}
+          </Route>
           <Route>
             <Redirect to="/" />
           </Route>

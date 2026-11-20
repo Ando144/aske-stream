@@ -23,6 +23,10 @@ redistribute) the music, upload files at the owner's expense, or delete the libr
 key is exchanged for an `HttpOnly; Secure; SameSite=Strict` cookie signed with HMAC-SHA-256 that
 lasts about a year. Constant-time comparisons; fail closed when the secret is missing or short.
 
+Addendum (phase 6): an already paired device can create a pairing code (8 characters, valid 10
+minutes, single use, only its SHA-256 stored in D1, invalidated after 5 wrong attempts). It is shown
+as a QR (`/#code=…`) or typed, so new devices are linked without ever handling the key.
+
 ## Consequences
 
 Rotating the key logs out every device. Losing the key only requires setting a new one. Cloudflare

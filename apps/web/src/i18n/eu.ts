@@ -1,4 +1,6 @@
 import type { Messages } from './en';
+import { cloudflareSetupEu } from './cloudflareSetup';
+import { pairingEu } from './pairing';
 
 export const eu: Messages = {
   'app.name': 'Aske Stream',
@@ -435,8 +437,6 @@ export const eu: Messages = {
   'toast.coverSaved': 'Azala gordeta',
   'toast.coverBadImage': 'Irudi hori ezin izan da erabili. Saiatu beste argazki batekin.',
   'toast.coverStorageFull': 'Ez dago tokirik azala gordetzeko. Egin tokia eta saiatu berriro.',
-  'toast.cloudflareOutdated':
-    'Zure Cloudflare-k bertsio zaharra du eta oraindik ez ditu karpetak eta azalak onartzen. Zure musika eta zerrendak ondo daude.',
   'toast.error': 'Zerbait gaizki atera da',
   'toast.playlistTooBig':
     'Zerrenda batek gehienez {max} abesti izan ditzake. Aukeratu abesti gutxiago.',
@@ -674,4 +674,6 @@ export const eu: Messages = {
   'sleep.start': 'Aktibatu',
   'sleep.hoursLabel': 'Orduak',
   'sleep.minutesLabel': 'Minutuak',
+  ...pairingEu,
+  ...cloudflareSetupEu,
 };

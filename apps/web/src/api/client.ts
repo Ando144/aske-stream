@@ -146,8 +146,15 @@ function createApi(
   }
 
   return {
-    health: () => json<{ ok: boolean }>('/api/health'),
+    health: () => json<{ ok: boolean; version?: string }>('/api/health'),
     status: () => json<{ paired: boolean }>('/api/auth/status'),
+    pairWithCode: (code: string) =>
+      json<{ paired: boolean; token: string }>('/api/auth/pair', {
+        method: 'POST',
+        json: { code },
+      }),
+    createPairingCode: () =>
+      json<{ code: string; expiresAt: number }>('/api/auth/pairing-codes', { method: 'POST' }),
     pair: (key: string) =>
       json<{ paired: boolean; token: string }>('/api/auth/pair', {
         method: 'POST',
