@@ -57,8 +57,8 @@ Only if you use these optional features, the app talks to the Aske Hub, a small 
 
 ### Usage statistics
 
-Aske Stream does not send usage statistics to anyone. If that ever changes, it will be optional,
-off by default and only with your explicit consent.
+Aske Stream does not send usage statistics to anyone. If that ever changes, it will happen only
+with your explicit permission and will be off by default.
 
 The app has an optional listening Recap, off by default. If you turn it on, it saves which songs
 you listen to, for how long and which ones you skip (not radio or podcasts). This history is
@@ -93,8 +93,8 @@ que reciban tu información, no tiene anuncios ni rastreo, y no vende nada.**
   canciones se guardan 90 días y luego se borran; los apodos y la cola de una Jam, solo mientras
   dura (12 horas como mucho). Tu IP se usa únicamente como hash con sal diaria para limitar
   abusos, nunca en claro. No hay estadísticas.
-- **Estadísticas:** no se envían a nadie. Si algún día se añaden, serán opcionales, desactivadas
-  por defecto y solo con tu consentimiento explícito.
+- **Estadísticas:** no se envían estadísticas de uso a nadie. Si algún día se envían, será solo
+  con tu permiso explícito y estarán desactivadas por defecto.
 - **Recap de escuchas (opcional, apagado por defecto):** si lo activas, se guarda qué canciones
   escuchas, cuánto tiempo y cuáles saltas (no radio ni podcasts). Se guarda solo en tu dispositivo
   y no se envía a nadie (ni a nosotros ni a Google ni a Cloudflare). Desactivarlo borra todo el

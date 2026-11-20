@@ -47,6 +47,14 @@ export function getDb(): Promise<IDBPDatabase<AskeDB>> {
         db.createObjectStore('plays', { keyPath: 'id' }).createIndex('by-startedAt', 'startedAt');
       }
     },
+    blocked() {
+      console.warn('IndexedDB upgrade blocked by another open tab');
+    },
+    blocking() {
+      // Let another tab upgrade the schema: close ours and reopen lazily on next use.
+      void dbPromise?.then((db) => db.close());
+      dbPromise = null;
+    },
   });
   return dbPromise;
 }

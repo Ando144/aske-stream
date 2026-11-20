@@ -107,7 +107,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 6   | Cloudflare guided setup inside the app (+ QR pairing)                                | ✅             |
 | 7   | Hub: shared playlists and in-person Jams                                             | ✅             |
 | 8a  | Local listening stats (opt-in, on this device only) and monthly/yearly Recap         | 🚧 in progress |
-| 8   | Telemetry (opt-in), private yearly Recap and admin dashboard                         |                |
+| 8   | Telemetry (opt-in) and admin dashboard                                               |                |
 | 8b  | Friend groups through the Hub                                                        |                |
 | 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end    |                |
 
