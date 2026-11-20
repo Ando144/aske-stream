@@ -42,6 +42,19 @@ If you choose Google Drive, the app asks for a single permission:
 Only to do what you ask: YouTube (to search and download), the public radio catalogue, GitHub (to
 check for updates), and your own Google Drive or Cloudflare account.
 
+### Aske Hub (shared playlists and Jams)
+
+Only if you use these optional features, the app talks to the Aske Hub, a small server that
+**never stores music**:
+
+- **Shared playlists:** the playlist name and the song references (YouTube ids, titles, artists)
+  are kept for 90 days and then deleted. Anyone with the link can read them.
+- **Jams:** the nicknames you type and the queue are kept only while the Jam lasts (at most 12
+  hours). No accounts are needed.
+- **Abuse limits:** your IP address is used only as a hash with a daily salt, to limit abuse, and
+  is never stored in the clear.
+- No usage statistics are collected.
+
 ### Usage statistics
 
 Aske Stream does not collect usage statistics today. If that ever changes, it will be optional,
@@ -70,6 +83,11 @@ que reciban tu información, no tiene anuncios ni rastreo, y no vende nada.**
   quitar el acceso cuando quieras en <https://myaccount.google.com/permissions>.
 - **Otros servicios:** YouTube (para buscar y descargar), el catálogo público de radios, GitHub
   (para buscar actualizaciones) y tu propio Drive o Cloudflare.
+- **Aske Hub (playlists compartidas y Jams):** solo si usas estas funciones opcionales. Es un
+  servidor pequeño que **nunca guarda música**. El nombre de la playlist y las referencias de las
+  canciones se guardan 90 días y luego se borran; los apodos y la cola de una Jam, solo mientras
+  dura (12 horas como mucho). Tu IP se usa únicamente como hash con sal diaria para limitar
+  abusos, nunca en claro. No hay estadísticas.
 - **Estadísticas:** hoy no se recogen. Si algún día se añaden, serán opcionales, desactivadas por
   defecto y solo con tu consentimiento explícito.
 - **Contacto:** abre una incidencia en <https://github.com/Ando144/aske-stream/issues>.

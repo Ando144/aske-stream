@@ -92,23 +92,23 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 
 ## Phases
 
-| #   | Phase                                                                                | Status |
-| --- | ------------------------------------------------------------------------------------ | ------ |
-| 1   | Storage layer: local library, home + destinations, device mode, device tokens        | ✅     |
-| 2   | Android app (Capacitor): native audio, device files, in-app updater, CI APK builds   | ✅     |
-| 3   | YouTube search & download (songs, playlists, queue, engine updates) + Send to phone  | ✅     |
-| 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere            | ✅     |
-| 5   | Google Drive home & destination                                                      | ✅     |
-| 5.1 | Real-use fixes: batch counter, full imported playlists, sleep timer, tombstone prune | ✅     |
-| 5.2 | Copy in every direction when switching storage                                       | ✅     |
-| 5.3 | One-level folders, covers, merge playlists                                           | ✅     |
-| 5.4 | Folder order, screen-width fixes, drag clean-up                                      | ✅     |
-| 5.5 | Playlist order & pin, header buttons, battery                                        | ✅     |
-| 6   | Cloudflare guided setup inside the app (+ QR pairing)                                | ✅     |
-| 7   | Hub: shared playlists and in-person Jams                                             |        |
-| 8   | Telemetry (opt-in), private yearly Recap and admin dashboard                         |        |
-| 8b  | Friend groups through the Hub                                                        |        |
-| 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end    |        |
+| #   | Phase                                                                                | Status                        |
+| --- | ------------------------------------------------------------------------------------ | ----------------------------- |
+| 1   | Storage layer: local library, home + destinations, device mode, device tokens        | ✅                            |
+| 2   | Android app (Capacitor): native audio, device files, in-app updater, CI APK builds   | ✅                            |
+| 3   | YouTube search & download (songs, playlists, queue, engine updates) + Send to phone  | ✅                            |
+| 4   | Onboarding, tutorial, help centre, plain-language explanations everywhere            | ✅                            |
+| 5   | Google Drive home & destination                                                      | ✅                            |
+| 5.1 | Real-use fixes: batch counter, full imported playlists, sleep timer, tombstone prune | ✅                            |
+| 5.2 | Copy in every direction when switching storage                                       | ✅                            |
+| 5.3 | One-level folders, covers, merge playlists                                           | ✅                            |
+| 5.4 | Folder order, screen-width fixes, drag clean-up                                      | ✅                            |
+| 5.5 | Playlist order & pin, header buttons, battery                                        | ✅                            |
+| 6   | Cloudflare guided setup inside the app (+ QR pairing)                                | ✅                            |
+| 7   | Hub: shared playlists and in-person Jams                                             | ✅ code, Hub not deployed yet |
+| 8   | Telemetry (opt-in), private yearly Recap and admin dashboard                         |                               |
+| 8b  | Friend groups through the Hub                                                        |                               |
+| 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end    |                               |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
 two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,

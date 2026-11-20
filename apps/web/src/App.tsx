@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
+import { parseHubHash } from '@aske/shared/hub';
 import { AddToPlaylistSheet } from './components/AddToPlaylistSheet';
 import { Dialogs } from './components/Dialogs';
 import { Sidebar, TabBar } from './components/Nav';
@@ -30,6 +31,10 @@ import { PodcastsView } from './views/PodcastsView';
 import { DownloadView } from './views/DownloadView';
 import { HelpView } from './views/HelpView';
 import { WelcomeView } from './views/WelcomeView';
+import { SharedListView } from './views/SharedListView';
+import { JamView, PENDING_JAM_KEY } from './views/JamView';
+import { JamBanner } from './components/jam/JamBanner';
+import { useJam } from './stores/jam';
 import { useTips } from './stores/tips';
 import { useDownloads } from './stores/downloads';
 import { useSend } from './stores/send';
@@ -38,7 +43,36 @@ import { DriveReconnect } from './components/DriveReconnect';
 import { useUi } from './stores/ui';
 import { mayDoBackgroundWork } from './lib/power';
 
+const PENDING_LINK_KEY = 'pending-hub-link';
+
+/**
+ * A shared-playlist link opens the app as `/#list=ID`. Keep the id for the session and clean the
+ * address, so it survives the welcome / setup screens and a reload.
+ */
+function takePendingListId(): string | null {
+  const link = parseHubHash(location.hash);
+  if (link?.kind === 'list') {
+    sessionStorage.setItem(PENDING_LINK_KEY, link.id);
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  return sessionStorage.getItem(PENDING_LINK_KEY);
+}
+
+/** A Jam link opens the app as `/#jam=CODE`; same idea as the shared-playlist link. */
+function takePendingJamCode(): string | null {
+  const link = parseHubHash(location.hash);
+  if (link?.kind === 'jam') {
+    sessionStorage.setItem(PENDING_JAM_KEY, link.code);
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  return sessionStorage.getItem(PENDING_JAM_KEY);
+}
+
 export function App() {
+  const [pendingListId] = useState(takePendingListId);
+  const [pendingJamCode] = useState(takePendingJamCode);
+  const [introDone, setIntroDone] = useState(false);
+  const [jamIntroDone, setJamIntroDone] = useState(false);
   const status = useSetup((s) => s.status);
   const home = useSetup((s) => s.config?.home);
   const changing = useSetup((s) => s.changing);
@@ -57,6 +91,13 @@ export function App() {
         <LoaderCircle className="spin" size={32} color="var(--accent)" />
       </div>
     );
+  }
+  const beforeSetup = (status === 'choose' || status === 'pair') && !changing;
+  if (beforeSetup && pendingJamCode && !jamIntroDone) {
+    return <JamView onExit={() => setJamIntroDone(true)} />;
+  }
+  if (beforeSetup && pendingListId && !introDone) {
+    return <SharedListView id={pendingListId} onStart={() => setIntroDone(true)} />;
   }
   if (status === 'choose' && !welcomeSeen && !changing) {
     return <WelcomeView onDone={() => useTips.getState().finishWelcome()} />;
@@ -128,10 +169,23 @@ function Shell() {
   useBackgroundSync();
   useEffect(() => {
     void useServerUpdate.getState().check();
+    void useJam.getState().resume();
   }, []);
   const hasPlayer = usePlayer((s) => s.mode !== 'idle');
   const [location, navigate] = useLocation();
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const pending = sessionStorage.getItem(PENDING_LINK_KEY);
+    if (!pending) return;
+    sessionStorage.removeItem(PENDING_LINK_KEY);
+    navigate(`/shared/${pending}`);
+  }, [navigate]);
+
+  // The pending Jam code stays in sessionStorage until the Jam screen has used it.
+  useEffect(() => {
+    if (sessionStorage.getItem(PENDING_JAM_KEY)) navigate('/jam');
+  }, [navigate]);
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
@@ -145,6 +199,7 @@ function Shell() {
       <main ref={mainRef} className={`main${hasPlayer ? '' : ' no-player'}`}>
         <DriveReconnect />
         <ServerUpdateBanner />
+        <JamBanner />
         <Switch>
           <Route path="/" component={LibraryView} />
           <Route path="/playlists" component={PlaylistsView} />
@@ -155,6 +210,10 @@ function Shell() {
           <Route path="/playlist/:id">
             {(params) => <PlaylistView key={params.id} id={params.id} />}
           </Route>
+          <Route path="/shared/:id">
+            {(params) => <SharedListView key={params.id} id={params.id} />}
+          </Route>
+          <Route path="/jam">{() => <JamView />}</Route>
           <Route path="/podcasts" component={PodcastsView} />
           <Route path="/radio" component={RadioView} />
           <Route path="/download" component={DownloadView} />

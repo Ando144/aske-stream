@@ -8,6 +8,7 @@ import {
   Ellipsis,
   Plus,
   Play,
+  Share2,
   Shuffle,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
@@ -24,10 +25,12 @@ import { moveItem } from '../player/queue';
 import { useUi } from '../stores/ui';
 import { PlaylistArt } from '../components/PlaylistArt';
 import { PlaylistMenu } from '../components/PlaylistMenu';
+import { SharePlaylistSheet } from '../components/SharePlaylistSheet';
 
 export function PlaylistView({ id, liked = false }: { id?: string; liked?: boolean }) {
   const [reordering, setReordering] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const t = useT();
   const [, navigate] = useLocation();
   const allTracks = useAllTracks();
@@ -127,6 +130,14 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
             </button>
             <button
               className="icon-btn"
+              onClick={() => setShareOpen(true)}
+              aria-label={t('share.button')}
+              title={t('share.button')}
+            >
+              <Share2 size={20} />
+            </button>
+            <button
+              className="icon-btn"
               onClick={() => setMenuOpen(true)}
               aria-label={t('playlists.menu')}
               title={t('playlists.menu')}
@@ -177,6 +188,9 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
           onPlay={(tid) => play(tid)}
           playlistId={liked ? undefined : id}
         />
+      )}
+      {shareOpen && playlist && (
+        <SharePlaylistSheet playlist={playlist} onClose={() => setShareOpen(false)} />
       )}
       {menuOpen && playlist && (
         <PlaylistMenu playlist={playlist} onClose={() => setMenuOpen(false)} />

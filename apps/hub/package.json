@@ -1,0 +1,26 @@
+{
+  "name": "@aske/hub",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "Aske Hub: shared playlists and in-person Jams. A single Worker that never stores music.",
+  "author": "Andoni Ortiz de Zarate Urruela (https://github.com/Ando144)",
+  "scripts": {
+    "dev": "wrangler dev --port 8788",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
+  },
+  "dependencies": {
+    "@aske/shared": "*",
+    "hono": "^4.13.18",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261115.1",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.162.0"
+  }
+}

@@ -8,6 +8,7 @@ export type SectionId =
   | 'drive'
   | 'cloudflare'
   | 'android'
+  | 'friends'
   | 'problems'
   | 'privacy';
 

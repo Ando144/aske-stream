@@ -1,5 +1,7 @@
 import { cloudflareSetupEn } from './cloudflareSetup';
 import { pairingEn } from './pairing';
+import { shareEn } from './share';
+import { jamEn } from './jam';
 /** English is the source of truth: the other languages must define every key. */
 export const en = {
   'app.name': 'Aske Stream',
@@ -664,6 +666,8 @@ export const en = {
   'sleep.hoursLabel': 'Hours',
   'sleep.minutesLabel': 'Minutes',
   ...pairingEn,
+  ...shareEn,
+  ...jamEn,
   ...cloudflareSetupEn,
 } as const;
 

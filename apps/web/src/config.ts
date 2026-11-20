@@ -11,6 +11,14 @@ export const AUTHOR = {
 };
 
 /**
+ * Base URL of the Aske Hub (shared playlists and Jams). It is public by design:
+ * it is not a secret. Empty = the feature is shown as "coming soon".
+ * Set VITE_HUB_URL at build time once the Hub is deployed.
+ */
+export const HUB_URL: string =
+  import.meta.env.VITE_HUB_URL || 'https://aske-hub.andoni-otzdezarate.workers.dev';
+
+/**
  * Google OAuth "Web application" client id, used by the web app to reach
  * Google Drive (the Android app is recognised by its package name and
  * signing key instead). A client id is public by design: it is not a secret.

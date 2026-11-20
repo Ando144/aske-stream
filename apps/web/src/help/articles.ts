@@ -7,6 +7,7 @@ import { driveArticles } from './articles/drive';
 import { cloudflareArticles } from './articles/cloudflare';
 import { cloudflareSetupArticles } from './articles/cloudflareSetup';
 import { androidArticles } from './articles/android';
+import { friendsArticles } from './articles/friends';
 import { problemsArticles } from './articles/problems';
 import { privacyArticles } from './articles/privacy';
 
@@ -42,6 +43,7 @@ export const SECTIONS: HelpSection[] = [
     title: { es: 'Tu Cloudflare', en: 'Your Cloudflare', eu: 'Zure Cloudflare' },
   },
   { id: 'android', title: { es: 'App de Android', en: 'Android app', eu: 'Android aplikazioa' } },
+  { id: 'friends', title: { es: 'Con amigos', en: 'With friends', eu: 'Lagunekin' } },
   {
     id: 'problems',
     title: { es: 'Si algo falla', en: 'If something goes wrong', eu: 'Zerbaitek huts egiten badu' },
@@ -65,6 +67,7 @@ export const ARTICLES: HelpArticle[] = [
   ...cloudflareArticles,
   ...cloudflareSetupArticles,
   ...androidArticles,
+  ...friendsArticles,
   ...problemsArticles,
   ...privacyArticles,
 ];

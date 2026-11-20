@@ -34,7 +34,7 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
   Cambia `src/native/*` por `apps/web/test/fake-native/*`.
 - APK: `npm run android:apk` (necesita ANDROID_HOME y `.secrets/keystore.properties`).
 - Publicar web: `npm run deploy`. Migraciones en producción: `npm run db:migrate:remote`.
-- Release Android: subir la versión en los 6 `package.json` y en `package-lock.json`, añadir
+- Release Android: subir la versión en los 7 `package.json` y en `package-lock.json`, añadir
   `docs/releases/vX.Y.Z.md`, hacer `git push` y después el tag `vX.Y.Z`. CI construye y publica los APK.
 
 ## Estructura

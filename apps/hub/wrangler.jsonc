@@ -1,0 +1,38 @@
+// Aske Hub: one shared Worker in the project owner's Cloudflare account. It never stores music.
+// After `wrangler d1 create aske-hub`, paste the database_id it prints below.
+// IDs are not secrets.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "aske-hub",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+
+  // The web app, so a friend can open a Jam QR from the browser. Only /hub/* runs the Worker.
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/hub/*"],
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aske-hub",
+      "database_id": "421c2bea-40d9-4939-a86a-f2a910d0db17",
+      "migrations_dir": "migrations",
+    },
+  ],
+
+  "durable_objects": {
+    "bindings": [{ "name": "JAM", "class_name": "JamRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["JamRoom"] }],
+
+  // Daily cleanup of expired shared lists and old rate-limit rows.
+  "triggers": { "crons": ["17 3 * * *"] },
+
+  "observability": { "enabled": true },
+}

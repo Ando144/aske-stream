@@ -5,6 +5,7 @@ import {
   Library,
   ListMusic,
   Mic,
+  PartyPopper,
   Radio,
   Settings,
   WifiOff,
@@ -27,6 +28,7 @@ const ITEMS: { to: string; key: MessageKey; Icon: typeof Library }[] = [
  */
 const SIDEBAR_ITEMS: typeof ITEMS = [
   ...ITEMS,
+  { to: '/jam', key: 'nav.jam', Icon: PartyPopper },
   { to: '/offline', key: 'nav.offline', Icon: WifiOff },
   { to: '/settings', key: 'nav.settings', Icon: Settings },
   { to: '/help', key: 'help.title', Icon: CircleHelp },

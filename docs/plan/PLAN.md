@@ -1,370 +1,516 @@
-# PLAN: Fase 6 — Asistente de Cloudflare, emparejar por QR/código y actualización guiada del Worker
+# PLAN: F7 · Hub con playlists compartidas y Jams en persona (+ arreglo visual previo)
 
 Fecha: 2026-11-20 · Estado: COMPLETADO
 
 ## Objetivo
 
-Que un amigo sin perfil técnico monte su propio Cloudflare (Worker + D1 + R2) desde la app Android
-pegando un token, que cualquier dispositivo ya vinculado pueda vincular otro con un QR (o un código
-corto para el ordenador) y que el servidor se actualice con un botón «Actualizar» cuando la app sea
-más nueva. Se hace en dos fases: **6.1 (emparejar)** y **6.2 (montar y actualizar)**. La 6.2 no
-empieza hasta que la 6.1 pase `npm run check` y `npm run test:e2e`.
+1. Arreglar un fallo visual: en Ajustes, en «Vincular otro dispositivo», el botón se monta sobre la línea divisoria.
+2. Crear **Aske Hub**, un Worker aparte en el Cloudflare de Andoni, común para todos los usuarios. **Nunca guarda música.**
+   - **Playlists compartidas:** un enlace corto que solo lleva ids de YouTube y títulos. La app de cada amigo descarga las canciones. El enlace caduca a los 90 días.
+   - **Jams en persona:** un Durable Object por Jam. Los amigos entran con un QR, añaden canciones y votan. Solo suena el móvil del anfitrión. La Jam caduca a las 12 h. Cada uno pone un apodo, sin cuentas.
 
 ## Decisiones de arquitectura
 
-Decididas por Andoni (2026-11-20):
-
-- **QR dibujado con la librería `uqr`** — pequeña, sin dependencias y MIT; el lockfile se revisa en T5.
-- **Aviso de servidor desactualizado**: siempre en Ajustes y un banner cerrable **una vez por versión**; aviso fuerte (toast) solo si algo falla por servidor antiguo — informa sin agobiar.
-- **La `ACCESS_KEY` que crea el asistente no se guarda ni se muestra** — se vincula con QR o código; solo vive en memoria hasta emparejar.
-- **Dirección `workers.dev`**: si la cuenta no tiene, se propone `aske-` + 4 caracteres y se puede cambiar — menos pasos.
-
-Del arquitecto:
-
-- **Código de emparejamiento corto, de un solo uso, guardado en D1** (8 caracteres, 10 min, se guarda su SHA-256) — el QR no lleva la clave ni un token de larga duración, y el código se puede teclear en un ordenador.
-- **El QR es un enlace normal** `https://<worker>/#code=ABCD2345` — si se escanea con la cámara del móvil abre la web y empareja igual; el fragmento `#` no llega a los logs del servidor.
-- **El código de texto no es opcional**: es la única forma de vincular el ordenador (la web no puede escanear y, tras el asistente, nadie conoce la clave). Por eso se incluye sin preguntar.
-- **QR en Android con Google Code Scanner** (`play-services-code-scanner`) — no pide permiso de cámara y ya usamos Play services; si no está disponible, se teclea el código.
-- **Toda la lógica de Cloudflare en TypeScript; el plugin Java solo hace HTTP** a `https://api.cloudflare.com/client/v4` — así se prueba con Vitest y una API simulada; el plugin evita CORS y no registra nada.
-- **Todo el multipart es texto** (`?base64=true` en la subida de archivos y el módulo JS como texto) — el plugin no necesita manejar binarios.
-- **El APK lleva un paquete `cf-bundle/`** (Worker ya empaquetado por `wrangler deploy --dry-run`, copia de `apps/web/dist` sin `.map` y `manifest.json` con versión, migraciones y hashes) — la web que sirve el Worker del amigo es la build PWA normal, no la de Android.
-- **Migraciones compatibles con wrangler**: se usa la misma tabla `d1_migrations` — Andoni puede seguir usando `npm run db:migrate:remote` sin conflictos.
-- **Montaje y actualización comparten pasos idempotentes** (reutilizan D1, R2 y subdominio si existen); el montaje crea una `ACCESS_KEY` nueva; la actualización la conserva con `keep_bindings`.
-- **El token de Cloudflare vive solo en una variable de módulo** (no en zustand, ni en localStorage, ni en errores) y se borra en `finally` — cumple «nunca se guarda ni se registra».
-- **Versión del Worker en `GET /api/health`** (`{ ok, version }`); sin `version` = Worker antiguo — permite comparar con `__APP_VERSION__` y sustituye `toast.cloudflareOutdated`.
-- **Textos de cada fase en un módulo i18n propio** (`i18n/pairing.ts`, `i18n/cloudflareSetup.ts`) que se mezclan en `en/es/eu.ts` — `en.ts` ya tiene 668 líneas y así no pasa de 800.
+- **Nuevo workspace `apps/hub` (`@aske/hub`)**, con Hono, zod, D1 y Durable Objects. Va aparte de `apps/api` porque `apps/api` es el Worker personal de cada usuario y el Hub es uno solo, el de Andoni.
+- **La API del Hub va en `/hub/v1/*`, no en `/api/*`.** Si el Hub sirve la web, `setup.ts` llama a `/api/health` en su mismo origen y no debe confundir el Hub con un servidor de música propio.
+- **El Hub también sirve la web ya construida** (`assets` con `../web/dist`). Así un amigo sin la app, o con iPhone, escanea el QR con la cámara y entra a la Jam desde el navegador. Los archivos estáticos no gastan invocaciones del Worker. _Pendiente de confirmar: duda 1._
+- **Formato de los enlaces:** `${HUB_URL}/#list=<id>` y `${HUB_URL}/#jam=<código>`. Van en el hash, igual que la vinculación (`#code=`), así que el servidor nunca ve el id en las peticiones de archivos.
+- **Playlists compartidas en D1 del Hub** (tabla `shared_lists`, con las canciones en JSON). Un cron diario borra las caducadas. D1 cabe de sobra en el plan gratuito.
+- **Jams con un Durable Object SQLite por Jam** (`new_sqlite_classes`, lo único que permite el plan gratuito). Usa la API de _WebSocket Hibernation_ (`ctx.acceptWebSocket`) para no gastar tiempo de ejecución, y una alarma a las 12 h borra todo.
+- **El código de la Jam tiene 6 símbolos** del alfabeto `PAIRING_CODE_ALPHABET` (sin 0/1/I/O) y se muestra como `ABC-DEF`. El id de una playlist compartida tiene 10 símbolos del mismo alfabeto.
+- **Cómo se reconoce al anfitrión:** al crear la Jam recibe un `hostKey` secreto, y el DO solo guarda su SHA-256. Para borrar una playlist compartida se usa una `deleteKey` que funciona igual.
+- **Votos:** solo «me gusta» (+1), y se puede quitar. La cola se ordena por votos (de más a menos) y, si empatan, por hora en que se añadió. Si alguien añade una canción que ya está en la cola, cuenta como su voto.
+- **Anfitrión solo en la app Android**, porque necesita yt-dlp para bajar las canciones que no tiene. En la web solo se puede entrar como invitado. Las canciones que se bajan van a una playlist «Jam dd/mm» de su biblioteca.
+- **Los invitados buscan canciones con el buscador del Hub** (`/hub/v1/jams/:code/search`), que solo funciona si la Jam existe. También pueden añadir canciones de YouTube de su propia biblioteca.
+- **Límites para no pasarse del plan gratuito:** se limitan las creaciones y búsquedas por IP con una tabla D1. Se guarda el hash de la IP con sal diaria, nunca la IP en claro.
+- **`HUB_URL` va en `config.ts`, es público** y se puede cambiar con `VITE_HUB_URL`. Si está vacío, la web enseña estas funciones como «próximamente», igual que hace con `GOOGLE_WEB_CLIENT_ID`.
+- **En el Hub no hay estadísticas de uso.** Solo se guardan los apodos (en la Jam, como mucho 12 h) y las referencias de las canciones.
 
 ## Contratos (interfaces compartidas)
 
-### Worker (Fase 6.1, T3)
-
-- `GET /api/health` (público) → `{ ok: true, version: string }` (versión de `apps/api/package.json`).
-- `POST /api/auth/pairing-codes` (requiere estar vinculado o la clave) → `201 { code: string, expiresAt: number }`.
-  `code` = 8 caracteres sin guion. Borra los códigos anteriores (solo hay uno activo). Caduca en 10 min.
-- `POST /api/auth/pair` acepta `{ key }` **o** `{ code }`. Con `code`: si es válido, no ha caducado y
-  tiene menos de 5 intentos fallidos, se borra (un solo uso) y responde igual que con la clave
-  (`{ paired: true, token }` + cookie). Si no: suma 1 a `attempts` de los códigos activos, borra los que
-  lleguen a 5 o hayan caducado y responde `401 { error: 'invalid_code' }`.
-- Migración `apps/api/migrations/0007_pairing_codes.sql`:
-  `CREATE TABLE pairing_codes (code_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0);`
-
-### `@aske/shared` (Fase 6.1, T1) — subrutas nuevas, sin tocar `index.ts`
-
-`packages/shared/package.json` → `exports`: `"./pairing": "./src/pairing.ts"`, `"./version": "./src/version.ts"`.
+### `packages/shared/src/hub.ts` (export `@aske/shared/hub`) — T2
 
 ```ts
-// @aske/shared/pairing
-export const PAIRING_CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 32 símbolos, sin 0/1/I/O
-export const PAIRING_CODE_LENGTH = 8;
-export const PAIRING_CODE_TTL_MS = 10 * 60 * 1000;
-export const PAIRING_MAX_ATTEMPTS = 5;
-/** Mayúsculas, quita espacios y guiones; null si no son 8 símbolos del alfabeto. */
-export function normalizePairingCode(input: string): string | null;
-/** 'ABCD2345' → 'ABCD-2345' */
-export function formatPairingCode(code: string): string;
-/** `${baseUrl}/#code=${code}` (baseUrl sin barra final). */
-export function pairingLink(baseUrl: string, code: string): string;
-/** Acepta https:// (o http:// solo para localhost, 127.0.0.1 y 10.0.2.2). Devuelve el origin y el código normalizado. */
-export function parsePairingLink(text: string): { baseUrl: string; code: string } | null;
-// @aske/shared/version
-/** Compara x.y.z numéricamente (ignora sufijos tipo -beta). Texto no válido cuenta como 0.0.0. */
-export function compareVersions(a: string, b: string): -1 | 0 | 1;
-/** true si `server` es undefined/vacío o menor que `app`. */
-export function isServerOutdated(server: string | undefined, app: string): boolean;
-```
+export const HUB_LIMITS = {
+  listMaxSongs: 1000, // = LIMITS.playlistMaxTracks
+  listTtlMs: 90 * 24 * 3600 * 1000,
+  jamTtlMs: 12 * 3600 * 1000,
+  jamMaxMembers: 30, // conexiones simultáneas
+  jamMaxQueue: 200,
+  jamMaxPendingPerMember: 10,
+  nicknameMax: 24,
+  jamCodeLength: 6,
+  listIdLength: 10,
+  wsMessageMaxBytes: 8 * 1024,
+  listBodyMaxBytes: 512 * 1024,
+} as const;
 
-### Puentes nativos (TypeScript)
-
-```ts
-// apps/web/src/native/qrScanner.ts (Fase 6.1, T2) — plugin Java 'QrScanner'
-export interface QrScannerPlugin {
-  scan(): Promise<{ text: string }>;
+export interface HubSong {
+  videoId: string;
+  title: string;
+  artist: string;
+  durationMs?: number;
 }
-// Rechaza con code 'cancelled' (el usuario cerró) o 'unavailable' (sin Play services / módulo).
-export const QrScanner: QrScannerPlugin;
-export function scanQr(): Promise<string | null>; // null = cancelado; lanza Error('qr_unavailable')
-
-// apps/web/src/native/cloudflareApi.ts (Fase 6.2, T7) — plugin Java 'CloudflareApi'
-export interface FormPart {
+export interface SharedList {
+  id: string;
   name: string;
-  value: string;
-  filename?: string;
-  contentType?: string;
+  songs: HubSong[];
+  createdAt: number;
+  expiresAt: number;
 }
-export interface CfRequest {
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  path: string; // empieza por '/', relativo a https://api.cloudflare.com/client/v4
-  bearer: string; // token de API o JWT de subida de archivos
-  json?: unknown; // cuerpo JSON (excluyente con form)
-  form?: FormPart[]; // multipart/form-data, solo partes de texto
+export interface CreatedList {
+  id: string;
+  deleteKey: string;
+  expiresAt: number;
 }
-export interface CfResponse {
+export interface CreatedJam {
+  code: string;
+  hostKey: string;
+  expiresAt: number;
+}
+export interface JamInfo {
+  code: string;
+  hostName: string;
+  expiresAt: number;
+  members: number;
+}
+
+export interface JamMember {
+  memberId: string;
+  nickname: string;
+  isHost: boolean;
+}
+export interface JamItemView {
+  id: string;
+  song: HubSong;
+  addedBy: string; // apodo
+  votes: number;
+  votedByMe: boolean;
+  mine: boolean;
+  addedAt: number;
+}
+export interface JamSnapshot {
+  code: string;
+  hostName: string;
+  expiresAt: number;
+  nowPlaying: JamItemView | null;
+  queue: JamItemView[]; // ya ordenada
+  members: JamMember[];
+}
+
+export type HubErrorCode =
+  | 'invalid_request'
+  | 'not_found'
+  | 'expired'
+  | 'rate_limited'
+  | 'too_many_songs'
+  | 'jam_full'
+  | 'queue_full'
+  | 'member_limit'
+  | 'not_host'
+  | 'search_unavailable'
+  | 'internal_error';
+
+// WebSocket, cliente → servidor (JSON)
+export type JamClientMessage =
+  | { type: 'hello'; memberId: string; nickname: string; hostKey?: string }
+  | { type: 'add'; song: HubSong }
+  | { type: 'vote'; itemId: string } // alterna poner/quitar el voto
+  | { type: 'remove'; itemId: string } // solo anfitrión (o quien la añadió)
+  | { type: 'start'; itemId: string } // solo anfitrión: pasa a nowPlaying
+  | { type: 'finish' } // solo anfitrión: nowPlaying = null
+  | { type: 'end' }; // solo anfitrión: cierra la Jam
+
+// WebSocket, servidor → cliente
+export type JamServerMessage =
+  | { type: 'state'; jam: JamSnapshot; you: JamMember }
+  | { type: 'error'; code: HubErrorCode }
+  | { type: 'ended'; reason: 'host' | 'expired' };
+
+export function isVideoId(v: string): boolean; // /^[A-Za-z0-9_-]{11}$/
+export function sanitizeHubSong(raw: unknown): HubSong | null; // recorta a LIMITS.titleMax / nameMax, quita caracteres de control
+export function normalizeNickname(raw: string): string | null; // trim, espacios colapsados, sin control, 1..24
+export function normalizeJamCode(input: string): string | null; // mayúsculas, sin espacios ni guiones, 6 del alfabeto
+export function formatJamCode(code: string): string; // 'ABCDEF' → 'ABC-DEF'
+export function isListId(id: string): boolean; // 10 del alfabeto
+export function hubListLink(hubUrl: string, id: string): string; // `${hub sin / final}/#list=${id}`
+export function hubJamLink(hubUrl: string, code: string): string; // `${hub}/#jam=${code}`
+export type HubLink = { kind: 'list'; id: string } | { kind: 'jam'; code: string };
+export function parseHubLink(text: string): HubLink | null; // URL https (o http local) con #list= o #jam=; también un código de Jam suelto
+export function parseHubHash(hash: string): HubLink | null; // para location.hash
+```
+
+### API HTTP del Hub (`/hub/v1`, CORS `*`, sin cookies) — T3 y T4
+
+Los errores van como `{ error: HubErrorCode, message: string }`, igual que en `apps/api`.
+
+| Método y ruta                   | Cuerpo / query                         | Respuesta                                                                        |
+| ------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------- |
+| `GET /hub/v1/health`            | —                                      | `{ ok: true, hub: true, version }`                                               |
+| `POST /hub/v1/lists`            | `{ name, songs: HubSong[] }` (1..1000) | 201 `CreatedList` · 400 · 413 `too_many_songs` · 429                             |
+| `GET /hub/v1/lists/:id`         | —                                      | `SharedList` · 404 `not_found` · 410 `expired`                                   |
+| `DELETE /hub/v1/lists/:id`      | cabecera `X-Delete-Key`                | 204 · 403 `invalid_request` · 404                                                |
+| `POST /hub/v1/jams`             | `{ hostName }`                         | 201 `CreatedJam` · 429                                                           |
+| `GET /hub/v1/jams/:code`        | —                                      | `JamInfo` · 404 `not_found`                                                      |
+| `GET /hub/v1/jams/:code/search` | `?q=&lang=es\|en\|eu`                  | `{ results: SearchResult[] }` (tipo de `@aske/shared/youtube`) · 404 · 429 · 502 |
+| `GET /hub/v1/jams/:code/ws`     | Upgrade websocket                      | se pasa al DO                                                                    |
+
+Límites por IP (hash): crear listas 20/h, crear Jams 10/h, búsquedas 60 cada 10 min.
+
+### D1 del Hub (`apps/hub/migrations/0001_init.sql`) — T3
+
+```sql
+CREATE TABLE shared_lists (id TEXT PRIMARY KEY, name TEXT NOT NULL, songs_json TEXT NOT NULL,
+  delete_key_hash TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+CREATE INDEX shared_lists_expires ON shared_lists (expires_at);
+CREATE TABLE rate_limits (key TEXT PRIMARY KEY, window_start INTEGER NOT NULL, count INTEGER NOT NULL);
+```
+
+### Durable Object `JamRoom` (`apps/hub/src/jam/room.ts`) — T4 (T3 lo conecta)
+
+```ts
+export class JamRoom extends DurableObject<HubEnv> {
+  init(p: {
+    code: string;
+    hostName: string;
+    hostKeyHash: string;
+    expiresAt: number;
+  }): Promise<boolean>; // false si ya hay una Jam viva
+  info(): Promise<JamInfo | null>; // null si no existe o ha caducado
+  fetch(req: Request): Promise<Response>; // solo upgrade a WebSocket
+}
+// apps/hub/src/jam/routes.ts
+export const jamRoutes: Hono<HubAppEnv>; // POST /, GET /:code, GET /:code/search, GET /:code/ws
+```
+
+`apps/hub/src/env.ts` (T3): `interface HubEnv { DB: D1Database; JAM: DurableObjectNamespace<JamRoom>; ASSETS: Fetcher }` y `type HubAppEnv = { Bindings: HubEnv }`.
+
+T3 escribe `src/lib/rateLimit.ts` con `checkRateLimit(db, key, limit, windowMs): Promise<boolean>` y `src/lib/http.ts` con `HubHttpError(status, code: HubErrorCode, message)`. T4 los importa.
+
+### Cliente web del Hub (`apps/web/src/hub/client.ts`) — T2
+
+```ts
+export class HubError extends Error {
+  code: HubErrorCode | 'network' | 'unavailable';
   status: number;
-  body: string;
 }
-export type CfTransport = (req: CfRequest) => Promise<CfResponse>;
-export const nativeCfTransport: CfTransport; // rechaza Error('network') si no hay conexión
+export function hubAvailable(): boolean; // HUB_URL !== ''
+export function createSharedList(name: string, songs: HubSong[]): Promise<CreatedList>;
+export function getSharedList(id: string): Promise<SharedList>;
+export function deleteSharedList(id: string, deleteKey: string): Promise<void>;
+export function createJam(hostName: string): Promise<CreatedJam>;
+export function getJam(code: string): Promise<JamInfo>;
+export function searchInJam(code: string, q: string, lang: Language): Promise<SearchResult[]>;
+export function jamSocketUrl(code: string): string; // https→wss, http→ws
 ```
 
-### Cliente de API web (Fase 6.1, T4) — `apps/web/src/api/client.ts`
+Las claves i18n de errores las comparten T5 y T7: `hub.err.<code>` para cada `HubErrorCode`, más `network` y `unavailable`. Las crea T5 en `i18n/share.ts`. La función `hubErrorText(err: unknown): string` va en `apps/web/src/hub/errors.ts` (T5).
 
-- `health: () => json<{ ok: boolean; version?: string }>('/api/health')`
-- `pairWithCode(code: string) → { paired: boolean; token: string }` (POST `/api/auth/pair` con `{ code }`)
-- `createPairingCode() → { code: string; expiresAt: number }`
-- `useSetup.getState().connectWithCode(code: string, baseUrl = '')`: igual que `connectCloudflare` pero con código.
-
-### Paquete del Worker dentro del APK (Fase 6.2, T8)
-
-Archivos servidos por la WebView de Android (`https://localhost`):
-`/cf-bundle/manifest.json`, `/cf-bundle/index.js`, `/cf-bundle/site/<ruta>` (copia de `apps/web/dist` sin `*.map`).
+### Store de la Jam (`apps/web/src/stores/jam.ts`) — T6 (lo usa T7)
 
 ```ts
-export interface WorkerBundleManifest {
-  version: string; // versión de package.json raíz
-  compatibilityDate: string; // de apps/api/wrangler.jsonc
-  mainModule: 'index.js';
-  migrations: { name: string; sql: string }[]; // apps/api/migrations/*.sql ordenadas por nombre
-  assets: Record<string, { hash: string; size: number }>; // claves '/index.html', '/assets/x.js'…
+type JamConnection = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'ended';
+interface JamSession {
+  code: string;
+  role: 'host' | 'guest';
+  memberId: string;
+  nickname: string;
+  hostKey?: string;
 }
-// hash = sha256(base64(contenido) + extensión sin punto).hex().slice(0, 32)  (ejemplo de la doc de Cloudflare)
-```
-
-### Cliente de Cloudflare (Fase 6.2, T9) — `apps/web/src/cloudflare/`
-
-```ts
-// types.ts
-export const SCRIPT_NAME = 'aske-stream', D1_NAME = 'aske-stream', BUCKET_NAME = 'aske-stream-media';
-export const TOKEN_CREATE_URL: string; // enlace a dash.cloudflare.com/profile/api-tokens con permisos precargados
-export type CfErrorCode = 'invalid_token' | 'missing_permission' | 'r2_not_enabled' | 'subdomain_taken'
-  | 'subdomain_invalid' | 'network' | 'rate_limited' | 'not_found' | 'unknown';
-export class CfError extends Error { constructor(code: CfErrorCode, status: number, cfCodes: number[]) }
-// api.ts
-export interface CfApi {
-  call<T>(method: CfRequest['method'], path: string, body?: { json?: unknown; form?: FormPart[] }, bearer?: string): Promise<T>;
+interface JamState {
+  session: JamSession | null;
+  snapshot: JamSnapshot | null;
+  you: JamMember | null;
+  connection: JamConnection;
+  error: HubErrorCode | 'network' | 'unavailable' | null; // la UI lo traduce
+  endedReason: 'host' | 'expired' | null;
+  preparing: Record<string, 'downloading' | 'ready' | 'error'>; // anfitrión, por videoId
+  create(o: { nickname: string; playlistName: string }): Promise<void>; // solo nativo
+  join(code: string, nickname: string): Promise<void>;
+  resume(): Promise<void>; // al arrancar, desde localStorage 'jam-session-v1'
+  leave(): void; // invitado; el anfitrión debe usar end()
+  add(song: HubSong): void;
+  vote(itemId: string): void;
+  remove(itemId: string): void;
+  skip(): void; // anfitrión: empieza la siguiente que esté lista
+  playItem(itemId: string): void; // anfitrión
+  end(): void; // anfitrión
+  clearError(): void;
 }
-export function createCfApi(transport: CfTransport, token: string): CfApi; // desempaqueta { success, errors, result }
-// resources.ts
-verifyToken(api): Promise<void>;
-listAccounts(api): Promise<{ id: string; name: string }[]>;
-getSubdomain(api, accountId): Promise<string | null>;
-createSubdomain(api, accountId, name): Promise<string>;
-scriptExists(api, accountId): Promise<boolean>;
-ensureD1(api, accountId): Promise<string>;      // uuid
-ensureR2(api, accountId): Promise<void>;
-// migrations.ts
-pendingMigrations(applied: string[], all: Migration[]): Migration[];
-applyMigrations(api, accountId, dbId, all, onProgress?: (done: number, total: number) => void): Promise<number>;
-// deploy.ts
-uploadAssets(api, accountId, manifest, readAsset: (path: string) => Promise<string /*base64*/>, onProgress?): Promise<string /*jwt final*/>;
-uploadScript(api, accountId, o: { code: string; manifest: WorkerBundleManifest; assetsJwt: string; d1Id: string; accessKey?: string }): Promise<void>;
-enableWorkersDev(api, accountId): Promise<void>;
-workerUrl(subdomain: string): string; // https://aske-stream.<subdomain>.workers.dev
+export const useJam: UseBoundStore<StoreApi<JamState>>;
 ```
-
-### Orquestación y estado (Fase 6.2, T10)
-
-```ts
-// cloudflare/bundle.ts
-export interface WorkerBundle { manifest: WorkerBundleManifest; code: string; readAsset(path: string): Promise<string> }
-export function loadBundle(fetchFn?: typeof fetch): Promise<WorkerBundle>; // Error('bundle_missing') si no existe
-// cloudflare/setup.ts
-export type SetupStep = 'account' | 'subdomain' | 'database' | 'storage' | 'migrations' | 'files' | 'worker' | 'publish' | 'waiting';
-export type SetupErrorCode = CfErrorCode | 'no_account' | 'wrong_account' | 'bundle_missing' | 'not_live_yet';
-runSetup(o: { api; bundle; accountId; subdomain: string; onStep(s: SetupStep): void }): Promise<{ baseUrl: string; accessKey: string }>;
-runUpdate(o: { api; bundle; accountId; onStep }): Promise<{ baseUrl: string }>;
-waitUntilLive(baseUrl, version, o?: { fetchFn?; tries?: number; delayMs?: number }): Promise<void>; // por defecto 36 × 5 s
-// stores/cloudflareSetup.ts (zustand; el token NO está en el estado)
-mode: 'setup' | 'update'; phase: 'intro' | 'account' | 'r2' | 'token' | 'chooseAccount' | 'chooseSubdomain' | 'confirmExisting' | 'running' | 'done' | 'error';
-step: SetupStep | null; error: SetupErrorCode | null; accounts; suggestedSubdomain;
-start(mode), next(), back(), submitToken(token), pickAccount(id), chooseSubdomain(name), confirmExisting(), retry(), cancel()
-// stores/serverUpdate.ts
-serverVersion: string | null; outdated: boolean; dismissedVersion: string | null;
-check(): Promise<void>; markOutdated(): void; dismiss(): void;
-// stores/setup.ts: nuevo Status 'cloudflareSetup' + openCloudflareSetup() + closeCloudflareSetup()
-```
-
-Claves i18n de error: `cfsetup.error.<SetupErrorCode>` (las escribe T11).
 
 ## Tareas
 
-## Fase 6.1 — Vincular dispositivos con QR o código
+### T1 · Arreglar el botón encima de la línea en «Vincular otro dispositivo» · Grupo A · Estado: HECHA
 
-### T1 · Utilidades compartidas de emparejamiento y versiones · Grupo A · Estado: HECHA
+- Archivos (exclusivos): `apps/web/src/styles.css`, `apps/web/src/components/LinkDevicePanel.tsx` (solo si hace falta)
+- Leer como contexto: `apps/web/src/views/SettingsView.tsx` (dónde se usa el panel)
+- Qué hacer:
+  - Causa: el panel `.panel.link-device` empieza con un `.setting`, que lleva `border-bottom` y `padding: 12px 0`. Justo debajo van el botón, el texto de caducado o el de error, y ninguno tiene margen superior. Por eso el botón queda pegado a la línea o encima de ella.
+  - Arreglo: añade espacio entre los hijos de `.link-device`. Por ejemplo, `.link-device { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }` y `.link-device > .setting, .link-device > .link-device-code { align-self: stretch; }`. También vale un `margin-top` en `.link-device > .btn` y `.link-device > .error-text`.
+  - Que el QR siga centrado y que no cambie ningún otro `.setting` de la app.
+  - Mira si otros paneles de `SettingsView.tsx` tienen el mismo patrón (un `.setting` seguido de un botón suelto) y arréglalos igual solo si se ve el mismo fallo.
+- TDD: no
+- Criterios de aceptación:
+  - [ ] En los estados inicial, de código caducado y de error, el botón y los textos quedan por debajo de la línea, separados unos 12 px.
+  - [ ] Con el código visible, el QR, el código y el botón «Compartir enlace» se ven igual que antes.
+  - [ ] Se ve bien a 360 px de ancho y en escritorio.
+- Verificación: `npm run dev` → Ajustes → Cloudflare → «Vincular otro dispositivo» (con DevTools a 360 px), y después `npm run format:check`
 
-- Archivos (exclusivos): `packages/shared/src/pairing.ts`, `packages/shared/src/version.ts`, `packages/shared/package.json` (solo `exports`), `packages/shared/test/pairing.test.ts`, `packages/shared/test/version.test.ts`
-- Leer como contexto: `packages/shared/src/folders.ts` (estilo), `apps/web/src/lib/url.ts`
-- Qué hacer: implementar exactamente las funciones de «@aske/shared» de Contratos. Tests primero. Casos: minúsculas, espacios y guiones aceptados; `O`, `0`, `1`, `I` rechazados; longitud distinta de 8 rechazada; `parsePairingLink` rechaza `javascript:`, `http://` en dominios públicos, enlaces sin `#code`, códigos no válidos; acepta `https://aske-stream.x.workers.dev/#code=abcd-2345` y quita ruta y barra final. `compareVersions('0.10.0','0.9.9') === 1`, `isServerOutdated(undefined,'0.6.0') === true`.
+### T2 · Contratos del Hub en shared y cliente web del Hub · Grupo A · Estado: HECHA
+
+- Archivos (exclusivos): `packages/shared/src/hub.ts`, `packages/shared/test/hub.test.ts`, `packages/shared/package.json` (añadir `"./hub": "./src/hub.ts"` a `exports`), `apps/web/src/config.ts`, `apps/web/src/hub/client.ts`, `apps/web/test/hubClient.test.ts`
+- Leer como contexto: `packages/shared/src/pairing.ts` (alfabeto y estilo de los enlaces), `packages/shared/src/index.ts` (`LIMITS`), `packages/shared/src/youtube.ts` (`SearchResult`), `apps/web/src/api/client.ts` (cómo hace fetch y maneja errores)
+- Qué hacer:
+  - Implementa en `hub.ts` todo lo de «Contratos → packages/shared/src/hub.ts» tal cual. Reutiliza `PAIRING_CODE_ALPHABET`. `parseHubLink` acepta https, o http solo para hosts locales (copia la regla de `pairing.ts`), y también un código de Jam suelto (`abc-def`).
+  - En `config.ts` añade `export const HUB_URL: string = import.meta.env.VITE_HUB_URL || '';`, con un comentario igual que el de `GOOGLE_WEB_CLIENT_ID`: es público y, si está vacío, la función sale como «próximamente». Andoni pondrá la URL cuando despliegue el Hub.
+  - Crea `client.ts` según «Contratos → Cliente web del Hub»:
+    - un `hubFetch` interno que añade `/hub/v1`, manda y lee JSON y convierte las respuestas no-ok en `HubError` con el `code` del cuerpo;
+    - si falla la red, `code: 'network'` y `status: 0`;
+    - si `HUB_URL` está vacío, `HubError('unavailable')` sin llamar a fetch.
+    - Las funciones de menos de 50 líneas.
 - TDD: sí
 - Criterios de aceptación:
-  - [ ] Todas las funciones del contrato existen con esas firmas y se importan como `@aske/shared/pairing` y `@aske/shared/version`.
-  - [ ] Tests cubren los casos anteriores y pasan.
-- Verificación: `npx vitest run --root packages/shared` y `npm run typecheck`
+  - [ ] Hay tests de `normalizeNickname` (vacío, solo espacios, más de 24, emojis y caracteres de control), `sanitizeHubSong` (videoId malo, título largo recortado, campos que faltan), `normalizeJamCode`, `parseHubLink` (list, jam, código suelto, http no local rechazado, URL de otra cosa → null) y `hubListLink`/`hubJamLink` (con y sin `/` final).
+  - [ ] Hay tests del cliente con `fetch` simulado (`vi.stubGlobal`): éxito, error con `{error:'expired'}` y 410, red caída → `network`, `HUB_URL` vacío → `unavailable`, y `jamSocketUrl` con https→wss y http→ws.
+- Verificación: `npx vitest run test/hub.test.ts --root packages/shared` · `npx vitest run test/hubClient.test.ts --root apps/web` · `npm run typecheck`
 
-### T2 · Escáner de QR nativo (Android) · Grupo A · Estado: HECHA
+### T3 · Worker del Hub: esqueleto, playlists compartidas, límites y documentación · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/QrScannerPlugin.java` (nuevo), `.../MainActivity.java`, `apps/mobile/android/app/build.gradle`, `apps/mobile/android/variables.gradle`, `apps/web/src/native/qrScanner.ts` (nuevo), `apps/web/test/fake-native/qrScanner.ts` (nuevo), `apps/web/vite.config.ts`
-- Leer como contexto: `GoogleDrivePlugin.java` (patrón de plugin), `apps/web/src/native/askeNative.ts`, `apps/web/test/fake-native/askeNative.ts`
-- Qué hacer: plugin Capacitor `QrScanner` con método `scan()` usando `GmsBarcodeScanning` (`com.google.android.gms:play-services-code-scanner`, versión en `variables.gradle`, formato `FORMAT_QR_CODE`). Éxito → `{ text: rawValue }`; cancelado → `call.reject(..., "cancelled")`; fallo o sin módulo → `"unavailable"`. Registrar en `MainActivity`. Puente TS según Contratos (`scanQr` traduce los códigos). Fake: devuelve `window.__askeFakeQr` si existe, si no `null`. Añadir el alias `/native\/qrScanner$/` en `vite.config.ts` (modo fakenative). No pedir permiso de cámara.
-- TDD: no
-- Criterios de aceptación:
-  - [ ] `npm run typecheck` pasa; `npx vite build --mode fakenative -w @aske/web` usa el fake.
-  - [ ] El Java compila con el mismo estilo que los demás plugins y no registra el contenido escaneado.
-- Verificación: `npm run check` (el APK lo compila la CI; si hay ANDROID_HOME, `npm run android:apk`)
-
-### T3 · Worker: códigos de emparejamiento y versión · Grupo B · Estado: HECHA
-
-- Archivos (exclusivos): `apps/api/migrations/0007_pairing_codes.sql`, `apps/api/src/lib/pairing.ts` (nuevo), `apps/api/src/routes/auth.ts`, `apps/api/src/version.ts` (nuevo), `apps/api/src/index.ts` (solo `/api/health`), `apps/api/tsconfig.json` (si hace falta `resolveJsonModule`), `apps/api/test/pairing.test.ts` (nuevo), `scripts/smoke.mjs`
-- Leer como contexto: `apps/api/src/lib/auth.ts`, `apps/api/src/lib/crypto.ts`, `apps/api/src/lib/http.ts`, `packages/shared/src/pairing.ts`
-- Qué hacer: según Contratos/Worker. `version.ts` exporta `WORKER_VERSION` importando `../package.json`. `lib/pairing.ts`: `generatePairingCode()` con `crypto.getRandomValues` sobre `PAIRING_CODE_ALPHABET`, `hashPairingCode(code)` (SHA-256 hex), `claimPairingCode(db, code, now)` (DELETE … RETURNING atómico; si falla, sube intentos y limpia). En `/pair`, el cuerpo es `z.union([{key},{code}])`; llamar a `getAccessKey` antes de tocar la BD (falla cerrado). `/pairing-codes` usa `requireAuth` en la propia ruta (el router de auth se monta antes del middleware global). Errores en JSON `{ error, message }`. Smoke: pasos «health devuelve versión», «crear código con la clave», «emparejar con el código», «el código no sirve dos veces», «código erróneo → 401».
-- TDD: sí (unitarios de generación/normalización/hash; flujo con BD en smoke)
-- Criterios de aceptación:
-  - [ ] Un código vale una sola vez y caduca a los 10 min; 5 fallos lo invalidan.
-  - [ ] `/api/health` devuelve `version` igual a `apps/api/package.json`.
-  - [ ] Emparejar con `key` sigue igual (smoke existente pasa).
-- Verificación: `npx vitest run --root apps/api`, `npm run db:migrate:local`, `npm run check`, `npm run test:e2e`
-
-### T4 · Web: lógica de emparejar con código · Grupo B · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/api/client.ts`, `apps/web/src/stores/setup.ts`, `apps/web/test/pairing.test.ts` (nuevo)
-- Leer como contexto: `apps/web/test/homesPinOutdated.test.ts` (cómo se simula `api`), `packages/shared/src/pairing.ts`
-- Qué hacer: añadir al cliente `health` con `version?`, `pairWithCode`, `createPairingCode` (Contratos). En `setup.ts`, `connectWithCode(code, baseUrl = '')`, que normaliza con `normalizePairingCode` (si es null lanza `ApiError` 401 `invalid_code` sin llamar a la red), reutiliza la misma lógica que `connectCloudflare` (extraer una función común para no duplicar y mantener <50 líneas).
-- TDD: sí
-- Criterios de aceptación:
-  - [ ] Con código válido guarda `{ baseUrl, token }` igual que con clave (token solo si hay `baseUrl`).
-  - [ ] Si falla, vuelve a la configuración anterior (como `connectCloudflare`).
-- Verificación: `npx vitest run test/pairing.test.ts --root apps/web`, `npm run typecheck`
-
-### T5 · Web: pantallas de vincular (QR, código y escáner) · Grupo C · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/components/LinkDevicePanel.tsx` (nuevo), `apps/web/src/components/QrCode.tsx` (nuevo), `apps/web/src/views/PairView.tsx`, `apps/web/src/views/SettingsView.tsx` (solo insertar el panel), `apps/web/src/i18n/pairing.ts` (nuevo), `apps/web/src/i18n/{en,es,eu}.ts` (solo el spread del módulo), `apps/web/package.json` + `package-lock.json` (dependencia `uqr`), estilos en el CSS existente si hace falta
-- Leer como contexto: `apps/web/src/components/AppUpdatePanel.tsx`, `apps/web/src/native/qrScanner.ts`, `apps/web/src/native/platform.ts`, `apps/web/test/i18n.test.ts`
+- Archivos (exclusivos): todo `apps/hub/**` **excepto** `apps/hub/src/jam/**` y `apps/hub/test/jam*.test.ts`. En concreto: `package.json`, `wrangler.jsonc`, `tsconfig.json`, `src/index.ts`, `src/env.ts`, `src/version.ts`, `src/lib/http.ts`, `src/lib/rateLimit.ts`, `src/lib/ids.ts`, `src/lib/crypto.ts`, `src/routes/lists.ts`, `src/cleanup.ts`, `migrations/0001_init.sql`, `test/lists.test.ts`, `test/rateLimit.test.ts`. Además, el `package.json` raíz (scripts), `package-lock.json`, `docs/hub.md` (nuevo) y `docs/PRIVACY.md`.
+- Leer como contexto: `apps/api/package.json`, `apps/api/wrangler.jsonc`, `apps/api/src/index.ts`, `apps/api/src/lib/http.ts`, `apps/api/src/lib/crypto.ts`, `apps/api/src/lib/ids.ts`, `apps/api/src/version.ts`, `apps/api/tsconfig.json`, `packages/shared/src/hub.ts` (T2)
 - Qué hacer:
-  - `QrCode.tsx`: usa `encode()` de `uqr` y pinta `<svg>` con `<rect>` (sin `dangerouslySetInnerHTML`). Añadir `uqr` con `npm install uqr -w @aske/web` y comprobar con `git diff package-lock.json` que SOLO se añaden entradas de `uqr`; si se reescribe más, revertir el lockfile, no seguir con `QrCode.tsx` y avisar al orquestador (decisión de Andoni: usar `uqr`, no copiar un generador).
-  - `LinkDevicePanel` (en Ajustes, solo si `home === 'cloudflare'`, web y Android): botón «Vincular otro dispositivo» → `createPairingCode()` → muestra QR de `pairingLink(base, code)` (base = `config.cloudflare.baseUrl || location.origin`), el código con `formatPairingCode`, la dirección, cuenta atrás y «Compartir enlace» (`navigator.share`, si no, copiar). Al caducar: «Crear otro código».
-  - `PairView`: en Android, botón principal «Escanear código QR» (`scanQr` → `parsePairingLink` → `connectWithCode`); debajo, dirección + código. En la web del propio servidor, solo el campo de código. La clave de acceso pasa a «Otras formas de entrar» (plegado). Leer `#code=` del hash igual que `#key=` y emparejar solo.
-  - Textos en `i18n/pairing.ts` (`pairingEn` como objeto, `pairingEs/Eu: Record<keyof typeof pairingEn, string>`), sin jerga; errores: código mal escrito, caducado o ya usado, QR que no es de Aske Stream, escáner no disponible («escribe el código»).
-- TDD: no
+  - **`package.json`:** `@aske/hub` 0.6.0, con las mismas dependencias y scripts que `apps/api` (`dev` = `wrangler dev --port 8788`, `deploy`, `typecheck`, `test`, `db:migrate:local/remote`).
+  - **`wrangler.jsonc`:**
+    - `name: "aske-hub"`, sin R2;
+    - `d1_databases` con binding `DB`, `database_name` `aske-hub` y `database_id` de relleno (`"REPLACE_WITH_HUB_D1_ID"`, con un comentario que explique que Andoni lo pone tras `wrangler d1 create aske-hub`);
+    - `durable_objects.bindings: [{ name: "JAM", class_name: "JamRoom" }]` y `migrations: [{ tag: "v1", new_sqlite_classes: ["JamRoom"] }]`;
+    - `triggers.crons: ["17 3 * * *"]`;
+    - `assets` con `directory: "../web/dist"`, SPA y `run_worker_first: ["/hub/*"]`;
+    - `observability` activado.
+  - **`src/index.ts`:**
+    - `app.use('/hub/*', cors({ origin: '*', allowHeaders: ['Content-Type','X-Delete-Key'], allowMethods: [...] }))`, `secureHeaders` y `no-store`;
+    - las rutas `GET /hub/v1/health`, `app.route('/hub/v1/lists', listRoutes)` y `app.route('/hub/v1/jams', jamRoutes)` (importado de `./jam/routes`, que hace T4);
+    - un 404 para `/hub/*`, el resto a `ASSETS`;
+    - `onError` como en el api, con `HubHttpError`;
+    - `export { JamRoom } from './jam/room'`;
+    - `export default { fetch: app.fetch, scheduled }`. `scheduled` llama a `cleanup(env, Date.now())`, que borra las listas caducadas y las filas de `rate_limits` con más de un día.
+  - **`routes/lists.ts`:**
+    - zod con `sanitizeHubSong` y nombre de 1..`LIMITS.nameMax`;
+    - cuerpo de como mucho `listBodyMaxBytes` (léelo como texto y comprueba la longitud);
+    - id con `isListId` (genéralo con `crypto.getRandomValues` sobre el alfabeto y reintenta si choca);
+    - `deleteKey` de 32 hex, y en la tabla solo su SHA-256;
+    - `GET` devuelve 410 `expired` si `expires_at < now`;
+    - `DELETE` compara el hash en tiempo constante.
+    - Todo con consultas parametrizadas (`.bind`).
+  - **`lib/rateLimit.ts`:** ventana fija con `INSERT … ON CONFLICT DO UPDATE`. La clave es `${acción}:${sha256(ip + díaUTC)}`, con la IP de `CF-Connecting-IP`. Devuelve `false` si se pasa del límite y la ruta responde 429 `rate_limited`.
+  - **`package.json` raíz:** scripts `dev:hub`, `deploy:hub` (`npm run build && npm run deploy -w @aske/hub`), `hub:migrate:local` y `hub:migrate:remote`.
+  - **`package-lock.json`:** hay que registrar el workspace nuevo. Ejecuta **una sola vez** `npm install --package-lock-only --ignore-scripts` y revisa `git diff --stat package-lock.json`. Solo deben aparecer las entradas `apps/hub` y `node_modules/@aske/hub`. Si cambia algo más, deshazlo con `git checkout package-lock.json` y avisa (ver riesgos).
+  - **`docs/hub.md`** (español, sencillo): qué es el Hub, qué guarda y cuánto tiempo, y cómo desplegarlo:
+    1. `wrangler d1 create aske-hub`;
+    2. poner el id en `wrangler.jsonc`;
+    3. `npm run hub:migrate:remote`;
+    4. `npm run deploy:hub`;
+    5. poner la URL en `HUB_URL`.
+  - **`docs/PRIVACY.md`:** añade una sección Hub (es y en). Guarda las referencias de canciones y el nombre de la playlist 90 días, los apodos solo mientras dura la Jam (12 h) y la IP solo como hash con sal diaria para limitar abusos. No hay estadísticas.
+- TDD: sí (validación, ids, límite de uso y caducidad)
 - Criterios de aceptación:
-  - [ ] Test de paridad i18n pasa; ningún texto fijo en los componentes.
-  - [ ] Los errores 401 `invalid_code` se muestran como «El código no es correcto o ha caducado. Pide uno nuevo».
-  - [ ] Funciones de menos de 50 líneas; `PairView.tsx` < 300 líneas (extraer subcomponentes si hace falta).
-- Verificación: `npm run check`, `npm run test:e2e`, `npx vite build --mode fakenative -w @aske/web`
+  - [ ] Tests de `lists`: con `app.request()` y un D1 simulado en memoria (un objeto mínimo con `prepare().bind().first()/run()/all()`, o funciones puras separadas de la ruta). POST válido → 201 con `deleteKey`; más de 1000 canciones → 413; videoId malo → 400; GET caducado → 410; DELETE con la clave mala → 403.
+  - [ ] Test de `rateLimit`: el número 21 dentro de la misma hora devuelve `false` y en la ventana siguiente vuelve a dejar.
+  - [ ] `GET /hub/v1/health` devuelve `hub: true`, y `/api/health` en el Hub **no** devuelve JSON (va a la SPA).
+  - [ ] `npm run typecheck -w @aske/hub` pasa cuando también está T4.
+- Verificación: `npx vitest run --root apps/hub` · después de T4, `npm run hub:migrate:local` y `npm run dev:hub`, y luego `curl -X POST http://localhost:8788/hub/v1/lists -H "Content-Type: application/json" -d '{"name":"x","songs":[{"videoId":"dQw4w9WgXcQ","title":"t","artist":"a"}]}'`
 
-### T6 · Ayuda y documentación de la 6.1 · Grupo C · Estado: HECHA
+### T4 · Durable Object de la Jam (cola, votos y WebSocket) · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/help/articles/cloudflare.ts`, `docs/architecture.md`, `docs/adr/0003-single-owner-auth.md`
-- Leer como contexto: `apps/web/src/help/articles/types.ts`, `apps/web/test/help.test.ts`, este PLAN (Contratos)
-- Qué hacer: artículo nuevo `link-device` (eu/es/en): cómo vincular el móvil con el QR y el ordenador con el código, que caduca en 10 minutos y sirve una vez, qué hacer si el escáner no se abre. Actualizar `cloudflare-connect` para mencionar el QR. En `architecture.md`: tabla de API (`/api/auth/pairing-codes`, `pair` con `code`, `health` con `version`) y diagrama. ADR 0003: nota breve del código de un solo uso.
-- TDD: no
-- Criterios de aceptación:
-  - [ ] `help.test.ts` pasa (enlaces válidos y tres idiomas).
-- Verificación: `npx vitest run test/help.test.ts --root apps/web`, `npm run format:check`
-
-## Fase 6.2 — Montar Cloudflare desde la app y actualizar el Worker (solo Android)
-
-### T7 · Plugin nativo de la API de Cloudflare · Grupo D · Estado: HECHA
-
-- Archivos (exclusivos): `.../askestream/CloudflareApiPlugin.java` (nuevo), `.../MainActivity.java`, `apps/web/src/native/cloudflareApi.ts` (nuevo), `apps/web/test/fake-native/cloudflareApi.ts` (nuevo), `apps/web/vite.config.ts`
-- Leer como contexto: `DownloaderPlugin.java` (hilos en segundo plano), `apps/web/src/native/googleDrive.ts`
-- Qué hacer: método `request(CfRequest)` → `{ status, body }` con `HttpURLConnection` en un `ExecutorService`. URL = `https://api.cloudflare.com/client/v4` + `path`; rechazar `path` que no empiece por `/` o contenga `..`, `://` o `@`. Cabecera `Authorization: Bearer <bearer>`. `json` → `application/json`; `form` → multipart con boundary aleatorio (partes de texto con `filename` y `Content-Type` opcionales). Timeouts: 30 s conexión, 120 s lectura. Sin conexión → `reject("network")`. **Nunca** registrar URL con datos, cabeceras ni cuerpo. Puente TS `nativeCfTransport` (Contratos). Fake: responde con un manejador `window.__askeFakeCf?.(req)` o rechaza `network`. Alias en `vite.config.ts`.
-- TDD: no
-- Criterios de aceptación:
-  - [ ] No hay `Log.*` con el token ni con cuerpos; solo dominio fijo de Cloudflare.
-  - [ ] `npm run typecheck` y build fakenative pasan.
-- Verificación: `npm run check`; APK en la CI (`workflow_dispatch` de `android.yml`)
-
-### T8 · Paquete del Worker dentro del APK · Grupo D · Estado: HECHA
-
-- Archivos (exclusivos): `scripts/bundle-worker.mjs` (nuevo), `scripts/lib/worker-bundle.mjs` (nuevo, funciones puras), `scripts/lib/worker-bundle.test.mjs` (nuevo), `apps/mobile/package.json` (script `build:web`), `package.json` raíz (script `test:scripts` y añadirlo a `check`), `.gitignore` si hace falta
-- Leer como contexto: `apps/api/wrangler.jsonc`, `apps/web/vite.config.ts`, `.github/workflows/android.yml`, `scripts/cf-setup.mjs`
-- Qué hacer: `build:web` de mobile pasa a `npm run build -w @aske/web && npm run build:android -w @aske/web && node ../../scripts/bundle-worker.mjs`. El script: ejecuta `npx wrangler deploy --dry-run --outdir <temp>` en `apps/api` (sin login), copia el `index.js` resultante a `apps/web/dist-android/cf-bundle/index.js`, copia `apps/web/dist` (sin `*.map`) a `cf-bundle/site/`, y escribe `manifest.json` (Contratos) con versión del `package.json` raíz, `compatibility_date` leída de `wrangler.jsonc` (quitar comentarios antes de parsear) y migraciones ordenadas. Puras y probadas con `node --test`: `assetHash(buffer, path)`, `buildAssetManifest(files)`, `readCompatibilityDate(jsoncText)`, `sortMigrations(names)`. Mensajes de error claros si falta `apps/web/dist`. Borrar el temporal con reintento (en Windows da EPERM).
-- TDD: sí (funciones puras)
-- Criterios de aceptación:
-  - [ ] Tras `npm run build:web -w @aske/mobile`, existen `dist-android/cf-bundle/{index.js,manifest.json,site/index.html}`.
-  - [ ] `manifest.json` lista las 7 migraciones y todos los archivos de `site/` con hash de 32 hex.
-  - [ ] `npm run test:scripts` pasa y está dentro de `npm run check`.
-- Verificación: `npm run test:scripts`, `npm run build:web -w @aske/mobile`, `npm run check`
-
-### T9 · Cliente de la API de Cloudflare · Grupo D · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/cloudflare/types.ts`, `apps/web/src/cloudflare/api.ts`, `apps/web/src/cloudflare/resources.ts`, `apps/web/src/cloudflare/migrations.ts`, `apps/web/src/cloudflare/deploy.ts`, `apps/web/test/cloudflare/*.test.ts`, `apps/web/test/cloudflare/fakeCloudflare.ts` (API simulada)
-- Leer como contexto: este PLAN (Contratos y Riesgos). Importar `CfTransport`, `FormPart` solo como tipos de `native/cloudflareApi.ts`; si T7 aún no existe, declarar los tipos en `types.ts` y que T7 los reexporte (avisar en el informe).
-- Qué hacer (llamadas a la API v4):
-  - `api.ts`: parsea `{ success, errors[{code,message}], result }`; mapea a `CfError`: 401/403 con código 10000/9109 → `invalid_token` o `missing_permission`; 10042 → `r2_not_enabled`; 429 → `rate_limited`; 404 → `not_found`; transporte rechazado → `network`. El mensaje del error **nunca** incluye el token.
-  - `resources.ts`: `GET /user/tokens/verify` (status `active`), `GET /accounts`, `GET|PUT /accounts/{id}/workers/subdomain`, `GET /accounts/{id}/workers/scripts/aske-stream/settings` (existe o 404), `GET /accounts/{id}/d1/database?name=aske-stream` → si no, `POST …/d1/database {name}`, `GET /accounts/{id}/r2/buckets/aske-stream-media` → si 404, `POST …/r2/buckets {name}`. Validar subdominio `^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$` → `subdomain_invalid`.
-  - `migrations.ts`: `POST /accounts/{id}/d1/database/{db}/query` con `CREATE TABLE IF NOT EXISTS d1_migrations(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`, leer `SELECT name FROM d1_migrations`, aplicar pendientes en orden (una llamada con el SQL del archivo) y después `INSERT INTO d1_migrations (name) VALUES (?)` con `params`.
-  - `deploy.ts`: `POST /accounts/{id}/workers/scripts/aske-stream/assets-upload-session { manifest }` → `{ jwt, buckets }`; por cada bucket `POST /accounts/{id}/workers/assets/upload?base64=true` con `bearer = jwt` de sesión y partes `name=hash, value=base64, filename=hash, contentType` por extensión; jwt final = el de la última respuesta (o el de la sesión si no hay buckets). `PUT /accounts/{id}/workers/scripts/aske-stream` multipart: parte `metadata` (JSON: `main_module: 'index.js'`, `compatibility_date`, `bindings` D1 `DB`, R2 `BUCKET`, assets `ASSETS` y, si hay `accessKey`, `secret_text ACCESS_KEY`; `keep_bindings: ['secret_text','plain_text']` cuando no hay `accessKey`; `assets: { jwt, config: { not_found_handling: 'single-page-application', run_worker_first: ['/api/*','/media/*'] } }`; `observability: { enabled: true }`) y parte `index.js` con `contentType: 'application/javascript+module'`. `POST …/scripts/aske-stream/subdomain { enabled: true, previews_enabled: false }`.
-  - `TOKEN_CREATE_URL`: `https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=` + JSON codificado `[{"key":"workers_scripts","type":"edit"},{"key":"d1","type":"edit"},{"key":"workers_r2","type":"edit"},{"key":"account_settings","type":"read"}]` + `&name=Aske%20Stream&accountId=*&zoneId=all`.
-  - Funciones <50 líneas; cada archivo <300.
-- TDD: sí (API simulada que guarda las peticiones y responde con fixtures)
-- Criterios de aceptación:
-  - [ ] Tests de cada mapeo de error, de idempotencia (D1/R2 existentes no se recrean), de migraciones pendientes y de la forma exacta del multipart y de `metadata`.
-  - [ ] Ningún test ni error contiene el token en mensajes.
-- Verificación: `npx vitest run test/cloudflare --root apps/web`, `npm run typecheck`
-
-### T10 · Orquestación del montaje/actualización y estado · Grupo E · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/cloudflare/bundle.ts`, `apps/web/src/cloudflare/setup.ts`, `apps/web/src/stores/cloudflareSetup.ts`, `apps/web/src/stores/serverUpdate.ts`, `apps/web/src/stores/setup.ts`, `apps/web/test/cloudflareSetup.test.ts`, `apps/web/test/serverUpdate.test.ts`
-- Leer como contexto: `apps/web/src/cloudflare/*` (T9), `apps/web/src/native/cloudflareApi.ts`, `packages/shared/src/version.ts`, este PLAN (Contratos)
+- Archivos (exclusivos): `apps/hub/src/jam/state.ts`, `apps/hub/src/jam/protocol.ts`, `apps/hub/src/jam/room.ts`, `apps/hub/src/jam/routes.ts`, `apps/hub/test/jamState.test.ts`, `apps/hub/test/jamProtocol.test.ts`
+- Leer como contexto: `packages/shared/src/hub.ts` (T2), «Contratos» de este plan, `apps/api/src/routes/youtube.ts` (búsqueda con InnerTube, para copiarla en `/search`)
 - Qué hacer:
-  - `bundle.ts`: carga `/cf-bundle/manifest.json` e `index.js`; `readAsset` → base64 por trozos (sin `btoa` de golpe sobre cadenas enormes).
-  - `setup.ts`: `runSetup` = subdominio (crear si falta) → `ensureD1` → `ensureR2` → migraciones → archivos → script con `accessKey` nueva (32 bytes aleatorios, base64url) → `enableWorkersDev` → `waitUntilLive` (espera `version === manifest.version`). `runUpdate` = localizar cuenta cuyo `workerUrl` coincida con `config.cloudflare.baseUrl` (si ninguna → `wrong_account`) → migraciones **antes** del script → archivos → script sin `accessKey` → `waitUntilLive`. Avisar de cada paso con `onStep`.
-  - `stores/cloudflareSetup.ts`: máquina de estados del Contrato. Token en una variable de módulo, borrado en `finally` y en `cancel()`. Si hay varias cuentas → `chooseAccount`; si no hay subdominio → `chooseSubdomain` con sugerencia `aske-` + 4 caracteres aleatorios; si `scriptExists` en modo montaje → `confirmExisting`. Al acabar el montaje: `useSetup.getState().connectCloudflare(accessKey, baseUrl)` y borrar la clave de memoria. La `accessKey` nunca va al estado de zustand ni a `localStorage`, y nunca se devuelve a la interfaz. Si `not_live_yet`, `retry()` solo vuelve a esperar y emparejar (sin token).
-  - `stores/serverUpdate.ts`: `check()` llama a `api.health()` si el almacenamiento es Cloudflare; `outdated = isServerOutdated(version, __APP_VERSION__)`; `dismiss()` guarda la versión descartada con `savePref`.
-  - `stores/setup.ts`: añadir status `'cloudflareSetup'`, `openCloudflareSetup()` y `closeCloudflareSetup()` (vuelve a `'pair'` o `'ready'`).
-- TDD: sí
+  - **`state.ts` (puro, sin Cloudflare):**
+    - `interface JamItem { id; song; addedById; addedBy; addedAt; voterIds: string[] }`, `interface JamData { code; hostName; hostKeyHash; expiresAt; nowPlaying: JamItem | null; queue: JamItem[] }`;
+    - `applyAction(data, actor: JamMember, msg, now, newId) → { data } | { error: HubErrorCode }`, con estas reglas:
+      - `add` valida con `sanitizeHubSong`. Si ese videoId ya está en la cola, cuenta como voto de quien lo añade. Si la cola está llena → `queue_full`. Si esa persona ya tiene 10 canciones pendientes → `member_limit`. Quien añade una canción la vota automáticamente.
+      - `vote` pone o quita el voto.
+      - `remove` lo puede hacer el anfitrión o quien la añadió.
+      - `start`, `finish` y `end` solo el anfitrión; si no, → `not_host`.
+    - `sortQueue` ordena por votos (de más a menos) y, si empatan, por `addedAt` (de antes a después);
+    - `toSnapshot(data, members, viewerId)` calcula `votes`, `votedByMe` y `mine`.
+  - **`protocol.ts`:** esquemas zod de `JamClientMessage` y `parseClientMessage(raw: string): JamClientMessage | null`, que rechaza lo que pase de `wsMessageMaxBytes`.
+  - **`room.ts`:** `JamRoom extends DurableObject`.
+    - Guarda `JamData` en `ctx.storage` (clave `jam`).
+    - `init()` comprueba si ya hay una Jam viva y, si no, guarda los datos y pone `setAlarm(expiresAt)`.
+    - `fetch()` acepta el WebSocket con `this.ctx.acceptWebSocket(server)`. Si ya hay `jamMaxMembers` sockets, cierra con el error `jam_full`.
+    - `webSocketMessage` hace lo siguiente:
+      - El primer mensaje debe ser `hello`, con apodo `normalizeNickname`. Si trae `hostKey`, se compara su hash y se pone `isHost`. Guarda el miembro con `ws.serializeAttachment`.
+      - Si llega otra cosa antes del `hello` → `error invalid_request`.
+      - Tras cada cambio, manda a cada socket su `state` personalizado.
+    - `webSocketClose` vuelve a enviar el estado (cambia la lista de conectados).
+    - `alarm()` y `end` mandan `{type:'ended'}`, cierran los sockets con 4000 y llaman a `ctx.storage.deleteAll()`.
+    - Funciones de menos de 50 líneas: separa `broadcast`, `membersOf` y `handleHello`.
+  - **`routes.ts` (`jamRoutes`):**
+    - `POST /` aplica el límite y valida `hostName`. Genera un código y un `hostKey` (32 hex) y llama a `stub.init`; si devuelve `false`, reintenta con otro código (máximo 5). Responde 201 `CreatedJam`.
+    - `GET /:code` normaliza el código y llama a `stub.info()`; si no hay Jam → 404.
+    - `GET /:code/search` comprueba la Jam y el límite y hace la búsqueda InnerTube con `buildSearchRequest`/`parseSearchResponse`. Si falla → 502 `search_unavailable`.
+    - `GET /:code/ws` exige `Upgrade: websocket` y devuelve `stub.fetch(c.req.raw)`.
+    - Se usa `c.env.JAM.idFromName(code)`.
+- TDD: sí (`state.ts` y `protocol.ts`)
 - Criterios de aceptación:
-  - [ ] Con la API simulada, `runSetup` y `runUpdate` hacen las llamadas en el orden indicado y devuelven la URL correcta.
-  - [ ] Tras éxito, error o cancelación, ni el estado de zustand ni `localStorage` contienen el token (test lo comprueba).
-  - [ ] `isServerOutdated` decide el aviso; descartar dura hasta la siguiente versión.
-- Verificación: `npx vitest run test/cloudflareSetup.test.ts test/serverUpdate.test.ts --root apps/web`, `npm run typecheck`
+  - [ ] Tests de `applyAction`:
+    - orden por votos y desempate por hora;
+    - añadir algo repetido = votar;
+    - quitar el voto;
+    - `queue_full` y `member_limit`;
+    - un invitado no puede `start`, `finish`, `end` ni borrar canciones de otros;
+    - `start` pasa el item a `nowPlaying` y lo quita de la cola.
+  - [ ] Tests de `parseClientMessage`: JSON roto → null, tipo desconocido → null, mensaje demasiado grande → null y `add` válido → objeto.
+  - [ ] Prueba manual con `npm run dev:hub`: crear una Jam con curl, conectar dos clientes (por ejemplo `npx wscat -c ws://localhost:8788/hub/v1/jams/<code>/ws`), mandar `hello`, `add` y `vote`, y ver que los dos reciben `state`.
+- Verificación: `npx vitest run --root apps/hub` · `npm run typecheck -w @aske/hub`
 
-### T11 · Pantallas del asistente y del botón «Actualizar» · Grupo F · Estado: HECHA
+### T5 · Web: compartir una playlist y abrir un enlace compartido · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/views/CloudflareSetupView.tsx` (nuevo), `apps/web/src/components/cloudflareSetup/*.tsx` (nuevos, un paso por archivo), `apps/web/src/components/ServerUpdatePanel.tsx` (nuevo), `apps/web/src/components/ServerUpdateBanner.tsx` (nuevo), `apps/web/src/App.tsx`, `apps/web/src/views/PairView.tsx`, `apps/web/src/views/SettingsView.tsx`, `apps/web/src/stores/library.ts` (solo `reportError`/`reportPinError`), `apps/web/src/i18n/cloudflareSetup.ts` (nuevo), `apps/web/src/i18n/{en,es,eu}.ts` (spread y borrar `toast.cloudflareOutdated`), CSS existente si hace falta
-- Leer como contexto: `apps/web/src/stores/cloudflareSetup.ts`, `apps/web/src/stores/serverUpdate.ts`, `apps/web/src/cloudflare/types.ts`, `apps/web/src/components/AppUpdatePanel.tsx`, `apps/web/src/components/HelpSheet.tsx`
+- Archivos (exclusivos): `apps/web/src/hub/sharedList.ts`, `apps/web/src/hub/errors.ts`, `apps/web/test/sharedList.test.ts`, `apps/web/src/stores/sharedLists.ts`, `apps/web/src/components/SharePlaylistSheet.tsx`, `apps/web/src/views/SharedListView.tsx`, `apps/web/src/views/PlaylistView.tsx`, `apps/web/src/views/PlaylistsView.tsx`, `apps/web/src/App.tsx`, `apps/web/src/i18n/share.ts`, `apps/web/src/i18n/{en,es,eu}.ts`, `apps/web/src/help/articles/friends.ts`, `apps/web/src/help/articles.ts`, `apps/web/src/help/articles/types.ts`, `apps/web/src/styles.css`
+- Leer como contexto: `apps/web/src/hub/client.ts` (T2), `packages/shared/src/hub.ts` (T2), `apps/web/src/components/LinkDevicePanel.tsx` (QR y compartir), `apps/web/src/components/QrCode.tsx`, `apps/web/src/stores/downloads.ts` (`enqueue` con `playlistName`), `apps/web/src/stores/library.ts`, `apps/web/src/native/platform.ts`, `apps/web/src/native/qrScanner.ts`, `apps/web/src/i18n/pairing.ts` (cómo se organiza un archivo i18n), `apps/web/src/help/articles/cloudflareSetup.ts` (formato de los artículos)
 - Qué hacer:
-  - Asistente (solo `isNative`): Intro (qué es, gratis hasta 10 GB, Cloudflare pide tarjeta pero no cobra, ~10 min) → Crear cuenta (`https://dash.cloudflare.com/sign-up`, «Ya tengo cuenta») → Activar R2 (`https://dash.cloudflare.com/?to=/:account/r2/overview`) → Crear token (botón a `TOKEN_CREATE_URL` con 3 pasos explicados: «Continuar al resumen», «Crear token», «Copiar») → Pegar token (`type="password"`, `autoComplete="off"`, botón deshabilitado si < 30 caracteres) → elegir cuenta / nombre de dirección / aviso «ya existe» → progreso con la lista de pasos → Listo («ya puedes borrar el token», enlace a `https://dash.cloudflare.com/profile/api-tokens`). Error → texto `cfsetup.error.<código>` + botón para volver al paso que lo arregla (`r2_not_enabled` → paso R2; `missing_permission` → paso token).
-  - `App.tsx`: status `'cloudflareSetup'` → `CloudflareSetupView` modo montaje; ruta `/server-update` → modo actualización. Al estar `ready` con Cloudflare, llamar a `useServerUpdate.getState().check()` una vez.
-  - `PairView`: en Android, enlace «¿Aún no tienes tu Cloudflare? Móntalo ahora» → `openCloudflareSetup()`; en la web, texto «Para montarlo necesitas la app Android».
-  - `ServerUpdatePanel` (Ajustes, Cloudflare): versión del servidor y de la app; si está desactualizado, botón «Actualizar» (Android) o texto «Actualízalo desde la app Android» (web). `ServerUpdateBanner`: arriba, descartable, una vez por versión.
-  - `library.ts`: `cloudflare_outdated` → `useServerUpdate.getState().markOutdated()` + toast con texto nuevo que lleva a Ajustes; borrar `toast.cloudflareOutdated` de los tres idiomas.
-  - Textos en `i18n/cloudflareSetup.ts` (mismo patrón que `i18n/pairing.ts`), sin jerga («token» se explica como «una llave temporal que da permiso a la app para montar tu servidor»).
-- TDD: no
+  - **`sharedList.ts` (puro):**
+    - `songsFromPlaylist(trackIds, tracks: Record<string, LocalTrack>) → { songs: HubSong[]; skipped: number }`. Solo cuentan las pistas con `source === 'youtube'` y un `sourceRef` válido; las demás suman en `skipped`. Mantiene el orden y quita duplicados.
+    - `splitByLibrary(songs, tracks) → { have: string[] /*trackIds*/; missing: HubSong[] }`, comparando por `sourceRef`.
+  - **`errors.ts`:** `hubErrorText(err)` traduce un `HubError` o cualquier error a la clave `hub.err.<code>`. Si no lo reconoce, usa `hub.err.internal_error` y lo registra con `console.error` (es un error real, no depuración).
+  - **`stores/sharedLists.ts`** (zustand y `savePref`, clave `hub-shares-v1`): guarda `{ playlistId, id, deleteKey, expiresAt }[]` para que el creador pueda «Dejar de compartir». Quita solo las caducadas.
+  - **`SharePlaylistSheet`:** se abre con un botón «Compartir» nuevo en la cabecera de `PlaylistView` (solo en playlists normales, no en «Me gusta»).
+    - Si no hay ninguna canción de YouTube, lo explica.
+    - Si no, crea el enlace y enseña el QR, el enlace, «Compartir» (`navigator.share` o copiar), «Caduca el {fecha}» y, si alguna no se puede compartir, «{n} canciones no se pueden compartir porque no vienen de YouTube».
+    - Si ya existe un enlace guardado y vigente para esa playlist, lo reutiliza y ofrece «Dejar de compartir».
+    - Si `!hubAvailable()`, sale «Próximamente».
+  - **`SharedListView` (ruta `/shared/:id`):**
+    - Carga la lista y enseña el nombre, el número de canciones, cuántas ya tienes y la fecha de caducidad.
+    - En Android, «Descargar en mi biblioteca» llama a `useDownloads.getState().enqueue(missing, { playlistName: name })`; las canciones que ya tienes se añaden a esa playlist (mira cómo lo hace `enqueue` con `playlistMode` y, si hace falta, usa `useLibrary` para añadir las que tienes).
+    - En la web lo explica: «Para descargarlas abre este enlace en la app de Android».
+    - Los errores se muestran con `hubErrorText`: caducado, no existe, sin conexión.
+  - **`App.tsx`:**
+    - Al arrancar, si `parseHubHash(location.hash)` es un `list`, guarda el id en `sessionStorage` (`pending-hub-link`) y limpia el hash con `history.replaceState`. Cuando el Shell esté listo, navega a `/shared/:id`.
+    - Si la app aún no está configurada (`status` `choose` o `pair`), muestra `SharedListView` en modo solo lectura en lugar de la bienvenida, con un botón «Empezar a usar Aske Stream» que sigue el flujo normal.
+    - Añade la ruta `/shared/:id`.
+    - **No** toques el caso `#jam=`, es de T7.
+  - **`PlaylistsView`:** botón «Abrir enlace compartido». Abre un diálogo para pegar el enlace y, en Android, también deja escanear el QR con `qrScanner`. Usa `parseHubLink` y navega.
+  - **i18n:**
+    - Crea `i18n/share.ts` con `shareEn`, `shareEs` y `shareEu`, y añádelos a `en.ts`, `es.ts` y `eu.ts`.
+    - Incluye todas las claves `hub.err.*` del contrato, escritas para gente no técnica. Por ejemplo, `expired`: «Este enlace ha caducado. Los enlaces duran 90 días: pide a tu amigo uno nuevo.»
+    - Los singulares van con `.one`.
+  - **Ayuda:**
+    - Sección nueva `friends` («Con amigos» / «With friends» / «Lagunekin») en `types.ts` y en `SECTIONS`.
+    - Artículo `share-playlist` en `articles/friends.ts`: qué se comparte (solo los nombres, no la música), los 90 días, que las canciones que no vienen de YouTube no se comparten, y qué hacer si el enlace caduca. Copia literalmente los textos de error que se ven en pantalla.
+- TDD: sí en `sharedList.ts` · no en la interfaz
 - Criterios de aceptación:
-  - [ ] Paridad i18n pasa; todos los `SetupErrorCode` tienen texto.
-  - [ ] Ni el token ni la `ACCESS_KEY` aparecen en ninguna pantalla (tampoco en «Listo»), `detail`, toast o log.
-  - [ ] El banner se puede cerrar y no vuelve a salir hasta la siguiente versión; el panel de Ajustes avisa siempre.
-  - [ ] En «Elegir dirección» el campo viene relleno con la sugerencia `aske-xxxx` y se puede cambiar.
-  - [ ] Archivos < 300 líneas y funciones < 50.
-- Verificación: `npm run check`, `npm run test:e2e`, `npx vite build --mode fakenative -w @aske/web`
+  - [ ] Tests de `songsFromPlaylist` (salta los archivos importados, quita duplicados y mantiene el orden) y de `splitByLibrary`.
+  - [ ] Pasa el test de paridad de i18n (es/en/eu) y el de enlaces de ayuda.
+  - [ ] A mano, con `VITE_HUB_URL=http://localhost:8788` y el Hub en marcha: compartir una playlist enseña el QR y el enlace; abrir `http://localhost:5173/#list=<id>` lleva a la vista; «Dejar de compartir» hace que el enlace dé «no existe».
+- Verificación: `npx vitest run test/sharedList.test.ts --root apps/web` · `npm run check`
 
-### T12 · Ayuda y documentación de la fase 6 · Grupo F · Estado: HECHA
+### T6 · Web: store de la Jam (conexión, anfitrión y descargas) · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/help/articles/cloudflareSetup.ts` (nuevo), `apps/web/src/help/articles.ts` (registrar artículos), `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/android.md`, `docs/deployment.md`
-- Leer como contexto: `apps/web/src/help/articles/cloudflare.ts`, `apps/web/test/help.test.ts`, este PLAN
-- Qué hacer: artículos (eu/es/en) `cloudflare-setup` (paso a paso con capturas descritas en texto), `cloudflare-token` (qué es, permisos, que la app no lo guarda, cómo borrarlo), `cloudflare-update` (cuándo y cómo actualizar). Las pantallas de T11 enlazan estos ids (ya fijados aquí). `docs/v2/architecture.md`: fase 5.5 ✅, fase 6 ✅ y «Phase 6 notes». `docs/android.md`: plugins `QrScanner` y `CloudflareApi`, paquete `cf-bundle`. `docs/deployment.md`: la vía de la app para no técnicos y que `db:migrate:remote` sigue funcionando. `ESTADO.md`: F6 hecha, decisiones (código de un solo uso, token no guardado), problemas conocidos (no probado contra Cloudflare real).
-- TDD: no
+- Archivos (exclusivos): `apps/web/src/stores/jam.ts`, `apps/web/src/hub/jamSocket.ts`, `apps/web/src/hub/jamHost.ts`, `apps/web/test/jamHost.test.ts`, `apps/web/test/jamSocket.test.ts`
+- Leer como contexto: «Contratos → Store de la Jam» y «WebSocket», `apps/web/src/hub/client.ts` (T2), `apps/web/src/stores/player.ts` (`playTracks` y cómo detectar que una canción acaba o que la cola se queda vacía), `apps/web/src/stores/downloads.ts` (`enqueue` y `jobs` con `videoId`/`trackId`/`status`), `apps/web/src/stores/library.ts` (`tracks`), `apps/web/src/native/platform.ts`, `apps/web/src/lib/storage.ts`
+- Qué hacer:
+  - **`jamSocket.ts`:**
+    - `class JamSocket` con `connect(url, hello)`, `send(msg)`, `close()` y los callbacks `onMessage`, `onStatus`;
+    - al abrir manda `hello`;
+    - si se cae (y no ha sido con el código 4000 ni por un `ended`), reconecta con espera exponencial (1, 2, 4… hasta 30 s);
+    - los `send` sin conexión se guardan en una cola corta (como mucho 20) y se envían al reconectar.
+    - Recibe la fábrica de `WebSocket` por parámetro, para poder probarla.
+  - **`jamHost.ts` (puro):**
+    - `libraryByVideoId(tracks) → Map<videoId, trackId>`;
+    - `nextReadyItem(snapshot, ready: Map) → JamItemView | null`: la primera canción de la cola que ya está en la biblioteca;
+    - `songsToPrepare(snapshot, ready, inFlight: Set<videoId>) → HubSong[]`.
+  - **`stores/jam.ts`:** implementa el contrato.
+    - `memberId` con `crypto.randomUUID()`. La sesión se guarda en `localStorage` (`jam-session-v1`) para que `resume()` vuelva a entrar.
+    - `create` solo funciona en nativo (si no, `error: 'unavailable'`): llama a `createJam`, guarda `hostKey` y `playlistName` y conecta.
+    - `join` llama a `getJam` para comprobar el código (`not_found` → error) y conecta.
+    - Al recibir `state`, actualiza el snapshot y, si es el anfitrión, llama a `hostTick()`:
+      - `songsToPrepare` → `useDownloads.getState().enqueue(songs, { playlistName })`;
+      - con `preparing` sigue las descargas (suscríbete a `useDownloads` y marca `ready` cuando el job con ese `videoId` pase a `done`);
+      - si `nowPlaying` es null y no suena nada, `nextReadyItem` → manda `start` y llama a `usePlayer.getState().playTracks([trackId], trackId)`.
+    - Suscríbete a `usePlayer` para notar cuando acaba la canción de la Jam (o el anfitrión pasa a otra). Entonces manda `finish` y vuelve a llamar a `hostTick()`.
+    - `skip` hace `finish` y luego `hostTick()`.
+    - `ended` → `connection: 'ended'`, `endedReason`, borra la sesión guardada y no reconecta.
+    - Los errores del servidor van a `error`. **No hay textos en el store**: la UI traduce.
+    - Funciones de menos de 50 líneas: separa `hostTick`, `trackPreparing` y `handleServerMessage`.
+- TDD: sí (`jamHost.ts` y `jamSocket.ts` con un WebSocket simulado)
 - Criterios de aceptación:
-  - [ ] `help.test.ts` pasa; los ids `cloudflare-setup`, `cloudflare-token`, `cloudflare-update`, `link-device` existen.
-- Verificación: `npx vitest run test/help.test.ts --root apps/web`, `npm run format:check`
+  - [ ] Tests de `nextReadyItem`: salta las que no están listas y respeta el orden del snapshot.
+  - [ ] Tests de `songsToPrepare`: no repite ni las que están en curso ni las que ya tienes.
+  - [ ] Tests de `JamSocket`: manda `hello` al abrir, reconecta tras un cierre anormal, no reconecta con 4000 y envía la cola al reconectar (usa `vi.useFakeTimers`).
+  - [ ] `npm run typecheck` pasa.
+- Verificación: `npx vitest run test/jamHost.test.ts test/jamSocket.test.ts --root apps/web` · `npm run typecheck -w @aske/web`
+
+### T7 · Web: pantallas de la Jam, entrada por QR, textos y ayuda · Grupo C · Estado: HECHA
+
+- Archivos (exclusivos): `apps/web/src/views/JamView.tsx`, `apps/web/src/components/jam/*.tsx` (por ejemplo `JamStart.tsx`, `JamRoom.tsx`, `JamQueue.tsx`, `JamAddSheet.tsx` y `JamBanner.tsx`), `apps/web/src/App.tsx`, `apps/web/src/components/Nav.tsx`, `apps/web/src/views/PlaylistsView.tsx` (solo el botón «Jam»), `apps/web/src/i18n/jam.ts`, `apps/web/src/i18n/{en,es,eu}.ts`, `apps/web/src/help/articles/friends.ts`, `apps/web/src/styles.css`
+- Leer como contexto: «Contratos → Store de la Jam», `apps/web/src/stores/jam.ts` (T6), `apps/web/src/hub/client.ts` (`searchInJam`), `apps/web/src/hub/errors.ts` (`hubErrorText`, T5), `apps/web/src/components/QrCode.tsx`, `apps/web/src/native/qrScanner.ts`, `apps/web/src/components/ServerUpdateBanner.tsx` (estilo del banner), `apps/web/src/views/SharedListView.tsx` (estilo, T5)
+- Qué hacer:
+  - **Ruta `/jam` (`JamView`).**
+    - Sin sesión (`JamStart`):
+      - «Crear una Jam» (solo en Android; en la web, la explicación de que hace falta la app de Android) pide un apodo y llama a `create` con `playlistName` = `t('jam.playlistName', { date })`;
+      - «Unirme» pide el código (`normalizeJamCode`) y el apodo, o deja escanear el QR en Android (`parseHubLink`);
+      - el apodo se guarda en `localStorage` y se rellena solo la próxima vez.
+    - Con sesión (`JamRoom`):
+      - el anfitrión ve un QR grande con `hubJamLink(HUB_URL, code)`, el código `formatJamCode`, cuántos hay conectados y cuánto falta para que caduque;
+      - todos ven «Sonando ahora» y la cola (`JamQueue`), con el botón de voto (corazón o pulgar, que se marca si `votedByMe`) y el número de votos;
+      - el anfitrión además tiene «Quitar», «Poner ahora» y «Siguiente», y ve el estado de preparación (`preparing[videoId]`: «Descargando…» / «Lista» / «No se pudo descargar»);
+      - botones «Añadir canción», «Salir» (invitado) y «Terminar la Jam» (anfitrión, con confirmación).
+    - `JamAddSheet` tiene dos pestañas:
+      1. «Buscar»: `searchInJam` con espera de 400 ms y `hubErrorText` si falla;
+      2. «De mi biblioteca»: las pistas de `useLibrary` con `source === 'youtube'` (si la app está configurada).
+    - Al terminar (`endedReason`), sale un texto claro: «El anfitrión ha terminado la Jam» o «La Jam ha caducado (duran 12 horas)», con un botón para volver.
+  - **`App.tsx`:**
+    - Si `parseHubHash(location.hash)` es un `jam`, guarda el código en `sessionStorage` (`pending-jam`) y limpia el hash.
+    - Si la app **no** está lista (`choose`/`pair`), muestra `JamView` como invitado a pantalla completa, sin la bienvenida, para que un amigo sin configurar entre directamente.
+    - Si está lista, navega a `/jam` con el código ya puesto.
+    - Añade la ruta `/jam`, `<JamBanner/>` en el Shell (solo si hay sesión y no estás en `/jam`: «Estás en la Jam ABC-DEF · Abrir») y una llamada a `useJam.getState().resume()` al montar el Shell.
+  - **`Nav.tsx`:** añade `{ to: '/jam', key: 'nav.jam', Icon: PartyPopper }` solo en `SIDEBAR_ITEMS`. En el móvil se entra con el botón «Jam» nuevo de la cabecera de `PlaylistsView` y con el banner.
+  - **i18n:** `i18n/jam.ts` con `jamEn`, `jamEs` y `jamEu`, añadidos a `en.ts`, `es.ts` y `eu.ts`, incluida `nav.jam`. Errores en lenguaje sencillo, por ejemplo `member_limit`: «Ya tienes 10 canciones esperando. Cuando suene alguna podrás añadir más.»
+  - **Ayuda:** artículo `jam` en `articles/friends.ts` (regístralo en `ARTICLES` si T5 no lo dejó automático). Explica qué es una Jam, que solo suena el móvil del anfitrión, cómo entrar con QR o código, cómo votar, que dura 12 horas, que las canciones se quedan en la playlist «Jam dd/mm» del anfitrión y qué hacer si no se conecta.
+  - Ningún componente de más de 50 líneas por función ni archivo de más de 400 líneas. Divide en `components/jam/`.
+- TDD: no (interfaz). Los tests de paridad de i18n y de enlaces de ayuda deben pasar.
+- Criterios de aceptación:
+  - [ ] Con el Hub local (`npm run dev:hub` + `VITE_HUB_URL=http://localhost:8788`), en dos pestañas: una crea la Jam en modo `fakenative`, la otra entra con `http://localhost:5173/#jam=<code>` sin configurar nada, añade una canción y vota, y el anfitrión lo ve al momento.
+  - [ ] Terminar la Jam muestra el mensaje de fin en las dos pestañas.
+  - [ ] Todo está traducido a es, en y eu, y hay artículo `jam` enlazado desde la pantalla de la Jam (icono de ayuda).
+  - [ ] `npm run check` pasa.
+- Verificación: `npm run check` · prueba manual descrita · build `npm run build -w @aske/web -- --mode fakenative` y luego reconstruir el dist normal
+
+## Orden de ejecución
+
+- **Grupo A:** T1 y T2 en paralelo.
+- **Grupo B:** T3, T4, T5 y T6 en paralelo. Necesitan T2. T3 y T4 comparten el workspace `apps/hub`, pero no tocan los mismos archivos, y el typecheck del hub solo pasa con los dos terminados.
+- **Grupo C:** T7. Necesita T5 (`App.tsx`, i18n, ayuda, `hubErrorText`) y T6 (store).
+- **Al final, el orquestador:** actualiza `docs/ESTADO.md` y la fila 7 de la tabla de fases de `docs/v2/architecture.md`, y ejecuta `npm run check` y `npm run test:e2e`.
 
 ## Riesgos / dudas abiertas
 
-### Riesgos técnicos
-
-- **API de subida de Workers con archivos estáticos** (`assets-upload-session`, `assets/upload?base64=true`, `keep_bindings`, `run_worker_first` como lista): los nombres de campos salen de la documentación y no se prueban contra Cloudflare real (solo simulada). Andoni debería hacer una prueba real con una cuenta de pruebas antes de publicar.
-- **Hash de los archivos**: wrangler usa blake3; la doc de subida directa usa SHA-256 truncado. Si Cloudflare lo rechazara, cambiar `assetHash` (T8) es local.
-- **Migraciones por `/d1/database/{id}/query`**: varias sentencias en una llamada no son una transacción. Si una falla a medias, al reintentar puede fallar por «la tabla ya existe». Las migraciones nuevas deben escribirse con `IF NOT EXISTS` cuando se pueda.
-- **Subdominio `workers.dev` recién creado**: puede tardar minutos en funcionar (DNS). Por eso hay `not_live_yet` y «Reintentar» sin volver a subir nada.
-- **R2 hay que activarlo a mano** en el panel (pide tarjeta): no se puede automatizar; el asistente lo guía y detecta el error 10042.
-- **Permisos del token**: claves `workers_scripts`, `d1`, `workers_r2`, `account_settings` del enlace precargado; si alguna cambia de nombre, el enlace abre el formulario vacío y el asistente lo explica (`missing_permission`).
-- **Capacitor en builds de depuración** puede mostrar en logcat las llamadas a plugins; las builds de release no. El token nunca se guarda en disco.
-- **Escáner de QR** necesita Google Play services (descarga un módulo la primera vez); sin él, se escribe el código.
-- **Volver a montar en una cuenta que ya tiene Aske Stream** crea una clave nueva: los demás dispositivos tendrán que volver a vincularse (la música no se borra). Se avisa en `confirmExisting`.
-- **APK más grande** (~2-4 MB por la copia de la web y el Worker).
-- **Actualizar el servidor de Andoni desde su móvil** sobrescribe su Worker con el del APK; es compatible (mismos nombres y `keep_bindings` conserva `ACCESS_KEY`, `CORS_ORIGINS` y `STORAGE_LIMIT_GB`).
-
-### Dudas abiertas
-
-Ninguna. Andoni eligió las cuatro opciones recomendadas el 2026-11-20 (ver «Decisiones de arquitectura»).
+1. **¿El Hub sirve también la web, para entrar a una Jam desde el navegador sin la app?**
+   - **Sí (Recomendada):** un amigo con iPhone o sin la app escanea el QR con la cámara y entra al momento. Los estáticos son gratis, pero el Hub sirve la versión de la web que Andoni haya desplegado la última vez.
+   - **No:** el QR solo funciona dentro de la app (Android o la web de cada uno). Es más sencillo, pero quien no tenga la app no puede entrar.
+   - Por qué la recomiendo: las Jams son en persona y lo normal es que alguien no tenga la app instalada.
+2. **¿Cómo añaden canciones los invitados?**
+   - **Buscador del Hub + su propia biblioteca (Recomendada):** funciona en cualquier móvil, incluido iPhone. Cuesta peticiones al Hub, limitadas por IP y solo con una Jam viva.
+   - **Solo de su biblioteca:** no gasta nada en el Hub, pero un amigo sin música de YouTube no puede añadir nada.
+   - **Además, pegar un enlace de YouTube:** más flexible, pero el título habría que sacarlo de YouTube desde el Hub (más trabajo); mejor dejarlo para después.
+   - Por qué la recomiendo: es la única que sirve a todos sin complicar el MVP.
+3. **¿Quién puede ser anfitrión?**
+   - **Solo la app Android (Recomendada):** puede descargar con yt-dlp las canciones que le falten.
+   - **También la web:** solo podría poner canciones que ya tiene en su biblioteca, así que muchas de la cola no sonarían.
+   - Por qué la recomiendo: el anfitrión necesita poder bajar lo que piden los demás.
+4. **Votos.**
+   - **Solo «me gusta», que se puede quitar (Recomendada):** sencillo y amable.
+   - **A favor y en contra:** se pueden hundir canciones, pero es más lioso y puede sentar mal.
+   - Por qué la recomiendo: encaja con un grupo de amigos y es más fácil de entender.
+5. **Por dónde se entra a la Jam en el móvil.**
+   - **Botón «Jam» en Playlists + banner mientras estás en una + barra lateral en escritorio (Recomendada):** no cambia las 5 pestañas, pero está un poco escondido.
+   - **Sustituir una pestaña de abajo (por ejemplo Podcasts) por Jam:** se ve más, pero mueve algo que ya se usa.
+   - Por qué la recomiendo: no rompe la costumbre de quien ya usa la app.
+6. **Despliegue del Hub (lo hace Andoni):** crear el D1 `aske-hub`, poner su id en `apps/hub/wrangler.jsonc`, migrar, desplegar y pasar la URL para `HUB_URL` (`https://aske-hub.<su-subdominio>.workers.dev`). Hasta entonces, la app enseña «Próximamente».
+7. **`package-lock.json` y regla de publicación:** el workspace nuevo obliga a actualizar el lockfile una vez (T3 usa `npm install --package-lock-only`, con revisión del diff). La regla de release pasa de «6 `package.json`» a 7 (se añade `apps/hub`): Andoni tiene que aprobar el cambio en `CLAUDE.md`.
+8. **Límites de uso** (20 listas/h, 10 Jams/h y 60 búsquedas cada 10 min por IP; 30 personas y 200 canciones por Jam; 10 pendientes por persona): son una propuesta; confirmar o ajustar.
+9. **Plan gratuito:** los Durable Objects gratis exigen el backend SQLite (`new_sqlite_classes`) y conviene la hibernación de WebSocket. Si Cloudflare cambiara esto, habría que revisar `wrangler.jsonc`. Sin probar en una cuenta real.
+10. **El «Enviar al móvil» a través del Hub** (para quien no usa Cloudflare) sale en `architecture.md`, pero queda **fuera** de esta F7. ¿Va en otra fase?

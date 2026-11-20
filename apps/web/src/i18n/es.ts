@@ -1,6 +1,8 @@
 import type { Messages } from './en';
 import { cloudflareSetupEs } from './cloudflareSetup';
 import { pairingEs } from './pairing';
+import { shareEs } from './share';
+import { jamEs } from './jam';
 
 export const es: Messages = {
   'app.name': 'Aske Stream',
@@ -677,5 +679,7 @@ export const es: Messages = {
   'sleep.hoursLabel': 'Horas',
   'sleep.minutesLabel': 'Minutos',
   ...pairingEs,
+  ...shareEs,
+  ...jamEs,
   ...cloudflareSetupEs,
 };
