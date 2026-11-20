@@ -16,7 +16,7 @@ import { useLibrary } from './library';
 import type { RepeatMode } from '../player/queue';
 import { usePlayer } from './player';
 
-export type JamConnection = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'ended';
+export type JamConnection = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'ended';
 export type JamErrorCode = HubErrorCode | 'network' | 'unavailable';
 
 export interface JamSession {
@@ -43,6 +43,8 @@ interface JamState {
   join(code: string, nickname: string): Promise<void>;
   resume(): Promise<void>;
   leave(): void;
+  /** Reconnects the current session in this tab (the other one gets close code 4001). */
+  takeOver(): void;
   add(song: HubSong): void;
   vote(itemId: string): void;
   remove(itemId: string): void;
@@ -86,6 +88,7 @@ const connectionOf: Record<JamSocketStatus, JamConnection | null> = {
   connecting: 'connecting',
   open: 'open',
   reconnecting: 'reconnecting',
+  replaced: 'replaced',
   closed: null,
 };
 
@@ -210,6 +213,7 @@ export const useJam = create<JamState>((set, get) => {
     socket.onMessage = handleServerMessage;
     socket.onStatus = (status) => {
       const connection = connectionOf[status];
+      if (status === 'replaced' && isHost()) stopWatching();
       if (connection) set({ connection });
       else if (get().connection !== 'ended') set({ connection: 'idle' });
     };
@@ -280,6 +284,11 @@ export const useJam = create<JamState>((set, get) => {
 
     leave() {
       if (!isHost()) teardown(null);
+    },
+
+    takeOver() {
+      const { session } = get();
+      if (session) connect(session);
     },
 
     add: (song) => socket.send({ type: 'add', song }),

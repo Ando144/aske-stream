@@ -22,6 +22,23 @@ function send(ws: WebSocket, msg: JamServerMessage): void {
   ws.send(JSON.stringify(msg));
 }
 
+/** A broken socket must not stop the rest of the room from being notified. */
+function safeSend(ws: WebSocket, msg: JamServerMessage): void {
+  try {
+    send(ws, msg);
+  } catch (err) {
+    console.error('jam: send failed', err);
+  }
+}
+
+function safeClose(ws: WebSocket, code?: number, reason?: string): void {
+  try {
+    ws.close(code, reason);
+  } catch (err) {
+    console.error('jam: close failed', err);
+  }
+}
+
 function memberOf(ws: WebSocket): JamMember | null {
   return (ws.deserializeAttachment() as JamMember | null) ?? null;
 }
@@ -79,7 +96,7 @@ export class JamRoom extends DurableObject<HubEnv> {
   }
 
   override async webSocketClose(ws: WebSocket): Promise<void> {
-    ws.close();
+    safeClose(ws);
     await this.broadcast();
   }
 
@@ -159,14 +176,14 @@ export class JamRoom extends DurableObject<HubEnv> {
     const members = this.membersOf();
     for (const ws of this.ctx.getWebSockets()) {
       const you = memberOf(ws);
-      if (you) send(ws, { type: 'state', jam: toSnapshot(data, members, you.memberId), you });
+      if (you) safeSend(ws, { type: 'state', jam: toSnapshot(data, members, you.memberId), you });
     }
   }
 
   private async endJam(reason: 'host' | 'expired'): Promise<void> {
     for (const ws of this.ctx.getWebSockets()) {
-      send(ws, { type: 'ended', reason });
-      ws.close(CLOSE_ENDED, 'ended');
+      safeSend(ws, { type: 'ended', reason });
+      safeClose(ws, CLOSE_ENDED, 'ended');
     }
     await this.ctx.storage.deleteAll();
   }

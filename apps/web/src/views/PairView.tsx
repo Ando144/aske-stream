@@ -179,7 +179,13 @@ export function isSubmitBlocked(busy: boolean, urlValid: boolean, code: string):
   return busy || (!urlValid && !codeIsLink);
 }
 
-/** Picks up `#code=` / `#key=` from the URL and pairs on its own when no address is needed. */
+/**
+ * Picks up `#code=` / `#key=` from the URL and pairs on its own when no address is needed.
+ * The credential travels in the fragment so it never reaches a server or its logs, and
+ * `takeFromHash` strips it from the address bar so it does not stay in the history.
+ * The empty dependency list is intentional: this must run once on mount (plus on later
+ * `hashchange` events); re-running when `submit` changes identity would pair twice.
+ */
 function useHashCredentials(
   needsUrl: boolean,
   submit: (value: string, mode?: Mode) => Promise<void>,

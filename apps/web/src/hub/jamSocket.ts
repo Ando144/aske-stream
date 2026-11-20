@@ -1,6 +1,6 @@
 import type { JamClientMessage, JamServerMessage } from '@aske/shared/hub';
 
-export type JamSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
+export type JamSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'replaced' | 'closed';
 
 /** The small part of WebSocket we use, so tests can fake it. */
 export interface SocketLike {
@@ -19,6 +19,8 @@ export type SocketFactory = (url: string) => SocketLike;
 export const JAM_CLOSE_FINAL = 4000;
 /** The server refuses new members (jam_full): retrying would never succeed. */
 export const JAM_CLOSE_FULL = 1013;
+/** Another tab/device of the same member took over this seat. Final: never reconnect. */
+export const JAM_CLOSE_REPLACED = 4001;
 const OPEN = 1;
 const MAX_PENDING = 20;
 const MIN_DELAY_MS = 1000;
@@ -105,6 +107,11 @@ export class JamSocket {
   private handleClose(socket: SocketLike, code: number): void {
     if (this.socket !== socket) return;
     this.socket = null;
+    if (code === JAM_CLOSE_REPLACED) {
+      this.stopped = true;
+      this.onStatus('replaced');
+      return;
+    }
     if (this.stopped || code === JAM_CLOSE_FINAL || code === JAM_CLOSE_FULL) {
       this.stopped = true;
       this.onStatus('closed');

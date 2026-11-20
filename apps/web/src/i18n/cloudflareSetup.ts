@@ -77,6 +77,7 @@ export const cloudflareSetupEn = {
   'cfsetup.error.waitRetry': 'Check again',
   'cfsetup.error.goR2': 'Turn on storage',
   'cfsetup.error.goToken': 'Create the key again',
+  'cfsetup.error.otherName': 'Choose another name',
   'cfsetup.error.invalid_token':
     'Cloudflare did not accept that key. Copy it again and make sure it is complete.',
   'cfsetup.error.missing_permission':
@@ -186,6 +187,7 @@ export const cloudflareSetupEs: Record<keyof typeof cloudflareSetupEn, string> =
   'cfsetup.error.waitRetry': 'Comprobar otra vez',
   'cfsetup.error.goR2': 'Activar el almacenamiento',
   'cfsetup.error.goToken': 'Crear la llave otra vez',
+  'cfsetup.error.otherName': 'Elegir otro nombre',
   'cfsetup.error.invalid_token':
     'Cloudflare no ha aceptado esa llave. Cópiala de nuevo y comprueba que está completa.',
   'cfsetup.error.missing_permission':
@@ -296,6 +298,7 @@ export const cloudflareSetupEu: Record<keyof typeof cloudflareSetupEn, string> =
   'cfsetup.error.waitRetry': 'Egiaztatu berriro',
   'cfsetup.error.goR2': 'Aktibatu biltegiratzea',
   'cfsetup.error.goToken': 'Sortu gakoa berriro',
+  'cfsetup.error.otherName': 'Aukeratu beste izen bat',
   'cfsetup.error.invalid_token':
     'Cloudflare-k ez du gako hori onartu. Kopiatu berriro eta egiaztatu osorik dagoela.',
   'cfsetup.error.missing_permission':

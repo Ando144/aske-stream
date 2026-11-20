@@ -128,10 +128,12 @@ export const useCloudflareSetup = create<CloudflareSetupState>((set, get) => {
     try {
       await deployAll(createCfApi(nativeCfTransport, token), await loadBundle());
     } catch (e) {
+      // A taken name is fixed by picking another one, so keep the token for that retry.
+      if (toErrorCode(e) !== 'subdomain_taken') token = null;
       fail(e);
-    } finally {
-      token = null;
+      return;
     }
+    token = null;
   }
 
   /** After the account is known: decide what to ask next. */
@@ -246,7 +248,11 @@ export const useCloudflareSetup = create<CloudflareSetupState>((set, get) => {
         await resumeWaiting(resumeInfo);
         return;
       }
-      // The token was already discarded: ask for it again.
+      if (get().error === 'subdomain_taken' && token) {
+        set({ phase: 'chooseSubdomain', suggestedSubdomain: suggestSubdomain(), error: null });
+        return;
+      }
+      // Any other error discarded the token already: ask for it again.
       set({ phase: 'token', error: null, step: null });
     },
 

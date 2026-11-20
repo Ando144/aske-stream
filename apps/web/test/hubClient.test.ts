@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 async function loadClient(hubUrl: string) {
   vi.resetModules();
-  vi.stubEnv('VITE_HUB_URL', hubUrl);
+  // The config falls back to the deployed Hub when the env var is empty, so mock it directly.
+  vi.doMock('../src/config', async (importActual) => ({
+    ...(await importActual<typeof import('../src/config')>()),
+    HUB_URL: hubUrl,
+  }));
   return import('../src/hub/client');
 }
 

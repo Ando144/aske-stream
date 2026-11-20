@@ -17,10 +17,8 @@ interface CloudflareSetupViewProps {
   onExit?: () => void;
 }
 
-/** Assistant that sets up (or updates) the user's own Cloudflare server from the Android app. */
-export function CloudflareSetupView({ mode, onExit }: CloudflareSetupViewProps) {
-  const s = useCloudflareSetup();
-
+/** Starts the assistant on mount and returns the exit handler that drops secrets. */
+function useSetupLifecycle(mode: SetupMode, onExit?: () => void): () => void {
   useEffect(() => {
     useCloudflareSetup.getState().start(mode);
     // The setup mode is closed by the status in the setup store; only the update screen
@@ -30,10 +28,16 @@ export function CloudflareSetupView({ mode, onExit }: CloudflareSetupViewProps) 
     };
   }, [mode]);
 
-  const exit = () => {
+  return () => {
     useCloudflareSetup.getState().cancel();
     onExit?.();
   };
+}
+
+/** Assistant that sets up (or updates) the user's own Cloudflare server from the Android app. */
+export function CloudflareSetupView({ mode, onExit }: CloudflareSetupViewProps) {
+  const s = useCloudflareSetup();
+  const exit = useSetupLifecycle(mode, onExit);
 
   switch (s.phase) {
     case 'intro':

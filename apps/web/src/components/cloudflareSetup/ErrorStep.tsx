@@ -9,6 +9,7 @@ function retryLabel(error: SetupErrorCode): MessageKey {
   if (error === 'not_live_yet') return 'cfsetup.error.waitRetry';
   if (error === 'r2_not_enabled') return 'cfsetup.error.goR2';
   if (error === 'invalid_token' || error === 'missing_permission') return 'cfsetup.error.goToken';
+  if (error === 'subdomain_taken') return 'cfsetup.error.otherName';
   return 'cfsetup.error.retry';
 }
 

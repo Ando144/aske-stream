@@ -217,6 +217,26 @@ describe('JamRoom', () => {
     expect(last.jam.members).toHaveLength(1);
   });
 
+  it('a socket that throws on send does not stop the others from getting the state', async () => {
+    const { ctx, room } = await liveRoom();
+    const a = join(ctx, room);
+    const b = join(ctx, room);
+    const c = join(ctx, room);
+    await a.say({ type: 'hello', memberId: 'a', nickname: 'Ann' });
+    await b.say({ type: 'hello', memberId: 'b', nickname: 'Bob' });
+    await c.say({ type: 'hello', memberId: 'c', nickname: 'Cy' });
+    b.ws.send = () => {
+      throw new Error('broken socket');
+    };
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    ctx.sockets = ctx.sockets.filter((s) => s !== c.ws);
+    await expect(room.webSocketClose(c.ws as never)).resolves.toBeUndefined();
+    const last = a.ws.last() as { jam: { members: unknown[] } };
+    expect(last.jam.members).toHaveLength(2);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   describe('fetch', () => {
     it('answers 426 without the WebSocket upgrade header', async () => {
       const { room } = await liveRoom();

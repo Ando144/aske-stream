@@ -77,6 +77,18 @@ function RoomActions({ isHost, onAdd }: { isHost: boolean; onAdd: () => void }) 
   );
 }
 
+function ReplacedNotice() {
+  const t = useT();
+  return (
+    <section className="jam-card">
+      <p>{t('jam.replaced.text')}</p>
+      <button className="btn primary" onClick={() => useJam.getState().takeOver()}>
+        {t('jam.replaced.useHere')}
+      </button>
+    </section>
+  );
+}
+
 /** Inside a Jam: code and QR, now playing, the voted queue and the actions. */
 export function JamRoom({ hasLibrary }: { hasLibrary: boolean }) {
   const t = useT();
@@ -87,6 +99,7 @@ export function JamRoom({ hasLibrary }: { hasLibrary: boolean }) {
   const isHost = session?.role === 'host';
 
   if (!session) return null;
+  if (connection === 'replaced') return <ReplacedNotice />;
   if (!snapshot) {
     return (
       <p className="muted">

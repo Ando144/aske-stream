@@ -245,6 +245,18 @@ describe('useJam store', () => {
       expect(useJam.getState().connection).toBe('reconnecting');
     });
 
+    it('keeps the session when replaced and takeOver() connects again', () => {
+      h.socket.connect.mockClear();
+      h.socket.onStatus('replaced');
+      const s = useJam.getState();
+      expect(s.connection).toBe('replaced');
+      expect(s.session?.code).toBe('A');
+      expect(h.prefs.get('jam-session-v1')).toMatchObject({ code: 'A' });
+      s.takeOver();
+      expect(h.socket.connect).toHaveBeenCalledTimes(1);
+      expect(useJam.getState().connection).toBe('connecting');
+    });
+
     it('goes idle when the socket closes without an end message', () => {
       h.socket.onStatus('closed');
       expect(useJam.getState().connection).toBe('idle');

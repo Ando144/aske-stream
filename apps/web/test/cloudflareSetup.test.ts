@@ -288,6 +288,55 @@ describe('cloudflareSetup store', () => {
     expect(useCloudflareSetup.getState().phase).toBe('token');
   });
 
+  it('after subdomain_taken, retry asks for a new name without the token', async () => {
+    const fake = fakeWithAccounts([{ id: 'a1', name: 'A' }])
+      .on('GET /accounts/a1/workers/subdomain', fail(404, 10007))
+      .on('PUT /accounts/a1/workers/subdomain', fail(409, 10036));
+    const { useCloudflareSetup } = await loadStore(fake);
+    useCloudflareSetup.getState().start('setup');
+    await useCloudflareSetup.getState().submitToken(TOKEN);
+    expect(useCloudflareSetup.getState().phase).toBe('chooseSubdomain');
+    await useCloudflareSetup.getState().chooseSubdomain('taken');
+    expect(useCloudflareSetup.getState().error).toBe('subdomain_taken');
+    expectNoSecret(useCloudflareSetup.getState());
+
+    fake.on('PUT /accounts/a1/workers/subdomain', (r) =>
+      ok({ subdomain: (r.json as { subdomain: string }).subdomain }),
+    );
+    await useCloudflareSetup.getState().retry();
+    const s = useCloudflareSetup.getState();
+    expect(s.phase).toBe('chooseSubdomain');
+    expect(s.error).toBeNull();
+    expect(s.suggestedSubdomain).toMatch(/^aske-[a-z0-9]{4}$/);
+    await s.chooseSubdomain('otro');
+    expect(useCloudflareSetup.getState().phase).toBe('done');
+    expectNoSecret(useCloudflareSetup.getState());
+  });
+
+  it('RUNNING_STEPS match the steps the runners emit', async () => {
+    const { RUNNING_STEPS } = await import('../src/components/cloudflareSetup/RunningStep');
+    const setupSteps: string[] = [];
+    await runSetup({
+      api: createCfApi(fakeAccount({ subdomain: null }).transport, 'tok'),
+      bundle,
+      accountId: 'a1',
+      subdomain: 'aske-abcd',
+      live,
+      onStep: (s) => setupSteps.push(s),
+    });
+    const updateSteps: string[] = [];
+    await runUpdate({
+      api: createCfApi(fakeAccount({ subdomain: 'mine' }).transport, 'tok'),
+      bundle,
+      accountId: 'a1',
+      currentBaseUrl: 'https://aske-stream.mine.workers.dev',
+      live,
+      onStep: (s) => updateSteps.push(s),
+    });
+    expect(RUNNING_STEPS.setup).toEqual(['account', ...setupSteps]);
+    expect(RUNNING_STEPS.update).toEqual(updateSteps);
+  });
+
   it('cancel clears everything', async () => {
     const { useCloudflareSetup } = await loadStore(fakeWithAccounts([]));
     useCloudflareSetup.getState().start('update');

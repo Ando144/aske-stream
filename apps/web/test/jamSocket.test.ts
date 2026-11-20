@@ -72,6 +72,17 @@ describe('JamSocket', () => {
     expect(statuses.at(-1)).toBe('closed');
   });
 
+  it('reports replaced and never reconnects with code 4001', () => {
+    const statuses: string[] = [];
+    js.onStatus = (s) => statuses.push(s);
+    js.connect('wss://x', hello);
+    sockets[0]!.open();
+    sockets[0]!.drop(4001);
+    vi.advanceTimersByTime(60_000);
+    expect(sockets).toHaveLength(1);
+    expect(statuses.at(-1)).toBe('replaced');
+  });
+
   it('does not reconnect with code 1013 (jam full)', () => {
     js.connect('wss://x', hello);
     sockets[0]!.open();

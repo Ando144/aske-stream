@@ -4,24 +4,24 @@ import type { SetupStep } from '../../cloudflare/setup';
 import type { SetupMode } from '../../stores/cloudflareSetup';
 import { StepFrame } from './StepFrame';
 
-const STEPS: Record<SetupMode, SetupStep[]> = {
+export const RUNNING_STEPS: Record<SetupMode, SetupStep[]> = {
   setup: [
     'account',
     'subdomain',
-    'database',
     'storage',
+    'database',
     'migrations',
     'files',
     'worker',
     'publish',
     'waiting',
   ],
-  update: ['account', 'migrations', 'files', 'worker', 'waiting'],
+  update: ['account', 'database', 'migrations', 'files', 'worker', 'waiting'],
 };
 
 export function RunningStep({ mode, step }: { mode: SetupMode; step: SetupStep | null }) {
   const t = useT();
-  const steps = STEPS[mode];
+  const steps = RUNNING_STEPS[mode];
   const current = step === null ? 0 : steps.indexOf(step);
   const title = mode === 'update' ? 'cfsetup.running.updateTitle' : 'cfsetup.running.title';
   return (

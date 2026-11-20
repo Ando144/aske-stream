@@ -23,6 +23,8 @@ export const jamEn = {
   'jam.nicknameRequired': 'Write a name so your friends know who you are.',
   'jam.connecting': 'Connecting to the Jam…',
   'jam.reconnecting': 'Connection lost. Trying to reconnect…',
+  'jam.replaced.text': 'This Jam is open in another tab or window. It can only be active in one.',
+  'jam.replaced.useHere': 'Use it here',
   'jam.room.code': 'Code',
   'jam.room.qrLabel': 'QR code to join the Jam',
   'jam.room.members': '{count} connected',
@@ -99,6 +101,9 @@ export const jamEs: Record<keyof typeof jamEn, string> = {
   'jam.nicknameRequired': 'Escribe un nombre para que tus amigos sepan quién eres.',
   'jam.connecting': 'Conectando con la Jam…',
   'jam.reconnecting': 'Se ha perdido la conexión. Intentando reconectar…',
+  'jam.replaced.text':
+    'Esta Jam está abierta en otra pestaña o ventana. Solo puede estar activa en una.',
+  'jam.replaced.useHere': 'Usar aquí',
   'jam.room.code': 'Código',
   'jam.room.qrLabel': 'Código QR para unirse a la Jam',
   'jam.room.members': '{count} conectados',
@@ -175,6 +180,9 @@ export const jamEu: Record<keyof typeof jamEn, string> = {
   'jam.nicknameRequired': 'Idatzi izen bat zure lagunek nor zaren jakin dezaten.',
   'jam.connecting': 'Jam-era konektatzen…',
   'jam.reconnecting': 'Konexioa galdu da. Berriro konektatzen saiatzen…',
+  'jam.replaced.text':
+    'Jam hau beste fitxa edo leiho batean irekita dago. Bakar batean bakarrik egon daiteke aktibo.',
+  'jam.replaced.useHere': 'Erabili hemen',
   'jam.room.code': 'Kodea',
   'jam.room.qrLabel': 'Jam-ean sartzeko QR kodea',
   'jam.room.members': '{count} konektatuta',
