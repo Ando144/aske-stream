@@ -16,6 +16,8 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
   - `AskeNative`: actualizaciones, almacenamiento y batería.
   - `Downloader`: yt-dlp vía youtubedl-android, servicio en primer plano.
   - `GoogleDrive`: Play services Identity, permiso `drive.file`.
+- `apps/hub`: Worker aparte (Hono, D1 y Durable Object) para playlists compartidas y Jams. Nunca
+  guarda música. API en `/hub/v1/*`; se despliega con `npm run deploy:hub`; ver `docs/hub.md`.
 - `packages/shared`: tipos, límites (`LIMITS`) y parser de YouTube InnerTube.
 - `tools/ingest`: CLI para subir música a Cloudflare.
 
