@@ -9,7 +9,7 @@ Actualizado: 2026-11-20
 
 ## En curso / siguiente
 
-- **F7 por hacer:** commit, subir versión (7 `package.json`), push y tag para que el CI publique el APK con el Hub. Desplegar de nuevo el Hub tras cada cambio con `npm run deploy:hub`.
+- **F7 por hacer:** versión 0.7.0 preparada (7 `package.json`, lock y `docs/releases/v0.7.0.md`, con commit). Falta: `npm run deploy` (web y API), `npm run deploy:hub` (para que el Hub diga 0.7.0), `git push` y el tag `v0.7.0` para que el CI publique el APK.
 - **F7 sin probar:** la interfaz en dos móviles reales (el anfitrión en Android descargando con yt-dlp); revisar el euskera de `share.ts` y `jam.ts`.
 - **MEDIO de la F7:** `jamSocket.ts` debería tratar el cierre 4001 como final (dos pestañas del mismo invitado se echan entre sí); en `room.ts` `webSocketClose` puede fallar al hacer `broadcast` (envolver `send()` en try/catch).
 - **MEDIO de la F6:** «Intentarlo de nuevo» tras `subdomain_taken` pide el token otra vez; falta el paso `'database'` en `RunningStep.tsx`; `CloudflareSetupView` 52 líneas; comentar `useHashCredentials`.
