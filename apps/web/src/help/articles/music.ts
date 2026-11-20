@@ -16,7 +16,7 @@ export const musicArticles: HelpArticle[] = [
 2. Elige qué buscar: **Canciones** (de YouTube Music, con mejores títulos y carátulas), **Vídeos** o **Playlists**.
 3. Pulsa el botón de descarga. La canción entra en la cola y, al terminar, aparece en tu Biblioteca con su título, artista y carátula.
 
-Puedes cerrar la app mientras descarga: las canciones seguirán bajando y verás el progreso en las notificaciones. Si te quedas sin cobertura, las descargas se pausan y siguen solas cuando vuelva; no tienes que hacer nada. Lo que se baje con la app cerrada se guarda en tu biblioteca cuando la vuelvas a abrir.
+Puedes cerrar la app mientras descarga: las canciones seguirán bajando y verás el progreso en las notificaciones. Si te quedas sin cobertura, las descargas se pausan y siguen solas cuando vuelva; no tienes que hacer nada. Si descargas durante muchas horas seguidas con la app cerrada, Android puede pausarlas; verás un aviso y seguirán solas al abrir Aske Stream. Lo que se baje con la app cerrada se guarda en tu biblioteca cuando la vuelvas a abrir.
 
 La primera descarga tarda un poco más porque la app prepara el descargador.
 
@@ -27,7 +27,7 @@ Las canciones que ya tienes aparecen como «Ya la tienes» y no se descargan dos
 2. Choose what to search: **Songs** (from YouTube Music, with better titles and covers), **Videos** or **Playlists**.
 3. Tap the download button. The song joins the queue and, when it finishes, appears in your Library with its title, artist and cover.
 
-You can close the app while it downloads: the songs keep coming and progress shows in your notifications. If you lose signal, downloads pause and carry on by themselves when it comes back; you do not need to do anything. Whatever downloads while the app is closed is saved to your library when you open it again.
+You can close the app while it downloads: the songs keep coming and progress shows in your notifications. If you lose signal, downloads pause and carry on by themselves when it comes back; you do not need to do anything. If you download for many hours in a row with the app closed, Android may pause them; you will see a notice and they will carry on by themselves when you open Aske Stream. Whatever downloads while the app is closed is saved to your library when you open it again.
 
 The first download takes a bit longer because the app gets the downloader ready.
 
@@ -38,7 +38,7 @@ Songs you already have show “In library” and are never downloaded twice.`,
 2. Aukeratu zer bilatu: **Abestiak** (YouTube Musicetik, izenburu eta azal hobeekin), **Bideoak** edo **Zerrendak**.
 3. Sakatu deskargatzeko botoia. Abestia ilarara sartzen da eta, amaitzean, zure Liburutegian agertzen da bere izenburu, artista eta azalarekin.
 
-Deskargatzen ari den bitartean aplikazioa itxi dezakezu: abestiak jaisten jarraituko dute eta aurrerapena jakinarazpenetan ikusiko duzu. Estaldurarik gabe geratzen bazara, deskargak pausatu egiten dira eta bere kabuz jarraitzen dute estaldura itzultzean; ez duzu ezer egin beharrik. Aplikazioa itxita deskargatutakoa zure liburutegian gordetzen da berriro irekitzean.
+Deskargatzen ari den bitartean aplikazioa itxi dezakezu: abestiak jaisten jarraituko dute eta aurrerapena jakinarazpenetan ikusiko duzu. Estaldurarik gabe geratzen bazara, deskargak pausatu egiten dira eta bere kabuz jarraitzen dute estaldura itzultzean; ez duzu ezer egin beharrik. Aplikazioa itxita ordu askotan jarraian deskargatzen baduzu, Androidek pausatu ditzake; abisu bat ikusiko duzu eta bere kabuz jarraituko dute Aske Stream irekitzean. Aplikazioa itxita deskargatutakoa zure liburutegian gordetzen da berriro irekitzean.
 
 Lehen deskargak pixka bat gehiago irauten du, aplikazioak deskargatzailea prestatzen duelako.
 
@@ -59,7 +59,7 @@ Dagoeneko dituzun abestiek «Baduzu» jartzen dute eta ez dira bi aldiz deskarga
 3. Deja marcada la casilla **«Crear también la playlist en tu biblioteca»** si quieres tenerla igual que en YouTube.
 4. Pulsa **Descargar N canciones**.
 
-Se descargan de una en una. Una playlist de 100 canciones ocupa unos 400 MB y tarda un rato: puedes apagar la pantalla o cerrar la app. Si se va la cobertura, se pausan y siguen solas; lo bajado con la app cerrada se guarda al abrirla.
+Se descargan de una en una. Una playlist de 100 canciones ocupa unos 400 MB y tarda un rato: puedes apagar la pantalla o cerrar la app. Si se va la cobertura, se pausan y siguen solas. Si descargas durante muchas horas seguidas con la app cerrada, Android puede pausarlas; verás un aviso y seguirán solas al abrir Aske Stream. Lo bajado con la app cerrada se guarda al abrirla.
 
 Si ya tenías alguna canción, no se descarga otra vez, pero sí aparece en la playlist, en el mismo orden que en YouTube. Si ya tienes una playlist con ese nombre, la app te pregunta si prefieres juntarlas o crear otra.
 
@@ -71,7 +71,7 @@ Las playlists de Aske Stream admiten hasta 1.000 canciones.`,
 3. Leave **“Also create the playlist in your library”** ticked if you want it just like on YouTube.
 4. Tap **Download N songs**.
 
-They download one by one. A 100-song playlist takes about 400 MB and a while: you can switch the screen off or close the app. If signal drops, they pause and resume by themselves; what downloads while the app is closed is saved when you open it.
+They download one by one. A 100-song playlist takes about 400 MB and a while: you can switch the screen off or close the app. If signal drops, they pause and resume by themselves. If you download for many hours in a row with the app closed, Android may pause them; you will see a notice and they will carry on by themselves when you open Aske Stream. What downloads while the app is closed is saved when you open it.
 
 If you already had some songs, they are not downloaded again, but they do appear in the playlist, in the same order as on YouTube. If you already have a playlist with that name, the app asks whether to merge them or create another one.
 
@@ -83,7 +83,7 @@ Aske Stream playlists hold up to 1,000 songs.`,
 3. Utzi markatuta **«Sortu zerrenda ere zure liburutegian»** YouTuben bezala izan nahi baduzu.
 4. Sakatu **Deskargatu N abesti**.
 
-Banan-banan deskargatzen dira. 100 abestiko zerrenda batek 400 MB inguru hartzen ditu eta denbora pixka bat behar du: pantaila itzali edo aplikazioa itxi dezakezu. Estaldura galtzen bada, pausatu egiten dira eta bere kabuz jarraitzen dute; aplikazioa itxita deskargatutakoa irekitzean gordetzen da.
+Banan-banan deskargatzen dira. 100 abestiko zerrenda batek 400 MB inguru hartzen ditu eta denbora pixka bat behar du: pantaila itzali edo aplikazioa itxi dezakezu. Estaldura galtzen bada, pausatu egiten dira eta bere kabuz jarraitzen dute. Aplikazioa itxita ordu askotan jarraian deskargatzen baduzu, Androidek pausatu ditzake; abisu bat ikusiko duzu eta bere kabuz jarraituko dute Aske Stream irekitzean. Aplikazioa itxita deskargatutakoa irekitzean gordetzen da.
 
 Abesti batzuk bazenituen jada, ez dira berriro deskargatzen, baina zerrendan agertzen dira, YouTuben duten ordena berean. Izen bereko zerrenda bat baduzu, aplikazioak galdetuko dizu batu nahi dituzun edo beste bat sortu.
 

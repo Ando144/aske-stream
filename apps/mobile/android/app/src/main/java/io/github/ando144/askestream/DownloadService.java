@@ -14,8 +14,10 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import com.getcapacitor.JSObject;
+import com.yausername.youtubedl_android.YoutubeDL;
 
 /**
  * Runs the phone's own download queue, so downloads go on when you leave or close the app:
@@ -57,6 +59,8 @@ public class DownloadService extends Service {
     private DownloadQueue queue;
     private NetworkWatcher watcher;
     private boolean busy = false;
+    private String currentJobId;
+    private boolean stopping = false;
     private long notBefore = 0;
     private volatile int lastPct = 0;
     private int done = 0;
@@ -139,7 +143,7 @@ public class DownloadService extends Service {
 
     /** Starts the next download, waits for internet or a retry time, or finishes when nothing is left. */
     private void pump() {
-        if (busy) return;
+        if (busy || stopping) return;
         if (!queue.hasWork()) {
             onQueueEmpty();
             return;
@@ -163,6 +167,7 @@ public class DownloadService extends Service {
         DownloadQueue.Job job = queue.takeNext();
         if (job == null) return;
         busy = true;
+        currentJobId = job.jobId;
         lastPct = 0;
         acquireLocks();
         refreshNotification();
@@ -184,6 +189,8 @@ public class DownloadService extends Service {
 
     private void onResult(DownloadQueue.Job job, JSObject result) {
         busy = false;
+        currentJobId = null;
+        if (stopping) return; // onTimeout already requeued the job
         boolean networkFailure = !result.optBoolean("ok") && "network".equals(result.optString("code"));
         if (networkFailure && retryLater(job)) {
             pump();
@@ -248,9 +255,17 @@ public class DownloadService extends Service {
 
     private void showOpenToSave(int count) {
         JSObject texts = queue.texts();
-        String text = count == 1
+        showNotice(count == 1
             ? texts.optString("openToSaveOne")
-            : texts.optString("openToSave").replace("{count}", String.valueOf(count));
+            : texts.optString("openToSave").replace("{count}", String.valueOf(count)));
+    }
+
+    private void showPaused() {
+        String text = queue.texts().optString("paused");
+        showNotice(text.isEmpty() ? getString(R.string.downloads_paused) : text);
+    }
+
+    private void showNotice(String text) {
         Notification n = new NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_download)
             .setContentTitle(getString(R.string.app_name))
@@ -295,10 +310,31 @@ public class DownloadService extends Service {
         super.onDestroy();
     }
 
+    /**
+     * Android 15 limits background data sync to 6 h a day; stop cleanly instead of crashing.
+     * The running download goes back to the front of the queue without counting an attempt.
+     */
     @Override
     public void onTimeout(int startId, int fgsType) {
-        // Android 15 limits background data sync to 6 h a day; stop cleanly instead of crashing.
+        stopping = true;
+        main.removeCallbacks(pumpTask);
+        if (busy) {
+            queue.requeueCurrent(false);
+            cancelCurrentProcess();
+        }
+        releaseLocks();
+        stopForeground(true);
+        showPaused();
         stopSelf();
+    }
+
+    private void cancelCurrentProcess() {
+        if (currentJobId == null) return;
+        try {
+            YoutubeDL.getInstance().destroyProcessById(currentJobId);
+        } catch (RuntimeException e) {
+            Log.w("DownloadService", "Could not stop the download on timeout", e);
+        }
     }
 
     @Override

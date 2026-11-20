@@ -86,7 +86,10 @@ export function Queue() {
             <button className="section-title link-btn" onClick={() => setShowDone(!showDone)}>
               {t('dl.finishedTitle', { count: finished.length })} {showDone ? '▾' : '▸'}
             </button>
-            <button className="btn small" onClick={() => useDownloads.getState().clearFinished()}>
+            <button
+              className="btn small"
+              onClick={() => void useDownloads.getState().clearFinished()}
+            >
               <Trash2 size={16} /> {t('dl.clearList')}
             </button>
           </div>

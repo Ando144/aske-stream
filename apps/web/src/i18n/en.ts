@@ -308,6 +308,7 @@ export const en = {
   'dl.savedAfterClose.one': '1 song downloaded while the app was closed is now in your library',
   'dl.notifWaiting': 'No connection · it will carry on when the signal is back',
   'dl.notifOpenToSave': '{count} songs downloaded. Open Aske Stream to save them',
+  'dl.notifPaused': 'Downloads paused. Open Aske Stream to carry on',
   'dl.notifOpenToSave.one': '1 song downloaded. Open Aske Stream to save it',
   'dl.batteryText':
     'For downloads to go on with the screen off, Android has to let the app run in the background. Tap “Allow” and accept.',

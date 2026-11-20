@@ -11,8 +11,13 @@ const Downloader = {
     h.listeners[event] = fn;
     return { remove: async () => undefined };
   }),
-  pending: vi.fn(async () => ({ queued: [], current: null, results: [], waitingNetwork: false })),
-  queue: vi.fn(async () => undefined),
+  pending: vi.fn(async () => ({
+    queued: [] as string[],
+    current: null,
+    results: [],
+    waitingNetwork: false,
+  })),
+  queue: vi.fn(async (_arg: unknown) => undefined),
   ack: vi.fn(async () => undefined),
   cancel: vi.fn(async () => ({ canceled: true })),
   init: vi.fn(async () => ({ version: '1' })),
@@ -33,6 +38,7 @@ vi.mock('../src/downloads/imports', () => ({
   scheduleImportSync: vi.fn(),
   flushImportSync: vi.fn(async () => undefined),
   pruneImports: vi.fn(),
+  settleImports: vi.fn(async () => undefined),
 }));
 vi.mock('../src/stores/setup', () => ({
   useSetup: { getState: () => ({ config: { home: h.home } }) },
@@ -72,6 +78,12 @@ async function queueSongs(count: number) {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  Downloader.pending.mockResolvedValue({
+    queued: [],
+    current: null,
+    results: [],
+    waitingNetwork: false,
+  });
   vi.stubGlobal('navigator', { onLine: true });
   h.home = 'device';
   useDownloads.setState({ jobs: [], saving: [], waitingNetwork: false });
@@ -160,6 +172,72 @@ describe('downloads store', () => {
     await queueSongs(1);
     finish(job(0).id);
     await vi.waitFor(() => expect(order).toEqual(['flush', 'prune']));
+  });
+
+  it('clearFinished settles imports and keeps only the active jobs', async () => {
+    const imports = await import('../src/downloads/imports');
+    await queueSongs(2);
+    useDownloads.setState({
+      jobs: useDownloads.getState().jobs.map((j, i) => (i === 0 ? { ...j, status: 'done' } : j)),
+    });
+    await useDownloads.getState().clearFinished();
+    expect(useDownloads.getState().jobs).toHaveLength(1);
+    expect(status(0)).toBe('queued');
+    expect(imports.settleImports).toHaveBeenCalledOnce();
+  });
+
+  it('cancelAll cancels every job on the phone and settles imports once', async () => {
+    const imports = await import('../src/downloads/imports');
+    await queueSongs(3);
+    await useDownloads.getState().cancelAll();
+    expect(Downloader.cancel).toHaveBeenCalledTimes(3);
+    expect(imports.settleImports).toHaveBeenCalledOnce();
+    expect(useDownloads.getState().jobs.every((j) => j.status === 'canceled')).toBe(true);
+  });
+
+  it('cancel of a downloaded job acknowledges it instead of canceling', async () => {
+    saveDownloaded.mockReturnValue(new Promise(() => undefined));
+    await queueSongs(1);
+    useDownloads.setState({
+      jobs: useDownloads.getState().jobs.map((j) => ({ ...j, status: 'downloaded' as const })),
+    });
+    await useDownloads.getState().cancel(job(0).id);
+    expect(Downloader.ack).toHaveBeenCalledWith({ jobId: job(0).id });
+    expect(Downloader.cancel).not.toHaveBeenCalled();
+    expect(status(0)).toBe('canceled');
+  });
+
+  it('resume restarts the phone service when it still has a queue but nothing is new', async () => {
+    Downloader.pending.mockResolvedValue({
+      queued: ['x'],
+      current: null,
+      results: [],
+      waitingNetwork: false,
+    });
+    await useDownloads.getState().resume();
+    expect(Downloader.queue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobs: [],
+        texts: expect.objectContaining({ paused: expect.any(String) }),
+      }),
+    );
+  });
+
+  it('resume does not call the phone queue when it has nothing', async () => {
+    Downloader.pending.mockResolvedValue({
+      queued: [],
+      current: null,
+      results: [],
+      waitingNetwork: false,
+    });
+    await useDownloads.getState().resume();
+    expect(Downloader.queue).not.toHaveBeenCalled();
+  });
+
+  it('sends the paused notification text with new jobs', async () => {
+    await queueSongs(1);
+    const arg = Downloader.queue.mock.calls[0]![0] as { texts: { paused: string } };
+    expect(typeof arg.texts.paused).toBe('string');
   });
 
   it('does not show waiting for internet on resume when nothing is active', async () => {

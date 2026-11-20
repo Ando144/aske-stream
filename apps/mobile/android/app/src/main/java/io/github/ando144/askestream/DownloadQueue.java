@@ -55,10 +55,18 @@ final class DownloadQueue {
     /** Appends jobs, skipping ids already queued, running or finished. Keeps the latest texts. */
     synchronized void add(List<Job> jobs, JSObject newTexts) {
         for (Job j : jobs) {
+            if (!isUsable(j)) {
+                Log.w(TAG, "Skipping a job with an empty id");
+                continue;
+            }
             if (!isKnown(j.jobId)) queue.addLast(j);
         }
         if (newTexts != null) texts = newTexts;
         save();
+    }
+
+    private static boolean isUsable(Job j) {
+        return DownloadWorker.isValidJobId(j.jobId) && !j.videoId.isEmpty();
     }
 
     private boolean isKnown(String jobId) {
@@ -95,6 +103,7 @@ final class DownloadQueue {
 
     /** Forgets a result and deletes its files. */
     synchronized void ack(String jobId) {
+        if (!DownloadWorker.isValidJobId(jobId)) return;
         results.removeIf(r -> jobId.equals(r.optString("jobId")));
         DownloadWorker.deleteJobFolder(ctx, jobId);
         save();
@@ -102,13 +111,14 @@ final class DownloadQueue {
 
     /** Removes a job that has not started yet. */
     synchronized boolean remove(String jobId) {
+        if (!DownloadWorker.isValidJobId(jobId)) return false;
         boolean removed = queue.removeIf(j -> j.jobId.equals(jobId));
         if (removed) save();
         return removed;
     }
 
     synchronized boolean isCurrent(String jobId) {
-        return current != null && current.jobId.equals(jobId);
+        return DownloadWorker.isValidJobId(jobId) && current != null && current.jobId.equals(jobId);
     }
 
     synchronized boolean hasWork() {
@@ -144,11 +154,11 @@ final class DownloadQueue {
             if (!file.isFile()) return;
             JSONObject root = new JSONObject(readFile());
             JSONObject cur = root.optJSONObject("current");
-            if (cur != null) queue.add(readJob(cur));
+            if (cur != null) addLoadedJob(readJob(cur));
             JSONArray q = root.optJSONArray("queue");
-            for (int i = 0; q != null && i < q.length(); i++) queue.add(readJob(q.getJSONObject(i)));
+            for (int i = 0; q != null && i < q.length(); i++) addLoadedJob(readJob(q.getJSONObject(i)));
             JSONArray r = root.optJSONArray("results");
-            for (int i = 0; r != null && i < r.length(); i++) results.add(new JSObject(r.getJSONObject(i).toString()));
+            for (int i = 0; r != null && i < r.length(); i++) addLoadedResult(r.getJSONObject(i));
             JSONObject t = root.optJSONObject("texts");
             if (t != null) texts = new JSObject(t.toString());
         } catch (Exception e) {
@@ -157,7 +167,17 @@ final class DownloadQueue {
         }
     }
 
-    private String readFile() throws Exception {
+    private void addLoadedJob(Job j) {
+        if (isUsable(j)) queue.add(j);
+        else Log.w(TAG, "Dropping a saved job with an empty id");
+    }
+
+    private void addLoadedResult(JSONObject o) throws Exception {
+        if (DownloadWorker.isValidJobId(o.optString("jobId"))) results.add(new JSObject(o.toString()));
+        else Log.w(TAG, "Dropping a saved result without a jobId");
+    }
+
+    private String readFile()throws Exception {
         try (FileInputStream in = new FileInputStream(file)) {
             java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
             byte[] chunk = new byte[8192];

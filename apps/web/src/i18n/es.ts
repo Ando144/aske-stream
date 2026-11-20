@@ -316,6 +316,7 @@ export const es: Messages = {
     '1 canción descargada mientras la app estaba cerrada ya está en tu biblioteca',
   'dl.notifWaiting': 'Sin conexión · seguirá sola cuando vuelva la cobertura',
   'dl.notifOpenToSave': '{count} canciones descargadas. Abre Aske Stream para guardarlas',
+  'dl.notifPaused': 'Descargas en pausa. Abre Aske Stream para seguir',
   'dl.notifOpenToSave.one': '1 canción descargada. Abre Aske Stream para guardarla',
   'dl.batteryText':
     'Para que las descargas sigan con la pantalla apagada, Android tiene que dejar a la app funcionar en segundo plano. Pulsa «Permitir» y acepta.',

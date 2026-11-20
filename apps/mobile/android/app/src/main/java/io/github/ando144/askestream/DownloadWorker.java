@@ -42,11 +42,17 @@ final class DownloadWorker {
         return new File(ctx.getFilesDir(), DIR);
     }
 
+    /** A usable id is non-null and not empty once sanitized; otherwise it would point at rootDir. */
+    static boolean isValidJobId(String id) {
+        return id != null && !id.replaceAll("[^\\w-]", "").isEmpty();
+    }
+
     static File jobDir(Context ctx, String jobId) {
         return new File(rootDir(ctx), jobId.replaceAll("[^\\w-]", ""));
     }
 
     static void deleteJobFolder(Context ctx, String jobId) {
+        if (!isValidJobId(jobId)) return;
         deleteRecursive(jobDir(ctx, jobId));
     }
 

@@ -24,6 +24,7 @@ import { AskeNative } from '../native/askeNative';
 import { mediaControls } from '../native/mediaControls';
 import { isNative } from '../native/platform';
 import { isStreamingSource, mayRotateOfflineNow } from '../lib/power';
+import { createRunThrottle } from '../offline/runThrottle';
 
 /**
  * Playback engine + state.
@@ -106,20 +107,15 @@ interface PlayerState {
 }
 
 const audio = new Audio();
+audio.preload = 'auto';
 
 const RUN_MIN_GAP_MS = 10 * 60 * 1000;
-let lastScheduledRun = 0;
 /** Offline rotation after loading a song, at most every 10 min; in the background only if cheap. */
-function scheduleRunThrottled() {
-  const now = Date.now();
-  if (now - lastScheduledRun < RUN_MIN_GAP_MS) return;
-  void mayRotateOfflineNow(usePlayer.getState().isPlaying).then((ok) => {
-    if (!ok) return;
-    lastScheduledRun = now;
-    useOffline.getState().scheduleRun(5000);
-  });
-}
-audio.preload = 'auto';
+const scheduleRunThrottled = createRunThrottle({
+  minGapMs: RUN_MIN_GAP_MS,
+  mayRun: () => mayRotateOfflineNow(usePlayer.getState().isPlaying),
+  run: () => useOffline.getState().scheduleRun(5000),
+});
 let hls: Hls | null = null;
 let objectUrl: string | null = null;
 let loadSeq = 0;

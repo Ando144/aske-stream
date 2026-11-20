@@ -159,7 +159,7 @@ public class DownloaderPlugin extends Plugin {
             JSONObject j = jobs.optJSONObject(i);
             String jobId = j == null ? "" : j.optString("jobId");
             String videoId = j == null ? "" : j.optString("videoId");
-            if (jobId.isEmpty() || !videoId.matches("[\\w-]{6,20}")) {
+            if (!DownloadWorker.isValidJobId(jobId) || !videoId.matches("[\\w-]{6,20}")) {
                 call.reject("jobId and a valid videoId are required");
                 return;
             }
@@ -183,6 +183,10 @@ public class DownloaderPlugin extends Plugin {
     @PluginMethod
     public void ack(PluginCall call) {
         String jobId = call.getString("jobId", "");
+        if (!DownloadWorker.isValidJobId(jobId)) {
+            call.reject("jobId is required");
+            return;
+        }
         DownloadQueue.get(getContext()).ack(jobId);
         call.resolve();
     }
@@ -219,7 +223,11 @@ public class DownloaderPlugin extends Plugin {
     @PluginMethod
     public void cancel(PluginCall call) {
         String jobId = call.getString("jobId", "");
-        DownloadQueue q = DownloadQueue.get(getContext());
+        if (!DownloadWorker.isValidJobId(jobId)) {
+            call.reject("jobId is required");
+            return;
+        }
+        DownloadQueue q =DownloadQueue.get(getContext());
         boolean canceled = q.remove(jobId);
         if (!canceled && q.isCurrent(jobId)) canceled = YoutubeDL.getInstance().destroyProcessById(jobId);
         JSObject ret = new JSObject();

@@ -10,6 +10,7 @@ import {
   rememberImport,
   resolvePlaylist,
   scheduleImportSync,
+  settleImports,
   syncImport,
 } from '../downloads/imports';
 import {
@@ -82,7 +83,7 @@ interface DownloadsState {
   cancelAll: () => Promise<void>;
   retry: (jobId: string) => void;
   retryFailed: () => void;
-  clearFinished: () => void;
+  clearFinished: () => Promise<void>;
   setKeepOffline: (keep: boolean) => void;
   updateEngine: (manual?: boolean) => Promise<void>;
   /** Re-sends queued jobs to the phone and saves what is ready (app reopened / internet back). */
@@ -151,6 +152,7 @@ const notificationTemplates = (): NotificationTemplates => ({
   waiting: t('dl.notifWaiting'),
   openToSave: t('dl.notifOpenToSave', { count: '{count}' }),
   openToSaveOne: t('dl.notifOpenToSave', { count: 1 }),
+  paused: t('dl.notifPaused'),
 });
 
 const knownToNative = (p: NativePending | null): Set<string> =>
@@ -260,7 +262,13 @@ export const useDownloads = create<DownloadsState>((set, get) => {
   async function sendToNative() {
     const pending = await Downloader.pending().catch(() => null);
     const jobs = jobsForNative(get().jobs, knownToNative(pending));
-    if (!jobs.length) return;
+    if (!jobs.length) {
+      // Android may have stopped the service (onTimeout): an empty queue call restarts it.
+      if (pending && (pending.queued.length > 0 || pending.current)) {
+        await Downloader.queue({ jobs: [], texts: notificationTemplates() }).catch(() => undefined);
+      }
+      return;
+    }
     try {
       await ensureEngine();
     } catch (err) {
@@ -316,6 +324,26 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     const now = Date.now();
     const wake = nextWakeAt(get().jobs, now);
     if (wake !== null) wakeTimer = setTimeout(pump, Math.max(0, wake - now));
+  }
+
+  /** Cancels one active job on the phone and marks it; imports are settled by the caller. */
+  async function cancelOne(jobId: string) {
+    const job = get().jobs.find((j) => j.id === jobId);
+    if (!job || !isActive(job) || job.status === 'saving') return;
+    if (job.status === 'downloaded') await Downloader.ack({ jobId }).catch(() => undefined);
+    else await Downloader.cancel({ jobId }).catch(() => undefined);
+    update(jobId, { status: 'canceled', finishedAt: Date.now() });
+    if (job.sendId) void reportSend(job.sendId);
+    void notify();
+  }
+
+  /** Flushes pending playlist syncs, then forgets finished imports; tells the user on failure. */
+  async function settleAndReport() {
+    try {
+      await settleImports(() => get().jobs);
+    } catch {
+      toast(t('dl.err.generic'), 'error');
+    }
   }
 
   /** The queue just emptied: sync playlists and tell the user how it went. */
@@ -512,18 +540,13 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     },
 
     async cancel(jobId) {
-      const job = get().jobs.find((j) => j.id === jobId);
-      if (!job || !isActive(job) || job.status === 'saving') return;
-      if (job.status === 'downloaded') await Downloader.ack({ jobId }).catch(() => undefined);
-      else await Downloader.cancel({ jobId }).catch(() => undefined);
-      update(jobId, { status: 'canceled', finishedAt: Date.now() });
-      pruneImports(get().jobs);
-      if (job.sendId) void reportSend(job.sendId);
-      void notify();
+      await cancelOne(jobId);
+      await settleAndReport();
     },
 
     async cancelAll() {
-      for (const job of get().jobs.filter(isActive)) await get().cancel(job.id);
+      for (const job of get().jobs.filter(isActive)) await cancelOne(job.id);
+      await settleAndReport();
     },
 
     retry(jobId) {
@@ -556,11 +579,11 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       void get().resume();
     },
 
-    clearFinished() {
+    async clearFinished() {
       const jobs = get().jobs.filter(isActive);
       set({ jobs });
       persist(jobs);
-      pruneImports(jobs);
+      await settleAndReport();
     },
 
     setKeepOffline(keepOffline) {

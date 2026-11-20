@@ -12,7 +12,8 @@ Actualizado: 2026-11-20
 
 - Andoni: `npm run deploy` (web v0.8.1) y mirar en GitHub → Actions los APK v0.8.0 y v0.8.1.
 - Andoni: probar descargas en el Pixel (cerrar arrastrando, modo avión, playlist grande), medir batería (~9 %/h antes), probar Recap, Ajustes y Jam en dos móviles.
-- Pulir descargas: `cancel()`/`clearFinished()` sin flush de importaciones; `jobId` vacío en `DownloadQueue.java`; `onTimeout` del servicio.
+- Andoni: probar `onTimeout` en el Pixel (forzar con `adb shell device_config put activity_manager data_sync_fgs_timeout_duration 60000`; restaurar con `delete`).
+- Hecho al pulir descargas: flush de importaciones en `cancel()`/`clearFinished()`, `jobId` vacío, `onTimeout` con aviso y reanudación, y tests del throttle y de `db.ts`.
 - F8b grupos (consentimiento aparte); F9 modo estudio; «Enviar al móvil» vía Hub.
 
 ## Decisiones tomadas (y por qué)
@@ -28,4 +29,3 @@ Actualizado: 2026-11-20
 - `smoke.mjs` da EPERM al limpiar en Windows y deja wrangler/workerd colgados.
 - `gradle.mjs` falla en Windows: usar `.\gradlew.bat assembleRelease`.
 - La copia no copia orden ni fijado; tests de navegador sin ejecutar.
-- Sin test del throttle de `player.ts` ni de `blocking` en `db.ts`.

@@ -87,4 +87,6 @@ export interface NotificationTemplates {
   waiting: string;
   openToSave: string;
   openToSaveOne: string;
+  /** Shown by the phone when Android stops the downloads for time (onTimeout). */
+  paused: string;
 }

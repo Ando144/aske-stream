@@ -108,14 +108,31 @@ export function scheduleImportSync(videoId: string): void {
   syncTimer = setTimeout(() => void flushImportSync(), SYNC_DELAY_MS);
 }
 
-/** Runs the pending sync now (e.g. when the queue empties). */
-export async function flushImportSync(): Promise<void> {
-  if (syncTimer) clearTimeout(syncTimer);
-  syncTimer = undefined;
+async function runFlush(): Promise<void> {
   const videoIds = [...pendingVideoIds];
   pendingVideoIds.clear();
   const affected = readImports().filter((i) => i.videoIds.some((v) => videoIds.includes(v)));
   for (const entry of affected) await syncImport(entry.playlistId);
+}
+
+let flushChain: Promise<void> = Promise.resolve();
+
+/** Runs the pending sync now (e.g. when the queue empties). Calls never overlap. */
+export function flushImportSync(): Promise<void> {
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = undefined;
+  // Failures of earlier flushes reach their own caller, not the next one.
+  const run = flushChain.then(runFlush, runFlush);
+  flushChain = run.catch(() => undefined);
+  return run;
+}
+
+/** Flushes pending syncs, then prunes imports using the jobs read after the flush. */
+export async function settleImports(
+  getJobs: () => readonly { videoId: string; status: JobStatus }[],
+): Promise<void> {
+  await flushImportSync();
+  pruneImports(getJobs());
 }
 
 /** Forget imports whose songs are all finished: nothing left to add to the playlist. */

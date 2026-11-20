@@ -317,6 +317,7 @@ export const eu: Messages = {
     'Aplikazioa itxita zegoela deskargatutako abesti 1 zure liburutegian dago jada',
   'dl.notifWaiting': 'Konexiorik gabe · bere kabuz jarraituko du estaldura itzultzean',
   'dl.notifOpenToSave': '{count} abesti deskargatuta. Ireki Aske Stream gordetzeko',
+  'dl.notifPaused': 'Deskargak pausan. Ireki Aske Stream jarraitzeko',
   'dl.notifOpenToSave.one': 'Abesti 1 deskargatuta. Ireki Aske Stream gordetzeko',
   'dl.batteryText':
     'Pantaila itzalita deskargek jarraitzeko, Androidek aplikazioari atzeko planoan funtzionatzen utzi behar dio. Sakatu «Baimendu» eta onartu.',
