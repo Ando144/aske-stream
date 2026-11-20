@@ -113,9 +113,10 @@ let lastScheduledRun = 0;
 function scheduleRunThrottled() {
   const now = Date.now();
   if (now - lastScheduledRun < RUN_MIN_GAP_MS) return;
-  lastScheduledRun = now;
   void mayRotateOfflineNow(usePlayer.getState().isPlaying).then((ok) => {
-    if (ok) useOffline.getState().scheduleRun(5000);
+    if (!ok) return;
+    lastScheduledRun = now;
+    useOffline.getState().scheduleRun(5000);
   });
 }
 audio.preload = 'auto';

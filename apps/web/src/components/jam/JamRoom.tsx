@@ -85,6 +85,9 @@ function ReplacedNotice() {
       <button className="btn primary" onClick={() => useJam.getState().takeOver()}>
         {t('jam.replaced.useHere')}
       </button>
+      <button className="btn" onClick={() => useJam.getState().leave()}>
+        {t('jam.leave')}
+      </button>
     </section>
   );
 }
@@ -96,6 +99,9 @@ function LostNotice() {
       <p>{t('jam.lost.text')}</p>
       <button className="btn primary" onClick={() => useJam.getState().takeOver()}>
         {t('jam.lost.retry')}
+      </button>
+      <button className="btn" onClick={() => useJam.getState().leave()}>
+        {t('jam.leave')}
       </button>
     </section>
   );

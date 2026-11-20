@@ -59,6 +59,10 @@ every 30 minutes while open, after a song starts, and when you change a setting 
 the background (music playing), the periodic run only happens while the phone is charging, or on
 Wi-Fi with battery saver off; without reliable data it does not run.
 
+In the web/PWA build (not the Android app) the battery status is not available, so with the tab
+hidden and music playing the rotation does not run. This is intentional and conservative: it
+avoids draining the battery when we cannot tell whether it is safe.
+
 > A PWA cannot download while closed: browsers give web apps no reliable background
 > execution. A native Android client (Kotlin + WorkManager) could do it on top of the same API —
 > see the roadmap.
