@@ -2,10 +2,16 @@
 
 ## Cambios hechos
 
-Ninguno. No he encontrado erratas, palabras sin traducir ni inconsistencias claras con `eu.ts`.
-Todo lo que sigue es dudoso y se ha dejado tal cual.
+Todo validado por Andoni (hablante nativo). Aplicado solo en `eu`:
 
-## Dudas para Andoni
+- `hub.err.rate_limited`: «Eskaera gehiegi egin dituzu. …»
+- `jam.replaced.text`: la frase final ahora es «Jam bakarra egon daiteke aktibo.»
+- `shared.nothingToDownload`: «Zerrenda batera gehitu dira.»
+- `hub.err.expired`: «Esteken iraupena 90 egunekoa da»; `jam.err.expired` y `jam.ended.expired`:
+  «Jam-en iraupena 12 ordukoa da».
+- Declinaciones de «Jam», `{date}(e)an` y `{name}(e)k`: aprobadas, sin cambios.
+
+## Dudas para Andoni (todas validadas por Andoni)
 
 | Clave                                                     | Texto actual                                | Propuesta                             | Por qué hay duda                                                                         |
 | --------------------------------------------------------- | ------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |

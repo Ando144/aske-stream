@@ -187,7 +187,7 @@ export const jamEu: Record<keyof typeof jamEn, string> = {
   'jam.connecting': 'Jam-era konektatzen…',
   'jam.reconnecting': 'Konexioa galdu da. Berriro konektatzen saiatzen…',
   'jam.replaced.text':
-    'Jam hau beste fitxa edo leiho batean irekita dago. Bakar batean bakarrik egon daiteke aktibo.',
+    'Jam hau beste fitxa edo leiho batean irekita dago. Jam bakarra egon daiteke aktibo.',
   'jam.replaced.useHere': 'Erabili hemen',
   'jam.lost.text':
     'Ezin izan gara Jam-era berriro konektatu. Egiaztatu zure internet konexioa eta saiatu berriro.',
@@ -223,7 +223,7 @@ export const jamEu: Record<keyof typeof jamEn, string> = {
   'jam.endConfirm': 'Jam-a denentzat amaitu? Abestiak zure zerrendan geratzen dira.',
   'jam.endConfirmLabel': 'Amaitu Jam-a',
   'jam.ended.host': 'Antolatzaileak Jam-a amaitu du.',
-  'jam.ended.expired': 'Jam-a iraungi da (12 ordu irauten dute).',
+  'jam.ended.expired': 'Jam-a iraungi da (Jam-en iraupena 12 ordukoa da).',
   'jam.ended.back': 'Atzera',
   'jam.dismissError': 'Itxi',
   'jam.add.title': 'Gehitu abestia',
@@ -237,7 +237,7 @@ export const jamEu: Record<keyof typeof jamEn, string> = {
   'jam.banner': 'Jam honetan zaude: {code}',
   'jam.banner.open': 'Ireki',
   'jam.err.not_found': 'Jam hau ez da existitzen. Egiaztatu kodea eta saiatu berriro.',
-  'jam.err.expired': 'Jam hau amaitu da. Jam-ek 12 ordu irauten dute.',
+  'jam.err.expired': 'Jam hau amaitu da. Jam-en iraupena 12 ordukoa da.',
   'jam.err.member_limit':
     'Dagoeneko 10 abesti dituzu zain. Bat jotzen denean gehiago gehitu ahalko dituzu.',
   'jam.err.jam_full': 'Jam hau beteta dago. Eskatu antolatzaileari tokia egiteko.',

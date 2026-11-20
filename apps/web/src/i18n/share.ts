@@ -124,8 +124,8 @@ export const shareEu: Record<keyof typeof shareEn, string> = {
   'hub.err.not_found':
     'Esteka hau ez da existitzen. Agian ezabatu dute. Eskatu zure lagunari berri bat.',
   'hub.err.expired':
-    'Esteka hau iraungi da. Estekek 90 egun irauten dute: eskatu zure lagunari berri bat.',
-  'hub.err.rate_limited': 'Maizegi ari zara egiten. Itxaron minutu batzuk eta saiatu berriro.',
+    'Esteka hau iraungi da. Esteken iraupena 90 egunekoa da: eskatu zure lagunari berri bat.',
+  'hub.err.rate_limited': 'Eskaera gehiegi egin dituzu. Itxaron minutu batzuk eta saiatu berriro.',
   'hub.err.too_many_songs': 'Zerrenda honek abesti gehiegi ditu partekatzeko.',
   'hub.err.jam_full': 'Jam hau beteta dago. Eskatu antolatzaileari tokia egiteko.',
   'hub.err.queue_full': 'Ilara beteta dago. Itxaron abesti batzuk jo arte.',
@@ -176,7 +176,7 @@ export const shareEu: Record<keyof typeof shareEn, string> = {
   'shared.download': 'Deskargatu nire liburutegian',
   'shared.webOnly': 'Abesti hauek deskargatzeko, ireki esteka hau Android aplikazioan.',
   'shared.start': 'Hasi Aske Stream erabiltzen',
-  'shared.nothingToDownload': 'Abesti guztiak badituzu dagoeneko. Zerrenda batean gehitu dira.',
+  'shared.nothingToDownload': 'Abesti guztiak badituzu dagoeneko. Zerrenda batera gehitu dira.',
   'shared.queued': 'Falta diren abestiak deskargatzen',
   'shared.back': 'Atzera',
 };
