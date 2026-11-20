@@ -28,7 +28,9 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
   Después `npm run test:e2e`, el smoke test contra wrangler dev con un dist recién construido;
   reinicia wrangler tras cada build.
 - Tests sueltos: `npx vitest run <archivo> --root apps/web`. Nunca `vitest -w` ni modo watch: deja procesos colgados.
-- Tests de navegador: ver `apps/web/test/browser/README.md`. Build como si fuera Android: `npx vite build --mode fakenative -w @aske/web`.
+- Tests de navegador: ver `apps/web/test/browser/README.md`. Build como si fuera Android: `npm run build -w @aske/web -- --mode fakenative`
+  (con `npx vite build … -w` Vite entiende `-w` como watch y se queda colgado); después reconstruye el dist normal.
+  Tras `npm run test:e2e` en Windows pueden quedar wrangler/workerd colgados: ciérralos.
   Cambia `src/native/*` por `apps/web/test/fake-native/*`.
 - APK: `npm run android:apk` (necesita ANDROID_HOME y `.secrets/keystore.properties`).
 - Publicar web: `npm run deploy`. Migraciones en producción: `npm run db:migrate:remote`.
