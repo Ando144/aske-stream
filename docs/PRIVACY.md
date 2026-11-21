@@ -51,6 +51,9 @@ Only if you use these optional features, the app talks to the Aske Hub, a small 
   are kept for 90 days and then deleted. Anyone with the link can read them.
 - **Jams:** the nicknames you type and the queue are kept only while the Jam lasts (at most 12
   hours). No accounts are needed.
+- **Send to phone:** the list of songs (YouTube ids, titles, artists) is kept until the other
+  phone receives it, and at most 24 hours. Then it is deleted. It holds no name, IP or device
+  data.
 - **Abuse limits:** your IP address is used only as a hash with a daily salt, to limit abuse, and
   is never stored in the clear.
 - No usage statistics are collected.
@@ -91,7 +94,9 @@ que reciban tu información, no tiene anuncios ni rastreo, y no vende nada.**
 - **Aske Hub (playlists compartidas y Jams):** solo si usas estas funciones opcionales. Es un
   servidor pequeño que **nunca guarda música**. El nombre de la playlist y las referencias de las
   canciones se guardan 90 días y luego se borran; los apodos y la cola de una Jam, solo mientras
-  dura (12 horas como mucho). Tu IP se usa únicamente como hash con sal diaria para limitar
+  dura (12 horas como mucho). Al enviar canciones a un móvil, la lista (ids de YouTube, títulos y
+  artistas) se guarda hasta que el otro móvil la recibe, y 24 horas como mucho; luego se borra, y
+  no lleva nombre, IP ni datos del dispositivo. Tu IP se usa únicamente como hash con sal diaria para limitar
   abusos, nunca en claro. No hay estadísticas.
 - **Estadísticas:** no se envían estadísticas de uso a nadie. Si algún día se envían, será solo
   con tu permiso explícito y estarán desactivadas por defecto.

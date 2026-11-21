@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Check,
   Download,
   ListMusic,
   LoaderCircle,
+  Plus,
+  ScanLine,
   Search,
   Send,
   Smartphone,
-  Trash2,
   X,
 } from 'lucide-react';
-import { LIMITS, type SendItem } from '@aske/shared';
+import { LIMITS } from '@aske/shared';
 import {
   isYoutubeUrl,
   youtubePlaylistId,
@@ -22,7 +23,7 @@ import {
 import { api } from '../api/client';
 import { SettingsLink } from '../components/SettingsLink';
 import { RELEASES_URL } from '../config';
-import { useI18n, useT } from '../i18n';
+import { useI18n, useT, type Language } from '../i18n';
 import { formatBytes, formatTime } from '../lib/format';
 import { uniquePlaylistName } from '../downloads/batch';
 import { loadValue, savePref } from '../lib/storage';
@@ -30,23 +31,38 @@ import { listPlaylistOnPhone, searchOnPhone, type PlaylistListing } from '../nat
 import { isNative } from '../native/platform';
 import { useDownloads } from '../stores/downloads';
 import { useLibrary } from '../stores/library';
+import { songFromResult, useParcel } from '../stores/parcel';
 import { useSend } from '../stores/send';
 import { useSetup } from '../stores/setup';
 import { toast } from '../stores/ui';
+import { hubAvailable, searchViaHub } from '../hub/client';
 import { HelpButton } from '../components/HelpSheet';
 import { Queue } from '../components/downloads/DownloadQueue';
 import { EnginePanel } from '../components/downloads/EnginePanel';
+import { Outbox } from '../components/send/Outbox';
+import { ParcelPanel } from '../components/send/ParcelPanel';
+import { ReceiveSheet } from '../components/send/ReceiveSheet';
+
+/** How this screen works: phone app, computer with Cloudflare, or computer through the Hub. */
+type SendVia = 'cloudflare' | 'hub' | null;
+
+function sendViaFor(home: string | undefined): SendVia {
+  if (isNative) return null;
+  if (home === 'cloudflare') return 'cloudflare';
+  return hubAvailable() ? 'hub' : null;
+}
 
 /**
  * Find music on YouTube and get it into the library.
  *  - Android app: search and download right here.
  *  - Computer (Cloudflare library): search and "Send to phone"; the phone
  *    downloads it next time it is open.
+ *  - Computer (other libraries): pick songs and send them with a code through the Hub.
  */
 export function DownloadView() {
   const t = useT();
   const home = useSetup((s) => s.config?.home);
-  const canSend = !isNative && home === 'cloudflare';
+  const sendVia = sendViaFor(home);
 
   return (
     <div className="page">
@@ -54,11 +70,13 @@ export function DownloadView() {
         <h1>{isNative ? t('dl.title') : t('send.title')}</h1>
         <SettingsLink />
       </header>
-      <Intro />
-      {isNative || canSend ? (
+      <Intro via={sendVia} />
+      {isNative || sendVia ? (
         <>
-          <SearchPanel>{isNative && <Queue />}</SearchPanel>
-          {!isNative && <Outbox />}
+          {isNative && hubAvailable() && <ReceiveButton />}
+          <SearchPanel via={sendVia}>{isNative && <Queue />}</SearchPanel>
+          {sendVia === 'cloudflare' && <Outbox />}
+          {sendVia === 'hub' && <ParcelPanel />}
           {isNative && <WherePanel />}
           {isNative && <EnginePanel />}
         </>
@@ -75,8 +93,30 @@ export function DownloadView() {
   );
 }
 
+/** Phone: button that opens the "receive songs" sheet (also opened by a #send= link). */
+function ReceiveButton() {
+  const t = useT();
+  const [code, setCode] = useState<string | null>(null);
+  const pendingCode = useParcel((s) => s.pendingCode);
+
+  useEffect(() => {
+    if (!pendingCode) return;
+    setCode(pendingCode);
+    useParcel.getState().setPendingCode(null);
+  }, [pendingCode]);
+
+  return (
+    <>
+      <button className="btn small" onClick={() => setCode('')}>
+        <ScanLine size={16} /> {t('parcel.receive')}
+      </button>
+      {code !== null && <ReceiveSheet initialCode={code} onClose={() => setCode(null)} />}
+    </>
+  );
+}
+
 /** Plain-language explanation, shown until dismissed. */
-function Intro() {
+function Intro({ via }: { via: SendVia }) {
   const t = useT();
   const [open, setOpen] = useState(() => !loadValue<boolean>('dl-intro-seen', false));
   if (!open) return null;
@@ -84,13 +124,16 @@ function Intro() {
     savePref('dl-intro-seen', true);
     setOpen(false);
   };
+  const hub = via === 'hub';
   return (
     <div className="banner accent dl-intro">
       <div className="grow">
-        <strong>{isNative ? t('dl.introTitle') : t('send.introTitle')}</strong>
-        <p>{isNative ? t('dl.introText') : t('send.introText')}</p>
+        <strong>
+          {isNative ? t('dl.introTitle') : hub ? t('parcel.introTitle') : t('send.introTitle')}
+        </strong>
+        <p>{isNative ? t('dl.introText') : hub ? t('parcel.introText') : t('send.introText')}</p>
         <p className="small">{t('dl.legal')}</p>
-        <HelpButton id={isNative ? 'download-youtube' : 'send-to-phone'} />
+        <HelpButton id={isNative ? 'download-youtube' : hub ? 'send-with-code' : 'send-to-phone'} />
       </div>
       <button className="icon-btn" aria-label={t('common.close')} onClick={close}>
         <X size={18} />
@@ -100,9 +143,21 @@ function Intro() {
 }
 
 const KINDS: SearchKind[] = ['songs', 'videos', 'playlists'];
+const HUB_KINDS: SearchKind[] = ['songs', 'videos'];
+
+async function searchFor(
+  via: SendVia,
+  q: string,
+  kind: SearchKind,
+  language: Language,
+): Promise<SearchResult[]> {
+  if (isNative) return searchOnPhone(q, kind, language);
+  if (via === 'hub') return searchViaHub(q, kind === 'videos' ? 'videos' : 'songs', language);
+  return (await api.youtubeSearch(q, kind, language)).results;
+}
 
 /** Search box on top, its results right below, then `children` (the download queue). */
-function SearchPanel({ children }: { children: ReactNode }) {
+function SearchPanel({ via, children }: { via: SendVia; children: ReactNode }) {
   const t = useT();
   const language = useI18n((s) => s.language);
   const [query, setQuery] = useState('');
@@ -111,25 +166,37 @@ function SearchPanel({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openPlaylist, setOpenPlaylist] = useState<SearchResult | null>(null);
+  const searchSeq = useRef(0);
 
   const link = isYoutubeUrl(query.trim()) ? query.trim() : null;
 
   const run = async (k = kind) => {
     const q = query.trim();
     if (!q || link) return;
+    const seq = ++searchSeq.current;
     setBusy(true);
     setError(null);
     try {
-      const found = isNative
-        ? await searchOnPhone(q, k, language)
-        : (await api.youtubeSearch(q, k, language)).results;
-      setResults(found);
+      const found = await searchFor(via, q, k, language);
+      if (seq === searchSeq.current) setResults(found);
     } catch {
+      if (seq !== searchSeq.current) return;
       setResults(null);
       setError(navigator.onLine ? t('dl.searchFailed') : t('toast.offline'));
     } finally {
-      setBusy(false);
+      if (seq === searchSeq.current) setBusy(false);
     }
+  };
+
+  const handleChange = (value: string) => {
+    setQuery(value);
+    if (value.trim() !== '') return;
+    // Invalidate any in-flight search so a late answer cannot repaint results.
+    searchSeq.current++;
+    setResults(null);
+    setError(null);
+    setOpenPlaylist(null);
+    setBusy(false);
   };
 
   return (
@@ -149,7 +216,7 @@ function SearchPanel({ children }: { children: ReactNode }) {
           value={query}
           placeholder={t('dl.searchPlaceholder')}
           aria-label={t('dl.searchPlaceholder')}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => handleChange(e.target.value)}
         />
       </form>
       {!link && (
@@ -158,7 +225,7 @@ function SearchPanel({ children }: { children: ReactNode }) {
           role="radiogroup"
           aria-label={t('dl.searchPlaceholder')}
         >
-          {KINDS.map((k) => (
+          {(via === 'hub' ? HUB_KINDS : KINDS).map((k) => (
             <button
               key={k}
               role="radio"
@@ -175,7 +242,14 @@ function SearchPanel({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      {link && <LinkCard url={link} onDone={() => setQuery('')} onOpenPlaylist={setOpenPlaylist} />}
+      {link && (
+        <LinkCard
+          url={link}
+          via={via}
+          onDone={() => setQuery('')}
+          onOpenPlaylist={setOpenPlaylist}
+        />
+      )}
       {busy && (
         <div className="row muted dl-status">
           <LoaderCircle className="spin" size={18} /> {t('dl.searching')}
@@ -186,7 +260,7 @@ function SearchPanel({ children }: { children: ReactNode }) {
       {results && !busy && (
         <div className="card-list">
           {results.map((r) => (
-            <ResultRow key={r.kind + r.id} result={r} onOpen={() => setOpenPlaylist(r)} />
+            <ResultRow key={r.kind + r.id} result={r} via={via} onOpen={() => setOpenPlaylist(r)} />
           ))}
         </div>
       )}
@@ -204,8 +278,17 @@ function useInLibrary(videoId: string): boolean {
   );
 }
 
-function ResultRow({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
+function ResultRow({
+  result,
+  via,
+  onOpen,
+}: {
+  result: SearchResult;
+  via: SendVia;
+  onOpen: () => void;
+}) {
   const t = useT();
+  const inBasket = useParcel((s) => s.basket.some((song) => song.videoId === result.id));
   const inLibrary = useInLibrary(result.kind === 'video' ? result.id : '');
   const queued = useDownloads((s) =>
     s.jobs.some(
@@ -219,7 +302,9 @@ function ResultRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
 
   const act = async () => {
     if (result.kind === 'playlist') return onOpen();
-    if (isNative) {
+    if (via === 'hub') {
+      useParcel.getState().add(songFromResult(result));
+    } else if (isNative) {
       await useDownloads.getState().enqueue([
         {
           videoId: result.id,
@@ -263,38 +348,44 @@ function ResultRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
         <span className="pill">{t('dl.inQueue')}</span>
       ) : sent ? (
         <span className="pill auto">{t('send.sentShort')}</span>
+      ) : via === 'hub' && inBasket ? (
+        <span className="pill auto">
+          <Check size={12} /> {t('parcel.added')}
+        </span>
       ) : (
         <button
           className="icon-btn"
-          aria-label={
-            result.kind === 'playlist'
-              ? t('dl.openPlaylist')
-              : isNative
-                ? t('dl.download')
-                : t('send.send')
-          }
+          aria-label={actionLabel(t, result, via)}
           onClick={() => void act()}
         >
-          {result.kind === 'playlist' ? (
-            <ListMusic size={22} />
-          ) : isNative ? (
-            <Download size={22} />
-          ) : (
-            <Send size={20} />
-          )}
+          {actionIcon(result, via)}
         </button>
       )}
     </div>
   );
 }
 
+function actionLabel(t: ReturnType<typeof useT>, result: SearchResult, via: SendVia): string {
+  if (result.kind === 'playlist') return t('dl.openPlaylist');
+  if (via === 'hub') return t('parcel.add');
+  return isNative ? t('dl.download') : t('send.send');
+}
+
+function actionIcon(result: SearchResult, via: SendVia): ReactNode {
+  if (result.kind === 'playlist') return <ListMusic size={22} />;
+  if (via === 'hub') return <Plus size={22} />;
+  return isNative ? <Download size={22} /> : <Send size={20} />;
+}
+
 /** A pasted YouTube / YouTube Music link. */
 function LinkCard({
   url,
+  via,
   onDone,
   onOpenPlaylist,
 }: {
   url: string;
+  via: SendVia;
   onDone: () => void;
   onOpenPlaylist: (result: SearchResult) => void;
 }) {
@@ -303,7 +394,15 @@ function LinkCard({
   const [busy, setBusy] = useState(false);
   const valid = !!youtubeVideoId(url) || isPlaylist;
 
+  const hubVideoId = via === 'hub' ? youtubeVideoId(url) : null;
+  const hubPlaylist = via === 'hub' && isPlaylist;
+
   const act = async () => {
+    if (hubVideoId) {
+      useParcel.getState().add({ videoId: hubVideoId, title: hubVideoId, artist: '' });
+      onDone();
+      return;
+    }
     if (isNative && isPlaylist) {
       // Same preview as a searched playlist, so the "name already exists" question shows too.
       onOpenPlaylist({
@@ -340,17 +439,22 @@ function LinkCard({
         <strong>{isPlaylist ? t('dl.linkPlaylist') : t('dl.linkSong')}</strong>
         <div className="muted small ellipsis">{url}</div>
         {!valid && <div className="error-text small">{t('dl.linkInvalid')}</div>}
+        {hubPlaylist && <div className="muted small">{t('parcel.playlistLink')}</div>}
       </div>
-      <button className="btn primary small" disabled={!valid || busy} onClick={() => void act()}>
-        {busy ? (
-          <LoaderCircle size={16} className="spin" />
-        ) : isNative ? (
-          <Download size={16} />
-        ) : (
-          <Send size={16} />
-        )}
-        {isNative ? t('dl.download') : t('send.send')}
-      </button>
+      {!hubPlaylist && (
+        <button className="btn primary small" disabled={!valid || busy} onClick={() => void act()}>
+          {busy ? (
+            <LoaderCircle size={16} className="spin" />
+          ) : via === 'hub' ? (
+            <Plus size={16} />
+          ) : isNative ? (
+            <Download size={16} />
+          ) : (
+            <Send size={16} />
+          )}
+          {via === 'hub' ? t('parcel.add') : isNative ? t('dl.download') : t('send.send')}
+        </button>
+      )}
     </div>
   );
 }
@@ -599,74 +703,5 @@ function WherePanel() {
         <div>{t('dl.whereDevice')}</div>
       )}
     </div>
-  );
-}
-
-/* ----------------------------- computer outbox ----------------------------- */
-
-function sendStatus(t: ReturnType<typeof useT>, item: SendItem): string {
-  if (item.status === 'pending') return t('send.st.pending');
-  if (item.status === 'taken') return t('send.st.taken');
-  if (item.status === 'done') return item.detail || t('send.st.done');
-  return item.detail || t('send.st.error');
-}
-
-function Outbox() {
-  const t = useT();
-  const items = useSend((s) => s.items);
-  const loaded = useSend((s) => s.loaded);
-
-  useEffect(() => {
-    void useSend.getState().refresh();
-    const timer = setInterval(() => void useSend.getState().refresh(), 15_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const sorted = useMemo(() => [...items].sort((a, b) => b.createdAt - a.createdAt), [items]);
-  if (!loaded) return null;
-  return (
-    <section>
-      <h2 className="section-title">{t('send.listTitle')}</h2>
-      {sorted.length === 0 ? (
-        <p className="muted small">{t('send.empty')}</p>
-      ) : (
-        <div className="card-list">
-          {sorted.map((item) => (
-            <div key={item.id} className="card-row">
-              {item.thumbnail ? (
-                <img
-                  className="dl-thumb"
-                  src={item.thumbnail}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="dl-thumb station-logo">
-                  {item.kind === 'playlist' ? <ListMusic size={20} /> : <Download size={20} />}
-                </div>
-              )}
-              <div className="grow" style={{ minWidth: 0 }}>
-                <div className="card-title ellipsis">{item.title || item.url}</div>
-                <div
-                  className={`small ellipsis ${item.status === 'error' ? 'error-text' : 'muted'}`}
-                >
-                  {sendStatus(t, item)}
-                </div>
-              </div>
-              <span className={`pill ${item.status === 'done' ? 'auto' : ''}`}>
-                {t(`send.pill.${item.status}`)}
-              </span>
-              <button
-                className="icon-btn"
-                aria-label={t('common.delete')}
-                onClick={() => void useSend.getState().remove(item.id)}
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }

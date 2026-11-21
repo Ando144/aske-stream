@@ -6,6 +6,8 @@ import { cleanup } from './cleanup';
 import { HubHttpError } from './lib/http';
 import { jamRoutes } from './jam/routes';
 import { listRoutes } from './routes/lists';
+import { parcelRoutes } from './routes/parcels';
+import { searchRoutes } from './routes/search';
 import { HUB_VERSION } from './version';
 
 const app = new Hono<HubAppEnv>();
@@ -28,6 +30,8 @@ app.use('/hub/*', async (c, next) => {
 app.get('/hub/v1/health', (c) => c.json({ ok: true, hub: true, version: HUB_VERSION }));
 app.route('/hub/v1/lists', listRoutes);
 app.route('/hub/v1/jams', jamRoutes);
+app.route('/hub/v1/parcels', parcelRoutes);
+app.route('/hub/v1/search', searchRoutes);
 app.all('/hub/*', (c) => c.json({ error: 'not_found', message: 'Unknown endpoint' }, 404));
 
 // Anything outside /hub is the web app (so a Jam QR also opens in a browser).

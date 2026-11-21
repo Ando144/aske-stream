@@ -13,6 +13,10 @@ export const HUB_LIMITS = {
   listIdLength: 10,
   wsMessageMaxBytes: 8 * 1024,
   listBodyMaxBytes: 512 * 1024,
+  parcelMaxSongs: 200,
+  parcelTtlMs: 24 * 3600 * 1000,
+  parcelCodeLength: 6,
+  parcelBodyMaxBytes: 128 * 1024,
 } as const;
 
 export interface HubSong {
@@ -37,6 +41,20 @@ export interface CreatedJam {
   code: string;
   hostKey: string;
   expiresAt: number;
+}
+export interface CreatedParcel {
+  code: string;
+  senderKey: string;
+  expiresAt: number;
+  count: number;
+}
+export interface ParcelStatus {
+  code: string;
+  count: number;
+  expiresAt: number;
+}
+export interface ClaimedParcel {
+  songs: HubSong[];
 }
 export interface JamInfo {
   code: string;
@@ -99,7 +117,8 @@ export type JamServerMessage =
   | { type: 'error'; code: HubErrorCode }
   | { type: 'ended'; reason: 'host' | 'expired' };
 
-export type HubLink = { kind: 'list'; id: string } | { kind: 'jam'; code: string };
+export type HubLink =
+  { kind: 'list'; id: string } | { kind: 'jam'; code: string } | { kind: 'send'; code: string };
 
 const LOCAL_HTTP_HOSTS = new Set(['localhost', '127.0.0.1', '10.0.2.2']);
 // eslint-disable-next-line no-control-regex
@@ -152,6 +171,12 @@ export function normalizeJamCode(input: string): string | null {
   return onlyAlphabet(code, HUB_LIMITS.jamCodeLength) ? code : null;
 }
 
+/** Uppercases and strips spaces and dashes; null unless it is 6 symbols of the alphabet. */
+export function normalizeParcelCode(input: string): string | null {
+  const code = input.replace(/[\s-]/g, '').toUpperCase();
+  return onlyAlphabet(code, HUB_LIMITS.parcelCodeLength) ? code : null;
+}
+
 /** 'ABCDEF' becomes 'ABC-DEF'. */
 export function formatJamCode(code: string): string {
   const half = code.length / 2;
@@ -172,11 +197,20 @@ export function hubJamLink(hubUrl: string, code: string): string {
   return `${baseOf(hubUrl)}/#jam=${code}`;
 }
 
-/** For location.hash: '#list=ID' or '#jam=CODE'. */
+export function hubSendLink(hubUrl: string, code: string): string {
+  return `${baseOf(hubUrl)}/#send=${code}`;
+}
+
+/** For location.hash: '#list=ID', '#jam=CODE' or '#send=CODE'. */
 export function parseHubHash(hash: string): HubLink | null {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const list = params.get('list');
   if (list !== null) return isListId(list) ? { kind: 'list', id: list } : null;
+  const send = params.get('send');
+  if (send !== null) {
+    const parcel = normalizeParcelCode(send);
+    return parcel ? { kind: 'send', code: parcel } : null;
+  }
   const jam = params.get('jam');
   const code = jam === null ? null : normalizeJamCode(jam);
   return code ? { kind: 'jam', code } : null;
@@ -185,6 +219,20 @@ export function parseHubHash(hash: string): HubLink | null {
 function isAllowedOrigin(url: URL): boolean {
   if (url.protocol === 'https:') return true;
   return url.protocol === 'http:' && LOCAL_HTTP_HOSTS.has(url.hostname);
+}
+
+/** Bare parcel code ('abc-def') or an https link (http for local hosts) with #send=CODE. */
+export function parseParcelInput(text: string): string | null {
+  const trimmed = text.trim();
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return normalizeParcelCode(trimmed);
+  }
+  if (!isAllowedOrigin(url)) return null;
+  const link = parseHubHash(url.hash);
+  return link?.kind === 'send' ? link.code : null;
 }
 
 /** Accepts an https link (http for local hosts only) or a bare Jam code. */

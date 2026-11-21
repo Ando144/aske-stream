@@ -1,6 +1,8 @@
-import { X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
+import { hubAvailable } from '../../hub/client';
 import { useT } from '../../i18n';
 import { useLibrary } from '../../stores/library';
+import { useParcel } from '../../stores/parcel';
 import { usePlayer } from '../../stores/player';
 import { Cover } from '../Cover';
 import { SortableList } from '../Sortable';
@@ -95,6 +97,16 @@ export function QueuePanel() {
       />
       {(queue.length > 0 || upcoming.length > 1) && (
         <p className="faint small">{t('queue.hint')}</p>
+      )}
+      {hubAvailable() && queue.length + context.length - index - 1 > 0 && (
+        <button
+          className="btn small"
+          onClick={() =>
+            void useParcel.getState().sendTracks([...queue, ...context.slice(index + 1)])
+          }
+        >
+          <Send size={16} /> {t('parcel.sendQueue')}
+        </button>
       )}
     </section>
   );

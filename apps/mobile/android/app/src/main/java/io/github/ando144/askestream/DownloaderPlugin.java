@@ -227,7 +227,7 @@ public class DownloaderPlugin extends Plugin {
             call.reject("jobId is required");
             return;
         }
-        DownloadQueue q =DownloadQueue.get(getContext());
+        DownloadQueue q = DownloadQueue.get(getContext());
         boolean canceled = q.remove(jobId);
         if (!canceled && q.isCurrent(jobId)) canceled = YoutubeDL.getInstance().destroyProcessById(jobId);
         JSObject ret = new JSObject();

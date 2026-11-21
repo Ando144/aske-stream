@@ -1,6 +1,8 @@
-import { ArrowDownToLine, CheckCheck, Heart, ListEnd, ListPlus, Plus, X } from 'lucide-react';
+import { ArrowDownToLine, CheckCheck, Heart, ListEnd, ListPlus, Plus, Send, X } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { hubAvailable } from '../hub/client';
 import { useT } from '../i18n';
+import { useParcel } from '../stores/parcel';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { usePlayer } from '../stores/player';
@@ -91,6 +93,17 @@ export function SelectionBar() {
             <Heart size={20} />
             {t('select.like')}
           </button>
+          {hubAvailable() && (
+            <button
+              disabled={!ids.length}
+              onClick={async () => {
+                if (await useParcel.getState().sendTracks(ids)) done();
+              }}
+            >
+              <Send size={20} />
+              {t('parcel.sendSelected')}
+            </button>
+          )}
           <button
             disabled={!cloudIds.length}
             onClick={() => {

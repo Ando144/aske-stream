@@ -1,6 +1,7 @@
 import { cloudflareSetupEn } from './cloudflareSetup';
 import { pairingEn } from './pairing';
 import { shareEn } from './share';
+import { parcelEn } from './parcel';
 import { jamEn } from './jam';
 import { statsEn } from './stats';
 /** English is the source of truth: the other languages must define every key. */
@@ -683,6 +684,7 @@ export const en = {
   'sleep.minutesLabel': 'Minutes',
   ...pairingEn,
   ...shareEn,
+  ...parcelEn,
   ...jamEn,
   ...statsEn,
   ...cloudflareSetupEn,

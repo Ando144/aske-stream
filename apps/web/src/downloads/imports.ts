@@ -100,6 +100,7 @@ export async function syncImport(playlistId: string): Promise<void> {
 
 let syncTimer: ReturnType<typeof setTimeout> | undefined;
 const pendingVideoIds = new Set<string>();
+const flushingVideoIds = new Set<string>();
 
 /** A song became available: sync the imports that list it, grouped after 4 s without news. */
 export function scheduleImportSync(videoId: string): void {
@@ -111,8 +112,13 @@ export function scheduleImportSync(videoId: string): void {
 async function runFlush(): Promise<void> {
   const videoIds = [...pendingVideoIds];
   pendingVideoIds.clear();
-  const affected = readImports().filter((i) => i.videoIds.some((v) => videoIds.includes(v)));
-  for (const entry of affected) await syncImport(entry.playlistId);
+  for (const v of videoIds) flushingVideoIds.add(v);
+  try {
+    const affected = readImports().filter((i) => i.videoIds.some((v) => videoIds.includes(v)));
+    for (const entry of affected) await syncImport(entry.playlistId);
+  } finally {
+    for (const v of videoIds) flushingVideoIds.delete(v);
+  }
 }
 
 let flushChain: Promise<void> = Promise.resolve();
@@ -138,6 +144,12 @@ export async function settleImports(
 /** Forget imports whose songs are all finished: nothing left to add to the playlist. */
 export function pruneImports(jobs: readonly { videoId: string; status: JobStatus }[]): void {
   const current = readImports();
-  const kept = importsToKeep(current, jobs);
+  const keptByJobs = new Set(importsToKeep(current, jobs));
+  // An import whose sync is queued or running must survive until that sync finishes.
+  const kept = current.filter(
+    (i) =>
+      keptByJobs.has(i) ||
+      i.videoIds.some((v) => pendingVideoIds.has(v) || flushingVideoIds.has(v)),
+  );
   if (kept.length !== current.length) writeImports(kept);
 }

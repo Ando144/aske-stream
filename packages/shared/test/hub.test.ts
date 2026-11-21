@@ -7,6 +7,9 @@ import {
   isVideoId,
   normalizeJamCode,
   normalizeNickname,
+  normalizeParcelCode,
+  hubSendLink,
+  parseParcelInput,
   parseHubHash,
   parseHubLink,
   sanitizeHubSong,
@@ -117,5 +120,33 @@ describe('links', () => {
     expect(parseHubHash('#jam=ABCDEF')).toEqual({ kind: 'jam', code: 'ABCDEF' });
     expect(parseHubHash('#list=23456789AB')).toEqual({ kind: 'list', id: '23456789AB' });
     expect(parseHubHash('')).toBeNull();
+  });
+});
+
+describe('parcel codes and links', () => {
+  it('normalizes a parcel code', () => {
+    expect(normalizeParcelCode('abc-def')).toBe('ABCDEF');
+    expect(normalizeParcelCode(' ab cd ef ')).toBe('ABCDEF');
+    expect(normalizeParcelCode('ABC0EF')).toBeNull();
+    expect(normalizeParcelCode('ABCDE')).toBeNull();
+  });
+  it('builds the send link', () => {
+    expect(hubSendLink('https://hub.example/', 'ABCDEF')).toBe('https://hub.example/#send=ABCDEF');
+  });
+  it('parses a bare code or a link', () => {
+    expect(parseParcelInput('abc-def')).toBe('ABCDEF');
+    expect(parseParcelInput('ABCDEF')).toBe('ABCDEF');
+    expect(parseParcelInput('https://hub.example/#send=abcdef')).toBe('ABCDEF');
+    expect(parseParcelInput('http://localhost:8787/#send=ABCDEF')).toBe('ABCDEF');
+  });
+  it('rejects bad parcel input', () => {
+    expect(parseParcelInput('http://evil.example/#send=ABCDEF')).toBeNull();
+    expect(parseParcelInput('https://hub.example/#jam=ABCDEF')).toBeNull();
+    expect(parseParcelInput('https://hub.example/#send=nope')).toBeNull();
+    expect(parseParcelInput('')).toBeNull();
+  });
+  it('parseHubHash recognizes send', () => {
+    expect(parseHubHash('#send=abcdef')).toEqual({ kind: 'send', code: 'ABCDEF' });
+    expect(parseHubHash('#send=zz')).toBeNull();
   });
 });

@@ -104,6 +104,17 @@ client exists. Setup: [google-drive.md](google-drive.md).
 
 No contacts, location, microphone or storage-wide permission is requested. `allowBackup` is off so the device token never ends up in a cloud backup.
 
+## Send to phone through the Hub
+
+Browsers cannot download from YouTube, so people without Cloudflare (a computer using Drive or
+"This device") can send songs to a phone through the Aske Hub. The sender picks songs, the Hub
+stores only the references (YouTube id, title, artist) under a one-time 6-symbol code, and the
+sender's screen shows it with a QR. On the phone, **Download → Receive** scans the QR (or takes the
+typed code), claims the list (which deletes it) and queues the songs in the downloader. Any phone
+can also send to another phone: select songs in the library, or use the play queue, and the
+sending phone shows the QR. Only songs that come from YouTube can be sent. The list expires after
+24 hours. See `docs/hub.md`.
+
 ## In-app updates
 
 1. Once a day (and from **Settings → App → Check for updates**) the app asks

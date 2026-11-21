@@ -1,7 +1,7 @@
 interface RunThrottleOptions {
   minGapMs: number;
   mayRun: () => Promise<boolean>;
-  run: () => void;
+  run: () => void | Promise<void>;
   now?: () => number;
 }
 
@@ -11,22 +11,30 @@ export function createRunThrottle(opts: RunThrottleOptions): () => void {
   let lastRun = Number.NEGATIVE_INFINITY;
   let checking = false;
 
+  async function attempt(calledAt: number): Promise<void> {
+    let allowed: boolean;
+    try {
+      allowed = await opts.mayRun();
+    } catch (err) {
+      console.warn('Run throttle check failed', err);
+      return;
+    }
+    if (!allowed) return;
+    // Set before running so a failing run is not retried in a loop.
+    lastRun = calledAt;
+    try {
+      await opts.run();
+    } catch (err) {
+      console.error('Throttled run failed', err);
+    }
+  }
+
   return () => {
     const calledAt = now();
     if (calledAt - lastRun < opts.minGapMs || checking) return;
     checking = true;
-    opts
-      .mayRun()
-      .then((ok) => {
-        if (!ok) return;
-        lastRun = calledAt;
-        opts.run();
-      })
-      .catch(() => {
-        // A failed check just means we try again on the next call.
-      })
-      .finally(() => {
-        checking = false;
-      });
+    void attempt(calledAt).finally(() => {
+      checking = false;
+    });
   };
 }

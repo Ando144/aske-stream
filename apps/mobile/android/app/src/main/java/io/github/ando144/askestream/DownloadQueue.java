@@ -177,7 +177,7 @@ final class DownloadQueue {
         else Log.w(TAG, "Dropping a saved result without a jobId");
     }
 
-    private String readFile()throws Exception {
+    private String readFile() throws Exception {
         try (FileInputStream in = new FileInputStream(file)) {
             java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
             byte[] chunk = new byte[8192];

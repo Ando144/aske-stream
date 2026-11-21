@@ -1,6 +1,6 @@
 # PLAN: Pulido v0.8.2, buscador de descargas y «Enviar al móvil» vía Hub
 
-Fecha: 2026-11-21 · Estado: EN CURSO
+Fecha: 2026-11-21 · Estado: COMPLETADO
 
 ## Objetivo
 
@@ -95,13 +95,13 @@ CREATE INDEX parcels_expires ON parcels (expires_at);
 
 ### Hub: endpoints (`/hub/v1/*`, errores `{ error: HubErrorCode, message }`)
 
-| Método y ruta                         | Entrada                                         | Respuesta                                                                                  | Tope por IP                          |
-| ------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------ |
-| `POST /parcels`                       | `{ songs: HubSong[] }` (1..200, cuerpo ≤128 KB) | 201 `CreatedParcel`; 400 `invalid_request`; 413 `too_many_songs`                           | `parcel` 30/hora                     |
-| `GET /parcels/:code`                  | cabecera `X-Delete-Key: senderKey`              | 200 `ParcelStatus`; 404 `not_found` (no existe, ya recibido o clave mala); 410 `expired`   | —                                    |
-| `POST /parcels/:code/claim`           | —                                               | 200 `ClaimedParcel` y queda borrado; 404 `not_found`; 410 `expired`                        | `parcel-claim` 20/10 min (antes de buscar) |
-| `DELETE /parcels/:code`               | cabecera `X-Delete-Key`                         | 204; 404 si no existe; 403 `invalid_request` si la clave no coincide                      | —                                    |
-| `GET /search?q=&kind=songs\|videos&lang=es\|en\|eu` | zod: `q` 1..200, `kind` por defecto `songs`, `lang` por defecto `es` | 200 `{ results: SearchResult[] }`; 502 `search_unavailable` | `search` 60/10 min |
+| Método y ruta                                       | Entrada                                                              | Respuesta                                                                                | Tope por IP                                |
+| --------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `POST /parcels`                                     | `{ songs: HubSong[] }` (1..200, cuerpo ≤128 KB)                      | 201 `CreatedParcel`; 400 `invalid_request`; 413 `too_many_songs`                         | `parcel` 30/hora                           |
+| `GET /parcels/:code`                                | cabecera `X-Delete-Key: senderKey`                                   | 200 `ParcelStatus`; 404 `not_found` (no existe, ya recibido o clave mala); 410 `expired` | —                                          |
+| `POST /parcels/:code/claim`                         | —                                                                    | 200 `ClaimedParcel` y queda borrado; 404 `not_found`; 410 `expired`                      | `parcel-claim` 20/10 min (antes de buscar) |
+| `DELETE /parcels/:code`                             | cabecera `X-Delete-Key`                                              | 204; 404 si no existe; 403 `invalid_request` si la clave no coincide                     | —                                          |
+| `GET /search?q=&kind=songs\|videos&lang=es\|en\|eu` | zod: `q` 1..200, `kind` por defecto `songs`, `lang` por defecto `es` | 200 `{ results: SearchResult[] }`; 502 `search_unavailable`                              | `search` 60/10 min                         |
 
 Reglas: canciones con `sanitizeHubSong`; si una no vale → 400; duplicados por `videoId` se quitan
 (se queda la primera); `count` = canciones guardadas. Código con `randomCode(parcelCodeLength)` y
@@ -121,25 +121,27 @@ searchViaHub(q: string, kind: 'songs' | 'videos', lang: Language): Promise<Searc
 
 ```ts
 export type ParcelPhase = 'waiting' | 'received' | 'expired';
-export interface ActiveParcel extends CreatedParcel { phase: ParcelPhase }
+export interface ActiveParcel extends CreatedParcel {
+  phase: ParcelPhase;
+}
 export type ReceiveOutcome = 'ok' | 'invalid' | 'error';
 
 interface ParcelState {
-  basket: HubSong[];            // ordenador: canciones elegidas (solo en memoria)
+  basket: HubSong[]; // ordenador: canciones elegidas (solo en memoria)
   current: ActiveParcel | null; // paquete creado y mostrado con su QR
   busy: boolean;
-  pendingCode: string | null;   // código llegado por enlace #send= (App.tsx)
-  add(song: HubSong): boolean;  // false si ya estaba o se llega a parcelMaxSongs (toast)
+  pendingCode: string | null; // código llegado por enlace #send= (App.tsx)
+  add(song: HubSong): boolean; // false si ya estaba o se llega a parcelMaxSongs (toast)
   remove(videoId: string): void;
   clear(): void;
-  create(): Promise<boolean>;   // cesta → Hub; ok: current={...,phase:'waiting'} y vacía la cesta
+  create(): Promise<boolean>; // cesta → Hub; ok: current={...,phase:'waiting'} y vacía la cesta
   /** Móvil (o web) desde biblioteca/cola: crea el paquete directamente, sin tocar la cesta.
    *  0 canciones de YouTube → toast parcel.noYoutube y false; >200 → toast parcel.full y false;
    *  si se saltan algunas → toast parcel.skipped {count}. */
   sendTracks(trackIds: readonly string[]): Promise<boolean>;
-  poll(): Promise<void>;        // GET estado; 404 antes de expiresAt → 'received'; 410 o pasado → 'expired'
-  cancel(): Promise<void>;      // DELETE y current=null; toast parcel.canceled
-  dismiss(): void;              // current=null (no borra en el Hub)
+  poll(): Promise<void>; // GET estado; 404 antes de expiresAt → 'received'; 410 o pasado → 'expired'
+  cancel(): Promise<void>; // DELETE y current=null; toast parcel.canceled
+  dismiss(): void; // current=null (no borra en el Hub)
   setPendingCode(code: string | null): void;
   receive(input: string): Promise<ReceiveOutcome>; // móvil: parse → claim → enqueue
 }
@@ -148,7 +150,10 @@ export const useParcel: UseBoundStore<StoreApi<ParcelState>>;
 // helpers puros exportados (con test)
 export function songFromResult(r: Pick<SearchResult, 'id' | 'title' | 'author'>): HubSong;
 /** Canciones enviables (YouTube) sin duplicados por videoId, en orden; skipped = no enviables. */
-export function songsFromTracks(tracks: readonly LocalTrack[]): { songs: HubSong[]; skipped: number };
+export function songsFromTracks(tracks: readonly LocalTrack[]): {
+  songs: HubSong[];
+  skipped: number;
+};
 export function phaseWhenMissing(expiresAt: number, now: number): ParcelPhase; // now<expiresAt ? 'received' : 'expired'
 export function parcelErrorText(err: unknown): string; // parcel.err.<code> si existe, si no hubErrorText(err)
 ```
@@ -162,56 +167,56 @@ si devuelve 0 → toast `parcel.nothingNew`, si no toast `parcel.gotSongs` con `
 
 Claves exactas (texto inglés orientativo; el programador de T3 lo pule y traduce a es/eu):
 
-| Clave                              | Inglés                                                                                                                               |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `parcel.introTitle`                | Send songs to your phone                                                                                                             |
-| `parcel.introText`                 | Browsers cannot download from YouTube, but the phone app can. Pick songs here, then scan the code with your phone.                   |
-| `parcel.add`                       | Add to the list to send                                                                                                              |
-| `parcel.added`                     | Added to the list to send                                                                                                            |
-| `parcel.already`                   | That song is already in the list                                                                                                     |
-| `parcel.full`                      | You can send up to {count} songs at once                                                                                             |
-| `parcel.basketTitle`               | Songs to send                                                                                                                        |
-| `parcel.basketCount` / `.one`      | {count} songs ready to send / 1 song ready to send                                                                                   |
-| `parcel.remove`                    | Remove from the list                                                                                                                 |
-| `parcel.clear`                     | Empty the list                                                                                                                       |
-| `parcel.create`                    | Send to phone                                                                                                                        |
-| `parcel.creating`                  | Preparing the code…                                                                                                                  |
-| `parcel.codeTitle`                 | Scan this with your phone                                                                                                            |
-| `parcel.codeText`                  | On the phone that will get the songs, open Aske Stream, go to Download and tap "Receive". Scan the QR or type the code.             |
-| `parcel.sendSelected`              | Send to another phone                                                                                                                |
-| `parcel.sendQueue`                 | Send the queue to another phone                                                                                                      |
-| `parcel.noYoutube`                 | None of these songs come from YouTube, so there is nothing to send. Only songs downloaded from YouTube can be sent.                  |
-| `parcel.skipped` / `.one`          | {count} songs were left out because they do not come from YouTube / 1 song was left out because it does not come from YouTube       |
-| `parcel.qrLabel`                   | QR code to receive the songs                                                                                                         |
-| `parcel.codeLabel`                 | Code                                                                                                                                 |
-| `parcel.expires`                   | It works only once and expires at {time}                                                                                             |
-| `parcel.waiting`                   | Waiting for the phone…                                                                                                               |
-| `parcel.received`                  | Done! The phone got the songs and is downloading them.                                                                               |
-| `parcel.expired`                   | This code has expired. Create a new one.                                                                                             |
-| `parcel.cancel`                    | Cancel sending                                                                                                                       |
-| `parcel.canceled`                  | Sending canceled                                                                                                                     |
-| `parcel.privacy`                   | Only the list of songs goes through the Aske Hub, never the music. It is deleted when your phone receives it, or after 24 hours.      |
-| `parcel.receive`                   | Receive                                                                                                                              |
-| `parcel.receiveTitle`              | Receive songs                                                                                                                        |
-| `parcel.receiveText`               | Scan the QR shown on the other screen, or type its code.                                                                             |
-| `parcel.scan`                      | Scan QR                                                                                                                              |
-| `parcel.codePlaceholder`           | Code, e.g. ABC-DEF                                                                                                                   |
-| `parcel.receiveButton`             | Receive                                                                                                                              |
-| `parcel.receiving`                 | Receiving…                                                                                                                           |
-| `parcel.gotSongs` / `.one`         | {count} songs added to your downloads / 1 song added to your downloads                                                               |
-| `parcel.nothingNew`                | You already had all these songs                                                                                                      |
-| `parcel.invalidCode`               | That code is not right. It has 6 letters and numbers, like ABC-DEF.                                                                  |
-| `parcel.openInApp`                 | To receive these songs, open Aske Stream on your Android phone, go to Download → Receive and scan the code.                          |
-| `parcel.playlistLink`              | From here you can only send songs. Search for them by name.                                                                          |
-| `parcel.err.not_found`             | That code does not exist or has already been used. Ask for a new one.                                                                |
-| `parcel.err.expired`               | That code has expired (codes last 24 hours). Ask for a new one.                                                                      |
-| `parcel.err.too_many_songs`        | Too many songs at once. Remove some and try again.                                                                                   |
+| Clave                         | Inglés                                                                                                                           |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `parcel.introTitle`           | Send songs to your phone                                                                                                         |
+| `parcel.introText`            | Browsers cannot download from YouTube, but the phone app can. Pick songs here, then scan the code with your phone.               |
+| `parcel.add`                  | Add to the list to send                                                                                                          |
+| `parcel.added`                | Added to the list to send                                                                                                        |
+| `parcel.already`              | That song is already in the list                                                                                                 |
+| `parcel.full`                 | You can send up to {count} songs at once                                                                                         |
+| `parcel.basketTitle`          | Songs to send                                                                                                                    |
+| `parcel.basketCount` / `.one` | {count} songs ready to send / 1 song ready to send                                                                               |
+| `parcel.remove`               | Remove from the list                                                                                                             |
+| `parcel.clear`                | Empty the list                                                                                                                   |
+| `parcel.create`               | Send to phone                                                                                                                    |
+| `parcel.creating`             | Preparing the code…                                                                                                              |
+| `parcel.codeTitle`            | Scan this with your phone                                                                                                        |
+| `parcel.codeText`             | On the phone that will get the songs, open Aske Stream, go to Download and tap "Receive". Scan the QR or type the code.          |
+| `parcel.sendSelected`         | Send to another phone                                                                                                            |
+| `parcel.sendQueue`            | Send the queue to another phone                                                                                                  |
+| `parcel.noYoutube`            | None of these songs come from YouTube, so there is nothing to send. Only songs downloaded from YouTube can be sent.              |
+| `parcel.skipped` / `.one`     | {count} songs were left out because they do not come from YouTube / 1 song was left out because it does not come from YouTube    |
+| `parcel.qrLabel`              | QR code to receive the songs                                                                                                     |
+| `parcel.codeLabel`            | Code                                                                                                                             |
+| `parcel.expires`              | It works only once and expires at {time}                                                                                         |
+| `parcel.waiting`              | Waiting for the phone…                                                                                                           |
+| `parcel.received`             | Done! The phone got the songs and is downloading them.                                                                           |
+| `parcel.expired`              | This code has expired. Create a new one.                                                                                         |
+| `parcel.cancel`               | Cancel sending                                                                                                                   |
+| `parcel.canceled`             | Sending canceled                                                                                                                 |
+| `parcel.privacy`              | Only the list of songs goes through the Aske Hub, never the music. It is deleted when your phone receives it, or after 24 hours. |
+| `parcel.receive`              | Receive                                                                                                                          |
+| `parcel.receiveTitle`         | Receive songs                                                                                                                    |
+| `parcel.receiveText`          | Scan the QR shown on the other screen, or type its code.                                                                         |
+| `parcel.scan`                 | Scan QR                                                                                                                          |
+| `parcel.codePlaceholder`      | Code, e.g. ABC-DEF                                                                                                               |
+| `parcel.receiveButton`        | Receive                                                                                                                          |
+| `parcel.receiving`            | Receiving…                                                                                                                       |
+| `parcel.gotSongs` / `.one`    | {count} songs added to your downloads / 1 song added to your downloads                                                           |
+| `parcel.nothingNew`           | You already had all these songs                                                                                                  |
+| `parcel.invalidCode`          | That code is not right. It has 6 letters and numbers, like ABC-DEF.                                                              |
+| `parcel.openInApp`            | To receive these songs, open Aske Stream on your Android phone, go to Download → Receive and scan the code.                      |
+| `parcel.playlistLink`         | From here you can only send songs. Search for them by name.                                                                      |
+| `parcel.err.not_found`        | That code does not exist or has already been used. Ask for a new one.                                                            |
+| `parcel.err.expired`          | That code has expired (codes last 24 hours). Ask for a new one.                                                                  |
+| `parcel.err.too_many_songs`   | Too many songs at once. Remove some and try again.                                                                               |
 
 Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
 
 ## Tareas
 
-### T1 · Pulido de imports y runThrottle · Grupo A · Estado: PENDIENTE
+### T1 · Pulido de imports y runThrottle · Grupo A · Estado: HECHA
 
 - Archivos (exclusivos): `apps/web/src/downloads/imports.ts`, `apps/web/test/downloadImports.test.ts`,
   `apps/web/src/offline/runThrottle.ts`, `apps/web/test/runThrottle.test.ts`
@@ -240,7 +245,7 @@ Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
         vuelve a ejecutar. `mayRun` que rechaza → `console.warn`, `run` no se llama.
 - Verificación: `npx vitest run test/downloadImports.test.ts test/runThrottle.test.ts --root apps/web`
 
-### T2 · Buscador de Descargas que se vacía + espacios Java · Grupo A · Estado: PENDIENTE
+### T2 · Buscador de Descargas que se vacía + espacios Java · Grupo A · Estado: HECHA
 
 - Archivos (exclusivos): `apps/web/src/views/DownloadView.tsx`,
   `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/DownloadQueue.java`,
@@ -262,7 +267,7 @@ Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
 - Verificación: `npm run check`; prueba manual en `npm run dev` (en el navegador con Cloudflare, o
   build `fakenative`).
 
-### T3 · Contrato compartido + Hub (paquetes y búsqueda) · Grupo B · Estado: PENDIENTE
+### T3 · Contrato compartido + Hub (paquetes y búsqueda) · Grupo B · Estado: HECHA
 
 - Archivos (exclusivos): `packages/shared/src/hub.ts`, `packages/shared/test/hub.test.ts`,
   `apps/hub/migrations/0002_parcels.sql`, `apps/hub/src/routes/parcels.ts` (nuevo),
@@ -297,7 +302,7 @@ Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
   - [ ] Ni IP ni datos personales en `parcels`.
 - Verificación: `npx vitest run --root apps/hub`, `npx vitest run --root packages/shared`, `npm run check`
 
-### T4 · Textos, ayuda y documentación · Grupo B · Estado: PENDIENTE
+### T4 · Textos, ayuda y documentación · Grupo B · Estado: HECHA
 
 - Archivos (exclusivos): `apps/web/src/i18n/parcel.ts` (nuevo), `apps/web/src/i18n/en.ts`,
   `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/eu.ts`, `apps/web/src/help/articles/music.ts`,
@@ -325,7 +330,7 @@ Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
   - [ ] Ningún texto menciona D1, código interno ni jerga técnica.
 - Verificación: `npx vitest run --root apps/web` y `npm run check`
 
-### T5 · Cliente y store de paquetes · Grupo C · Estado: PENDIENTE
+### T5 · Cliente y store de paquetes · Grupo C · Estado: HECHA
 
 - Archivos (exclusivos): `apps/web/src/hub/client.ts`, `apps/web/src/stores/parcel.ts` (nuevo),
   `apps/web/test/parcelStore.test.ts` (nuevo)
@@ -356,7 +361,7 @@ Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
         con saltadas → toast `parcel.skipped`; ok → `current.phase === 'waiting'` y la cesta intacta.
 - Verificación: `npx vitest run test/parcelStore.test.ts --root apps/web`
 
-### T6 · Descargas: cesta del ordenador y «Recibir» del móvil · Grupo D · Estado: PENDIENTE
+### T6 · Descargas: cesta del ordenador y «Recibir» del móvil · Grupo D · Estado: HECHA
 
 - Archivos (exclusivos): `apps/web/src/views/DownloadView.tsx`,
   `apps/web/src/components/send/Outbox.tsx` (nuevo, movido), `apps/web/src/components/send/ParcelPanel.tsx`
@@ -391,7 +396,7 @@ Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
 - Verificación: `npm run check`; `npm run dev` + `npm run dev:hub` (con `VITE_HUB_URL=http://localhost:8788`);
   `npm run build -w @aske/web -- --mode fakenative` y después reconstruir el dist normal.
 
-### T7 · Hoja del código global y envío desde el móvil · Grupo D · Estado: PENDIENTE
+### T7 · Hoja del código global y envío desde el móvil · Grupo D · Estado: HECHA
 
 - Archivos (exclusivos): `apps/web/src/components/send/ParcelSheet.tsx` (nuevo),
   `apps/web/src/App.tsx`, `apps/web/src/components/SelectionBar.tsx`,
@@ -426,12 +431,12 @@ Artículo de ayuda nuevo: id **`send-with-code`** (sección `music`).
 - Verificación: `npm run check`; `npm run dev` + `npm run dev:hub`; build `fakenative` y después
   reconstruir el dist normal.
 
-### T8 · Estado, fases y verificación final · Grupo E · Estado: PENDIENTE
+### T8 · Estado, fases y verificación final · Grupo E · Estado: HECHA
 
 - Archivos (exclusivos): `docs/ESTADO.md`, `docs/v2/architecture.md`
 - Qué hacer:
   1. `docs/v2/architecture.md`: en la tabla de fases añadir la fila `7.1 | Send to phone through the
-     Hub: computer → phone and phone → phone (one-time code/QR, 24 h, no music stored) | ✅`; en
+Hub: computer → phone and phone → phone (one-time code/QR, 24 h, no music stored) | ✅`; en
      «Aske Hub» cambiar «Send to phone relay…» por una frase breve que diga que existe (código de un
      uso, 24 h, también entre móviles).
   2. `docs/ESTADO.md`: fecha, en «Hecho» el pulido de v0.8.2 (pruneImports, runThrottle, Java),
@@ -456,6 +461,7 @@ Decisiones de Andoni (2026-11-21), ya aplicadas al plan:
 4. Solo canciones sueltas por ahora (nada de playlists de YouTube enteras).
 
 Notas:
+
 - Son 8 tareas (una más de lo habitual): la interfaz se partió en T6 y T7 para que dos programadores
   trabajen en paralelo sin tocar los mismos archivos.
 - Desde el móvil solo se envían canciones que vienen de YouTube; las importadas (MP3 propios) no

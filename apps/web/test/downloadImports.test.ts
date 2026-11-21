@@ -137,6 +137,33 @@ describe('pruneImports', () => {
     },
   );
 
+  it('keeps an import whose song is scheduled but not flushed yet', async () => {
+    const m = await load();
+    m.rememberImport('p', ['v1']);
+    m.scheduleImportSync('v1');
+    m.pruneImports([{ videoId: 'v1', status: 'done' }]);
+    expect(store.get('downloads-imports-v1')).toHaveLength(1);
+    await m.flushImportSync();
+    m.pruneImports([{ videoId: 'v1', status: 'done' }]);
+    expect(store.get('downloads-imports-v1')).toEqual([]);
+  });
+
+  it('keeps an import while its sync is running', async () => {
+    const m = await load();
+    let release!: () => void;
+    addToPlaylist.mockImplementationOnce(() => new Promise<void>((r) => (release = r)));
+    m.rememberImport('p', ['v1']);
+    m.scheduleImportSync('v1');
+    const flushing = m.flushImportSync();
+    await new Promise((r) => setTimeout(r, 0));
+    m.pruneImports([{ videoId: 'v1', status: 'done' }]);
+    expect(store.get('downloads-imports-v1')).toHaveLength(1);
+    release();
+    await flushing;
+    m.pruneImports([{ videoId: 'v1', status: 'done' }]);
+    expect(store.get('downloads-imports-v1')).toEqual([]);
+  });
+
   it('forgets an import whose songs are all done', async () => {
     const m = await load();
     m.rememberImport('p', ['v1']);

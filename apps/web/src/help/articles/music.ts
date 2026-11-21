@@ -107,21 +107,110 @@ Aske Streameko zerrendek 1.000 abesti arte onartzen dituzte.`,
 2. Busca o pega un enlace de YouTube y pulsa **Enviar al móvil**.
 3. La próxima vez que abras la app en el móvil (o en menos de 5 minutos si ya está abierta), la descargará y la subirá a tu biblioteca.
 
-En la lista **Enviado al móvil** del ordenador ves cómo va cada envío: «Esperando al móvil», «Descargando» o «Hecho».`,
+En la lista **Enviado al móvil** del ordenador ves cómo va cada envío: «Esperando al móvil», «Descargando» o «Hecho».
+
+¿No usas Cloudflare? Mira [[send-with-code|Enviar canciones al móvil con un código]].`,
       en: `If you use **your Cloudflare**, you can pick music on the computer and have the phone download it. (Browsers cannot download from YouTube; the phone app can.)
 
 1. On the computer, open Aske Stream and go to **Download**.
 2. Search or paste a YouTube link and tap **Send to phone**.
 3. Next time you open the app on your phone (or within 5 minutes if it is already open), it downloads it and uploads it to your library.
 
-The **Sent to phone** list on the computer shows how each one is going: “Waiting for phone”, “Downloading” or “Done”.`,
+The **Sent to phone** list on the computer shows how each one is going: “Waiting for phone”, “Downloading” or “Done”.
+
+Do not use Cloudflare? See [[send-with-code|Sending songs to a phone with a code]].`,
       eu: `**Zure Cloudflare** erabiltzen baduzu, ordenagailuan musika aukeratu eta mugikorrak deskarga dezake. (Nabigatzaileek ezin dute YouTubetik deskargatu; mugikorreko aplikazioak bai.)
 
 1. Ordenagailuan, ireki Aske Stream eta joan **Deskargatu** atalera.
 2. Bilatu edo itsatsi YouTubeko esteka bat eta sakatu **Bidali mugikorrera**.
 3. Mugikorrean aplikazioa irekitzen duzun hurrengoan (edo 5 minutu baino lehen irekita badago), deskargatu eta zure liburutegira igoko du.
 
-Ordenagailuko **Mugikorrera bidalita** zerrendan bidalketa bakoitza nola doan ikusten duzu: «Mugikorraren zain», «Deskargatzen» edo «Eginda».`,
+Ordenagailuko **Mugikorrera bidalita** zerrendan bidalketa bakoitza nola doan ikusten duzu: «Mugikorraren zain», «Deskargatzen» edo «Eginda».
+
+Ez duzu Cloudflare erabiltzen? Ikusi [[send-with-code|Abestiak mugikorrera kode batekin bidali]].`,
+    },
+  },
+  {
+    id: 'send-with-code',
+    section: 'music',
+    title: {
+      es: 'Enviar canciones al móvil con un código',
+      en: 'Sending songs to a phone with a code',
+      eu: 'Abestiak mugikorrera kode batekin bidali',
+    },
+    body: {
+      es: `Sirve para pasar canciones de YouTube a un móvil sin cables ni cuentas. Lo puedes usar:
+
+- desde un **ordenador** con Google Drive o con «Este dispositivo» (con Cloudflare, mira [[send-to-phone|este artículo]]);
+- desde **cualquier móvil** hacia otro móvil, por ejemplo el de un amigo.
+
+Solo viajan los nombres de las canciones, nunca la música: el móvil que recibe las descarga por su cuenta.
+
+**Enviar desde el ordenador**
+1. Ve a **Descargar** y busca la canción.
+2. Pulsa **Añadir a la lista para enviar** en cada canción que quieras.
+3. Pulsa **Enviar al móvil**. Aparece un código QR y un código de 6 símbolos, como ABC-DEF.
+
+**Enviar desde el móvil**
+1. En **Biblioteca**, selecciona canciones y pulsa **Enviar a otro móvil**. También puedes enviar la cola de reproducción desde la cola.
+2. Solo se envían las canciones que vienen de YouTube; las demás se dejan fuera y la app te avisa.
+
+**Recibir**
+1. En el móvil que recibe, ve a **Descargar** y pulsa **Recibir**.
+2. Escanea el QR o escribe el código.
+3. Las canciones pasan a tus descargas y acaban en tu biblioteca.
+
+El código vale **una sola vez** y dura **24 horas**. Cuando el móvil recibe las canciones, el código se borra.
+
+Si dice que el código **no existe**, ya lo ha usado alguien o está mal escrito: pide uno nuevo. Si dice que ha **caducado**, han pasado más de 24 horas: crea otro.`,
+      en: `Use it to move YouTube songs to a phone with no cables and no accounts. You can use it:
+
+- from a **computer** with Google Drive or “This device” (with Cloudflare, see [[send-to-phone|this article]]);
+- from **any phone** to another phone, for example a friend's.
+
+Only the names of the songs travel, never the music: the phone that receives them downloads them by itself.
+
+**Sending from the computer**
+1. Go to **Download** and search for the song.
+2. Tap **Add to the list to send** on each song you want.
+3. Tap **Send to phone**. A QR code and a 6-symbol code, like ABC-DEF, appear.
+
+**Sending from a phone**
+1. In **Library**, select songs and tap **Send to another phone**. You can also send the play queue from the queue.
+2. Only songs that come from YouTube are sent; the others are left out and the app tells you.
+
+**Receiving**
+1. On the phone that receives, go to **Download** and tap **Receive**.
+2. Scan the QR or type the code.
+3. The songs go to your downloads and end up in your library.
+
+The code works **only once** and lasts **24 hours**. When the phone receives the songs, the code is deleted.
+
+If it says the code **does not exist**, someone already used it or it is mistyped: ask for a new one. If it says it has **expired**, more than 24 hours have passed: create another.`,
+      eu: `YouTubeko abestiak mugikor batera pasatzeko balio du, kablerik eta konturik gabe. Hauek erabil dezakete:
+
+- Google Drive edo «Gailu hau» duen **ordenagailu** batek (Cloudflarerekin, ikusi [[send-to-phone|artikulu hau]]);
+- **edozein mugikorrek** beste mugikor batera, adibidez lagun batenera.
+
+Abestien izenak bakarrik bidaiatzen dute, inoiz ez musika: jasotzen duen mugikorrak bere kabuz deskargatzen ditu.
+
+**Ordenagailutik bidali**
+1. Joan **Deskargatu** atalera eta bilatu abestia.
+2. Sakatu **Gehitu bidaltzeko zerrendara** nahi duzun abesti bakoitzean.
+3. Sakatu **Bidali mugikorrera**. QR kode bat eta 6 ikurreko kode bat agertzen dira, ABC-DEF bezala.
+
+**Mugikorretik bidali**
+1. **Liburutegian**, aukeratu abestiak eta sakatu **Bidali beste mugikor batera**. Erreprodukzio-ilara ere bidal dezakezu ilaratik.
+2. YouTubetik datozen abestiak bakarrik bidaltzen dira; besteak kanpoan geratzen dira eta aplikazioak abisatzen dizu.
+
+**Jaso**
+1. Jasotzen duen mugikorrean, joan **Deskargatu** atalera eta sakatu **Jaso**.
+2. Eskaneatu QRa edo idatzi kodea.
+3. Abestiak zure deskargetara pasatzen dira eta zure liburutegian amaitzen dute.
+
+Kodeak **behin bakarrik** balio du eta **24 ordu** irauten ditu. Mugikorrak abestiak jasotzean, kodea ezabatzen da.
+
+**Ez dagoela** esaten badu, norbaitek erabili du jada edo gaizki idatzita dago: eskatu berri bat. **Iraungi dela** esaten badu, 24 ordu baino gehiago pasa dira: sortu beste bat.`,
     },
   },
   {

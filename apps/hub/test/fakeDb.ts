@@ -7,9 +7,18 @@ interface ListRow {
   expires_at: number;
 }
 
+interface ParcelRow {
+  code: string;
+  songs_json: string;
+  sender_key_hash: string;
+  created_at: number;
+  expires_at: number;
+}
+
 /** Minimal in-memory D1 that understands only the statements the Hub routes use. */
 export class FakeD1 {
   lists = new Map<string, ListRow>();
+  parcels = new Map<string, ParcelRow>();
   limits = new Map<string, { window_start: number; count: number }>();
 
   prepare(sql: string) {
@@ -34,6 +43,12 @@ export class FakeD1 {
     }
     if (sql.includes('SELECT * FROM shared_lists'))
       return this.lists.get(args[0] as string) ?? null;
+    if (sql.includes('SELECT * FROM parcels')) return this.parcels.get(args[0] as string) ?? null;
+    if (sql.includes('DELETE FROM parcels') && sql.includes('RETURNING')) {
+      const row = this.parcels.get(args[0] as string);
+      this.parcels.delete(args[0] as string);
+      return row ?? null;
+    }
     throw new Error(`Unsupported first(): ${sql}`);
   }
 
@@ -53,6 +68,19 @@ export class FakeD1 {
     }
     if (sql.includes('DELETE FROM shared_lists'))
       return this.lists.delete(args[0] as string) ? 1 : 0;
+    if (sql.includes('INSERT INTO parcels')) {
+      const [code, songs_json, sender_key_hash, created_at, expires_at] = args as [
+        string,
+        string,
+        string,
+        number,
+        number,
+      ];
+      if (this.parcels.has(code)) return 0;
+      this.parcels.set(code, { code, songs_json, sender_key_hash, created_at, expires_at });
+      return 1;
+    }
+    if (sql.includes('DELETE FROM parcels')) return this.parcels.delete(args[0] as string) ? 1 : 0;
     throw new Error(`Unsupported run(): ${sql}`);
   }
 }

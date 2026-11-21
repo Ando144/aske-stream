@@ -2,6 +2,7 @@ import type { Messages } from './en';
 import { cloudflareSetupEu } from './cloudflareSetup';
 import { pairingEu } from './pairing';
 import { shareEu } from './share';
+import { parcelEu } from './parcel';
 import { jamEu } from './jam';
 import { statsEu } from './stats';
 
@@ -696,6 +697,7 @@ export const eu: Messages = {
   'sleep.minutesLabel': 'Minutuak',
   ...pairingEu,
   ...shareEu,
+  ...parcelEu,
   ...jamEu,
   ...statsEu,
   ...cloudflareSetupEu,

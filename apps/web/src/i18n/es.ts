@@ -2,6 +2,7 @@ import type { Messages } from './en';
 import { cloudflareSetupEs } from './cloudflareSetup';
 import { pairingEs } from './pairing';
 import { shareEs } from './share';
+import { parcelEs } from './parcel';
 import { jamEs } from './jam';
 import { statsEs } from './stats';
 
@@ -698,6 +699,7 @@ export const es: Messages = {
   'sleep.minutesLabel': 'Minutos',
   ...pairingEs,
   ...shareEs,
+  ...parcelEs,
   ...jamEs,
   ...statsEs,
   ...cloudflareSetupEs,

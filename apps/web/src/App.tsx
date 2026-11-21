@@ -40,6 +40,9 @@ import { useTips } from './stores/tips';
 import { useDownloads } from './stores/downloads';
 import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
+import { ParcelSheet } from './components/send/ParcelSheet';
+import { useParcel } from './stores/parcel';
+import { isNative } from './native/platform';
 import { DriveReconnect } from './components/DriveReconnect';
 import { toast, useUi } from './stores/ui';
 import { t } from './i18n';
@@ -203,6 +206,19 @@ function Shell() {
     if (sessionStorage.getItem(PENDING_JAM_KEY)) navigate('/jam');
   }, [navigate]);
 
+  // A #send=CODE link: the phone app receives it; a browser can only explain what to do.
+  useEffect(() => {
+    const link = parseHubHash(window.location.hash);
+    if (link?.kind !== 'send') return;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (isNative) {
+      useParcel.getState().setPendingCode(link.code);
+      navigate('/download');
+    } else {
+      toast(t('parcel.openInApp'));
+    }
+  }, [navigate]);
+
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
     // Leaving a screen ends multi-select (except the playlist "Add songs" picker).
@@ -255,6 +271,7 @@ function Shell() {
       <AddToPlaylistSheet />
       <Dialogs />
       <SelectionBar />
+      <ParcelSheet />
       <Toasts />
     </div>
   );

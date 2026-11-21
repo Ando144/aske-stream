@@ -74,4 +74,32 @@ describe('createRunThrottle', () => {
     expect(mayRunSpy).toHaveBeenCalledTimes(2);
     expect(unhandled).not.toHaveBeenCalled();
   });
+
+  it('warns when mayRun rejects', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { trigger, run } = setup(() => Promise.reject(new Error('boom')));
+    trigger();
+    await flush();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(run).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('logs a failing run and runs again after the gap', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { trigger, run, advance } = setup(async () => true);
+    run.mockRejectedValueOnce(new Error('boom'));
+    trigger();
+    await flush();
+    expect(error).toHaveBeenCalledTimes(1);
+    advance(1);
+    trigger();
+    await flush();
+    expect(run).toHaveBeenCalledTimes(1);
+    advance(GAP);
+    trigger();
+    await flush();
+    expect(run).toHaveBeenCalledTimes(2);
+    error.mockRestore();
+  });
 });

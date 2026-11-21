@@ -1,12 +1,12 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { HUB_LIMITS, normalizeJamCode, normalizeNickname, type CreatedJam } from '@aske/shared/hub';
-import { buildSearchRequest, parseSearchResponse } from '@aske/shared/youtube';
 import type { HubAppEnv } from '../env';
 import { randomHex, sha256Hex } from '../lib/crypto';
 import { HubHttpError } from '../lib/http';
 import { randomCode } from '../lib/ids';
 import { enforceRateLimit } from '../lib/rateLimit';
+import { searchYoutube } from '../lib/search';
 
 const MAX_CODE_ATTEMPTS = 5;
 const HOUR_MS = 3600 * 1000;
@@ -48,17 +48,6 @@ async function createJam(c: Context<HubAppEnv>): Promise<CreatedJam> {
   throw new HubHttpError(500, 'internal_error', 'Could not create the Jam, try again');
 }
 
-async function searchYoutube(q: string, lang: string) {
-  const req = buildSearchRequest(q, 'songs', lang);
-  try {
-    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
-    if (res.ok) return parseSearchResponse(await res.json());
-  } catch {
-    // Falls through to the 502 below; the cause carries no useful detail for the user.
-  }
-  throw new HubHttpError(502, 'search_unavailable', 'YouTube search is not reachable');
-}
-
 export const jamRoutes = new Hono<HubAppEnv>()
   .post('/', async (c) => {
     await enforceRateLimit(c, c.env.DB, 'jam-create', 10, HOUR_MS);
@@ -70,7 +59,7 @@ export const jamRoutes = new Hono<HubAppEnv>()
     const parsed = SearchQuery.safeParse(c.req.query());
     if (!parsed.success) throw new HubHttpError(400, 'invalid_request', 'Invalid search');
     await enforceRateLimit(c, c.env.DB, 'jam-search', 60, 10 * 60 * 1000);
-    return c.json({ results: await searchYoutube(parsed.data.q, parsed.data.lang) });
+    return c.json({ results: await searchYoutube(parsed.data.q, 'songs', parsed.data.lang) });
   })
   .get('/:code/ws', async (c) => {
     if (c.req.header('Upgrade') !== 'websocket') {

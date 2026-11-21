@@ -31,8 +31,8 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["JamRoom"] }],
 
-  // Daily cleanup of expired shared lists and old rate-limit rows.
-  "triggers": { "crons": ["17 3 * * *"] },
+  // Hourly cleanup of expired parcels and shared lists, and old rate-limit rows.
+  "triggers": { "crons": ["17 * * * *"] },
 
   "observability": { "enabled": true },
 }

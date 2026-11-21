@@ -1,5 +1,8 @@
 import type {
+  ClaimedParcel,
   CreatedJam,
+  CreatedParcel,
+  ParcelStatus,
   CreatedList,
   HubErrorCode,
   HubSong,
@@ -96,6 +99,37 @@ export async function searchInJam(
   const res = await hubFetch<{ results: SearchResult[] }>(
     `/jams/${encodeURIComponent(code)}/search?${query}`,
   );
+  return res.results;
+}
+
+export function createParcel(songs: HubSong[]): Promise<CreatedParcel> {
+  return hubFetch('/parcels', { method: 'POST', json: { songs } });
+}
+
+export function getParcelStatus(code: string, senderKey: string): Promise<ParcelStatus> {
+  return hubFetch(`/parcels/${encodeURIComponent(code)}`, {
+    headers: { 'X-Delete-Key': senderKey },
+  });
+}
+
+export function claimParcel(code: string): Promise<ClaimedParcel> {
+  return hubFetch(`/parcels/${encodeURIComponent(code)}/claim`, { method: 'POST' });
+}
+
+export function cancelParcel(code: string, senderKey: string): Promise<void> {
+  return hubFetch(`/parcels/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+    headers: { 'X-Delete-Key': senderKey },
+  });
+}
+
+export async function searchViaHub(
+  q: string,
+  kind: 'songs' | 'videos',
+  lang: Language,
+): Promise<SearchResult[]> {
+  const query = new URLSearchParams({ q, kind, lang });
+  const res = await hubFetch<{ results: SearchResult[] }>(`/search?${query}`);
   return res.results;
 }
 
