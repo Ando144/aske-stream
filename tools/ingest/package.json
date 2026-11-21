@@ -1,6 +1,6 @@
 {
   "name": "@aske/ingest",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "private": true,
   "type": "module",
   "description": "Local CLI: turns YouTube links or audio files into Opus tracks and uploads them to your aske-stream instance.",

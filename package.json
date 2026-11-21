@@ -1,6 +1,6 @@
 {
   "name": "aske-stream",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "private": true,
   "description": "Self-hosted, Spotify-style music cloud: bring your own music, stream it from Cloudflare R2, keep a rotating offline cache on your phone.",
   "author": "Andoni Ortiz de Zarate Urruela (https://github.com/Ando144)",
