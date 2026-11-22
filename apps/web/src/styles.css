@@ -2213,6 +2213,64 @@ h2,
   background: var(--accent-soft);
 }
 
+.connection-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+
+.connection-banner-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---------- Boot screen ---------- */
+
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: #14110f;
+  color: #b6a99b;
+}
+
+.boot-logo {
+  width: 96px;
+  height: 96px;
+  animation: boot-pulse 1.6s ease-in-out infinite;
+}
+
+.boot-hint {
+  min-height: 1.4em;
+  margin: 0;
+}
+
+@keyframes boot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 30%, transparent));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent) 70%, transparent));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-logo {
+    animation: none;
+  }
+}
+
 /* ---------- Shared playlists ---------- */
 
 .sheet-body {

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { CircleCheck, Library, Play, Search, Shuffle, WifiOff } from 'lucide-react';
+import { CircleCheck, Library, Play, Search, Shuffle } from 'lucide-react';
 import { useSearch } from 'wouter';
 import { songCount, useT } from '../i18n';
 import { formatBytes, formatLongDuration, normalizeText } from '../lib/format';
@@ -25,7 +25,6 @@ export function LibraryView() {
   const loaded = useLibrary((s) => s.loaded);
   const error = useLibrary((s) => s.error);
   const entries = useOffline((s) => s.entries);
-  const online = useUi((s) => s.online);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>(() => loadValue<Sort>('library-sort', 'recent'));
@@ -66,7 +65,13 @@ export function LibraryView() {
     [tracks],
   );
   const ids = useMemo(() => tracks.map((tr) => tr.id), [tracks]);
-  const context = { label: t('nav.library'), path: '/' };
+  const normalizedQuery = normalizeText(deferredQuery.trim());
+  const context = {
+    label: t('nav.library'),
+    path: '/',
+    ...(filter === 'all' && !normalizedQuery ? { live: 'library' as const } : {}),
+    cycleKey: `library:${filter}:${normalizedQuery}`,
+  };
   const play = (startId: string | null, shuffle?: boolean) =>
     usePlayer.getState().playTracks(ids, startId, { shuffle, context });
 
@@ -82,11 +87,6 @@ export function LibraryView() {
       <ScreenTip id="library" text="tips.library" helpId="queue" />
 
       {target && <div className="banner accent">{t('select.pickHint', { name: target.name })}</div>}
-      {!online && (
-        <div className="banner">
-          <WifiOff size={18} /> {t('common.offlineBanner')}
-        </div>
-      )}
 
       {loaded && <FirstSteps />}
       <CopyPanel compact />

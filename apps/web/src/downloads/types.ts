@@ -61,6 +61,8 @@ export interface DownloadJob {
 export interface NativeJob {
   jobId: string;
   videoId: string;
+  /** At most 200 characters; shown by the phone when the app is closed. */
+  title?: string;
 }
 
 export interface NativeResult {

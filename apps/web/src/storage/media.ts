@@ -1,6 +1,7 @@
 import type { Playlist } from '@aske/shared';
 import { mediaCredentials, mediaUrl, playlistCoverUrl } from '../api/client';
 import { getAudioBlob } from '../offline/audioCache';
+import { canUseNetwork } from '../stores/connectivity';
 import { useSetup } from '../stores/setup';
 import { getDeviceFile } from './deviceFiles';
 import { driveAudio } from './drive/home';
@@ -28,10 +29,10 @@ export async function resolveAudio(
     const blob = await getAudioBlob(track.id);
     if (blob) return URL.createObjectURL(blob);
   }
-  if (track.locations.cloudflare && navigator.onLine) {
+  if (track.locations.cloudflare && canUseNetwork()) {
     return mediaUrl('audio', track.locations.cloudflare);
   }
-  if (track.locations.drive && navigator.onLine) {
+  if (track.locations.drive && canUseNetwork()) {
     try {
       return URL.createObjectURL(await driveAudio(track.locations.drive));
     } catch {
@@ -107,7 +108,7 @@ async function driveCoverBlob(fileId: string): Promise<Blob | null> {
     const cache = await caches.open(COVER_CACHE);
     const hit = await cache.match(key);
     if (hit) return await hit.blob();
-    if (!navigator.onLine) return null;
+    if (!canUseNetwork()) return null;
     const blob = await driveApi.download(fileId);
     await cache.put(key, new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } }));
     return blob;

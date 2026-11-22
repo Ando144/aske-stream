@@ -8,22 +8,28 @@ import {
   nextIndex,
   orderForDataSaver,
   previousIndex,
-  reshuffleForNextLap,
-  shuffleKeepingFirst,
   withoutTracks,
   type RepeatMode,
 } from '../player/queue';
-import { resolveAudio, resolveCoverDataUrl } from '../storage/media';
+import {
+  cycleFor,
+  cycleKey,
+  insertShuffled,
+  recordPlayed,
+  rememberCycle,
+  shuffledCycleOrder,
+  type ShuffleCycles,
+} from '../player/shuffleCycle';
+import { createMediaSession } from '../player/mediaSession';
+import { resolveAudio } from '../storage/media';
 import { useLibrary } from './library';
 import { LISTENED_THRESHOLD, setProtectedProvider, useOffline } from './offline';
 import { resumePosition, usePodcasts } from './podcasts';
 import { usePrefs } from './prefs';
 import { catalog } from './radio';
 import { toast } from './ui';
-import { AskeNative } from '../native/askeNative';
-import { mediaControls } from '../native/mediaControls';
 import { isNative } from '../native/platform';
-import { isStreamingSource, mayRotateOfflineNow } from '../lib/power';
+import { mayRotateOfflineNow } from '../lib/power';
 import { createRunThrottle } from '../offline/runThrottle';
 
 /**
@@ -53,6 +59,10 @@ export interface RadioItem {
 export interface PlayContext {
   label: string;
   path?: string;
+  /** The list follows the whole library: songs added later join the upcoming ones. */
+  live?: 'library';
+  /** Memory key of the shuffle cycle; defaults to `path` or `label`. */
+  cycleKey?: string;
 }
 
 interface PlayerState {
@@ -65,6 +75,8 @@ interface PlayerState {
   original: string[];
   index: number;
   contextInfo: PlayContext | null;
+  /** Songs already heard in shuffle, per list. */
+  shuffleCycles: ShuffleCycles;
   shuffle: boolean;
   repeat: RepeatMode;
   isPlaying: boolean;
@@ -135,6 +147,7 @@ interface Saved {
   repeat: RepeatMode;
   position: number;
   contextInfo: PlayContext | null;
+  shuffleCycles?: ShuffleCycles;
 }
 const saved = loadValue<Saved | null>('player-v2', null);
 const savedVolume = loadValue<{ volume: number; muted: boolean }>('volume', {
@@ -172,7 +185,23 @@ export const usePlayer = create<PlayerState>((set, get) => {
       repeat: s.repeat,
       position: audio.currentTime || s.position,
       contextInfo: s.contextInfo,
+      shuffleCycles: s.shuffleCycles,
     } satisfies Saved);
+  }
+
+  /** Remembers that `id` was heard in the shuffle cycle of the current list. */
+  function recordShufflePlay(id: string) {
+    const s = get();
+    const key = cycleKey(s.contextInfo);
+    const now = Date.now();
+    const cycle = recordPlayed(cycleFor(s.shuffleCycles, key, now), id, s.original);
+    set({ shuffleCycles: rememberCycle(s.shuffleCycles, cycle, now) });
+  }
+
+  /** Shuffled order that puts songs not yet heard in this list first. */
+  function cycleOrder(ids: string[], firstId: string | null, ctx: PlayContext | null) {
+    const cycle = cycleFor(get().shuffleCycles, cycleKey(ctx), Date.now());
+    return shuffledCycleOrder(ids, firstId, new Set(cycle.played), get().currentId);
   }
 
   function resetSource() {
@@ -218,6 +247,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     if (src.startsWith('blob:')) objectUrl = src;
     listenedMarked = false;
     const id = get().currentId!;
+    if (get().shuffle && !get().fromQueue) recordShufflePlay(id);
     const podcast = isPodcast(id);
     if (podcast && startAt === 0) startAt = resumePosition(id);
     pendingSeek = startAt > 0 ? startAt : null;
@@ -249,7 +279,11 @@ export const usePlayer = create<PlayerState>((set, get) => {
     );
     if (ni === null) return false;
     if (ni === 0 && s.shuffle && s.context.length > 1) {
-      const context = reshuffleForNextLap(s.original, s.context[s.index] ?? null);
+      const last = s.context[s.index] ?? null;
+      const cycle = cycleFor(s.shuffleCycles, cycleKey(s.contextInfo), Date.now());
+      // An empty cycle means the round just ended: treat all as heard so the last song doesn't open the next round.
+      const played = cycle.played.length ? new Set(cycle.played) : new Set(s.original);
+      const context = shuffledCycleOrder(s.original, null, played, last);
       set({ context, index: 0, currentId: context[0]!, fromQueue: false });
       return true;
     }
@@ -350,6 +384,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     original: saved?.original ?? saved?.context ?? [],
     index: saved?.index ?? 0,
     contextInfo: saved?.contextInfo ?? null,
+    shuffleCycles: saved?.shuffleCycles ?? {},
     shuffle: saved?.shuffle ?? false,
     repeat: saved?.repeat ?? 'off',
     isPlaying: false,
@@ -369,8 +404,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
       if (!startId && usePrefs.getState().dataSaver && navigator.onLine) {
         context = orderForDataSaver(ids, availableOffline, shuffle);
       } else {
-        const first = startId ?? (shuffle ? null : ids[0]!);
-        context = shuffle ? shuffleKeepingFirst(ids, first) : [...ids];
+        context = shuffle ? cycleOrder(ids, startId, opts.context ?? null) : [...ids];
       }
       const index = startId ? Math.max(0, context.indexOf(startId)) : 0;
       consecutiveErrors = 0;
@@ -473,7 +507,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
       const s = get();
       const anchor = s.context[s.index] ?? null;
       if (!s.shuffle) {
-        const context = shuffleKeepingFirst(s.original, anchor);
+        const context = cycleOrder(s.original, anchor, s.contextInfo);
         set({ shuffle: true, context, index: anchor ? context.indexOf(anchor) : 0 });
       } else {
         const index = anchor ? Math.max(0, s.original.indexOf(anchor)) : 0;
@@ -662,6 +696,23 @@ useLibrary.subscribe((state, prev) => {
   if (used) engine.forgetTracks(removed);
 });
 
+/** A live library list (shuffle or not) picks up songs added while it plays. */
+useLibrary.subscribe((state, prev) => {
+  if (state.order === prev.order) return;
+  const p = usePlayer.getState();
+  if (p.contextInfo?.live !== 'library' || !p.context.length) return;
+  const known = new Set(p.original);
+  const added = state.order.filter(
+    (id) => !known.has(id) && state.tracks[id] && state.tracks[id]!.kind !== 'podcast',
+  );
+  if (!added.length) return;
+  usePlayer.setState({
+    original: [...p.original, ...added],
+    context: p.shuffle ? insertShuffled(p.context, p.index, added) : [...p.context, ...added],
+  });
+  engine.persist();
+});
+
 window.addEventListener('pagehide', () => engine.persist());
 setInterval(() => {
   if (audio.paused) return;
@@ -671,109 +722,8 @@ setInterval(() => {
 
 /* ---------- Media Session (lock screen & notification controls) ---------- */
 
-const controls = mediaControls;
-const FALLBACK_ART = [{ src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }];
-
-function setPlaybackState(state: 'none' | 'paused' | 'playing') {
-  controls?.setPlaybackState(state);
-  if (isNative) keepAwake(state === 'playing');
-}
-
-/** Wake/Wi-Fi locks in the Android app; the native side delays the release itself. */
-let awake = false;
-let awakeStreaming = false;
-function keepAwake(playing: boolean) {
-  if (!playing) {
-    awake = false;
-    void AskeNative.keepAwake({ playing: false }).catch(() => undefined);
-    return;
-  }
-  // hls.js feeds radios through a blob: URL, so the source alone can't tell it is a stream.
-  const streaming = usePlayer.getState().mode === 'radio' || isStreamingSource(audio.currentSrc);
-  if (awake && streaming === awakeStreaming) return;
-  awake = true;
-  awakeStreaming = streaming;
-  lastAwakeCall = Date.now();
-  void AskeNative.keepAwake({ playing: true, streaming }).catch(() => undefined);
-}
-
-/** The native wake lock expires after 30 min, so renew it every 10 min while music plays. */
-const AWAKE_RENEW_MS = 10 * 60 * 1000;
-let lastAwakeCall = 0;
-function renewAwake() {
-  if (!isNative || !awake || Date.now() - lastAwakeCall < AWAKE_RENEW_MS) return;
-  lastAwakeCall = Date.now();
-  void AskeNative.keepAwake({ playing: true, streaming: awakeStreaming }).catch(() => undefined);
-}
-
-let lastPositionState = 0;
-function updatePositionState() {
-  if (!controls || usePlayer.getState().mode !== 'track') return;
-  const now = performance.now();
-  if (now - lastPositionState < 1000) return;
-  lastPositionState = now;
-  const d = audio.duration;
-  if (!Number.isFinite(d) || d <= 0) return;
-  controls.setPositionState({
-    duration: d,
-    playbackRate: audio.playbackRate,
-    position: Math.min(audio.currentTime, d),
-  });
-}
-
-function updateMediaSession() {
-  if (!controls) return;
-  const s = usePlayer.getState();
-  if (s.mode === 'radio' && s.station) {
-    controls.setMetadata({
-      title: s.station.name,
-      artist: t('player.live'),
-      album: t('player.radio'),
-      artwork: s.station.favicon ? [{ src: s.station.favicon }] : FALLBACK_ART,
-    });
-    for (const action of ['seekto', 'seekbackward', 'seekforward'] as const) {
-      controls.setActionHandler(action, null);
-    }
-    return;
-  }
-  const track = s.currentId ? useLibrary.getState().tracks[s.currentId] : undefined;
-  if (!track) return;
-  const info = { title: track.title, artist: track.artist, album: track.album };
-  controls.setMetadata({ ...info, artwork: FALLBACK_ART });
-  setSeekHandlers(track.kind === 'podcast' ? 15 : 10);
-  if (track.hasCover) {
-    void resolveCoverDataUrl(track).then((src) => {
-      if (src && usePlayer.getState().currentId === track.id) {
-        controls.setMetadata({
-          ...info,
-          artwork: [{ src, sizes: '512x512', type: 'image/jpeg' }],
-        });
-      }
-    });
-  }
-}
-
-function setSeekHandlers(step = 10) {
-  if (!controls) return;
-  const player = () => usePlayer.getState();
-  controls.setActionHandler('seekto', (d) => {
-    if (d.seekTime !== undefined && d.seekTime !== null) player().seek(d.seekTime);
-  });
-  controls.setActionHandler('seekbackward', (d) => player().seekBy(-(d.seekOffset ?? step)));
-  controls.setActionHandler('seekforward', (d) => player().seekBy(d.seekOffset ?? step * 2));
-}
-
-if (controls) {
-  const player = () => usePlayer.getState();
-  controls.setActionHandler('play', () => {
-    if (!player().isPlaying) player().togglePlay();
-  });
-  controls.setActionHandler('pause', () => player().pause());
-  controls.setActionHandler('stop', () => player().pause());
-  controls.setActionHandler('previoustrack', () => player().previous());
-  controls.setActionHandler('nexttrack', () => player().next());
-  setSeekHandlers();
-}
+const { keepAwake, renewAwake, setPlaybackState, updatePositionState, updateMediaSession } =
+  createMediaSession(audio, () => usePlayer.getState());
 
 /* ---------- Offline cache integration ---------- */
 

@@ -29,7 +29,10 @@ export const eu: Messages = {
   'common.back': 'Atzera',
   'common.song': 'Abesti 1',
   'common.songs': '{count} abesti',
-  'common.offlineBanner': 'Konexiorik gabe zaude: deskargatutako musika bakarrik dago eskuragarri',
+  'common.offlineBanner': 'Konexio onik ez: deskargatutako musika erakusten',
+  'common.offlineBannerHint': 'Berriro saiatuko gara geure kabuz; ez duzu ezer egin behar.',
+  'boot.loading': 'Aske Stream irekitzen…',
+  'boot.connecting': 'Konexioa bilatzen…',
 
   'pair.title': 'Konektatu zure Cloudflarera',
   'pair.subtitle':
@@ -319,6 +322,11 @@ export const eu: Messages = {
   'dl.notifWaiting': 'Konexiorik gabe · bere kabuz jarraituko du estaldura itzultzean',
   'dl.notifOpenToSave': '{count} abesti deskargatuta. Ireki Aske Stream gordetzeko',
   'dl.notifPaused': 'Deskargak pausan. Ireki Aske Stream jarraitzeko',
+  'dl.notifSavingTitle': 'Gordetzen {done}/{total}',
+  'dl.notifDone': '{count} abesti gorde dira zure liburutegian',
+  'dl.notifDone.one': 'Abesti 1 gorde da zure liburutegian',
+  'dl.notifDoneSomeFailed':
+    'Gordeta: {count}. Ezin izan dira deskargatu: {failed}. Ireki Aske Stream berriro saiatzeko',
   'dl.notifOpenToSave.one': 'Abesti 1 deskargatuta. Ireki Aske Stream gordetzeko',
   'dl.batteryText':
     'Pantaila itzalita deskargek jarraitzeko, Androidek aplikazioari atzeko planoan funtzionatzen utzi behar dio. Sakatu «Baimendu» eta onartu.',

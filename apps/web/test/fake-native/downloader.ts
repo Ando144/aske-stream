@@ -125,6 +125,7 @@ export const Downloader: DownloaderPlugin = {
   setNotification: async (n) => {
     w.__fakeNative.notification = n;
   },
+  clearDoneNotice: async () => undefined,
   requestNotifications: async () => ({ granted: true }),
   addListener: (async (event: string, listener: unknown) => {
     const set = (

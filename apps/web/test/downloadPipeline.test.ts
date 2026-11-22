@@ -89,7 +89,9 @@ describe('nextWakeAt', () => {
 describe('jobsForNative', () => {
   it('returns queued jobs not yet known to native', () => {
     const jobs = [job('a', 'queued'), job('b', 'queued'), job('c', 'downloading')];
-    expect(jobsForNative(jobs, new Set(['b']))).toEqual([{ jobId: 'a', videoId: 'va' }]);
+    expect(jobsForNative(jobs, new Set(['b']))).toEqual([
+      { jobId: 'a', videoId: 'va', title: 'a' },
+    ]);
   });
 });
 

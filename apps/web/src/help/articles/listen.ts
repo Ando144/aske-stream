@@ -17,7 +17,9 @@ export const listenArticles: HelpArticle[] = [
 
 Arrastra el asa **⠿** para cambiar el orden y pulsa la **X** para quitar una canción.
 
-**Reproducir a continuación** (en el menú ⋮) pone la canción la primera de la cola.`,
+**Reproducir a continuación** (en el menú ⋮) pone la canción la primera de la cola.
+
+**Aleatorio**: no repite ninguna canción hasta que han sonado todas las de esa lista. Cada lista (tu biblioteca, cada playlist…) recuerda por dónde ibas. Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta, la primera nunca es la última que sonó.`,
       en: `Open the player full screen and scroll down: you see two lists.
 
 - **Queue**: songs you add with “Add to queue” or by swiping a song to the right. They always play first.
@@ -25,7 +27,9 @@ Arrastra el asa **⠿** para cambiar el orden y pulsa la **X** para quitar una c
 
 Drag the **⠿** handle to reorder and tap **X** to remove a song.
 
-**Play next** (in the ⋮ menu) puts the song first in the queue.`,
+**Play next** (in the ⋮ menu) puts the song first in the queue.
+
+**Shuffle**: it does not repeat any song until all the songs in that list have played. Each list (your library, each playlist…) remembers where you were. New songs you add join the shuffle. When a new round starts, the first song is never the last one that played.`,
       eu: `Ireki erreproduzitzailea handian eta jaitsi: bi zerrenda ikusiko dituzu.
 
 - **Ilara**: zuk «Gehitu ilarara» erabiliz edo abesti bat eskuinera irristatuz gehitzen dituzunak. Beti lehenik entzuten dira.
@@ -33,7 +37,9 @@ Drag the **⠿** handle to reorder and tap **X** to remove a song.
 
 Arrastatu **⠿** heldulekua ordena aldatzeko eta sakatu **X** abesti bat kentzeko.
 
-**Erreproduzitu hurrengoa** (⋮ menuan) abestia ilarako lehena jartzen du.`,
+**Erreproduzitu hurrengoa** (⋮ menuan) abestia ilarako lehena jartzen du.
+
+**Ausazkoa**: ez du abesti bat ere errepikatzen zerrenda horretako guztiak entzun arte. Zerrenda bakoitzak (zure liburutegia, zerrenda bakoitza…) gogoratzen du non gelditu zinen. Gehitzen dituzun abesti berriak ausazkoan sartzen dira. Itzuli berri bat hasten denean, lehena ez da inoiz entzundako azkena.`,
     },
   },
   {

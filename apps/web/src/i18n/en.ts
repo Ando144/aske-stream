@@ -28,7 +28,10 @@ export const en = {
   'common.back': 'Back',
   'common.song': '1 song',
   'common.songs': '{count} songs',
-  'common.offlineBanner': 'You are offline — only downloaded music is available',
+  'common.offlineBanner': 'No good connection: showing your downloaded music',
+  'common.offlineBannerHint': 'We will try again by ourselves; you do not need to do anything.',
+  'boot.loading': 'Opening Aske Stream…',
+  'boot.connecting': 'Looking for a connection…',
 
   'pair.title': 'Connect to your Cloudflare',
   'pair.subtitle':
@@ -310,6 +313,11 @@ export const en = {
   'dl.notifWaiting': 'No connection · it will carry on when the signal is back',
   'dl.notifOpenToSave': '{count} songs downloaded. Open Aske Stream to save them',
   'dl.notifPaused': 'Downloads paused. Open Aske Stream to carry on',
+  'dl.notifSavingTitle': 'Saving {done} of {total}',
+  'dl.notifDone': '{count} songs saved to your library',
+  'dl.notifDone.one': '1 song saved to your library',
+  'dl.notifDoneSomeFailed':
+    'Saved: {count}. Could not download: {failed}. Open Aske Stream to try them again',
   'dl.notifOpenToSave.one': '1 song downloaded. Open Aske Stream to save it',
   'dl.batteryText':
     'For downloads to go on with the screen off, Android has to let the app run in the background. Tap “Allow” and accept.',

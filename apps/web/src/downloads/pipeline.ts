@@ -40,7 +40,7 @@ export function jobsForNative(
 ): NativeJob[] {
   return jobs
     .filter((j) => j.status === 'queued' && !known.has(j.id))
-    .map((j) => ({ jobId: j.id, videoId: j.videoId }));
+    .map((j) => ({ jobId: j.id, videoId: j.videoId, title: j.title.slice(0, 200) }));
 }
 
 const isActive = (job: DownloadJob) => job.status === 'queued' || job.status === 'downloading';

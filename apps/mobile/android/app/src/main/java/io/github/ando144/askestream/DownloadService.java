@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import com.getcapacitor.JSObject;
@@ -45,6 +46,8 @@ public class DownloadService extends Service {
     private static final long MAX_AWAKE_MS = 3L * 60 * 60 * 1000;
     static final long[] RETRY_DELAYS_MS = { 15_000, 30_000, 60_000, 120_000, 300_000, 600_000 };
     static final int MAX_ATTEMPTS = 6;
+    /** If the app sends nothing for this long while downloading, the service writes the notification. */
+    private static final long JS_SILENT_MS = 10_000;
 
     static volatile boolean running = false;
     /** The open app, or null when it is closed. */
@@ -64,16 +67,25 @@ public class DownloadService extends Service {
     private long notBefore = 0;
     private volatile int lastPct = 0;
     private int done = 0;
+    private NotificationThrottle throttle;
+    private DownloadQueue.Job currentJob;
+    private String lastJsTitle = "";
+    private String lastJsText = "";
+    private long lastJsUpdateAt = 0;
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
 
-    static Notification build(Context ctx, String title, String text, int progress) {
+    private static void ensureChannel(Context ctx) {
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
         if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CHANNEL) == null) {
             NotificationChannel ch = new NotificationChannel(CHANNEL, ctx.getString(R.string.downloads_channel), NotificationManager.IMPORTANCE_LOW);
             ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
         }
+    }
+
+    static Notification build(Context ctx, String title, String text, int progress) {
+        ensureChannel(ctx);
         return new NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_download)
             .setContentTitle(title)
@@ -92,15 +104,29 @@ public class DownloadService extends Service {
         return PendingIntent.getActivity(ctx, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    /** Updates the notification of the running service (allowed from the background). */
+    /** Hands the app's notification to the running service, which publishes it through the throttle. */
     static void update(Context ctx, String title, String text, int progress) {
-        NotificationManager nm = ctx.getSystemService(NotificationManager.class);
-        nm.notify(ID, build(ctx, title, text, progress));
+        DownloadService s = instance;
+        if (s == null) return;
+        s.main.post(() -> s.submitFromJs(title, text, progress));
     }
 
-    /** The app is open again and handles the results: drop the "open to save" notice. */
-    static void clearDoneNotice(Context ctx) {
+    private void submitFromJs(String title, String text, int progress) {
+        boolean phaseChange = !title.equals(lastJsTitle) || !text.equals(lastJsText);
+        lastJsTitle = title;
+        lastJsText = text;
+        lastJsUpdateAt = SystemClock.uptimeMillis();
+        throttle.submit(build(this, title, text, progress), phaseChange);
+    }
+
+    /** Removes the final notice (also when the app is open again and handles the results). */
+    static void clearDone(Context ctx) {
         ctx.getSystemService(NotificationManager.class).cancel(DONE_ID);
+    }
+
+    /** Shows the final "downloads finished" notice (always, whether the app is open or not). */
+    static void showDone(Context ctx, String text) {
+        showNotice(ctx, text);
     }
 
     /** The app closed or stopped keeping the service: from now on the service writes the notification. */
@@ -108,7 +134,7 @@ public class DownloadService extends Service {
         DownloadService s = instance;
         if (s == null) return;
         s.main.post(() -> {
-            s.refreshNotification();
+            s.refreshNotification(true);
             s.pump();
         });
     }
@@ -117,6 +143,7 @@ public class DownloadService extends Service {
     public void onCreate() {
         super.onCreate();
         instance = this;
+        throttle = new NotificationThrottle(main, getSystemService(NotificationManager.class), ID);
         queue = DownloadQueue.get(this);
         watcher = new NetworkWatcher(this, () -> main.post(this::pump));
         watcher.start();
@@ -134,6 +161,7 @@ public class DownloadService extends Service {
         } else {
             startForeground(ID, n);
         }
+        if (fromJs) lastJsUpdateAt = SystemClock.uptimeMillis();
         running = true;
         main.post(this::pump);
         return START_STICKY;
@@ -168,9 +196,10 @@ public class DownloadService extends Service {
         if (job == null) return;
         busy = true;
         currentJobId = job.jobId;
+        currentJob = job;
         lastPct = 0;
         acquireLocks();
-        refreshNotification();
+        refreshNotification(true);
         DownloadWorker.EXEC.execute(() -> {
             JSObject result = DownloadWorker.run(this, job, this::onProgress);
             main.post(() -> onResult(job, result));
@@ -183,13 +212,14 @@ public class DownloadService extends Service {
         int pct = Math.round(progress);
         if (pct != lastPct) {
             lastPct = pct;
-            refreshNotification();
+            refreshNotification(false);
         }
     }
 
     private void onResult(DownloadQueue.Job job, JSObject result) {
         busy = false;
         currentJobId = null;
+        currentJob = null;
         if (stopping) return; // onTimeout already requeued the job
         boolean networkFailure = !result.optBoolean("ok") && "network".equals(result.optString("code"));
         if (networkFailure && retryLater(job)) {
@@ -200,6 +230,7 @@ public class DownloadService extends Service {
         done++;
         Listener l = listener;
         if (l != null) l.onFinished(result);
+        refreshNotification(true);
         pump();
     }
 
@@ -220,6 +251,7 @@ public class DownloadService extends Service {
         setWaiting(false);
         releaseLocks();
         if (jsKeepAlive) return;
+        throttle.cancelPending();
         stopForeground(true);
         if (listener == null && queue.resultCount() > 0) showOpenToSave(queue.resultCount());
         stopSelf();
@@ -230,7 +262,7 @@ public class DownloadService extends Service {
         waitingNetwork = waiting;
         Listener l = listener;
         if (l != null) l.onNetwork(waiting);
-        refreshNotification();
+        refreshNotification(true);
     }
 
     /* ------------------------------ notifications ------------------------------ */
@@ -239,41 +271,54 @@ public class DownloadService extends Service {
     private Notification nativeNotification(int pct) {
         JSObject texts = queue.texts();
         int total = Math.max(done + queue.pendingCount(), 1);
-        String text = waitingNetwork
-            ? texts.optString("waiting")
-            : texts.optString("progress")
-                .replace("{done}", String.valueOf(Math.min(done + 1, total)))
-                .replace("{total}", String.valueOf(total));
-        return build(this, getString(R.string.app_name), text, waitingNetwork ? -1 : pct);
+        String title = texts.optString("progress")
+            .replace("{done}", String.valueOf(Math.min(done + 1, total)))
+            .replace("{total}", String.valueOf(total));
+        if (title.isEmpty()) title = getString(R.string.app_name);
+        int shown = waitingNetwork ? 0 : Math.max(pct, 0);
+        int overall = Math.min(100, (done * 100 + shown) / total);
+        return build(this, title, currentText(texts), overall);
     }
 
-    /** The web side writes the notification while the app is keeping the service; otherwise this does. */
-    private void refreshNotification() {
-        if (jsKeepAlive) return;
-        getSystemService(NotificationManager.class).notify(ID, nativeNotification(Math.max(lastPct, 0)));
+    private String currentText(JSObject texts) {
+        if (waitingNetwork) return texts.optString("waiting");
+        DownloadQueue.Job job = currentJob;
+        return job == null || job.title.isEmpty() ? getString(R.string.app_name) : job.title;
+    }
+
+    /**
+     * Publishes the phone's own notification when the app is not writing it: the app is closed, or
+     * it has been silent for 10 s while a download runs (frozen WebView). Goes through the throttle.
+     */
+    private void refreshNotification(boolean phaseChange) {
+        boolean jsSilent = busy && SystemClock.uptimeMillis() - lastJsUpdateAt > JS_SILENT_MS;
+        if (jsKeepAlive && !jsSilent) return;
+        throttle.submit(nativeNotification(Math.max(lastPct, 0)), phaseChange);
     }
 
     private void showOpenToSave(int count) {
         JSObject texts = queue.texts();
-        showNotice(count == 1
+        showNotice(this, count == 1
             ? texts.optString("openToSaveOne")
             : texts.optString("openToSave").replace("{count}", String.valueOf(count)));
     }
 
     private void showPaused() {
         String text = queue.texts().optString("paused");
-        showNotice(text.isEmpty() ? getString(R.string.downloads_paused) : text);
+        showNotice(this, text.isEmpty() ? getString(R.string.downloads_paused) : text);
     }
 
-    private void showNotice(String text) {
-        Notification n = new NotificationCompat.Builder(this, CHANNEL)
+    private static void showNotice(Context ctx, String text) {
+        ensureChannel(ctx);
+        Notification n = new NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_download)
-            .setContentTitle(getString(R.string.app_name))
+            .setContentTitle(ctx.getString(R.string.app_name))
             .setContentText(text)
             .setAutoCancel(true)
-            .setContentIntent(openAppIntent(this))
+            .setSilent(true)
+            .setContentIntent(openAppIntent(ctx))
             .build();
-        getSystemService(NotificationManager.class).notify(DONE_ID, n);
+        ctx.getSystemService(NotificationManager.class).notify(DONE_ID, n);
     }
 
     /* ----------------------------------- locks ---------------------------------- */
@@ -304,6 +349,7 @@ public class DownloadService extends Service {
         running = false;
         waitingNetwork = false;
         instance = null;
+        if (throttle != null) throttle.cancelPending();
         main.removeCallbacksAndMessages(null);
         if (watcher != null) watcher.stop();
         releaseLocks();
@@ -323,6 +369,7 @@ public class DownloadService extends Service {
             cancelCurrentProcess();
         }
         releaseLocks();
+        throttle.cancelPending();
         stopForeground(true);
         showPaused();
         stopSelf();

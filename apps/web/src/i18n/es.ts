@@ -29,7 +29,10 @@ export const es: Messages = {
   'common.back': 'Atrás',
   'common.song': '1 canción',
   'common.songs': '{count} canciones',
-  'common.offlineBanner': 'Sin conexión: solo está disponible la música descargada',
+  'common.offlineBanner': 'Sin buena conexión: mostrando tu música descargada',
+  'common.offlineBannerHint': 'Lo volveremos a intentar solos; no tienes que hacer nada.',
+  'boot.loading': 'Abriendo Aske Stream…',
+  'boot.connecting': 'Buscando conexión…',
 
   'pair.title': 'Conectar con tu Cloudflare',
   'pair.subtitle':
@@ -318,6 +321,11 @@ export const es: Messages = {
   'dl.notifWaiting': 'Sin conexión · seguirá sola cuando vuelva la cobertura',
   'dl.notifOpenToSave': '{count} canciones descargadas. Abre Aske Stream para guardarlas',
   'dl.notifPaused': 'Descargas en pausa. Abre Aske Stream para seguir',
+  'dl.notifSavingTitle': 'Guardando {done} de {total}',
+  'dl.notifDone': '{count} canciones guardadas en tu biblioteca',
+  'dl.notifDone.one': '1 canción guardada en tu biblioteca',
+  'dl.notifDoneSomeFailed':
+    'Guardadas: {count}. No se pudieron bajar: {failed}. Abre Aske Stream para reintentarlas',
   'dl.notifOpenToSave.one': '1 canción descargada. Abre Aske Stream para guardarla',
   'dl.batteryText':
     'Para que las descargas sigan con la pantalla apagada, Android tiene que dejar a la app funcionar en segundo plano. Pulsa «Permitir» y acepta.',

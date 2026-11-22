@@ -2,7 +2,16 @@ import { create } from 'zustand';
 import { LIMITS } from '@aske/shared';
 import { youtubePlaylistId, youtubeVideoId } from '@aske/shared/youtube';
 import { api } from '../api/client';
-import { batchForRetry, notificationCounts } from '../downloads/batch';
+import { batchForRetry } from '../downloads/batch';
+import {
+  buildNotification,
+  createBatchTracker,
+  doneNotice,
+  nextSendDelay,
+  shouldSend,
+  type SentNotification,
+  type Translate as NotificationTranslate,
+} from '../downloads/notification';
 import {
   findInLibrary,
   flushImportSync,
@@ -147,12 +156,23 @@ function persist(jobs: DownloadJob[]) {
   }, 400);
 }
 
+const tr = t as NotificationTranslate; // plain-string keys for the pure helpers
 const notificationTemplates = (): NotificationTemplates => ({
   progress: t('dl.notifTitle', { done: '{done}', total: '{total}' }),
   waiting: t('dl.notifWaiting'),
   openToSave: t('dl.notifOpenToSave', { count: '{count}' }),
   openToSaveOne: t('dl.notifOpenToSave', { count: 1 }),
   paused: t('dl.notifPaused'),
+});
+
+const requeuePatch = (batchId: string): Partial<DownloadJob> => ({
+  status: 'queued',
+  progress: 0,
+  error: undefined,
+  finishedAt: undefined,
+  attempts: 0,
+  retryAt: undefined,
+  batchId,
 });
 
 const knownToNative = (p: NativePending | null): Set<string> =>
@@ -162,6 +182,7 @@ const knownToNative = (p: NativePending | null): Set<string> =>
 
 export const useDownloads = create<DownloadsState>((set, get) => {
   let listening = false;
+  let watchingVisibility = false;
   let wakeTimer: ReturnType<typeof setTimeout> | undefined;
   /** Set when a save failed for lack of internet: no more attempts until `resume()`. */
   let saveBlocked = false;
@@ -202,26 +223,30 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     await api.sendUpdate(sendId, status, detail).catch(() => undefined);
   }
 
-  async function notify() {
-    const jobs = get().jobs;
-    const active = jobs.filter(isActive);
-    if (!active.length) {
-      await Downloader.setNotification({ active: false }).catch(() => undefined);
-      return;
+  const warn = (what: string) => (err: unknown) => console.warn(what, err);
+  /** Last notice sent, and the timer of one held back by the rate limit (the latest wins). */
+  let lastSent: SentNotification | null = null;
+  let sendTimer: ReturnType<typeof setTimeout> | undefined;
+  const batches = createBatchTracker();
+  /** The queue is empty: close the progress notice and, if songs finished, show the final one. */
+  function endNotification() {
+    if (!lastSent) return;
+    lastSent = null;
+    const doneText = doneNotice(batches.take(get().jobs, Date.now()), tr) ?? undefined;
+    void Downloader.setNotification({ active: false, doneText }).catch(warn('notification'));
+  }
+  function notify() {
+    clearTimeout(sendTimer);
+    const content = buildNotification(get().jobs, get().waitingNetwork, tr);
+    if (!content) return endNotification();
+    batches.collect(get().jobs);
+    const now = Date.now();
+    if (shouldSend(lastSent, content, now)) {
+      lastSent = { content, at: now };
+      void Downloader.setNotification({ active: true, ...content }).catch(warn('notification'));
+    } else if (lastSent) {
+      sendTimer = setTimeout(notify, nextSendDelay(lastSent, content, now));
     }
-    const current =
-      active.find((j) => j.status === 'downloading' || j.status === 'saving') ?? active[0]!;
-    const counts = notificationCounts(jobs) ?? { position: 1, total: active.length };
-    const left = active.length - 1;
-    await Downloader.setNotification({
-      active: true,
-      title: t('dl.notifTitle', { done: counts.position, total: counts.total }),
-      text:
-        left > 0
-          ? t('dl.notifText', { title: current.title, count: left })
-          : t('dl.notifTextLast', { title: current.title }),
-      progress: Math.round(current.progress),
-    }).catch(() => undefined);
   }
 
   /** Jobs for new songs: queued, or already skipped when the library has them. */
@@ -440,6 +465,17 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     }
   }
 
+  /** The final notice goes away when the user opens the app (now, or coming back to it). */
+  function clearDoneOnOpen() {
+    if (!watchingVisibility && typeof document !== 'undefined') {
+      watchingVisibility = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') clearDoneOnOpen();
+      });
+    }
+    void Downloader.clearDoneNotice().catch(warn('clearDoneNotice'));
+  }
+
   function listenToNative() {
     if (listening) return;
     listening = true;
@@ -474,6 +510,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       const saved = loadValue<DownloadJob[]>(STORE_KEY, []);
       // Listen first so a `finished` event fired while `pending()` runs is not lost.
       listenToNative();
+      clearDoneOnOpen();
       const pending = await Downloader.pending().catch(() => null);
       const native = pending ?? { queued: [], current: null, results: [], waitingNetwork: false };
       const { jobs, finished, orphans } = reconcile(saved, native);
@@ -551,30 +588,14 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
     retry(jobId) {
       const batchId = batchForRetry(get().jobs, Date.now());
-      update(jobId, {
-        status: 'queued',
-        progress: 0,
-        error: undefined,
-        finishedAt: undefined,
-        attempts: 0,
-        retryAt: undefined,
-        batchId,
-      });
+      update(jobId, requeuePatch(batchId));
       void get().resume();
     },
 
     retryFailed() {
       const batchId = batchForRetry(get().jobs, Date.now());
       for (const j of get().jobs.filter((x) => x.status === 'error')) {
-        update(j.id, {
-          status: 'queued',
-          progress: 0,
-          error: undefined,
-          finishedAt: undefined,
-          attempts: 0,
-          retryAt: undefined,
-          batchId,
-        });
+        update(j.id, requeuePatch(batchId));
       }
       void get().resume();
     },

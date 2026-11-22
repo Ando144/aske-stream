@@ -163,7 +163,9 @@ public class DownloaderPlugin extends Plugin {
                 call.reject("jobId and a valid videoId are required");
                 return;
             }
-            parsed.add(new DownloadQueue.Job(jobId, videoId, 0));
+            String title = j.optString("title", "");
+            if (title.length() > 200) title = title.substring(0, 200);
+            parsed.add(new DownloadQueue.Job(jobId, videoId, title, 0));
         }
         DownloadQueue.get(getContext()).add(parsed, texts);
         startService(null);
@@ -173,7 +175,6 @@ public class DownloaderPlugin extends Plugin {
     /** What is queued, running and finished (including what finished while the app was closed). */
     @PluginMethod
     public void pending(PluginCall call) {
-        DownloadService.clearDoneNotice(getContext());
         JSObject ret = DownloadQueue.get(getContext()).snapshot();
         ret.put("waitingNetwork", DownloadService.waitingNetwork);
         call.resolve(ret);
@@ -332,6 +333,8 @@ public class DownloaderPlugin extends Plugin {
         setRendererPriority(active);
         DownloadService.jsKeepAlive = active;
         if (!active) {
+            String doneText = call.getString("doneText", "");
+            if (doneText != null && !doneText.isEmpty()) DownloadService.showDone(ctx, doneText);
             // The service stops by itself when the phone's queue is empty.
             DownloadService.appStateChanged();
             call.resolve();
@@ -347,6 +350,13 @@ public class DownloaderPlugin extends Plugin {
             return;
         }
         startService(new Object[] { title, text, progress });
+        call.resolve();
+    }
+
+    /** Removes the final "downloads finished" notice. */
+    @PluginMethod
+    public void clearDoneNotice(PluginCall call) {
+        DownloadService.clearDone(getContext());
         call.resolve();
     }
 

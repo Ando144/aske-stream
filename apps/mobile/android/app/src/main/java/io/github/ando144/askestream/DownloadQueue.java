@@ -22,11 +22,14 @@ final class DownloadQueue {
     static final class Job {
         final String jobId;
         final String videoId;
+        /** Song title for the notification when the app is closed; may be empty. */
+        final String title;
         int attempts;
 
-        Job(String jobId, String videoId, int attempts) {
+        Job(String jobId, String videoId, String title, int attempts) {
             this.jobId = jobId;
             this.videoId = videoId;
+            this.title = title == null ? "" : title;
             this.attempts = attempts;
         }
     }
@@ -188,11 +191,12 @@ final class DownloadQueue {
     }
 
     private static Job readJob(JSONObject o) {
-        return new Job(o.optString("jobId"), o.optString("videoId"), o.optInt("attempts", 0));
+        return new Job(o.optString("jobId"), o.optString("videoId"), o.optString("title", ""), o.optInt("attempts", 0));
     }
 
     private JSONObject writeJob(Job j) throws Exception {
-        return new JSONObject().put("jobId", j.jobId).put("videoId", j.videoId).put("attempts", j.attempts);
+        return new JSONObject().put("jobId", j.jobId).put("videoId", j.videoId).put("title", j.title)
+            .put("attempts", j.attempts);
     }
 
     private void save() {

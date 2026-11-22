@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { parseHubHash } from '@aske/shared/hub';
 import { AddToPlaylistSheet } from './components/AddToPlaylistSheet';
@@ -47,6 +46,16 @@ import { DriveReconnect } from './components/DriveReconnect';
 import { toast, useUi } from './stores/ui';
 import { t } from './i18n';
 import { mayDoBackgroundWork, mayRotateOfflineNow } from './lib/power';
+import { BootSplash } from './components/BootSplash';
+import { ConnectionBanner } from './components/ConnectionBanner';
+import { BOOT_MAX_WAIT_MS, BOOT_MIN_SPLASH_MS, bootReady } from './lib/boot';
+import { BOOT_TIMEOUT_MS, isTimeout, withTimeout } from './lib/timeout';
+import {
+  canUseNetwork,
+  onReconnect,
+  startConnectivityWatch,
+  useConnectivity,
+} from './stores/connectivity';
 
 const PENDING_LINK_KEY = 'pending-hub-link';
 
@@ -73,6 +82,29 @@ function takePendingJamCode(): string | null {
   return sessionStorage.getItem(PENDING_JAM_KEY);
 }
 
+/** Starts setup and the connection watch; true once the opening screen can go away. */
+function useBootReady(setupLoading: boolean): boolean {
+  const connection = useConnectivity((s) => s.status);
+  const [startedAt] = useState(() => Date.now());
+  const [, forceRender] = useState(0);
+
+  useEffect(() => {
+    // init() sets the storage home synchronously, before the first probe reads it.
+    void useSetup.getState().init();
+    const stopWatch = startConnectivityWatch();
+    void useConnectivity.getState().check();
+    const timers = [BOOT_MIN_SPLASH_MS, BOOT_MAX_WAIT_MS].map((ms) =>
+      setTimeout(() => forceRender((n) => n + 1), ms),
+    );
+    return () => {
+      stopWatch();
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+
+  return bootReady({ setupLoading, elapsedMs: Date.now() - startedAt, connection });
+}
+
 export function App() {
   const [pendingListId] = useState(takePendingListId);
   const [pendingJamCode] = useState(takePendingJamCode);
@@ -86,17 +118,9 @@ export function App() {
     (s) => s.mode === 'setup' && (s.phase === 'running' || s.phase === 'done'),
   );
 
-  useEffect(() => {
-    void useSetup.getState().init();
-  }, []);
+  const bootReadyNow = useBootReady(status === 'loading');
 
-  if (status === 'loading') {
-    return (
-      <div className="center-screen">
-        <LoaderCircle className="spin" size={32} color="var(--accent)" />
-      </div>
-    );
-  }
+  if (!bootReadyNow) return <BootSplash />;
   const beforeSetup = (status === 'choose' || status === 'pair') && !changing;
   if (beforeSetup && pendingJamCode && !jamIntroDone) {
     return <JamView onExit={() => setJamIntroDone(true)} />;
@@ -122,8 +146,16 @@ function useBackgroundSync() {
   useEffect(() => {
     let lastFocusSync = Date.now();
     const sync = async () => {
-      await useLibrary.getState().load();
+      try {
+        await withTimeout(useLibrary.getState().load(), BOOT_TIMEOUT_MS);
+      } catch (err) {
+        if (!isTimeout(err)) throw err;
+        useConnectivity.getState().reportTrouble();
+      }
       useOffline.getState().scheduleRun(2000);
+    };
+    const checkInbox = () => {
+      if (canUseNetwork()) void useSend.getState().checkInbox();
     };
 
     void (async () => {
@@ -132,7 +164,7 @@ function useBackgroundSync() {
       void useRadio.getState().load();
       // Android app: resume unfinished downloads, then pick up songs sent from the computer.
       await useDownloads.getState().init();
-      void useSend.getState().checkInbox();
+      checkInbox();
     })();
 
     const onOnline = () => {
@@ -147,7 +179,8 @@ function useBackgroundSync() {
       if (downloads.waitingNetwork && hasWork) toast(t('dl.resumed'));
       void downloads.resume();
       void sync();
-      void useSend.getState().checkInbox();
+      checkInbox();
+      void useServerUpdate.getState().check();
     };
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
@@ -155,7 +188,7 @@ function useBackgroundSync() {
       if (Date.now() - lastFocusSync < 60_000) return;
       lastFocusSync = Date.now();
       void sync();
-      void useSend.getState().checkInbox();
+      checkInbox();
     };
     const mayRun = () =>
       mayDoBackgroundWork({
@@ -169,15 +202,17 @@ function useBackgroundSync() {
     }, SYNC_INTERVAL_MS);
     const inbox = setInterval(
       () => {
-        if (mayRun()) void useSend.getState().checkInbox();
+        if (mayRun()) checkInbox();
       },
       5 * 60 * 1000,
     );
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
+    const stopReconnect = onReconnect(onOnline);
     return () => {
       clearInterval(interval);
       clearInterval(inbox);
+      stopReconnect();
       window.removeEventListener('online', onOnline);
       document.removeEventListener('visibilitychange', onVisible);
     };
@@ -187,8 +222,9 @@ function useBackgroundSync() {
 function Shell() {
   useBackgroundSync();
   useEffect(() => {
-    void useServerUpdate.getState().check();
-    void useJam.getState().resume();
+    const warn = (err: unknown) => console.warn('Startup check skipped', err);
+    withTimeout(useServerUpdate.getState().check(), BOOT_TIMEOUT_MS).catch(warn);
+    withTimeout(useJam.getState().resume(), BOOT_TIMEOUT_MS).catch(warn);
   }, []);
   const hasPlayer = usePlayer((s) => s.mode !== 'idle');
   const [location, navigate] = useLocation();
@@ -231,6 +267,7 @@ function Shell() {
       <main ref={mainRef} className={`main${hasPlayer ? '' : ' no-player'}`}>
         <DriveReconnect />
         <ServerUpdateBanner />
+        <ConnectionBanner />
         <JamBanner />
         <Switch>
           <Route path="/" component={LibraryView} />

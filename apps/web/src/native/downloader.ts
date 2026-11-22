@@ -5,6 +5,7 @@ import type {
   NativeResult,
   NotificationTemplates,
 } from '../downloads/types';
+import { withTimeout } from '../lib/timeout';
 import {
   buildBrowseRequest,
   buildSearchRequest,
@@ -40,8 +41,13 @@ export interface DownloaderPlugin {
     active: boolean;
     title?: string;
     text?: string;
+    /** Total progress of the batch, 0-100; -1 = indeterminate bar. */
     progress?: number;
+    /** Only with active:false; if not empty the phone shows the final notice. */
+    doneText?: string;
   }): Promise<void>;
+  /** Removes the final "downloads finished" notice if present. */
+  clearDoneNotice(): Promise<void>;
   requestNotifications(): Promise<{ granted: boolean }>;
   addListener(
     event: 'progress',
@@ -113,16 +119,6 @@ export interface PlaylistListing {
 const MAX_PAGES = 20;
 const INNERTUBE_TIMEOUT_MS = 30_000;
 const YTDLP_LIST_TIMEOUT_MS = 120_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), ms);
-    promise.then(
-      (v) => (clearTimeout(timer), resolve(v)),
-      (e) => (clearTimeout(timer), reject(e)),
-    );
-  });
-}
 
 /** What YouTube's own API gave so far; filled in place so a timeout keeps the partial result. */
 interface InnerTubeRead {

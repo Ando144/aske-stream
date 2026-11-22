@@ -17,7 +17,9 @@ export const offlineArticles: HelpArticle[] = [
 - **Rellenar automáticamente**: la app elige canciones al azar hasta llegar al límite.
 - **Cambiar las ya escuchadas**: pasado un tiempo, las que ya has escuchado se cambian por otras, para que siempre tengas música «nueva» sin conexión.
 - Las que tú descargas a mano (**Elegidas por ti**) nunca se cambian.
-- **Descargar con datos móviles**: si está apagado, espera al Wi-Fi.`,
+- **Descargar con datos móviles**: si está apagado, espera al Wi-Fi.
+
+Si la cobertura es mala (por ejemplo, en el tren), la app espera unos segundos y abre con tu música descargada. Verás un aviso arriba; cuando vuelva la conexión desaparece solo y vuelve toda tu música.`,
       en: `**If you keep music on this device**, all of it plays without internet. Nothing to do.
 
 **If you use Google Drive or your Cloudflare**, the phone keeps a copy of part of your music for when you have no internet (underground, travelling…). Set it in **Settings → Offline music**:
@@ -25,7 +27,9 @@ export const offlineArticles: HelpArticle[] = [
 - **Fill automatically**: the app picks random songs up to the limit.
 - **Swap songs you have heard**: after a while, songs you have already heard are swapped for others, so you always have “new” music offline.
 - Songs you download by hand (**Picked by you**) are never swapped.
-- **Download with mobile data**: when off, it waits for Wi-Fi.`,
+- **Download with mobile data**: when off, it waits for Wi-Fi.
+
+If the signal is bad (on a train, for example), the app waits a few seconds and opens with your downloaded music. You will see a notice at the top; when the connection is back it disappears by itself and all your music returns.`,
       eu: `**Musika gailu honetan gordetzen baduzu**, guztia entzuten da Internetik gabe. Ez dago ezer egin beharrik.
 
 **Google Drive edo zure Cloudflare erabiltzen badituzu**, mugikorrak zure musikaren zati baten kopia gordetzen du Internetik ez duzunerako (metroan, bidaian…). **Ezarpenak → Konexiorik gabeko musika** atalean doitzen da:
@@ -33,7 +37,9 @@ export const offlineArticles: HelpArticle[] = [
 - **Automatikoki bete**: aplikazioak ausaz aukeratzen ditu abestiak mugara iritsi arte.
 - **Aldatu entzundakoak**: denbora pixka bat igarotakoan, entzun dituzunak beste batzuengatik aldatzen dira, konexiorik gabe beti musika «berria» izateko.
 - Zuk eskuz deskargatzen dituzunak (**Zuk aukeratuak**) ez dira inoiz aldatzen.
-- **Deskargatu datu mugikorrekin**: desaktibatuta badago, Wi-Fiaren zain geratzen da.`,
+- **Deskargatu datu mugikorrekin**: desaktibatuta badago, Wi-Fiaren zain geratzen da.
+
+Estaldura txarra bada (adibidez, trenean), aplikazioak segundo batzuk itxaroten ditu eta deskargatutako musikarekin irekitzen da. Goian abisu bat ikusiko duzu; konexioa itzultzean bere kabuz desagertzen da eta zure musika guztia itzultzen da.`,
     },
   },
   {

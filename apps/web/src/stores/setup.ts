@@ -2,6 +2,7 @@ import { normalizePairingCode } from '@aske/shared/pairing';
 import { create } from 'zustand';
 import { api, ApiError, configureApi, onUnauthorized } from '../api/client';
 import { loadValue, savePref } from '../lib/storage';
+import { BOOT_TIMEOUT_MS, isTimeout, withTimeout } from '../lib/timeout';
 import { kvGet } from '../offline/db';
 import { driveAvailable, getDriveToken, signOutDrive } from '../storage/drive/auth';
 import { driveHome, driveQuota, flushDrive, resetDriveState } from '../storage/drive/home';
@@ -85,7 +86,7 @@ function apply(config: SetupConfig | null) {
 
 async function hasSameOriginApi(): Promise<boolean> {
   try {
-    return (await api.health()).ok === true;
+    return (await withTimeout(api.health(), BOOT_TIMEOUT_MS)).ok === true;
   } catch {
     return false;
   }
@@ -132,15 +133,18 @@ export const useSetup = create<SetupState>((set, get) => {
         apply(saved);
         set({ config: saved });
         if (saved.home !== 'cloudflare') {
-          set({ status: 'ready', sameOriginApi: await hasSameOriginApi() });
+          // Do not make the user wait for the network: the library is local.
+          set({ status: 'ready' });
+          set({ sameOriginApi: await hasSameOriginApi() });
           return;
         }
         try {
-          const { paired } = await api.status();
+          const { paired } = await withTimeout(api.status(), BOOT_TIMEOUT_MS);
           set({ status: paired ? 'ready' : 'pair', sameOriginApi: !saved.cloudflare?.baseUrl });
         } catch (err) {
-          // Offline: trust the saved configuration so downloaded music keeps playing.
-          set({ status: err instanceof ApiError && err.status === 0 ? 'ready' : 'pair' });
+          // Offline or too slow: trust the saved configuration so downloaded music keeps playing.
+          const offline = isTimeout(err) || (err instanceof ApiError && err.status === 0);
+          set({ status: offline ? 'ready' : 'pair' });
         }
         return;
       }
@@ -151,7 +155,7 @@ export const useSetup = create<SetupState>((set, get) => {
       set({ sameOriginApi });
       if (sameOriginApi) {
         try {
-          if ((await api.status()).paired) {
+          if ((await withTimeout(api.status(), BOOT_TIMEOUT_MS)).paired) {
             use({ home: 'cloudflare', cloudflare: { baseUrl: '', token: null } });
             return;
           }

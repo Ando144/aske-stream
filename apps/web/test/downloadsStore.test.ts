@@ -22,7 +22,8 @@ const Downloader = {
   cancel: vi.fn(async () => ({ canceled: true })),
   init: vi.fn(async () => ({ version: '1' })),
   updateEngine: vi.fn(async () => ({ updated: false, version: '1' })),
-  setNotification: vi.fn(async () => undefined),
+  setNotification: vi.fn(async (_arg: unknown) => undefined),
+  clearDoneNotice: vi.fn(async () => undefined),
   requestNotifications: vi.fn(async () => ({ granted: true })),
 };
 const saveDownloaded = vi.fn();
@@ -172,6 +173,20 @@ describe('downloads store', () => {
     await queueSongs(1);
     finish(job(0).id);
     await vi.waitFor(() => expect(order).toEqual(['flush', 'prune']));
+  });
+
+  it('closes the progress notice with the final text when the queue empties', async () => {
+    const { t } = await import('../src/i18n');
+    saveDownloaded.mockResolvedValue(saved);
+    await queueSongs(3);
+    for (const j of useDownloads.getState().jobs) finish(j.id);
+    await vi.waitFor(() =>
+      expect(Downloader.setNotification).toHaveBeenLastCalledWith(
+        expect.objectContaining({ active: false }),
+      ),
+    );
+    const calls = Downloader.setNotification.mock.calls.map((c) => c[0]);
+    expect(calls.at(-1)).toEqual({ active: false, doneText: t('dl.notifDone', { count: 3 }) });
   });
 
   it('clearFinished settles imports and keeps only the active jobs', async () => {

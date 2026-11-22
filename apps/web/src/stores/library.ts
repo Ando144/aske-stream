@@ -14,7 +14,12 @@ import { squareJpeg } from '../lib/cover';
 import { kvGet, kvSet, type CachedLibrary } from '../offline/db';
 import { applyFolderDelete, applyMove, planMerge } from '../storage/playlistOps';
 import type { LibrarySnapshot, LocalTrack } from '../storage/types';
+import { isTimeout, withTimeout } from '../lib/timeout';
+import { useConnectivity } from './connectivity';
 import { useServerUpdate } from './serverUpdate';
+
+// A big library can take longer than the connectivity probe.
+const LOAD_TIMEOUT_MS = 20_000;
 import { getHome, useSetup } from './setup';
 import { toast } from './ui';
 
@@ -149,7 +154,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
       const cached = await kvGet<CachedLibrary>(cacheKey());
       if (cached && !get().loaded) set({ ...fromSnapshot(cached.library), loaded: true });
       try {
-        const fresh = await getHome().load(cached?.etag || undefined);
+        const fresh = await withTimeout(getHome().load(cached?.etag || undefined), LOAD_TIMEOUT_MS);
         if (fresh) {
           const { etag, ...library } = fresh;
           set({ ...fromSnapshot(library), loaded: true });
@@ -157,6 +162,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
         }
         set({ loading: false, loaded: true });
       } catch (err) {
+        if (isTimeout(err)) useConnectivity.getState().reportTrouble();
         set({
           loading: false,
           loaded: get().loaded || !!cached,
