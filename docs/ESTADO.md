@@ -10,7 +10,7 @@ Actualizado: 2026-11-22
   - Notificación de descargas: contador, barra del lote, fase «guardando» y aviso final; un solo escritor nativo (máx. 1 actualización/s) y latido del JS cada 5 s.
   - Arranque con mala cobertura: pantalla con logo (1-5 s), tiempos máximos de 4 s, modo sin conexión con banner y reintento automático.
   - Aleatorio: memoria de ciclo por lista, sin repetir hasta agotar; «Todo» es viva y recibe canciones nuevas.
-- **Sin publicar: playlists enteras en Enviar al móvil** (pendiente de `hub:migrate:remote` + `deploy:hub` + `deploy`):
+- **v0.8.5 (publicada: migración 0003, Hub, web, push y tag; el APK lo construye el CI): playlists enteras en Enviar al móvil:**
   - Pegar un enlace de playlist abre una lista con casillas (hasta 1000); el móvil lee YouTube directo y el ordenador lo hace por el Hub.
   - Los paquetes llevan nombre: el móvil receptor crea esa playlist; las canciones privadas o borradas se saltan y se avisa.
   - Los Mix automáticos y «Me gusta»/«Ver más tarde» no se pueden abrir enteros; con vídeo, solo se usa la canción.
