@@ -20,7 +20,9 @@ Puedes cerrar la app mientras descarga: las canciones seguirán bajando y verás
 
 La primera descarga tarda un poco más porque la app prepara el descargador.
 
-Las canciones que ya tienes aparecen como «Ya la tienes» y no se descargan dos veces.`,
+Las canciones que ya tienes aparecen como «Ya la tienes» y no se descargan dos veces.
+
+Si pegas el enlace de una playlist en el móvil, puedes quitar canciones antes de descargar.`,
       en: `You do it in the **Android app**, in the **Download** tab.
 
 1. Type a song, an artist or a playlist. You can also **paste a link** from YouTube or YouTube Music.
@@ -31,7 +33,9 @@ You can close the app while it downloads: the songs keep coming and progress sho
 
 The first download takes a bit longer because the app gets the downloader ready.
 
-Songs you already have show “In library” and are never downloaded twice.`,
+Songs you already have show “In library” and are never downloaded twice.
+
+If you paste a playlist link on the phone, you can untick songs before downloading.`,
       eu: `**Android aplikazioan** egiten da, **Deskargatu** fitxan.
 
 1. Idatzi abesti bat, artista bat edo zerrenda bat. YouTube edo YouTube Musiceko **esteka bat itsatsi** ere egin dezakezu.
@@ -42,7 +46,9 @@ Deskargatzen ari den bitartean aplikazioa itxi dezakezu: abestiak jaisten jarrai
 
 Lehen deskargak pixka bat gehiago irauten du, aplikazioak deskargatzailea prestatzen duelako.
 
-Dagoeneko dituzun abestiek «Baduzu» jartzen dute eta ez dira bi aldiz deskargatzen.`,
+Dagoeneko dituzun abestiek «Baduzu» jartzen dute eta ez dira bi aldiz deskargatzen.
+
+Mugikorrean playlist baten esteka itsatsiz gero, abesti batzuk kendu ditzakezu deskargatu aurretik.`,
     },
   },
   {
@@ -155,6 +161,14 @@ Solo viajan los nombres de las canciones, nunca la música: el móvil que recibe
 1. En **Biblioteca**, selecciona canciones y pulsa **Enviar a otro móvil**. También puedes enviar la cola de reproducción desde la cola.
 2. Solo se envían las canciones que vienen de YouTube; las demás se dejan fuera y la app te avisa.
 
+**Enviar una playlist entera**
+1. En **Descargar**, pega el enlace de la playlist de YouTube.
+2. Se marcan todas las canciones. Quita las que no quieras.
+3. Pulsa **Enviar al móvil** y escanea el código.
+4. En el móvil se crea una playlist con ese nombre. Si ya tienes una igual, se llamará «Nombre (2)».
+
+Caben hasta 1.000 canciones. Las privadas o borradas se saltan y te avisamos. Los Mix de YouTube, «Me gusta» y «Ver más tarde» no se pueden enviar.
+
 **Recibir**
 1. En el móvil que recibe, ve a **Descargar** y pulsa **Recibir**.
 2. Escanea el QR o escribe el código.
@@ -179,6 +193,14 @@ Only the names of the songs travel, never the music: the phone that receives the
 1. In **Library**, select songs and tap **Send to another phone**. You can also send the play queue from the queue.
 2. Only songs that come from YouTube are sent; the others are left out and the app tells you.
 
+**Sending a whole playlist**
+1. In **Download**, paste the link of the YouTube playlist.
+2. All songs are ticked. Untick the ones you do not want.
+3. Tap **Send to phone** and scan the code.
+4. The phone creates a playlist with that name. If you already have one, it will be called “Name (2)”.
+
+Up to 1,000 songs fit. Private or deleted ones are skipped and we tell you. YouTube Mixes, “Liked videos” and “Watch later” cannot be sent.
+
 **Receiving**
 1. On the phone that receives, go to **Download** and tap **Receive**.
 2. Scan the QR or type the code.
@@ -202,6 +224,14 @@ Abestien izenak bakarrik bidaiatzen dute, inoiz ez musika: jasotzen duen mugikor
 **Mugikorretik bidali**
 1. **Liburutegian**, aukeratu abestiak eta sakatu **Bidali beste mugikor batera**. Erreprodukzio-ilara ere bidal dezakezu ilaratik.
 2. YouTubetik datozen abestiak bakarrik bidaltzen dira; besteak kanpoan geratzen dira eta aplikazioak abisatzen dizu.
+
+**Playlist oso bat bidali**
+1. **Deskargatu** atalean, itsatsi YouTubeko playlistaren esteka.
+2. Abesti guztiak markatuta agertzen dira. Kendu nahi ez dituzunak.
+3. Sakatu **Bidali mugikorrera** eta eskaneatu kodea.
+4. Mugikorrean izen horrekin playlist bat sortzen da. Berdin bat baduzu, «Izena (2)» izango da.
+
+1.000 abesti arte sartzen dira. Pribatuak edo ezabatuak saltatu egiten dira eta abisatuko dizugu. YouTubeko Mixak, «Gustuko bideoak» eta «Ikusteko geroago» ezin dira bidali.
 
 **Jaso**
 1. Jasotzen duen mugikorrean, joan **Deskargatu** atalera eta sakatu **Jaso**.

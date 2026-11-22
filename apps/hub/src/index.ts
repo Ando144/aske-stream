@@ -7,6 +7,7 @@ import { HubHttpError } from './lib/http';
 import { jamRoutes } from './jam/routes';
 import { listRoutes } from './routes/lists';
 import { parcelRoutes } from './routes/parcels';
+import { playlistRoutes } from './routes/playlists';
 import { searchRoutes } from './routes/search';
 import { HUB_VERSION } from './version';
 
@@ -31,6 +32,7 @@ app.get('/hub/v1/health', (c) => c.json({ ok: true, hub: true, version: HUB_VERS
 app.route('/hub/v1/lists', listRoutes);
 app.route('/hub/v1/jams', jamRoutes);
 app.route('/hub/v1/parcels', parcelRoutes);
+app.route('/hub/v1/playlists', playlistRoutes);
 app.route('/hub/v1/search', searchRoutes);
 app.all('/hub/*', (c) => c.json({ error: 'not_found', message: 'Unknown endpoint' }, 404));
 

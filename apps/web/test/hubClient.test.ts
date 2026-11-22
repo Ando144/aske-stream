@@ -81,6 +81,31 @@ describe('hub client', () => {
     );
   });
 
+  it('builds the playlist page URL, with and without continuation', async () => {
+    const client = await loadClient('https://hub.example');
+    fetchMock.mockImplementation(async () => json(200, { entries: [] }));
+    await client.fetchPlaylistPage('PLabc', null, 'es');
+    await client.fetchPlaylistPage('PLabc', 'tok+en', 'eu');
+    expect(fetchMock.mock.calls[0]![0]).toBe('https://hub.example/hub/v1/playlists/PLabc?lang=es');
+    expect(fetchMock.mock.calls[1]![0]).toBe(
+      'https://hub.example/hub/v1/playlists/PLabc?lang=eu&continuation=tok%2Ben',
+    );
+  });
+
+  it('sends the parcel name and unavailable count only when given', async () => {
+    const client = await loadClient('https://hub.example');
+    fetchMock.mockImplementation(async () => json(201, { code: 'X' }));
+    const songs = [{ videoId: 'dQw4w9WgXcQ', title: 'T', artist: 'A' }];
+    await client.createParcel(songs);
+    await client.createParcel(songs, { name: 'Mix', unavailable: 2 });
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({ songs });
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({
+      songs,
+      name: 'Mix',
+      unavailable: 2,
+    });
+  });
+
   it('maps https to wss and http to ws for the socket', async () => {
     expect((await loadClient('https://hub.example/')).jamSocketUrl('ABCDEF')).toBe(
       'wss://hub.example/hub/v1/jams/ABCDEF/ws',

@@ -21,14 +21,37 @@ el navegador.
 | Nombre de la playlist y referencias de canciones   | 90 días (después se borra sola) |
 | Apodos y cola de una Jam                           | Como mucho 12 horas             |
 | Lista de canciones para enviar al móvil            | hasta 24 h o hasta recibirla    |
+| Nombre de la playlist enviada al móvil             | hasta 24 h o hasta recibirla    |
 | IP (solo como hash con sal diaria, para los topes) | Un día                          |
 
 No hay estadísticas de uso. Los detalles están en [PRIVACY.md](PRIVACY.md).
 
 Para no pasarse del plan gratuito se limita por IP: 20 playlists por hora, 10 Jams por hora, 60
 búsquedas cada 10 minutos, 30 envíos al móvil por hora y 20 intentos de recibir o cancelar un
-código cada 10 minutos (consultar el estado de un envío admite 300 cada 10 minutos). Un envío admite hasta 200 canciones. El que envía recibe una clave secreta (solo se guarda
+código cada 10 minutos (consultar el estado de un envío admite 300 cada 10 minutos). Un envío admite hasta 1000 canciones y puede llevar el nombre de una playlist. El que envía recibe una clave secreta (solo se guarda
 su hash) para ver si sigue esperando o cancelarlo.
+
+## Leer una playlist de YouTube
+
+`GET /hub/v1/playlists/:id?lang=es|en|eu&continuation=TOKEN` lee una página de una playlist pública
+o no listada de YouTube y devuelve sus canciones, el título y cuántas no están disponibles. No guarda
+nada. Para leer más páginas se repite la llamada con el `continuation` recibido.
+
+- `:id` debe ser un identificador de playlist válido y `continuation` tiene un tamaño máximo; si no,
+  400 `invalid_request`.
+- Límite por IP: 120 lecturas cada 10 minutos.
+- Si YouTube no responde, 502 `search_unavailable`. Si la primera página no trae canciones ni título
+  (playlist privada o borrada), 404 `playlist_unavailable`.
+
+## Envíos con nombre de playlist
+
+`POST /hub/v1/parcels` acepta además `name` (nombre de la playlist, se limpia y se recorta a 120
+caracteres) y `unavailable` (cuántas canciones se saltaron por no estar disponibles, 0 por defecto).
+`POST /hub/v1/parcels/:code/claim` los devuelve al móvil que recibe. Los envíos antiguos siguen
+valiendo: sin nombre se tratan como canciones sueltas.
+
+La migración `apps/hub/migrations/0003_parcel_playlist.sql` añade las columnas `name` y
+`unavailable` a `parcels`. Aplícala con `npm run hub:migrate:remote` antes de desplegar.
 
 ## Cómo desplegarlo
 
@@ -52,6 +75,7 @@ Hace falta una cuenta de Cloudflare y haber iniciado sesión con `npx wrangler l
 
 - `apps/hub/src/routes/lists.ts`: playlists compartidas.
 - `apps/hub/src/routes/parcels.ts`: envíos al móvil con código.
+- `apps/hub/src/routes/playlists.ts`: lectura de playlists de YouTube para elegir canciones.
 - `apps/hub/src/routes/search.ts`: búsqueda en YouTube para quien no tiene Cloudflare (ordenador).
 - `apps/hub/src/jam/`: la Jam (un Durable Object por Jam).
 - `apps/hub/src/cleanup.ts`: limpieza cada hora (cron `17 * * * *`), para que nada viva más de

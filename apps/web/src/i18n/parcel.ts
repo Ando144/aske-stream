@@ -46,7 +46,6 @@ export const parcelEn = {
   'parcel.invalidCode': 'That code is not right. It has 6 letters and numbers, like ABC-DEF.',
   'parcel.openInApp':
     'To receive these songs, open Aske Stream on your Android phone, go to Download → Receive and scan the code.',
-  'parcel.playlistLink': 'From here you can only send songs. Search for them by name.',
   'parcel.err.not_found': 'That code does not exist or has already been used. Ask for a new one.',
   'parcel.err.expired': 'That code has expired (codes last 24 hours). Ask for a new one.',
   'parcel.err.too_many_songs': 'Too many songs at once. Remove some and try again.',
@@ -101,7 +100,6 @@ export const parcelEs: Record<keyof typeof parcelEn, string> = {
   'parcel.invalidCode': 'Ese código no es correcto. Tiene 6 letras y números, como ABC-DEF.',
   'parcel.openInApp':
     'Para recibir estas canciones, abre Aske Stream en tu móvil Android, ve a Descargar → Recibir y escanea el código.',
-  'parcel.playlistLink': 'Desde aquí solo puedes enviar canciones. Búscalas por su nombre.',
   'parcel.err.not_found': 'Ese código no existe o ya se ha usado. Pide uno nuevo.',
   'parcel.err.expired': 'Ese código ha caducado (los códigos duran 24 horas). Pide uno nuevo.',
   'parcel.err.too_many_songs': 'Demasiadas canciones a la vez. Quita algunas y prueba otra vez.',
@@ -156,7 +154,6 @@ export const parcelEu: Record<keyof typeof parcelEn, string> = {
   'parcel.invalidCode': 'Kode hori ez da zuzena. 6 letra eta zenbaki ditu, ABC-DEF bezala.',
   'parcel.openInApp':
     'Abesti hauek jasotzeko, ireki Aske Stream zure Android mugikorrean, joan Deskargatu → Jaso atalera eta eskaneatu kodea.',
-  'parcel.playlistLink': 'Hemendik abestiak bakarrik bidal ditzakezu. Bilatu itzazu izenez.',
   'parcel.err.not_found': 'Kode hori ez dago edo erabilita dago jada. Eskatu berri bat.',
   'parcel.err.expired': 'Kode hori iraungi da (kodeek 24 ordu irauten dute). Eskatu berri bat.',
   'parcel.err.too_many_songs': 'Abesti gehiegi aldi berean. Kendu batzuk eta saiatu berriro.',

@@ -13,10 +13,12 @@ export const HUB_LIMITS = {
   listIdLength: 10,
   wsMessageMaxBytes: 8 * 1024,
   listBodyMaxBytes: 512 * 1024,
-  parcelMaxSongs: 200,
+  parcelMaxSongs: 1000, // = LIMITS.playlistMaxTracks
   parcelTtlMs: 24 * 3600 * 1000,
   parcelCodeLength: 6,
-  parcelBodyMaxBytes: 128 * 1024,
+  parcelBodyMaxBytes: 1024 * 1024,
+  playlistMaxPages: 10, // 100 songs per page → 1000
+  continuationMax: 4096,
 } as const;
 
 export interface HubSong {
@@ -53,8 +55,16 @@ export interface ParcelStatus {
   count: number;
   expiresAt: number;
 }
+export interface ParcelRequest {
+  songs: HubSong[];
+  name?: string;
+  unavailable?: number;
+}
 export interface ClaimedParcel {
   songs: HubSong[];
+  /** '' = not a playlist. */
+  name: string;
+  unavailable: number;
 }
 export interface JamInfo {
   code: string;
@@ -99,6 +109,7 @@ export type HubErrorCode =
   | 'member_limit'
   | 'not_host'
   | 'search_unavailable'
+  | 'playlist_unavailable'
   | 'internal_error';
 
 // WebSocket, client to server (JSON)
@@ -156,6 +167,11 @@ export function sanitizeHubSong(raw: unknown): HubSong | null {
   const d = r.durationMs;
   if (typeof d === 'number' && Number.isFinite(d) && d >= 0) song.durationMs = Math.round(d);
   return song;
+}
+
+/** Control chars stripped, trimmed, cut to LIMITS.nameMax; '' when not a string. */
+export function sanitizeParcelName(raw: unknown): string {
+  return cleanText(raw, LIMITS.nameMax) ?? '';
 }
 
 /** Trim, collapse spaces, drop control characters; null unless 1..24 characters. */

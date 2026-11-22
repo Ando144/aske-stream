@@ -3,6 +3,7 @@ import { cloudflareSetupEs } from './cloudflareSetup';
 import { pairingEs } from './pairing';
 import { shareEs } from './share';
 import { parcelEs } from './parcel';
+import { pickEs } from './pick';
 import { jamEs } from './jam';
 import { statsEs } from './stats';
 
@@ -330,7 +331,6 @@ export const es: Messages = {
   'dl.batteryText':
     'Para que las descargas sigan con la pantalla apagada, Android tiene que dejar a la app funcionar en segundo plano. Pulsa «Permitir» y acepta.',
   'dl.batteryButton': 'Permitir',
-  'dl.playlistEmpty': 'Esta playlist está vacía o es privada.',
   'dl.playlistSlow': 'YouTube tarda demasiado en responder. Inténtalo de nuevo en un rato.',
   'dl.playlistPartial':
     'Solo hemos podido leer {count} de {total} canciones. Puedes descargar estas ahora y volver a intentarlo luego para el resto.',
@@ -708,6 +708,7 @@ export const es: Messages = {
   ...pairingEs,
   ...shareEs,
   ...parcelEs,
+  ...pickEs,
   ...jamEs,
   ...statsEs,
   ...cloudflareSetupEs,

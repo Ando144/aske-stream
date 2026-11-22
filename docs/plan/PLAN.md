@@ -1,553 +1,467 @@
-# PLAN: v0.8.4 · notificación de descargas, arranque con mala cobertura y aleatorio de verdad
+# PLAN: playlists enteras de YouTube en «Enviar al móvil»
 
 Fecha: 2026-11-22 · Estado: COMPLETADO
 
 ## Objetivo
 
-1. Que la notificación de descargas refleje siempre el estado real: contador «3 de 12», canción actual,
-   barra de progreso, fase «guardando» y aviso final, sin gastar batería.
-2. Que con red «conectada pero que no funciona» la app abra en ≤ ~5 s (pantalla de arranque con logo
-   animado, mínimo 1 s), pase a modo sin conexión con un banner suave y se recupere sola.
-3. Que el aleatorio no repita canciones hasta acabar el ciclo, incluya las canciones nuevas y al empezar
-   un ciclo nuevo no repita la última.
+El usuario pega el enlace de una playlist pública o no listada de YouTube, ve sus canciones con casillas
+(todas marcadas, como mucho 1000), quita las que no quiera y la envía al móvil (código/QR del Hub) o,
+si ya está en el móvil, la descarga. En el móvil se crea una playlist con el nombre de YouTube (las
+canciones también salen en «Todo»). Las no disponibles se saltan y se avisa con un resumen sencillo;
+Mix, «Me gusta», «Ver más tarde» y privadas dan un mensaje claro.
 
-## Causas encontradas (diagnóstico)
+## Lo que ya existe (no rehacer)
 
-**Notificación**
-
-- Android descarta en silencio las actualizaciones de una notificación si una app manda más de ~5 por
-  segundo («Shedding» en logcat). Hoy se manda una por cada 1 % de progreso
-  (`stores/downloads.ts` → listener `progress` → `notify()` → `Downloader.setNotification` →
-  `DownloadService.update` → `nm.notify`), más 2-3 extra por cada canción (`finished`, inicio y fin de
-  `saveJob`). Con una canción que baja en 2-4 s son 25-50 actualizaciones/s: las últimas (100 %,
-  «guardando», la siguiente canción) caen en la ráfaga y se pierden, y la notificación se queda congelada.
-- Hay dos escritores del mismo ID (4242): JS cuando `jsKeepAlive` es true y el servicio cuando no.
-  Si la WebView queda congelada en segundo plano con `jsKeepAlive` true, nadie actualiza.
-- Al terminar se llama a `setNotification({active:false})` y el servicio hace `stopForeground(true)`:
-  la notificación desaparece sin decir «terminado». La fase «guardando» no tiene texto propio.
-- Con la app cerrada, el servicio no conoce el título de la canción (el `Job` solo guarda `videoId`).
-
-**Arranque lento**
-
-- `stores/setup.ts` `init()` espera `api.status()` (Cloudflare) y `hasSameOriginApi()` (todos los
-  hogares) **sin tiempo máximo**: mientras, `App` enseña el spinner (`status === 'loading'`).
-  `fetch` con red rota puede tardar minutos.
-- `App.tsx` `useBackgroundSync` encadena `await sync()` (red sin tiempo máximo) antes de
-  `useDownloads.init()` y `checkInbox()`: una llamada colgada bloquea todo lo que va detrás.
-- `stores/library.ts` `load()` deja `loading: true` mientras la llamada cuelga, así que las
-  sincronizaciones siguientes se ignoran.
-- `storage/media.ts` usa `navigator.onLine` (true en el tren) para decidir si puede usar la nube:
-  intenta Drive/Cloudflare y se queda esperando en vez de saltar a lo descargado.
-
-**Aleatorio**
-
-- `shuffled()` (`offline/planner.ts`) ya es Fisher-Yates correcto y no hay `sort(() => Math.random()…)`.
-  El problema no es el barajado sino la memoria:
-  - Cada vez que se pulsa «Aleatorio» (o se activa/desactiva) se baraja de cero: no se recuerda qué
-    ha sonado ya, así que en días de uso se repiten canciones mucho antes de oír las 80 h.
-  - Las canciones que se descargan después de empezar el aleatorio nunca entran en la cola
-    (`context`/`original` se congelan al pulsar play).
-  - Con el ahorro de datos (`orderForDataSaver`) y sin conexión, las no descargadas se saltan; no es
-    un sesgo, pero hace que «suene lo mismo» si el ciclo se reinicia a menudo.
+- Móvil: `native/downloader.ts` `listPlaylistOnPhone` lee la playlist (InnerTube, 100 por página,
+  respaldo yt-dlp) y `DownloadView.tsx` `PlaylistSheet` la enseña (sin casillas) y la descarga en una
+  playlist con la pregunta «añadir a la existente / crear "Nombre (2)"» (`downloads/imports.ts`
+  `resolvePlaylist`, `downloads/batch.ts` `uniquePlaylistName`).
+- `stores/downloads.ts` `enqueue(items, { playlistName, playlistMode })` ya recorta a 1000 y crea la playlist.
+- Ordenador sin Cloudflare: paquetes del Hub (`/hub/v1/parcels`, máx. 200 canciones, solo canciones
+  sueltas; un enlace de playlist muestra «Desde aquí solo puedes enviar canciones»).
+- Ordenador con Cloudflare: `stores/send.ts` manda el enlace entero a su Worker y el móvil lo baja
+  entero (`enqueueUrl`), sin elegir canciones.
+- El navegador del ordenador no puede hablar con YouTube (CORS): la búsqueda ya pasa por el Hub (`/hub/v1/search`).
 
 ## Decisiones de arquitectura
 
-- El servicio nativo es el **único que llama a `nm.notify(4242)`**, siempre a través de un
-  `NotificationThrottle` (máx. 1 actualización/s de progreso; cambios de fase con ≥ 250 ms; la última
-  gana) — evita el descarte de Android y ahorra batería.
-- JS sigue componiendo el contenido mientras la app vive (sabe títulos, contador y fase «guardando»),
-  pero solo lo envía si cambia y, para cambios solo de progreso, como mucho 1 vez/s — menos tráfico por el puente.
-- Si JS lleva > 10 s sin enviar nada mientras el servicio descarga, el servicio escribe su propia
-  notificación — por si la WebView está congelada.
-- Aviso final con `setNotification({active:false, doneText})`: notificación aparte (ID 4243),
-  **siempre** (app abierta o en segundo plano); se quita al tocarla o al abrir/volver a la app
-  (`Downloader.clearDoneNotice()` al arrancar y en cada `visibilitychange` a visible) — decidido por Andoni.
-- Barra = **progreso total del lote** (decidido por Andoni): `floor((terminadas + fracción de la actual)
-/ total × 100)`; nunca retrocede dentro de un lote. Contador en el título; «guardando» y «esperando
-  red» mantienen la barra total (sin barra indeterminada, para que no parpadee).
-- Arranque: `withTimeout` común y un store `connectivity` con sonda ligera (4 s) y reintento
-  automático con espera creciente (5 s → 60 s) — un solo sitio decide «hay red útil».
-- Sonda de red **sin terceros** (decidido por Andoni): Cloudflare → su propio Worker; resto de hogares
-  («Este dispositivo» y Drive) → el Hub propio (`/hub/v1/health`). Nada de `generate_204` de Google.
-- Pantalla de arranque igual en `index.html` (antes de cargar JS) y en React — sin parpadeo; fondo
-  `#14110F` como el splash de Android; logo `/favicon.svg` con animación ámbar; respeta
-  `prefers-reduced-motion`.
-- Aleatorio: **una memoria de ciclo por lista** (decidido por Andoni): «Biblioteca» (cada filtro y
-  búsqueda cuenta como lista propia, p. ej. buscar un artista), cada playlist, «Me gusta», etc. Se
-  guardan las 20 listas usadas más recientemente; volver a una lista retoma su ciclo. Orden = no oídas
-  barajadas + oídas barajadas; al completar, nuevo ciclo sin empezar por la última — no repite hasta agotar.
-- La lista «Biblioteca → Todo» queda «viva»: canciones nuevas se insertan en posiciones aleatorias
-  por delante de la actual.
+- El ordenador lee la playlist **a través del Hub, página a página** (`GET /hub/v1/playlists/:id`, 100
+  canciones por llamada) — cada petición al Worker gasta poca CPU (plan gratuito) y la pantalla muestra
+  el progreso. El Hub no guarda nada de la playlist.
+- El móvil sigue leyendo YouTube directamente (`listPlaylistOnPhone`); el bucle de páginas se extrae a
+  un módulo puro común (`downloads/playlistReader.ts`) usado por el móvil y por el ordenador.
+- Una sola pantalla de elegir canciones (`components/downloads/PlaylistPicker.tsx`, sale de
+  `DownloadView.tsx`, que está en 707 líneas) para móvil y ordenador.
+- Envío desde el ordenador = un paquete del Hub con `name` y `unavailable` además de `songs`; límite
+  `HUB_LIMITS.parcelMaxSongs = LIMITS.playlistMaxTracks` (1000). **No hace falta trocear el envío**:
+  1000 canciones ocupan ~150 KB (tope del cuerpo subido a 1 MB); lo que se trocea es la lectura (páginas de 100).
+- Ordenador con Cloudflare (y Hub disponible): la playlist con casillas también se envía con código/QR del
+  Hub (duda 1, opción recomendada). Sin Hub: se mantiene el envío del enlace entero de hoy.
+- Al recibir en el móvil: `enqueue(..., { playlistName: name, playlistMode: 'new' })` — si el nombre ya
+  existe se crea «Nombre (2)» sin preguntar (duda 2, opción recomendada; igual que `enqueueUrl`).
+- Playlists de más de 1000: se leen y muestran solo las primeras 1000 con un aviso (duda 3).
+- No disponibles = vídeos con `isPlayable === false` en la página + los ocultos que YouTube no lista
+  (`totalCount - leídas` cuando YouTube dice que no hay más). Las bloqueadas por país solo se saben al
+  descargar: ya las cuenta el aviso final de descargas (`dl.notifDoneSomeFailed`).
+- `downloads.ts` (650) y `player.ts` (745) **no se tocan**.
 
 ## Contratos (interfaces compartidas)
 
-### C1 · Puente de notificación (T1 Java ↔ T5 TS)
-
-`apps/web/src/native/downloader.ts`:
+### C1 · `packages/shared/src/youtube.ts` (T1)
 
 ```ts
-setNotification(options: {
-  active: boolean;
-  title?: string;     // p. ej. "Descargando 3 de 12"
-  text?: string;      // p. ej. "Canción · quedan 9 en la cola"
-  progress?: number;  // 0-100, progreso TOTAL del lote; -1 = barra indeterminada (JS ya no lo usa)
-  doneText?: string;  // solo con active:false; si no está vacío, el móvil muestra el aviso final
-}): Promise<void>;
-/** Removes the final "downloads finished" notice (ID 4243) if present. No-op on web. */
-clearDoneNotice(): Promise<void>;
-```
-
-`apps/web/src/downloads/types.ts`:
-
-```ts
-export interface NativeJob {
-  jobId: string;
-  videoId: string;
-  title?: string;
-} // title ≤ 200 chars
-```
-
-Java: `DownloadQueue.Job` añade `final String title` (puede ser ""), se guarda/lee en el JSON
-(`"title"`), y `DownloaderPlugin.queue` lo lee con `optString("title")` recortado a 200.
-Notificación nativa (app cerrada o JS congelado): título = `texts.progress` con `{done}`/`{total}`,
-texto = título de la canción actual (o `texts.waiting` si espera red),
-barra = progreso total = `(done * 100 + pctActual) / total` (con `pctActual` = 0 si espera red).
-Plugin: método nuevo `clearDoneNotice` → `DownloadService.clearDone(Context)` (cancela ID 4243).
-`NotificationTemplates` no cambia.
-
-### C2 · Contenido de la notificación en JS (T5)
-
-`apps/web/src/downloads/notification.ts` (puro, sin stores ni Capacitor):
-
-```ts
-import type { DownloadJob } from './types';
-export type Translate = (key: string, params?: Record<string, string | number>) => string;
-export interface NotificationContent {
+export interface PlaylistPage {
   title: string;
-  text: string;
-  progress: number;
+  author: string;
+  entries: PlaylistEntry[];
+  continuation: string | null;
+  totalCount: number | null;
+  /** Videos on this page that cannot be played (private, deleted): skipped, only counted. */
+  unavailable: number;
 }
-export interface SentNotification {
-  content: NotificationContent;
-  at: number;
-}
-export const PROGRESS_MIN_GAP_MS = 1000;
-/** null when nothing is active. */
-export function buildNotification(
-  jobs: readonly DownloadJob[],
-  waitingNetwork: boolean,
-  t: Translate,
-): NotificationContent | null;
-/** true if title/text changed, or progress changed and ≥ PROGRESS_MIN_GAP_MS since last send. */
-export function shouldSend(
-  prev: SentNotification | null,
-  next: NotificationContent,
-  now: number,
-): boolean;
-/** Final notice for the jobs that finished in the batch that just ended; null if none ok and none failed. */
-export function doneNotice(finished: readonly DownloadJob[], t: Translate): string | null;
+export type PlaylistLink =
+  | { kind: 'playlist'; id: string }
+  | { kind: 'mix' } // list=RD… (automatic mixes)
+  | { kind: 'personal' } // list=LL, LM or WL ("Liked", "Watch later")
+  | { kind: 'none' }; // not YouTube or no list= at all
+/** true for /^[\w-]{10,64}$/ that does not start with 'RD'. */
+export function isPlaylistId(id: string): boolean;
+export function classifyPlaylistLink(input: string): PlaylistLink;
+/** exhausted && totalCount !== null ? Math.max(skipped, totalCount - readCount) : skipped (never < 0). */
+export function countUnavailable(
+  skipped: number,
+  readCount: number,
+  totalCount: number | null,
+  exhausted: boolean,
+): number;
 ```
 
-Reglas de `buildNotification`:
+`classifyPlaylistLink`: no YouTube (`isYoutubeUrl` false) o sin `list` → `none`; `list` empieza por
+`RD` → `mix`; `list` es exactamente `LL`, `LM` o `WL` → `personal`; `isPlaylistId(list)` → `playlist`;
+si no → `none`. Funciona también con `watch?v=…&list=…` (la UI decide qué hacer con el vídeo).
+`youtubePlaylistId` pasa a usar `isPlaylistId` (mismo comportamiento).
 
-- Canción actual = la primera `downloading`; si no hay, la primera `saving`; si no, la primera activa.
-- Contador = `notificationCounts(jobs)` (de `downloads/batch.ts`) o `{position:1,total:activos}`.
-- Barra (todas las fases) = `batchProgress(position - 1, fraction, total)` =
-  `Math.min(100, Math.floor(((position - 1) + fraction) / total * 100))`, exportada también:
-  `export function batchProgress(finished: number, fraction: number, total: number): number;`
-  `fraction` = `progress / 100` (acotado 0-1) si la actual está `downloading`/`queued`; 1 si está
-  `saving`/`downloaded`; 0 si `waitingNetwork`.
-- Si la actual está `downloading`/`queued`: título `dl.notifTitle`.
-- Si está `saving`/`downloaded` (y no hay ninguna `downloading`): título `dl.notifSavingTitle`.
-- Texto: `dl.notifText` (`{title}`,`{count}` = activos-1) o `dl.notifTextLast` si es la última.
-- Si `waitingNetwork`: texto `dl.notifWaiting` (la barra sigue siendo la total).
-  Reglas de `doneNotice`: ok = `done`, failed = `error`. failed = 0 → `dl.notifDone` (`{count}`, con
-  `.one`); failed > 0 → `dl.notifDoneSomeFailed` (`{count}`, `{failed}`).
-
-### C3 · Claves i18n nuevas o cambiadas (T2; las usan T5 y T7)
-
-| Clave                           | es                                                                                      | en                                                                               | eu                                                                                         |
-| ------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `dl.notifSavingTitle`           | Guardando {done} de {total}                                                             | Saving {done} of {total}                                                         | Gordetzen {done}/{total}                                                                   |
-| `dl.notifDone`                  | {count} canciones guardadas en tu biblioteca                                            | {count} songs saved to your library                                              | {count} abesti gorde dira zure liburutegian                                                |
-| `dl.notifDone.one`              | 1 canción guardada en tu biblioteca                                                     | 1 song saved to your library                                                     | Abesti 1 gorde da zure liburutegian                                                        |
-| `dl.notifDoneSomeFailed`        | Guardadas: {count}. No se pudieron bajar: {failed}. Abre Aske Stream para reintentarlas | Saved: {count}. Could not download: {failed}. Open Aske Stream to try them again | Gordeta: {count}. Ezin izan dira deskargatu: {failed}. Ireki Aske Stream berriro saiatzeko |
-| `boot.loading`                  | Abriendo Aske Stream…                                                                   | Opening Aske Stream…                                                             | Aske Stream irekitzen…                                                                     |
-| `boot.connecting`               | Buscando conexión…                                                                      | Looking for a connection…                                                        | Konexioa bilatzen…                                                                         |
-| `common.offlineBanner` (cambia) | Sin buena conexión: mostrando tu música descargada                                      | No good connection: showing your downloaded music                                | Konexio onik ez: deskargatutako musika erakusten                                           |
-| `common.offlineBannerHint`      | Lo volveremos a intentar solos; no tienes que hacer nada.                               | We will try again by ourselves; you do not need to do anything.                  | Berriro saiatuko gara geure kabuz; ez duzu ezer egin behar.                                |
-
-### C4 · Tiempos máximos y conectividad (T4; los usa T7)
-
-`apps/web/src/lib/timeout.ts`:
+### C2 · `packages/shared/src/hub.ts` (T1)
 
 ```ts
-export const BOOT_TIMEOUT_MS = 4000;
-export class TimeoutError extends Error {} // name = 'TimeoutError', message = 'timeout'
-export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T>; // rejects TimeoutError
-export function isTimeout(err: unknown): boolean;
+HUB_LIMITS.parcelMaxSongs = 1000; // = LIMITS.playlistMaxTracks (comentario como listMaxSongs)
+HUB_LIMITS.parcelBodyMaxBytes = 1024 * 1024;
+HUB_LIMITS.playlistMaxPages = 10; // 100 songs per page → 1000
+HUB_LIMITS.continuationMax = 4096;
+export interface ParcelRequest {
+  songs: HubSong[];
+  name?: string;
+  unavailable?: number;
+}
+export interface ClaimedParcel {
+  songs: HubSong[];
+  name: string;
+  unavailable: number;
+} // name '' = no playlist
+export type HubErrorCode = /* las de hoy */ 'playlist_unavailable';
+/** Control chars stripped, trimmed, cut to LIMITS.nameMax; '' when not a string. */
+export function sanitizeParcelName(raw: unknown): string;
 ```
 
-`apps/web/src/lib/boot.ts`:
+### C3 · Hub (T3)
+
+- `GET /hub/v1/playlists/:id?lang=es|en|eu&continuation=TOKEN` → 200 `PlaylistPage` (C1).
+  - `:id` con `isPlaylistId` y `continuation` ≤ `HUB_LIMITS.continuationMax`; si no → 400 `invalid_request`.
+  - Límite: `enforceRateLimit(c, c.env.DB, 'playlist', 120, 10 * 60 * 1000)`.
+  - YouTube no responde o no da 200 → 502 `search_unavailable` (detalle con `console.error`).
+  - Primera página (sin `continuation`) sin canciones, sin título y `unavailable === 0` → 404 `playlist_unavailable`.
+- `POST /hub/v1/parcels` acepta `ParcelRequest`: `name` se limpia con `sanitizeParcelName`,
+  `unavailable` entero 0-100000 (por defecto 0). Respuesta igual que hoy (`CreatedParcel`).
+- `POST /hub/v1/parcels/:code/claim` → `ClaimedParcel` con `name` y `unavailable`.
+- Migración `apps/hub/migrations/0003_parcel_playlist.sql`:
+  ```sql
+  ALTER TABLE parcels ADD COLUMN name TEXT NOT NULL DEFAULT '';
+  ALTER TABLE parcels ADD COLUMN unavailable INTEGER NOT NULL DEFAULT 0;
+  ```
+  INSERT con columnas `(code, songs_json, sender_key_hash, created_at, expires_at, name, unavailable)`
+  en ese orden; claim con `RETURNING songs_json, expires_at, name, unavailable`.
+
+### C4 · Lectura de playlists en la web (T4)
+
+`apps/web/src/downloads/playlistReader.ts` (puro, sin Capacitor ni fetch):
 
 ```ts
-export const BOOT_MIN_SPLASH_MS = 1000;
-export const BOOT_MAX_WAIT_MS = 5000;
-export const BOOT_CONNECTING_HINT_MS = 1500;
-/** true when the splash can go away. */
-export function bootReady(s: {
-  setupLoading: boolean;
-  elapsedMs: number;
-  connection: ConnectionStatus;
-}): boolean;
-// = !setupLoading && elapsedMs >= BOOT_MIN_SPLASH_MS && (connection !== 'checking' || elapsedMs >= BOOT_MAX_WAIT_MS)
-// setupLoading still wins: setup.init is itself bounded by BOOT_TIMEOUT_MS (T7).
+import type { PlaylistEntry, PlaylistPage } from '@aske/shared/youtube';
+export interface PlaylistListing {
+  title: string;
+  author: string;
+  entries: PlaylistEntry[];
+  totalCount: number | null;
+  complete: boolean;
+  /** Songs that could not be listed (private/deleted); shown to the user, never sent. */
+  unavailable: number;
+}
+/** null = YouTube refused this page (non-200). */
+export type PageFetcher = (continuation: string | null) => Promise<PlaylistPage | null>;
+export interface PlaylistRead {
+  title: string;
+  author: string;
+  entries: PlaylistEntry[];
+  totalCount: number | null;
+  exhausted: boolean;
+  skipped: number;
+}
+export function emptyRead(): PlaylistRead;
+/** Fills `read` in place (a timeout keeps what was read). Title/author/totalCount from page 0;
+ *  dedupes entries by id; adds page.unavailable to skipped; stops at maxPages, at maxSongs
+ *  (entries cut to maxSongs), when there is no continuation (exhausted = true), when a page is
+ *  null or brings no entries. Calls onPage(read) after each page. */
+export async function readPages(
+  fetchPage: PageFetcher,
+  read: PlaylistRead,
+  limits: { maxPages: number; maxSongs?: number; onPage?: (read: PlaylistRead) => void },
+): Promise<void>;
+/** complete = isPlaylistComplete(entries.length, totalCount, exhausted);
+ *  unavailable = countUnavailable(skipped, entries.length, totalCount, exhausted). */
+export function listingFromRead(read: PlaylistRead): PlaylistListing;
 ```
 
-`apps/web/src/stores/connectivity.ts`:
+`apps/web/src/native/downloader.ts`: `export type { PlaylistListing } from '../downloads/playlistReader'`;
+`listPlaylistOnPhone` (misma firma) usa `readPages` con un `PageFetcher` de `CapacitorHttp`
+(`maxPages: 20`, como hoy) y devuelve `unavailable`; en la rama yt-dlp `unavailable = read.skipped`.
+
+`apps/web/src/hub/client.ts`:
 
 ```ts
-export type ConnectionStatus = 'checking' | 'online' | 'offline';
-export const RETRY_DELAYS_MS = [5000, 10000, 20000, 30000, 60000]; // the last one repeats
-export function nextRetryDelay(attempt: number): number;
-export interface ConnectivityDeps {
-  probe: (timeoutMs: number) => Promise<boolean>;
-  schedule: (fn: () => void, ms: number) => () => void; // returns cancel
-}
-export interface ConnectivityState {
-  status: ConnectionStatus; // starts 'checking'
-  check(): Promise<boolean>; // one probe at a time (re-entrant calls share the promise)
-  reportTrouble(): void; // a request timed out: if 'online', run check()
-}
-export function createConnectivityStore(
-  deps: ConnectivityDeps,
-): UseBoundStore<StoreApi<ConnectivityState>>;
-export const useConnectivity: ReturnType<typeof createConnectivityStore>;
-export function canUseNetwork(): boolean; // navigator.onLine && status !== 'offline'
-export function onReconnect(listener: () => void): () => void; // fired on offline → online only
-export function startConnectivityWatch(): () => void; // window online/offline + visibilitychange; idempotent
+export function fetchPlaylistPage(
+  id: string,
+  continuation: string | null,
+  lang: Language,
+): Promise<PlaylistPage>;
+// GET /playlists/{id}?lang=…[&continuation=…] (URLSearchParams)
+export function createParcel(
+  songs: HubSong[],
+  meta?: { name: string; unavailable: number },
+): Promise<CreatedParcel>;
+// body = meta ? { songs, ...meta } : { songs }
 ```
 
-Comportamiento: éxito → `online`, reinicia intentos, cancela reintento; si venía de `offline`
-→ avisa a `onReconnect`. Fallo → `offline` y programa `check()` con `nextRetryDelay(intento++)`.
-Mientras reintenta, el estado sigue en `offline` (el banner no parpadea). `offline` del navegador
-→ `offline` al momento + reintento. `online` del navegador o volver a la app estando offline → `check()`.
-Sonda por defecto (timeout `BOOT_TIMEOUT_MS`): si `!navigator.onLine` → false. Hogar `cloudflare` →
-`api.health()` (cualquier respuesta HTTP = alcanzable; `ApiError` con status 0 o timeout = no).
-Cualquier otro hogar (`device`, `drive`) → `fetch(HUB_URL + '/hub/v1/health', {cache:'no-store'})`
-si `hubAvailable()` (cualquier respuesta HTTP = alcanzable); si no, `navigator.onLine`.
-**Prohibido** contactar con terceros (nada de `generate_204` ni otras URLs de Google/otros).
-Todas con `AbortSignal.timeout`.
-
-### C5 · Aleatorio (T3; lo usa T6)
-
-`apps/web/src/player/shuffleCycle.ts`:
+`apps/web/src/downloads/playlistSource.ts`:
 
 ```ts
-export interface ShuffleCycle {
-  key: string;
-  played: string[];
-  usedAt: number;
-}
-export type ShuffleCycles = Record<string, ShuffleCycle>; // one per list
-export const MAX_REMEMBERED_CYCLES = 20;
-/** cycleKey ?? path ?? label ?? 'none' */
-export function cycleKey(
-  context: { cycleKey?: string; path?: string; label: string } | null,
+export type PlaylistProblem = 'mix' | 'personal' | 'none' | 'private';
+export class PlaylistLinkError extends Error { constructor(readonly reason: PlaylistProblem); } // name 'PlaylistLinkError'
+export const HUB_PLAYLIST_TIMEOUT_MS = 60_000;
+/** Phone: YouTube directly (listPlaylistOnPhone); computer: through the Hub. */
+export async function listPlaylist(
+  url: string, lang: Language, onPartial?: (partial: PlaylistListing) => void,
+): Promise<PlaylistListing>;
+```
+
+Reglas de `listPlaylist`: `classifyPlaylistLink(url)` distinto de `playlist` → `PlaylistLinkError(kind)`.
+Móvil (`isNative`): `listPlaylistOnPhone(url, lang, onPartial)`; 0 canciones → `PlaylistLinkError('private')`;
+si trae más de 1000, recorta `entries` a `LIMITS.playlistMaxTracks` (con `complete: false`).
+Ordenador: `readPages((c) => fetchPlaylistPage(id, c, lang), read, { maxPages: HUB_LIMITS.playlistMaxPages,
+maxSongs: LIMITS.playlistMaxTracks, onPage: (r) => onPartial?.(listingFromRead(r)) })` envuelto en
+`withTimeout(…, HUB_PLAYLIST_TIMEOUT_MS)` (de `lib/timeout.ts`; si salta y ya hay canciones, devolver lo
+leído); `HubError` con `code === 'playlist_unavailable'` → `PlaylistLinkError('private')`; resto de errores se propagan.
+
+### C5 · Selección (T4) — `apps/web/src/downloads/pickSelection.ts` (puro)
+
+```ts
+/** The first `max` ids, in order. */
+export function initialSelection(ids: readonly string[], max: number): Set<string>;
+/** New set; refused = true (and set unchanged) when adding would go over max. */
+export function toggleSelection(
+  selected: ReadonlySet<string>,
+  id: string,
+  max: number,
+): { selected: Set<string>; refused: boolean };
+/** Entries whose id is selected, in playlist order. */
+export function pickedEntries<T extends { id: string }>(
+  entries: readonly T[],
+  selected: ReadonlySet<string>,
+): T[];
+```
+
+### C6 · Store de paquetes (T5) — `apps/web/src/stores/parcel.ts`
+
+```ts
+sendPlaylist: (playlist: { name: string; songs: HubSong[]; unavailable: number }) =>
+  Promise<boolean>;
+/** Pure: toast text after receiving a parcel. */
+export function receivedMessage(
+  queued: number,
+  name: string,
+  unavailable: number,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string,
 ): string;
-/** Cycle stored for `key`, or a fresh empty one. */
-export function cycleFor(cycles: ShuffleCycles, key: string, now: number): ShuffleCycle;
-/** Stores `cycle` (usedAt = now) and drops the least recently used beyond MAX_REMEMBERED_CYCLES. */
-export function rememberCycle(
-  cycles: ShuffleCycles,
-  cycle: ShuffleCycle,
-  now: number,
-): ShuffleCycles;
-/** Unplayed songs first (shuffled), then the played ones (shuffled); firstId (if in ids) goes first.
- *  If every id was played: fresh Fisher-Yates whose first song is not lastPlayed (unless firstId says so). */
-export function shuffledCycleOrder(
-  ids: readonly string[],
-  firstId: string | null,
-  played: ReadonlySet<string>,
-  lastPlayed: string | null,
-  random?: () => number,
-): string[];
-/** Adds id; when every id in `ids` has been played, starts a new cycle: { key, played: [], usedAt }. */
-export function recordPlayed(cycle: ShuffleCycle, id: string, ids: readonly string[]): ShuffleCycle;
-/** Inserts each new id at a uniformly random position after `index`. */
-export function insertShuffled(
-  context: readonly string[],
-  index: number,
-  newIds: readonly string[],
-  random?: () => number,
-): string[];
 ```
 
-`PlayContext` (en `stores/player.ts`) añade `live?: 'library'` y `cycleKey?: string`. `LibraryView`
-pone `live` solo con filtro «todo», sin búsqueda (las podcasts ya están fuera de esa lista), y siempre
-`cycleKey = 'library:' + filter + ':' + normalizeText(query.trim())` (así «Me gusta», «Descargadas» o
-buscar un artista tienen su propia memoria). `PlaylistView` ya usa un `path` único por playlist/«Me gusta».
-No existe vista de artista: si se añade, su contexto debe llevar `cycleKey = 'artist:' + nombre`.
+- `sendPlaylist`: si `busy` → false; 0 canciones → toast `pick.noneSelected` (error), false; más de
+  `HUB_LIMITS.parcelMaxSongs` → toast `parcel.full`; si no, `start(songs, { name, unavailable })`.
+  `start` llama a `createParcel(songs)` sin segundo argumento cuando no hay meta (el test actual espera `[song(1)]`).
+- `receive`: `enqueue(items, name ? { playlistName: name, playlistMode: 'new' } : {})` y toast con
+  `receivedMessage(queued, name ?? '', unavailable ?? 0, t)`: base = `parcel.nothingNew` si queued = 0;
+  si no, `pick.gotPlaylist` (`{count}`,`{name}`) cuando hay nombre o `parcel.gotSongs` cuando no;
+  si `unavailable > 0` añade `' ' + pick.unavailableSummary` (`{count}` = unavailable). Plurales con `.one`
+  como ya resuelve `t` (comprobar cómo lo hace `i18n/index.ts`).
+
+### C7 · Textos nuevos (T2; los usan T5 y T6) — en `apps/web/src/i18n/pick.ts` (`pickEn`, `pickEs`, `pickEu`, mismo patrón que `parcel.ts`)
+
+| Clave                         | es                                                                                                                                                                | en                                                                                                                                                             | eu                                                                                                                                                                                                  |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pick.loading`                | Leyendo la playlist…                                                                                                                                              | Reading the playlist…                                                                                                                                          | Playlista irakurtzen…                                                                                                                                                                               |
+| `pick.loadingMore`            | Leyendo la playlist: {count} de {total}…                                                                                                                          | Reading the playlist: {count} of {total}…                                                                                                                      | Playlista irakurtzen: {count}/{total}…                                                                                                                                                              |
+| `pick.selected`               | {count} de {total} marcadas                                                                                                                                       | {count} of {total} selected                                                                                                                                    | {count}/{total} hautatuta                                                                                                                                                                           |
+| `pick.all`                    | Marcar todas                                                                                                                                                      | Select all                                                                                                                                                     | Guztiak hautatu                                                                                                                                                                                     |
+| `pick.none`                   | Quitar todas                                                                                                                                                      | Clear all                                                                                                                                                      | Guztiak kendu                                                                                                                                                                                       |
+| `pick.max`                    | Puedes elegir hasta {count} canciones a la vez. Quita alguna para marcar otra.                                                                                    | You can pick up to {count} songs at once. Untick one to tick another.                                                                                          | Aldi berean {count} abesti arte aukera ditzakezu. Kendu bat beste bat hautatzeko.                                                                                                                   |
+| `pick.overLimit`              | Esta playlist tiene {total} canciones. Solo se muestran las primeras {count}.                                                                                     | This playlist has {total} songs. Only the first {count} are shown.                                                                                             | Playlist honek {total} abesti ditu. Lehen {count}ak bakarrik erakusten dira.                                                                                                                        |
+| `pick.unavailableNote`        | {count} canciones no están disponibles (privadas o borradas) y se saltarán.                                                                                       | {count} songs are not available (private or deleted) and will be skipped.                                                                                      | {count} abesti ez daude eskuragarri (pribatuak edo ezabatuak) eta saltatu egingo dira.                                                                                                              |
+| `pick.unavailableNote.one`    | 1 canción no está disponible (privada o borrada) y se saltará.                                                                                                    | 1 song is not available (private or deleted) and will be skipped.                                                                                              | Abesti 1 ez dago eskuragarri (pribatua edo ezabatua) eta saltatu egingo da.                                                                                                                         |
+| `pick.unavailableSummary`     | {count} canciones no estaban disponibles y se han saltado.                                                                                                        | {count} songs were not available and were skipped.                                                                                                             | {count} abesti ez zeuden eskuragarri eta saltatu dira.                                                                                                                                              |
+| `pick.unavailableSummary.one` | 1 canción no estaba disponible y se ha saltado.                                                                                                                   | 1 song was not available and was skipped.                                                                                                                      | Abesti 1 ez zegoen eskuragarri eta saltatu da.                                                                                                                                                      |
+| `pick.send`                   | Enviar {count} al móvil                                                                                                                                           | Send {count} to the phone                                                                                                                                      | Bidali {count} mugikorrera                                                                                                                                                                          |
+| `pick.send.one`               | Enviar 1 al móvil                                                                                                                                                 | Send 1 to the phone                                                                                                                                            | Bidali 1 mugikorrera                                                                                                                                                                                |
+| `pick.noneSelected`           | Marca al menos una canción.                                                                                                                                       | Tick at least one song.                                                                                                                                        | Hautatu abesti bat gutxienez.                                                                                                                                                                       |
+| `pick.gotPlaylist`            | Llegan {count} canciones de «{name}». Se guardarán en esa playlist.                                                                                               | {count} songs from “{name}” are on their way. They will be saved in that playlist.                                                                             | «{name}» playlisteko {count} abesti datoz. Playlist horretan gordeko dira.                                                                                                                          |
+| `pick.gotPlaylist.one`        | Llega 1 canción de «{name}». Se guardará en esa playlist.                                                                                                         | 1 song from “{name}” is on its way. It will be saved in that playlist.                                                                                         | «{name}» playlisteko abesti 1 dator. Playlist horretan gordeko da.                                                                                                                                  |
+| `pick.mixSongOnly`            | Es un Mix automático de YouTube: solo se usará esta canción.                                                                                                      | This is an automatic YouTube Mix: only this song will be used.                                                                                                 | YouTubeko Mix automatiko bat da: abesti hau bakarrik erabiliko da.                                                                                                                                  |
+| `pick.openPlaylist`           | Ver la playlist entera                                                                                                                                            | See the whole playlist                                                                                                                                         | Ikusi playlist osoa                                                                                                                                                                                 |
+| `pick.err.mix`                | Los Mix de YouTube cambian solos y no se pueden enviar enteros. Abre una playlist normal o elige las canciones una a una.                                         | YouTube Mixes change by themselves and cannot be sent whole. Open a normal playlist or pick the songs one by one.                                              | YouTubeko Mixak beren kabuz aldatzen dira eta ezin dira osorik bidali. Ireki playlist arrunt bat edo aukeratu abestiak banan-banan.                                                                 |
+| `pick.err.personal`           | «Me gusta» y «Ver más tarde» son privadas de tu cuenta de YouTube y no se pueden abrir. Copia las canciones a una playlist pública o no listada y pega su enlace. | “Liked videos” and “Watch later” are private to your YouTube account and cannot be opened. Copy the songs to a public or unlisted playlist and paste its link. | «Gustuko bideoak» eta «Ikusteko geroago» zure YouTube kontuko zerrenda pribatuak dira eta ezin dira ireki. Kopiatu abestiak playlist publiko edo zerrendatu gabeko batera eta itsatsi haren esteka. |
+| `pick.err.private`            | No podemos abrir esta playlist: es privada o ya no existe. En YouTube, ponla como «Pública» o «No listada» y vuelve a pegar el enlace.                            | We cannot open this playlist: it is private or no longer exists. In YouTube, set it to “Public” or “Unlisted” and paste the link again.                        | Ezin dugu playlist hau ireki: pribatua da edo ez dago jada. YouTuben, jarri «Publikoa» edo «Zerrendatu gabea» eta itsatsi esteka berriro.                                                           |
+| `pick.err.none`               | Este enlace no es de una playlist de YouTube.                                                                                                                     | This link is not a YouTube playlist.                                                                                                                           | Esteka hau ez da YouTubeko playlist batena.                                                                                                                                                         |
+
+Se **borran** (es/en/eu): `parcel.playlistLink` y `dl.playlistEmpty` (T6 deja de usarlas).
 
 ## Tareas
 
-### T1 · Notificación nativa con un solo escritor y límite de frecuencia · Grupo A · Estado: HECHA
+### T1 · Shared: clasificar enlaces, contar no disponibles y contratos del Hub · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/DownloadService.java`,
-  `.../DownloaderPlugin.java`, `.../DownloadQueue.java`, `.../NotificationThrottle.java` (nuevo)
-- Leer como contexto: sección «Causas encontradas» y contrato C1 de este plan.
+- Archivos (exclusivos): `packages/shared/src/youtube.ts`, `packages/shared/src/hub.ts`,
+  `packages/shared/test/youtube.test.ts`, `packages/shared/test/hub.test.ts`
+- Leer como contexto: contratos C1 y C2.
 - Qué hacer:
-  1. `NotificationThrottle` (clase final, en inglés, < 100 líneas): constructor
-     `(Handler main, NotificationManager nm, int id)`. `submit(Notification n, boolean phaseChange)`:
-     guarda `n` como pendiente; publica ya si han pasado ≥ 1000 ms desde la última publicación (o
-     ≥ 250 ms si `phaseChange`); si no, programa con `postDelayed` una sola publicación para cuando
-     toque (la última pendiente gana). `cancelPending()` quita lo programado. Todo en el hilo principal.
-  2. `DownloadService`: crea el throttle en `onCreate`; **todas** las llamadas a `nm.notify(ID, …)`
-     pasan por él. El `static update(...)` pasa a hacer `instance.main.post(() -> instance.submitFromJs(...))`
-     (si `instance` es null, no hace nada: el plugin ya arranca el servicio). `submitFromJs` guarda
-     `lastJsUpdateAt` y marca `phaseChange` cuando cambian título o texto respecto al último de JS.
-  3. `refreshNotification()`: escribe la notificación nativa si `!jsKeepAlive` **o** si
-     `busy && now - lastJsUpdateAt > 10_000` (JS congelado). `onProgress` llama a refresh solo si
-     cambia el % entero (como hoy); el throttle se encarga del resto. Cambios de espera de red,
-     inicio de canción y fin de canción → `phaseChange = true`.
-  4. `nativeNotification`: título = `texts.progress` con `{done}`/`{total}`; texto = título de la
-     canción actual (`Job.title`, vacío → nombre de la app) o `texts.waiting` si espera red; barra
-     = progreso total del lote `(done * 100 + pctActual) / total` (C1; `pctActual` = 0 si espera red;
-     nunca indeterminada). Guarda el `Job` actual en un campo para tener su título.
-  5. `DownloadQueue.Job`: añade `title` (C1), en `readJob`/`writeJob`. `DownloaderPlugin.queue` lo lee
-     con `optString("title", "")`, recortado a 200 caracteres.
-  6. Aviso final: `DownloaderPlugin.setNotification` con `active=false` lee `doneText`; si no está
-     vacío llama a un nuevo `DownloadService.showDone(Context, String)` (static; reutiliza la lógica de
-     `showNotice`: ID 4243, `setAutoCancel(true)`, silenciosa) **antes** de `appStateChanged()`.
-     Se muestra siempre, esté la app abierta o no. Nuevo `@PluginMethod clearDoneNotice` →
-     `DownloadService.clearDone(Context)` (static, `nm.cancel(4243)`; no pasa por el throttle, que es del ID 4242).
-  7. `onQueueEmpty`/`onDestroy`/`onTimeout`: `throttle.cancelPending()` antes de `stopForeground`.
-  8. Funciones < 50 líneas, comentarios en inglés, sin logs de depuración.
-- TDD: no (código Android; se prueba en el móvil).
+  1. Tests primero (C1): `classifyPlaylistLink` con `playlist?list=PL…`, `music.youtube.com/playlist?list=OLAK5uy…`,
+     `watch?v=…&list=PL…` (→ playlist), `list=RDxxxx` (→ mix), `list=LL`/`LM`/`WL` (→ personal), enlace no
+     YouTube y `watch?v=` sin `list` (→ none); `isPlaylistId`; `countUnavailable` (no agotada → skipped;
+     agotada 168 anunciadas y 160 leídas con 3 saltadas → 8; nunca negativo; totalCount null → skipped).
+  2. `parsePlaylistPage` cuenta en `unavailable` los `playlistVideoRenderer` con `isPlayable === false` o
+     sin `videoId` (siguen sin añadirse a `entries`). Ajustar los `toEqual` existentes con `unavailable: 0`
+     y añadir un test con 2 no reproducibles.
+  3. `hub.ts`: C2 (`HUB_LIMITS` nuevos/cambiados, `ParcelRequest`, `ClaimedParcel`, `playlist_unavailable`,
+     `sanitizeParcelName` reutilizando `cleanText`). Test de `sanitizeParcelName` (control chars, recorte a 120, no string → '').
+- TDD: sí.
 - Criterios de aceptación:
-  - [ ] Ninguna llamada a `notify(ID, …)` fuera de `NotificationThrottle`.
-  - [ ] Compila: `.\gradlew.bat compileReleaseJavaWithJavac` en `apps/mobile/android`.
-  - [ ] En el móvil (tras T5): bajando 10 canciones, `adb logcat | findstr /i "shedding"` no muestra
-        nada de `io.github.ando144.askestream`; la notificación avanza «1 de 10 … 10 de 10».
-  - [ ] Con la app cerrada, la notificación muestra contador, título de la canción y barra total del lote
-        (no vuelve a 0 al cambiar de canción).
-  - [ ] El aviso final aparece también con la app abierta y desaparece al llamar a `clearDoneNotice`.
-- Verificación: en PowerShell con `JAVA_HOME` = `C:\Program Files\Android\Android Studio\jbr` y
-  `ANDROID_HOME` = `%LOCALAPPDATA%\Android\Sdk`: `cd apps/mobile/android; .\gradlew.bat compileReleaseJavaWithJavac`.
+  - [ ] Tests nuevos y existentes de `packages/shared` en verde.
+  - [ ] `HUB_LIMITS.parcelMaxSongs === LIMITS.playlistMaxTracks` comprobado en un test.
+- Verificación: `npx vitest run --root packages/shared`
 
-### T2 · Textos (es/en/eu) y ayuda · Grupo A · Estado: HECHA
+### T2 · Textos (es/en/eu), ayuda y documentación del Hub · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/eu.ts`,
-  `apps/web/src/help/articles/offline.ts`, `apps/web/src/help/articles/listen.ts`
-- Leer como contexto: contrato C3; `apps/web/test/i18n.test.ts`.
+- Archivos (exclusivos): `apps/web/src/i18n/pick.ts` (nuevo), `apps/web/src/i18n/parcel.ts`,
+  `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/eu.ts`,
+  `apps/web/src/help/articles/music.ts`, `docs/hub.md`, `docs/PRIVACY.md`
+- Leer como contexto: contrato C7; `apps/web/test/i18n.test.ts`; `apps/web/src/i18n/parcel.ts` (patrón).
 - Qué hacer:
-  1. Añadir/cambiar exactamente las claves de C3 en los tres idiomas (junto a las `dl.notif*` y
-     `common.*` existentes; `boot.*` en un bloque nuevo cerca de `common.*`).
-  2. `offline.ts`, artículo `offline-how`: un párrafo en es/en/eu: «Si la cobertura es mala (por
-     ejemplo, en el tren), la app espera unos segundos y abre con tu música descargada. Verás un aviso
-     arriba; cuando vuelva la conexión desaparece solo y vuelve toda tu música.»
-  3. `listen.ts`, artículo `queue`: párrafo sobre aleatorio: «El aleatorio no repite ninguna canción
-     hasta que han sonado todas las de esa lista. Cada lista (tu biblioteca, cada playlist…) recuerda
-     por dónde ibas. Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta,
-     la primera nunca es la última que sonó.»
-  4. Lenguaje sencillo, sin jerga, sin enlaces nuevos (si añades alguno, que exista).
-- TDD: no (lo cubre el test de paridad y el de enlaces).
+  1. Crear `pick.ts` con `pickEn`, `pickEs: Record<keyof typeof pickEn, string>`, `pickEu` y las claves
+     de C7 tal cual; añadir `...pickEn/Es/Eu` en `en.ts`/`es.ts`/`eu.ts` junto a `...parcel*`.
+  2. Borrar `parcel.playlistLink` (parcel.ts) y `dl.playlistEmpty` (es/en/eu).
+  3. `music.ts`: en `send-with-code` añadir una sección «Enviar una playlist entera» (es/en/eu): pega el
+     enlace de la playlist, se marcan todas, quita las que no quieras, «Enviar al móvil», escanea el
+     código; en el móvil se crea una playlist con ese nombre (si ya tienes una igual, se llamará
+     «Nombre (2)»); hasta 1000 canciones; las privadas o borradas se saltan y te avisamos; los Mix,
+     «Me gusta» y «Ver más tarde» no se pueden. En `download-youtube` un párrafo corto: al pegar el
+     enlace de una playlist en el móvil puedes quitar canciones antes de descargar. Lenguaje sencillo;
+     enlaces `[[id|texto]]` solo a artículos que existan.
+  4. `docs/hub.md`: documentar `GET /hub/v1/playlists/:id` (C3), los campos nuevos de los paquetes y
+     la migración 0003. `docs/PRIVACY.md`: el Hub pide a YouTube la playlist pública que pegas para
+     enseñártela y no guarda nada; el paquete guarda además el nombre de la playlist durante 24 h como mucho.
+- TDD: no (lo cubren los tests de paridad y de enlaces).
 - Criterios de aceptación:
-  - [ ] Las 8 claves existen en es, en y eu con los textos de C3.
-  - [ ] Pasan `apps/web/test/i18n.test.ts` y el test de enlaces de ayuda.
+  - [ ] Todas las claves de C7 en es/en/eu; las dos claves borradas ya no existen.
+  - [ ] Pasan `i18n.test.ts` y `help.test.ts`.
 - Verificación: `npx vitest run test/i18n.test.ts test/help.test.ts --root apps/web`
+  (fallará el tipado de `DownloadView.tsx` hasta T6 por las claves borradas: es esperado).
 
-### T3 · Lógica pura del ciclo aleatorio · Grupo A · Estado: HECHA
+### T3 · Hub: lectura de playlists y paquetes con nombre · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/player/shuffleCycle.ts` (nuevo), `apps/web/test/shuffleCycle.test.ts` (nuevo)
-- Leer como contexto: `apps/web/src/player/queue.ts`, `apps/web/src/offline/planner.ts` (`shuffled`), contrato C5.
-- Qué hacer: implementar C5 (incluidos `cycleFor` y `rememberCycle`, memoria por lista) usando
-  `shuffled()` de `offline/planner.ts` (no reescribir Fisher-Yates; nunca `sort` con aleatorio).
-  Escribir primero los tests con un `random` determinista (semilla tipo LCG o secuencia fija).
-- TDD: sí.
-- Criterios de aceptación (tests):
-  - [ ] `shuffledCycleOrder` devuelve una permutación de `ids` (mismo tamaño, sin duplicados).
-  - [ ] Todas las no oídas van antes que cualquier oída; `firstId` va primero.
-  - [ ] Si todas estaban oídas, la primera ≠ `lastPlayed` (probar 200 semillas, `ids.length` 2 y 50).
-  - [ ] `recordPlayed` no duplica; al completar todas devuelve `played: []`.
-  - [ ] `insertShuffled` conserva `context[0..index]` intacto y todas las nuevas quedan detrás de `index`.
-  - [ ] `cycleKey` prioriza `cycleKey` > `path` > `label`; `cycleFor` devuelve el guardado o uno vacío.
-  - [ ] `rememberCycle` con 21 listas conserva 20 y descarta la de `usedAt` más antiguo; no muta la entrada.
-  - [ ] Uniformidad aproximada: con 4 ids y 40 000 barajados con `Math.random`, cada id aparece en
-        primera posición entre el 22 % y el 28 %.
-- Verificación: `npx vitest run test/shuffleCycle.test.ts --root apps/web`
-
-### T4 · Tiempos máximos, conectividad y uso en audio y biblioteca · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/lib/timeout.ts` (nuevo), `apps/web/src/lib/boot.ts` (nuevo),
-  `apps/web/src/stores/connectivity.ts` (nuevo), `apps/web/src/storage/media.ts`, `apps/web/src/stores/library.ts`,
-  `apps/web/test/timeout.test.ts` (nuevo), `apps/web/test/connectivity.test.ts` (nuevo), `apps/web/test/boot.test.ts` (nuevo)
-- Leer como contexto: contrato C4; `apps/web/src/api/client.ts` (`api.health`, `ApiError`),
-  `apps/web/src/hub/client.ts` (`HUB_URL`, `hubAvailable`), `apps/web/src/stores/setup.ts` (`config.home`).
+- Archivos (exclusivos): `apps/hub/src/lib/playlist.ts` (nuevo), `apps/hub/src/routes/playlists.ts` (nuevo),
+  `apps/hub/src/routes/parcels.ts`, `apps/hub/src/index.ts`, `apps/hub/migrations/0003_parcel_playlist.sql` (nuevo),
+  `apps/hub/test/fakeDb.ts`, `apps/hub/test/parcels.test.ts`, `apps/hub/test/playlists.test.ts` (nuevo)
+- Leer como contexto: contratos C1-C3; `apps/hub/src/lib/search.ts` y `routes/search.ts` (patrón);
+  `apps/hub/test/search.test.ts` (cómo se simula `fetch`).
 - Qué hacer:
-  1. Tests primero para `withTimeout`/`isTimeout`, `bootReady`, `nextRetryDelay` y el store creado con
-     `createConnectivityStore` usando `probe` y `schedule` falsos (`vi.useFakeTimers`): estado inicial
-     `checking`; fallo → `offline` + reintento programado con 5 s, 10 s…; éxito tras fallo → `online` y
-     `onReconnect` llamado una vez; `check()` re-entrante = una sola sonda.
-  2. Implementar C4. `startConnectivityWatch` registra los eventos una sola vez y devuelve la función de limpieza.
-     La sonda por defecto solo contacta con el Worker propio (Cloudflare) o el Hub propio; ninguna URL de terceros.
-  3. `storage/media.ts`: cambiar las dos condiciones `navigator.onLine` de `resolveAudio` y la de
-     `driveCoverBlob` por `canUseNetwork()`.
-  4. `stores/library.ts` `load()`: envolver `getHome().load(...)` en `withTimeout(…, 20_000)` (la
-     biblioteca grande puede tardar más que la sonda) para que `loading` vuelva a false; en el `catch`,
-     si `isTimeout(err)` llamar a `useConnectivity.getState().reportTrouble()`. El resto igual.
-  5. Errores: nunca tragarlos sin más; si se ignoran, `console.warn` con el motivo (patrón existente).
+  1. Tests primero: 400 con id inválido (`RDxx…`, `LL`, corto) y con `continuation` > 4096; 502 si
+     `fetch` falla; 404 `playlist_unavailable` si la primera página viene vacía; 200 con `PlaylistPage`
+     (usa un JSON mínimo con dos `playlistVideoRenderer`); con `continuation` el cuerpo enviado a YouTube
+     lleva `continuation` y no `browseId`. Paquetes: acepta 1000 canciones, rechaza 1001 (413), guarda
+     `name` limpio y `unavailable`, el claim los devuelve; sin `name` devuelve `name: ''`, `unavailable: 0`.
+  2. `lib/playlist.ts`: `fetchPlaylistPage(id, continuation, lang): Promise<PlaylistPage>` con
+     `buildBrowseRequest` + `parsePlaylistPage`; errores como `lib/search.ts`.
+  3. `routes/playlists.ts` (C3) y montarlo en `index.ts` (`app.route('/hub/v1/playlists', playlistRoutes)`).
+  4. `parcels.ts`: `CreateBody` con `name` y `unavailable` opcionales; INSERT/claim de C3. `fakeDb.ts`:
+     7 argumentos en el INSERT y `name`/`unavailable` en la fila.
+  5. Migración 0003 de C3.
 - TDD: sí.
 - Criterios de aceptación:
-  - [ ] Tests nuevos en verde; `npm run check` sin errores de tipos.
-  - [ ] Ninguna referencia a `navigator.onLine` queda en `storage/media.ts`.
-  - [ ] `grep generate_204 apps/web/src` no encuentra nada.
-  - [ ] Ningún import circular nuevo (connectivity importa setup/api/hub; ninguno de ellos importa connectivity).
-- Verificación: `npx vitest run test/timeout.test.ts test/connectivity.test.ts test/boot.test.ts --root apps/web`
+  - [ ] Tests de `apps/hub` en verde; funciones < 50 líneas.
+  - [ ] Ningún dato de la playlist se guarda en D1 (solo el contador de límite).
+- Verificación: `npx vitest run --root apps/hub`
 
-### T5 · Notificación desde JS: contenido, frecuencia y aviso final · Grupo B · Estado: HECHA
+### T4 · Web: lector de playlists común, fuente móvil/Hub y selección · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/downloads/notification.ts` (nuevo), `apps/web/test/notification.test.ts` (nuevo),
-  `apps/web/src/stores/downloads.ts`, `apps/web/src/native/downloader.ts`, `apps/web/src/downloads/types.ts`,
-  `apps/web/src/downloads/pipeline.ts`, `apps/web/test/downloadsStore.test.ts` (solo si hay que ajustarlo)
-- Leer como contexto: contratos C1, C2, C3; `apps/web/src/downloads/batch.ts`; `apps/web/test/fake-native/` (si existe un falso de `Downloader`, añadir allí `doneText`/`title` solo si su tipo lo exige — en ese caso ese archivo también es de esta tarea).
+- Archivos (exclusivos): `apps/web/src/downloads/playlistReader.ts` (nuevo), `apps/web/src/downloads/playlistSource.ts` (nuevo),
+  `apps/web/src/downloads/pickSelection.ts` (nuevo), `apps/web/src/native/downloader.ts`, `apps/web/src/hub/client.ts`,
+  `apps/web/test/fake-native/downloader.ts`, `apps/web/test/playlistReader.test.ts` (nuevo),
+  `apps/web/test/playlistSource.test.ts` (nuevo), `apps/web/test/pickSelection.test.ts` (nuevo),
+  `apps/web/test/hubClient.test.ts`
+- Leer como contexto: contratos C1, C2, C4, C5; `apps/web/src/lib/timeout.ts`.
 - Qué hacer:
-  1. Tests primero de `buildNotification`, `shouldSend` y `doneNotice` (con un `t` falso que devuelva
-     `clave|param=valor`): fases descargando/guardando/esperando red, contador, última canción,
-     dedupe, progreso limitado a 1/s, cambio de título enviado al momento, aviso con y sin fallos,
-     `batchProgress` (3 de 10 al 50 % → 25; guardando la 3.ª → 30; la barra nunca baja al pasar de
-     «guardando» a la siguiente canción ni con «esperando red»).
-  2. Implementar C2 en `downloads/notification.ts`.
-  3. `native/downloader.ts`: añadir `doneText?` a `setNotification` y el método `clearDoneNotice()`
-     (C1; en web/sin plugin no hace nada) y sustituir su `withTimeout` local por el de `lib/timeout.ts`
-     (el mensaje sigue siendo `'timeout'`).
-  4. `downloads/types.ts` + `pipeline.ts`: `NativeJob.title` y `jobsForNative` lo rellena con
-     `j.title.slice(0, 200)`.
-  5. `stores/downloads.ts`: reescribir `notify()` (< 30 líneas) para usar `buildNotification` y
-     `shouldSend`, guardando `lastSent`; si hay un envío pendiente por frecuencia, programar uno
-     solo con `setTimeout` para cuando toque (la última gana). Cuando no hay activos:
-     `setNotification({ active: false, doneText })`, con `doneText = doneNotice(...)` calculado con los
-     trabajos terminados en el lote que acaba (mismos que usa `finishQueue`: `finishedAt` en el último
-     minuto o el `batchId` activo); reiniciar `lastSent`. Pasar `get().waitingNetwork` a `buildNotification`.
-  6. Las llamadas actuales a `notify()` (listener `progress`, `finished`, `saveJob`…) se quedan como
-     están: el límite lo pone `shouldSend`. No añadir llamadas nuevas.
-  7. Aviso final siempre (también con la app abierta). Quitarlo al abrir la app: en `init()` del store
-     llamar a `clearDoneNotice()` y registrar un `visibilitychange` que lo llame al volver a visible
-     (una sola vez, idempotente); errores → `console.warn`, sin bloquear.
-- TDD: sí (lógica pura de `notification.ts`).
+  1. Tests primero de `readPages`/`listingFromRead` con un `PageFetcher` falso: varias páginas, duplicados,
+     corte en `maxPages` y en `maxSongs`, página `null`, página vacía, `exhausted`, suma de `unavailable`,
+     `onPage` llamado por página. Tests de `pickSelection` (C5). Tests de `listPlaylist` con
+     `vi.mock` de `../src/native/platform`, `../src/native/downloader` y `../src/hub/client`: mix/personal/none
+     lanzan `PlaylistLinkError`; Hub `playlist_unavailable` → `'private'`; móvil sin canciones → `'private'`;
+     timeout con canciones devuelve lo leído. En `hubClient.test.ts`: URL de `fetchPlaylistPage` y cuerpo de `createParcel` con meta.
+  2. Implementar C4 y C5. Mover el bucle de `readPlaylistPages` de `native/downloader.ts` a `readPages`
+     (mismo comportamiento) y reexportar `PlaylistListing`.
+  3. `test/fake-native/downloader.ts`: que su `listPlaylistOnPhone` devuelva `unavailable: 0` (o el valor
+     que tenga sentido) para cumplir el tipo.
+- TDD: sí.
 - Criterios de aceptación:
-  - [ ] Tests nuevos en verde y `downloadsStore.test.ts` en verde.
-  - [ ] `stores/downloads.ts` < 650 líneas y todas sus funciones < 50 líneas.
-  - [ ] Con 10 canciones en el móvil (tras T1): título «Descargando N de 10», texto con la canción y
-        «quedan…», barra total que solo avanza, «Guardando N de 10» al guardar, y al acabar aviso
-        «10 canciones guardadas en tu biblioteca» (también con la app abierta), que desaparece al
-        volver a abrir la app.
-- Verificación: `npx vitest run test/notification.test.ts test/downloadsStore.test.ts --root apps/web` y después `npm run check`.
+  - [ ] Tests nuevos y `hubClient.test.ts` en verde; `native/downloader.ts` no crece (< 230 líneas).
+  - [ ] Sin imports circulares nuevos (`playlistReader.ts` solo importa de `@aske/shared`).
+- Verificación: `npx vitest run test/playlistReader.test.ts test/playlistSource.test.ts test/pickSelection.test.ts test/hubClient.test.ts --root apps/web`
 
-### T6 · Aleatorio con ciclo en el reproductor, lista viva y docs · Grupo B · Estado: HECHA
+### T5 · Store de paquetes: enviar playlist y recibirla como playlist · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/stores/player.ts`, `apps/web/src/views/LibraryView.tsx`,
-  `docs/ESTADO.md`, `docs/v2/architecture.md`
-- Leer como contexto: contrato C5, `apps/web/src/player/shuffleCycle.ts` (T3), `apps/web/src/player/queue.ts`.
+- Archivos (exclusivos): `apps/web/src/stores/parcel.ts`, `apps/web/test/parcelStore.test.ts`
+- Leer como contexto: contratos C2, C6, C7; `apps/web/src/i18n/index.ts` (cómo resuelve `.one`).
 - Qué hacer:
-  1. `PlayContext` añade `live?: 'library'` y `cycleKey?: string`. Estado nuevo
-     `shuffleCycles: ShuffleCycles` (memoria por lista), guardado en `Saved` (`player-v2`, campo
-     opcional; si falta, `{}`).
-  2. `playTracks` con aleatorio (rama no-ahorro-de-datos) y `toggleShuffle` al activar: usar
-     `shuffledCycleOrder(ids, first, played, lastPlayed)` con
-     `played = cycleFor(shuffleCycles, cycleKey(contexto), Date.now()).played`; `lastPlayed` = `currentId` actual.
-  3. En `loadCurrent`, tras obtener `src` con éxito y si `shuffle && !fromQueue`: `recordPlayed` sobre el
-     ciclo de la lista actual y guardarlo con `rememberCycle` (máx. 20 listas).
-  4. En `step`, el cambio de vuelta (`ni === 0 && shuffle`) usa `shuffledCycleOrder(original, null,
-new Set(cicloDeLaListaActual.played), últimoQueSonó)` en lugar de `reshuffleForNextLap` (quita el import si queda sin uso;
-     si `reshuffleForNextLap` queda sin uso en todo `src`, no lo borres de `queue.ts`: avisa en el informe).
-  5. Lista viva: suscripción a `useLibrary` (fuera del `create`, junto a los listeners del audio) que,
-     si `contextInfo?.live === 'library'` y cambia `order`, calcula ids nuevos (en `order`, no en
-     `original`, `kind !== 'podcast'`), los añade al final de `original` y al `context` con
-     `insertShuffled` (aleatorio) o al final (sin aleatorio); persiste. Los borrados ya los quita `forgetTracks`.
-  6. `LibraryView`: pasar `live: 'library'` en `context` solo si `filter === 'all'` y la búsqueda está
-     vacía, y siempre `cycleKey: \`library:${filter}:${normalizeText(deferredQuery.trim())}\``(C5). Quitar el banner`!online` de esta vista (lo sustituye el banner global de T7) y los imports
-     que queden sin uso.
-  7. Docs: en `docs/ESTADO.md` añadir «v0.8.4 (en curso)» con los tres arreglos y en «Decisiones» una
-     línea por cada decisión de este plan; en `docs/v2/architecture.md` añadir la fila
-     `| 7.2 | Reliability: download notification, slow-network start (splash + offline mode), shuffle cycles | ✅ |`
-     tras la 7.1 (con el estado vacío hasta que Andoni lo pruebe: déjalo en blanco).
-- TDD: no (integración en el store; la lógica tiene tests en T3). Ejecutar los tests existentes.
+  1. Tests primero: `sendPlaylist` (0 canciones, más de 1000, éxito llama a `createParcel(songs, { name, unavailable })`
+     y deja `current` en `waiting`, `busy` impide doble envío); `receive` con `name` llama a `enqueue` con
+     `{ playlistName: name, playlistMode: 'new' }` y sin `name` con `{}`; `receivedMessage` (con/sin nombre,
+     con/sin no disponibles, queued 0). Los tests actuales de cesta siguen pasando (`createParcel([song(1)])`).
+  2. Implementar C6. `hub/client.createParcel` ya acepta `meta` (T4): no tocar `hub/client.ts`.
+- TDD: sí.
 - Criterios de aceptación:
-  - [ ] Pulsar «Aleatorio» dos veces seguidas en la biblioteca no vuelve a poner primero canciones ya oídas en el ciclo.
-  - [ ] Escuchar en aleatorio una playlist, pasar a la biblioteca y volver a la playlist retoma su ciclo
-        (no repite las ya oídas en esa playlist).
-  - [ ] Una canción descargada mientras suena el aleatorio de «Todo» aparece después en «A continuación».
-  - [ ] `npm run check` en verde; `player.ts` < 800 líneas; funciones < 50 líneas.
-- Verificación: `npx vitest run test/queue.test.ts test/shuffleCycle.test.ts --root apps/web` y `npm run check`.
+  - [ ] `parcelStore.test.ts` en verde; `parcel.ts` < 300 líneas, funciones < 50 líneas.
+- Verificación: `npx vitest run test/parcelStore.test.ts --root apps/web`
 
-### T7 · Pantalla de arranque, setup con tiempo máximo y banner sin conexión · Grupo B · Estado: HECHA
+### T6 · Pantalla de elegir canciones y enlaces de playlist · Grupo C · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/App.tsx`, `apps/web/src/stores/setup.ts`,
-  `apps/web/src/components/BootSplash.tsx` (nuevo), `apps/web/src/components/ConnectionBanner.tsx` (nuevo),
-  `apps/web/src/styles.css`, `apps/web/index.html`
-- Leer como contexto: contratos C3 y C4; `apps/web/src/components/ServerUpdateBanner.tsx` (estilo de banner);
-  `apps/mobile/android/app/src/main/res/values/styles.xml` (fondo `#14110F`).
+- Archivos (exclusivos): `apps/web/src/components/downloads/PlaylistPicker.tsx` (nuevo),
+  `apps/web/src/components/downloads/PickList.tsx` (nuevo), `apps/web/src/views/DownloadView.tsx`,
+  `apps/web/src/styles.css`, `docs/ESTADO.md`, `docs/v2/architecture.md`
+- Leer como contexto: contratos C4-C7; `apps/web/src/stores/parcel.ts` (`parcelErrorText`, `sendPlaylist`);
+  `apps/web/src/components/send/ParcelSheet.tsx` (el QR sale solo al crear el paquete).
 - Qué hacer:
-  1. `setup.ts` `init()`: hogar guardado distinto de Cloudflare → `status: 'ready'` al momento y
-     `sameOriginApi` después con `withTimeout(hasSameOriginApi(), BOOT_TIMEOUT_MS)` (timeout → false).
-     Cloudflare → `withTimeout(api.status(), BOOT_TIMEOUT_MS)`; timeout o `ApiError` status 0 → `ready`
-     (como hoy sin conexión). Primera vez: `hasSameOriginApi` y `api.status` también con timeout.
-  2. `BootSplash.tsx`: pantalla completa, fondo `#14110F`, `<img src="/favicon.svg">` con clase
-     `boot-logo` (pulso suave de escala + brillo ámbar con `var(--accent)`), `aria-label={t('boot.loading')}`,
-     y tras `BOOT_CONNECTING_HINT_MS` el texto `boot.connecting` (aria-live polite).
-  3. `index.html`: dentro de `#root`, el mismo marcado estático (logo + clases) para que se vea
-     antes de cargar el JS; React lo sustituye. Sin texto (aún no hay idioma).
-  4. `styles.css`: estilos `.boot-splash`, `.boot-logo` con `@keyframes`, y
-     `@media (prefers-reduced-motion: reduce)` sin animación; estilos de `.connection-banner` en ámbar
-     suave (reutilizar `.banner` si encaja). Una sola paleta ámbar.
-  5. `App.tsx`:
-     - En el efecto de arranque: `useSetup.getState().init()` primero (su parte síncrona fija el hogar),
-       luego `startConnectivityWatch()` y `void useConnectivity.getState().check()`; limpiar al desmontar.
-     - Guardar el instante de arranque; un temporizador fuerza re-render a los 1000 ms y a los 5000 ms.
-       Mientras `!bootReady(...)` → `<BootSplash />` (sustituye al `LoaderCircle`).
-     - `useBackgroundSync`: ningún paso bloquea al siguiente: `await withTimeout(sync(), BOOT_TIMEOUT_MS)`
-       con `catch` → si `isTimeout`, `useConnectivity.getState().reportTrouble()`; `checkInbox()` solo si
-       `canUseNetwork()`. Registrar `onReconnect(...)` que hace lo mismo que `onOnline` (sync,
-       `downloads.resume()`, `checkInbox()`, `useServerUpdate.getState().check()`); devolver su limpieza.
-     - En `Shell`, `useServerUpdate.check()` y `useJam.resume()` envueltos en `withTimeout(…, BOOT_TIMEOUT_MS)`
-       con `catch` que registre con `console.warn` (no bloquean nada).
-     - Montar `<ConnectionBanner />` junto a `<ServerUpdateBanner />`.
-  6. `ConnectionBanner.tsx`: si `useConnectivity(s => s.status) === 'offline'` muestra icono `WifiOff`,
-     `common.offlineBanner` y debajo `common.offlineBannerHint` en pequeño; `role="status"`. Sin botón
-     (se reintenta solo). Se oculta solo al volver a `online`.
-- TDD: no (UI y cableado; la lógica de tiempos está probada en T4).
+  1. Mover `PlaylistSheet`, `PlaylistCover`, `emptyListing` y `videoThumb` de `DownloadView.tsx` a
+     `PlaylistPicker.tsx` (export `PlaylistPicker({ result, via, onClose })`, con `via: 'cloudflare' | 'hub' | null`
+     exportado o redefinido igual). Cargar con `listPlaylist` (C4) en móvil **y** ordenador, con `onPartial`.
+  2. `PickList.tsx`: lista de casillas (`<label>` con checkbox y «n. título · autor»), botones
+     `pick.all`/`pick.none`, contador `pick.selected`; usa `initialSelection`/`toggleSelection` con
+     `LIMITS.playlistMaxTracks`; si `refused` → `toast(t('pick.max', { count: 1000 }))`. Accesible con teclado.
+  3. Avisos en el picker: `pick.loading`/`pick.loadingMore`; `pick.unavailableNote` si `unavailable > 0`;
+     `pick.overLimit` si `totalCount > 1000`; `dl.playlistPartial` como hoy. Errores: `PlaylistLinkError` →
+     `t('pick.err.' + reason)`; `HubError` → `parcelErrorText`; `'timeout'` → `dl.playlistSlow`.
+  4. Botón: móvil → `dl.downloadAll` con las marcadas; `enqueue(pickedEntries(...), { playlistName, playlistMode })`
+     (casilla «crear playlist» y pregunta añadir/nueva como hoy) y, si `unavailable > 0`,
+     `toast(t('pick.unavailableSummary', { count }))`. Ordenador con Hub (`hubAvailable()`, sea `via` 'hub' o
+     'cloudflare') → `pick.send` → `useParcel.getState().sendPlaylist({ name: title, songs, unavailable })`
+     (canciones `{ videoId, title, artist, durationMs: duration * 1000 si > 0 }`); si devuelve true se cierra
+     (el QR lo enseña `ParcelSheet`). Ordenador con Cloudflare **sin** Hub → comportamiento de hoy (envía el enlace entero).
+     Deshabilitado si 0 marcadas.
+  5. `DownloadView.tsx` `LinkCard`: usar `classifyPlaylistLink`. `playlist` sin vídeo → abrir el picker en
+     móvil y ordenador (quitar `parcel.playlistLink`). `playlist` con vídeo → tarjeta de canción como hoy +
+     botón secundario `pick.openPlaylist`. `mix` con vídeo → tarjeta de canción + nota `pick.mixSongOnly`;
+     `mix`/`personal` sin vídeo → mensaje `pick.err.mix`/`pick.err.personal` sin botón. `DownloadView.tsx` debe
+     quedar < 500 líneas; `PlaylistPicker.tsx` < 350; funciones < 50 líneas.
+  6. `styles.css`: estilos mínimos de la lista con casillas (reutilizar `.dl-entries`; altura máxima con scroll). Paleta ámbar.
+  7. Docs: `docs/ESTADO.md` (en «Hecho»/«En curso»: playlists enteras en Enviar al móvil, pendiente de
+     `hub:migrate:remote` + `deploy:hub` + `deploy`; decisiones de este plan en una línea cada una) y fila
+     nueva en la tabla de fases de `docs/v2/architecture.md` («Send whole YouTube playlists to the phone»,
+     estado en blanco hasta que Andoni lo pruebe).
+- TDD: no (UI; la lógica tiene tests en T1, T4 y T5).
 - Criterios de aceptación:
-  - [ ] La pantalla de arranque se ve siempre ≥ 1 s y nunca más de ~5 s salvo que el setup local tarde.
-  - [ ] Con Chrome DevTools → Network → «Offline» o una regla que deje colgadas las peticiones
-        (p. ej. bloquear el dominio del Worker), la app abre en ≤ 5 s con la biblioteca guardada,
-        el banner y reproduce lo descargado; al quitar el bloqueo el banner desaparece solo (≤ 60 s).
-  - [ ] `App.tsx` < 400 líneas, funciones < 50 líneas; `npm run check` en verde.
-- Verificación: `npm run check`; después `npm run build -w @aske/web` + `npm run test:e2e` (cerrar wrangler/workerd colgados) y prueba manual en `npm run dev`.
+  - [ ] `npm run check` en verde (formato, tipos, tests, build).
+  - [ ] No queda ninguna referencia a `parcel.playlistLink` ni `dl.playlistEmpty`.
+  - [ ] Tamaños de archivo y funciones dentro de los límites del punto 5.
+- Verificación: `npm run check`; después `npm run build -w @aske/web` y `npm run test:e2e` (cerrar wrangler/workerd colgados).
 
 ## Orden
 
-Grupo A (en paralelo): T1, T2, T3, T4 → Grupo B (en paralelo): T5 (necesita T1 y T2), T6 (necesita T3),
-T7 (necesita T2 y T4). Al final: `npm run check`, `npm run test:e2e` y APK de prueba
-(`.\gradlew.bat assembleRelease`) para probar en el Pixel.
+Grupo A (en paralelo): T1, T2 → Grupo B (en paralelo): T3 (usa T1), T4 (usa T1), T5 (usa T1, T2 y la
+firma de `createParcel` de C4) → Grupo C: T6 (usa todo). Al final `npm run check` y `npm run test:e2e`.
+Publicar: `hub:migrate:remote` antes de `deploy:hub` (la migración añade columnas), luego `deploy`.
 
-## Decisiones tomadas por Andoni (2026-11-22)
+## Riesgos / dudas abiertas
 
-1. Barra de la notificación: progreso **total del lote** (C2 `batchProgress`, C1, T1 paso 4, T5).
-2. Red útil sin terceros: Worker propio en Cloudflare y **Hub propio** en el resto de hogares; nada de
-   `generate_204` de Google (C4, T4).
-3. Memoria del aleatorio: **una por lista** (biblioteca por filtro/búsqueda, cada playlist, «Me gusta»;
-   artista cuando exista vista), hasta 20 listas (C5, T3, T6).
-4. Aviso final «Descargas terminadas»: **siempre**, y se quita al abrir la app (C1 `clearDoneNotice`, T1, T5).
-
-## Riesgos
-
-1. Riesgo: con la barra total, una canción muy larga hace avanzar la barra despacio (cada canción pesa
-   lo mismo en el total); el contador «N de M» lo compensa.
-2. Riesgo: si el Hub propio cae, los hogares «Este dispositivo» y Drive creerán que no hay red y
-   mostrarán el banner (se reintenta solo; la música descargada sigue sonando).
-3. Riesgo: no hay vista de artista; «cada artista» se cubre hoy buscando el artista en la biblioteca
-   (cada búsqueda tiene su propia memoria).
-4. Riesgo: Android puede seguir congelando la WebView en segundo plano; el respaldo de 10 s del servicio
-   (T1) cubre la notificación, pero el guardado en la biblioteca sigue dependiendo de JS (como hoy).
-5. Riesgo: `insertShuffled` en la lista viva solo aplica a «Biblioteca → Todo»; playlists y filtros no se actualizan solos (igual que hoy).
+1. **Ordenador con biblioteca en Cloudflare: ¿cómo se envía una playlist con casillas?** (el plan usa la A)
+   - A (Recomendada): con casillas y código/QR del Hub, igual que sin Cloudflare. Poco trabajo y misma
+     pantalla para todos; inconveniente: hay que escanear el código en vez de que el móvil lo recoja solo.
+   - B: dejarlo como hoy (se manda el enlace entero sin elegir canciones y el móvil lo baja solo). Cero
+     trabajo; inconveniente: no cumple «quitar las que no quiera» en este caso.
+   - C: ampliar el Worker propio de Cloudflare (leer playlist + cola de envío con canciones elegidas). Lo más
+     redondo y automático; inconveniente: migración en la API, más tareas y más riesgo.
+   - Recomiendo A porque cumple lo pedido (casillas + QR/código) sin tocar la API de Cloudflare.
+2. **Nombre repetido al recibir en el móvil** (el plan usa la A)
+   - A (Recomendada): se crea «Nombre (2)» sin preguntar, como ya hace hoy el envío por Cloudflare. Simple
+     y nunca mezcla; inconveniente: reenviar la misma playlist crea otra copia.
+   - B: añadir a la playlist que ya existe (las repetidas se saltan). Útil para «actualizar» una playlist;
+     inconveniente: puede mezclar dos playlists distintas con el mismo nombre.
+   - C: preguntar en el móvil al recibir (añadir / crear nueva). Lo más flexible; inconveniente: un paso
+     más en `ReceiveSheet` y más trabajo.
+   - Recomiendo A por sencillez y coherencia con lo que ya existe.
+3. **Playlists de más de 1000 canciones** (el plan usa la A)
+   - A (Recomendada): se leen y muestran solo las primeras 1000, con aviso. Rápido y barato para el Hub;
+     inconveniente: no se pueden elegir canciones de más allá de la 1000.
+   - B: leer hasta 2000 y dejar marcar cualquier combinación de 1000. Más libertad; inconveniente: el doble de
+     llamadas a YouTube y una lista enorme en pantalla.
+   - Recomiendo A porque el límite de 1000 por playlist ya existe y es raro pasarlo.
+4. Riesgo: el plan gratuito del Worker del Hub tiene poca CPU por petición; analizar una página de
+   YouTube (~0,5-1 MB) cabe como en la búsqueda actual, pero si falla habría que adelgazar el análisis.
+5. Riesgo: las playlists `RDCLAK5uy…` de YouTube Music son listas fijas pero empiezan por `RD` y hoy se
+   tratan como Mix (mensaje «no se puede»). Se deja así; revisarlo si algún amigo lo pide.
+6. Riesgo: las canciones bloqueadas por país solo se descubren al descargar; las cuenta el aviso final de
+   descargas («No se pudieron bajar: N»), no el resumen de «no disponibles».
+7. Riesgo: si se despliega la web antes que el Hub, enviar más de 200 canciones da «Demasiadas canciones»;
+   respetar el orden de publicación.

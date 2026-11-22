@@ -52,8 +52,10 @@ Only if you use these optional features, the app talks to the Aske Hub, a small 
 - **Jams:** the nicknames you type and the queue are kept only while the Jam lasts (at most 12
   hours). No accounts are needed.
 - **Send to phone:** the list of songs (YouTube ids, titles, artists) is kept until the other
-  phone receives it, and at most 24 hours. Then it is deleted. It holds no name, IP or device
-  data.
+  phone receives it, and at most 24 hours. If you send a whole playlist, its name is kept too, for
+  the same time. Then it is deleted. It holds no personal name, IP or device data.
+- **Reading a YouTube playlist:** when you paste the link of a public playlist, the Hub asks YouTube
+  for it to show you its songs. It stores nothing about this.
 - **Abuse limits:** your IP address is used only as a hash with a daily salt, to limit abuse, and
   is never stored in the clear.
 - No usage statistics are collected.
@@ -95,8 +97,10 @@ que reciban tu información, no tiene anuncios ni rastreo, y no vende nada.**
   servidor pequeño que **nunca guarda música**. El nombre de la playlist y las referencias de las
   canciones se guardan 90 días y luego se borran; los apodos y la cola de una Jam, solo mientras
   dura (12 horas como mucho). Al enviar canciones a un móvil, la lista (ids de YouTube, títulos y
-  artistas) se guarda hasta que el otro móvil la recibe, y 24 horas como mucho; luego se borra, y
-  no lleva nombre, IP ni datos del dispositivo. Tu IP se usa únicamente como hash con sal diaria para limitar
+  artistas) se guarda hasta que el otro móvil la recibe, y 24 horas como mucho; si envías una
+  playlist entera, su nombre se guarda el mismo tiempo; luego se borra, y no lleva nombre de
+  persona, IP ni datos del dispositivo. Al pegar el enlace de una playlist pública, el Hub se la
+  pide a YouTube para enseñarte sus canciones y no guarda nada de eso. Tu IP se usa únicamente como hash con sal diaria para limitar
   abusos, nunca en claro. No hay estadísticas.
 - **Estadísticas:** no se envían estadísticas de uso a nadie. Si algún día se envían, será solo
   con tu permiso explícito y estarán desactivadas por defecto.

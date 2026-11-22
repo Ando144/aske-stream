@@ -108,6 +108,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 7   | Hub: shared playlists and in-person Jams                                                                    | ✅     |
 | 7.1 | Send to phone through the Hub: computer → phone and phone → phone (one-time code/QR, 24 h, no music stored) | ✅     |
 | 7.2 | Reliability: download notification, slow-network start (splash + offline mode), shuffle cycles              |        |
+| 7.3 | Send whole YouTube playlists to the phone (pick songs, Hub reads the list, parcel with a name)              |        |
 | 8a  | Local listening stats (opt-in, on this device only) and monthly/yearly Recap                                | ✅     |
 | 8   | Telemetry (opt-in) and admin dashboard                                                                      |        |
 | 8b  | Friend groups through the Hub                                                                               |        |

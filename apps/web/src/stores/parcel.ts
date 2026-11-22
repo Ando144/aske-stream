@@ -21,6 +21,10 @@ export interface ActiveParcel extends CreatedParcel {
   phase: ParcelPhase;
 }
 export type ReceiveOutcome = 'ok' | 'invalid' | 'error';
+interface PlaylistMeta {
+  name: string;
+  unavailable: number;
+}
 
 interface ParcelState {
   /** Computer: songs picked so far (memory only). */
@@ -35,6 +39,11 @@ interface ParcelState {
   clear: () => void;
   create: () => Promise<boolean>;
   sendTracks: (trackIds: readonly string[]) => Promise<boolean>;
+  sendPlaylist: (playlist: {
+    name: string;
+    songs: HubSong[];
+    unavailable: number;
+  }) => Promise<boolean>;
   poll: () => Promise<void>;
   cancel: () => Promise<void>;
   dismiss: () => void;
@@ -71,6 +80,20 @@ export function phaseWhenMissing(expiresAt: number, now: number): ParcelPhase {
   return now < expiresAt ? 'received' : 'expired';
 }
 
+export function receivedMessage(
+  queued: number,
+  name: string,
+  unavailable: number,
+  translate: (key: MessageKey, params?: Record<string, string | number>) => string,
+): string {
+  let base: string;
+  if (queued === 0) base = translate('parcel.nothingNew');
+  else if (name) base = translate('pick.gotPlaylist', { count: queued, name });
+  else base = translate('parcel.gotSongs', { count: queued });
+  if (unavailable > 0) base += ' ' + translate('pick.unavailableSummary', { count: unavailable });
+  return base;
+}
+
 export function parcelErrorText(err: unknown): string {
   if (err instanceof HubError) {
     const key = `parcel.err.${err.code}`;
@@ -80,10 +103,10 @@ export function parcelErrorText(err: unknown): string {
 }
 
 export const useParcel = create<ParcelState>((set, get) => {
-  const start = async (songs: HubSong[]): Promise<boolean> => {
+  const start = async (songs: HubSong[], meta?: PlaylistMeta): Promise<boolean> => {
     set({ busy: true });
     try {
-      const created = await createParcel(songs);
+      const created = await (meta ? createParcel(songs, meta) : createParcel(songs));
       set({ current: { ...created, phase: 'waiting' } });
       return true;
     } catch (err) {
@@ -148,6 +171,19 @@ export const useParcel = create<ParcelState>((set, get) => {
       return start(songs);
     },
 
+    async sendPlaylist({ name, songs, unavailable }) {
+      if (get().busy) return false;
+      if (songs.length === 0) {
+        toast(t('pick.noneSelected'), 'error');
+        return false;
+      }
+      if (songs.length > HUB_LIMITS.parcelMaxSongs) {
+        toast(t('parcel.full', { count: HUB_LIMITS.parcelMaxSongs }), 'error');
+        return false;
+      }
+      return start(songs, { name, unavailable });
+    },
+
     async poll() {
       const { current } = get();
       if (current?.phase !== 'waiting') return;
@@ -192,18 +228,20 @@ export const useParcel = create<ParcelState>((set, get) => {
     async receive(input) {
       const code = parseParcelInput(input);
       if (!code) return 'invalid';
-      let songs;
+      let claimed;
       try {
-        ({ songs } = await claimParcel(code));
+        claimed = await claimParcel(code);
       } catch (err) {
         toast(parcelErrorText(err), 'error');
         return 'error';
       }
+      const { songs, name, unavailable } = claimed;
       try {
+        const items = songs.map((s) => ({ videoId: s.videoId, title: s.title, author: s.artist }));
         const queued = await useDownloads
           .getState()
-          .enqueue(songs.map((s) => ({ videoId: s.videoId, title: s.title, author: s.artist })));
-        toast(queued === 0 ? t('parcel.nothingNew') : t('parcel.gotSongs', { count: queued }));
+          .enqueue(items, name ? { playlistName: name, playlistMode: 'new' } : {});
+        toast(receivedMessage(queued, name ?? '', unavailable ?? 0, t));
         return 'ok';
       } catch (err) {
         // The parcel is already deleted from the Hub, so a retry with this code cannot work.

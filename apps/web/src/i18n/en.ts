@@ -2,6 +2,7 @@ import { cloudflareSetupEn } from './cloudflareSetup';
 import { pairingEn } from './pairing';
 import { shareEn } from './share';
 import { parcelEn } from './parcel';
+import { pickEn } from './pick';
 import { jamEn } from './jam';
 import { statsEn } from './stats';
 /** English is the source of truth: the other languages must define every key. */
@@ -322,7 +323,6 @@ export const en = {
   'dl.batteryText':
     'For downloads to go on with the screen off, Android has to let the app run in the background. Tap “Allow” and accept.',
   'dl.batteryButton': 'Allow',
-  'dl.playlistEmpty': 'This playlist is empty or private.',
   'dl.playlistSlow': 'YouTube is taking too long to answer. Try again in a while.',
   'dl.playlistPartial':
     'We could only read {count} of {total} songs. You can download these now and try again later for the rest.',
@@ -693,6 +693,7 @@ export const en = {
   ...pairingEn,
   ...shareEn,
   ...parcelEn,
+  ...pickEn,
   ...jamEn,
   ...statsEn,
   ...cloudflareSetupEn,

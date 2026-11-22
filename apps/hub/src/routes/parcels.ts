@@ -4,6 +4,7 @@ import {
   HUB_LIMITS,
   normalizeParcelCode,
   sanitizeHubSong,
+  sanitizeParcelName,
   type ClaimedParcel,
   type CreatedParcel,
   type HubSong,
@@ -18,7 +19,11 @@ import { enforceRateLimit } from '../lib/rateLimit';
 const HOUR_MS = 3600 * 1000;
 const CODE_ATTEMPTS = 5;
 
-const CreateBody = z.object({ songs: z.array(z.unknown()) });
+const CreateBody = z.object({
+  songs: z.array(z.unknown()),
+  name: z.unknown().optional(),
+  unavailable: z.number().int().min(0).max(100000).default(0),
+});
 
 interface ParcelRow {
   code: string;
@@ -26,6 +31,8 @@ interface ParcelRow {
   sender_key_hash: string;
   created_at: number;
   expires_at: number;
+  name: string;
+  unavailable: number;
 }
 
 const invalid = (message: string) => new HubHttpError(400, 'invalid_request', message);
@@ -44,10 +51,17 @@ async function readBody(req: Request): Promise<unknown> {
   }
 }
 
-function parseSongs(raw: unknown): HubSong[] {
+function parseParcel(raw: unknown): { songs: HubSong[]; name: string; unavailable: number } {
   const parsed = CreateBody.safeParse(raw);
   if (!parsed.success) throw invalid('songs are required');
-  const rawSongs = parsed.data.songs;
+  return {
+    songs: parseSongs(parsed.data.songs),
+    name: sanitizeParcelName(parsed.data.name),
+    unavailable: parsed.data.unavailable,
+  };
+}
+
+function parseSongs(rawSongs: unknown[]): HubSong[] {
   if (rawSongs.length > HUB_LIMITS.parcelMaxSongs) {
     throw new HubHttpError(413, 'too_many_songs', 'Too many songs in the parcel');
   }
@@ -66,10 +80,18 @@ async function insertParcel(db: D1Database, row: Omit<ParcelRow, 'code'>): Promi
     const code = randomCode(HUB_LIMITS.parcelCodeLength);
     const result = await db
       .prepare(
-        `INSERT INTO parcels (code, songs_json, sender_key_hash, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?) ON CONFLICT(code) DO NOTHING`,
+        `INSERT INTO parcels (code, songs_json, sender_key_hash, created_at, expires_at, name, unavailable)
+         VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(code) DO NOTHING`,
       )
-      .bind(code, row.songs_json, row.sender_key_hash, row.created_at, row.expires_at)
+      .bind(
+        code,
+        row.songs_json,
+        row.sender_key_hash,
+        row.created_at,
+        row.expires_at,
+        row.name,
+        row.unavailable,
+      )
       .run();
     if (result.meta.changes > 0) return code;
   }
@@ -97,7 +119,7 @@ export const parcelRoutes = new Hono<HubAppEnv>();
 
 parcelRoutes.post('/', async (c) => {
   await enforceRateLimit(c, c.env.DB, 'parcel', 30, HOUR_MS);
-  const songs = parseSongs(await readBody(c.req.raw));
+  const { songs, name, unavailable } = parseParcel(await readBody(c.req.raw));
   const now = Date.now();
   const senderKey = randomHex(16);
   const expiresAt = now + HUB_LIMITS.parcelTtlMs;
@@ -106,6 +128,8 @@ parcelRoutes.post('/', async (c) => {
     sender_key_hash: await sha256Hex(senderKey),
     created_at: now,
     expires_at: expiresAt,
+    name,
+    unavailable,
   });
   const created: CreatedParcel = { code, senderKey, expiresAt, count: songs.length };
   return c.json(created, 201);
@@ -142,13 +166,19 @@ parcelRoutes.post('/:code/claim', async (c) => {
   await limitParcelLookup(c);
   const code = normalizeParcelCode(c.req.param('code'));
   const row = code
-    ? await c.env.DB.prepare('DELETE FROM parcels WHERE code = ? RETURNING songs_json, expires_at')
+    ? await c.env.DB.prepare(
+        'DELETE FROM parcels WHERE code = ? RETURNING songs_json, expires_at, name, unavailable',
+      )
         .bind(code)
-        .first<Pick<ParcelRow, 'songs_json' | 'expires_at'>>()
+        .first<Pick<ParcelRow, 'songs_json' | 'expires_at' | 'name' | 'unavailable'>>()
     : null;
   if (!row) throw notFound();
   if (row.expires_at < Date.now()) throw expired();
-  const claimed: ClaimedParcel = { songs: JSON.parse(row.songs_json) as HubSong[] };
+  const claimed: ClaimedParcel = {
+    songs: JSON.parse(row.songs_json) as HubSong[],
+    name: row.name,
+    unavailable: row.unavailable,
+  };
   return c.json(claimed);
 });
 

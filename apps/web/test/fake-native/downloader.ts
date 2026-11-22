@@ -188,5 +188,6 @@ export async function listPlaylistOnPhone(
     })),
     totalCount: list.entries.length,
     complete: true,
+    unavailable: 0,
   };
 }

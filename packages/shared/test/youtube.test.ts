@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBrowseRequest,
   buildSearchRequest,
+  classifyPlaylistLink,
+  countUnavailable,
   isPlaylistComplete,
+  isPlaylistId,
   pickLongerList,
   parsePlaylistPage,
   parseDuration,
@@ -261,7 +264,21 @@ describe('playlist pages', () => {
       entries: [{ id: 'aaaaaaaaaaa', title: 'Song A', author: 'Band A', duration: 201 }],
       continuation: 'NEXT',
       totalCount: null,
+      unavailable: 1,
     });
+  });
+
+  it('counts unplayable videos and videos without id as unavailable', () => {
+    const page = {
+      contents: [
+        { playlistVideoRenderer: { videoId: 'aaaaaaaaaaa', title: { simpleText: 'A' } } },
+        { playlistVideoRenderer: { videoId: 'bbbbbbbbbbb', isPlayable: false } },
+        { playlistVideoRenderer: { title: { simpleText: 'Ghost' } } },
+      ],
+    };
+    const r = parsePlaylistPage(page);
+    expect(r.entries.map((e) => e.id)).toEqual(['aaaaaaaaaaa']);
+    expect(r.unavailable).toBe(2);
   });
 
   it('a continuation answer has songs and maybe no further token', () => {
@@ -397,5 +414,62 @@ describe('playlist completeness', () => {
     expect(pickLongerList([1, 2], [1, 2, 3])).toEqual([1, 2, 3]);
     expect(pickLongerList([1, 2, 3], [9, 9])).toEqual([1, 2, 3]);
     expect(pickLongerList([1], [2])).toEqual([1]);
+  });
+});
+
+describe('playlist links', () => {
+  it('isPlaylistId accepts real ids and rejects mixes and short ids', () => {
+    expect(isPlaylistId('PL1l6AxQgMSitYk_LSlj')).toBe(true);
+    expect(isPlaylistId('RDabcdefghijkl')).toBe(false);
+    expect(isPlaylistId('LL')).toBe(false);
+    expect(isPlaylistId('short')).toBe(false);
+    expect(isPlaylistId('a'.repeat(65))).toBe(false);
+  });
+
+  it('classifies playlist links', () => {
+    const id = 'PL1l6AxQgMSitYk_LSlj';
+    expect(classifyPlaylistLink(`https://www.youtube.com/playlist?list=${id}`)).toEqual({
+      kind: 'playlist',
+      id,
+    });
+    expect(
+      classifyPlaylistLink('https://music.youtube.com/playlist?list=OLAK5uy_kabcdefghij'),
+    ).toEqual({ kind: 'playlist', id: 'OLAK5uy_kabcdefghij' });
+    expect(classifyPlaylistLink(`https://www.youtube.com/watch?v=abcdefghijk&list=${id}`)).toEqual({
+      kind: 'playlist',
+      id,
+    });
+  });
+
+  it('classifies mixes, personal lists and non-playlists', () => {
+    expect(classifyPlaylistLink('https://www.youtube.com/watch?v=a&list=RDabcdefghijkl')).toEqual({
+      kind: 'mix',
+    });
+    for (const list of ['LL', 'LM', 'WL']) {
+      expect(classifyPlaylistLink(`https://www.youtube.com/playlist?list=${list}`)).toEqual({
+        kind: 'personal',
+      });
+    }
+    expect(classifyPlaylistLink('https://example.com/?list=PL1l6AxQgMSitYk_LSlj')).toEqual({
+      kind: 'none',
+    });
+    expect(classifyPlaylistLink('https://www.youtube.com/watch?v=abcdefghijk')).toEqual({
+      kind: 'none',
+    });
+    expect(classifyPlaylistLink('not a url')).toEqual({ kind: 'none' });
+  });
+});
+
+describe('countUnavailable', () => {
+  it('keeps the skipped count when not exhausted or the total is unknown', () => {
+    expect(countUnavailable(3, 100, 168, false)).toBe(3);
+    expect(countUnavailable(3, 100, null, true)).toBe(3);
+  });
+  it('adds hidden videos when exhausted', () => {
+    expect(countUnavailable(3, 160, 168, true)).toBe(8);
+  });
+  it('is never negative', () => {
+    expect(countUnavailable(0, 170, 168, true)).toBe(0);
+    expect(countUnavailable(2, 170, 168, true)).toBe(2);
   });
 });

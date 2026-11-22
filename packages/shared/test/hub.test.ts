@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { LIMITS } from '../src/index';
 import {
+  HUB_LIMITS,
+  sanitizeParcelName,
   formatJamCode,
   hubJamLink,
   hubListLink,
@@ -148,5 +151,22 @@ describe('parcel codes and links', () => {
   it('parseHubHash recognizes send', () => {
     expect(parseHubHash('#send=abcdef')).toEqual({ kind: 'send', code: 'ABCDEF' });
     expect(parseHubHash('#send=zz')).toBeNull();
+  });
+});
+
+describe('parcel limits and names', () => {
+  it('parcels hold as many songs as a playlist', () => {
+    expect(HUB_LIMITS.parcelMaxSongs).toBe(LIMITS.playlistMaxTracks);
+    expect(HUB_LIMITS.parcelBodyMaxBytes).toBe(1024 * 1024);
+    expect(HUB_LIMITS.playlistMaxPages).toBe(10);
+    expect(HUB_LIMITS.continuationMax).toBe(4096);
+  });
+  it('sanitizeParcelName strips control chars, trims and cuts to 120', () => {
+    expect(sanitizeParcelName('  Mi\u0000 lista\n ')).toBe('Mi lista');
+    expect(sanitizeParcelName('a'.repeat(200))).toBe('a'.repeat(LIMITS.nameMax));
+  });
+  it('sanitizeParcelName returns empty for non strings', () => {
+    expect(sanitizeParcelName(42)).toBe('');
+    expect(sanitizeParcelName(undefined)).toBe('');
   });
 });

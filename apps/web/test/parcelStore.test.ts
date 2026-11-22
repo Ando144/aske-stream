@@ -24,6 +24,7 @@ import { useLibrary } from '../src/stores/library';
 import {
   parcelErrorText,
   phaseWhenMissing,
+  receivedMessage,
   songFromResult,
   songsFromTracks,
   useParcel,
@@ -57,9 +58,9 @@ describe('basket', () => {
   it('rejects duplicates and stops at the limit with a toast', () => {
     expect(useParcel.getState().add(song(1))).toBe(true);
     expect(useParcel.getState().add(song(1))).toBe(false);
-    useParcel.setState({ basket: Array.from({ length: 200 }, (_, i) => song(i)) });
-    expect(useParcel.getState().add(song(999))).toBe(false);
-    expect(toast).toHaveBeenLastCalledWith(expect.stringContaining('200'));
+    useParcel.setState({ basket: Array.from({ length: 1000 }, (_, i) => song(i)) });
+    expect(useParcel.getState().add(song(5000))).toBe(false);
+    expect(toast).toHaveBeenLastCalledWith(expect.stringContaining('1000'));
   });
 });
 
@@ -125,7 +126,10 @@ describe('receive', () => {
     hub.claimParcel.mockResolvedValue({ songs: [song(1)] });
     enqueue.mockResolvedValue(1);
     expect(await useParcel.getState().receive('abc-def')).toBe('ok');
-    expect(enqueue).toHaveBeenCalledWith([{ videoId: song(1).videoId, title: 'T1', author: 'A' }]);
+    expect(enqueue).toHaveBeenCalledWith(
+      [{ videoId: song(1).videoId, title: 'T1', author: 'A' }],
+      {},
+    );
     expect(toast).toHaveBeenCalledWith(expect.stringContaining('1'));
   });
 
@@ -185,6 +189,76 @@ describe('helpers', () => {
   });
 });
 
+describe('sendPlaylist', () => {
+  const send = (songs: ReturnType<typeof song>[], unavailable = 0) =>
+    useParcel.getState().sendPlaylist({ name: 'Mix', songs, unavailable });
+
+  it('refuses an empty selection with a toast', async () => {
+    expect(await send([])).toBe(false);
+    expect(hub.createParcel).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.any(String), 'error');
+  });
+
+  it('refuses more than the parcel limit', async () => {
+    const many = Array.from({ length: 1001 }, (_, i) => song(i));
+    expect(await send(many)).toBe(false);
+    expect(hub.createParcel).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.stringContaining('1000'), 'error');
+  });
+
+  it('creates the parcel with the playlist name and unavailable count', async () => {
+    hub.createParcel.mockResolvedValue(created);
+    expect(await send([song(1)], 3)).toBe(true);
+    expect(hub.createParcel).toHaveBeenCalledWith([song(1)], { name: 'Mix', unavailable: 3 });
+    expect(useParcel.getState().current?.phase).toBe('waiting');
+  });
+
+  it('ignores a second send while busy', async () => {
+    useParcel.setState({ busy: true });
+    expect(await send([song(1)])).toBe(false);
+    expect(hub.createParcel).not.toHaveBeenCalled();
+  });
+});
+
+describe('receive with a playlist', () => {
+  it('queues into a new playlist when the parcel has a name', async () => {
+    hub.claimParcel.mockResolvedValue({ songs: [song(1)], name: 'Road', unavailable: 2 });
+    enqueue.mockResolvedValue(1);
+    await useParcel.getState().receive('ABCDEF');
+    expect(enqueue).toHaveBeenCalledWith(expect.any(Array), {
+      playlistName: 'Road',
+      playlistMode: 'new',
+    });
+    expect(toast).toHaveBeenCalledWith(expect.stringContaining('Road'));
+  });
+
+  it('queues with no options when the name is empty', async () => {
+    hub.claimParcel.mockResolvedValue({ songs: [song(1)], name: '', unavailable: 0 });
+    enqueue.mockResolvedValue(1);
+    await useParcel.getState().receive('ABCDEF');
+    expect(enqueue).toHaveBeenCalledWith(expect.any(Array), {});
+  });
+});
+
+describe('receivedMessage', () => {
+  const tt = (key: string, p?: Record<string, string | number>) =>
+    `${key}|${p?.count ?? ''}|${p?.name ?? ''}`;
+  const msg = (q: number, name: string, u: number) => receivedMessage(q, name, u, tt as never);
+
+  it('uses the plain message without a name', () => {
+    expect(msg(2, '', 0)).toBe('parcel.gotSongs|2|');
+  });
+  it('uses the playlist message with a name', () => {
+    expect(msg(2, 'Road', 0)).toBe('pick.gotPlaylist|2|Road');
+  });
+  it('says nothing new when queued is 0', () => {
+    expect(msg(0, 'Road', 0)).toBe('parcel.nothingNew||');
+  });
+  it('appends the unavailable summary', () => {
+    expect(msg(2, '', 3)).toBe('parcel.gotSongs|2| pick.unavailableSummary|3|');
+  });
+});
+
 describe('sendTracks', () => {
   const setTracks = (tracks: LocalTrack[]) =>
     useLibrary.setState({ tracks: Object.fromEntries(tracks.map((x) => [x.id, x])) });
@@ -196,8 +270,8 @@ describe('sendTracks', () => {
     expect(toast).toHaveBeenCalledWith(expect.any(String), 'error');
   });
 
-  it('refuses more than 200 songs', async () => {
-    const many = Array.from({ length: 201 }, (_, i) =>
+  it('refuses more than the parcel limit', async () => {
+    const many = Array.from({ length: 1001 }, (_, i) =>
       track(`t${i}`, { sourceRef: song(i).videoId }),
     );
     setTracks(many);

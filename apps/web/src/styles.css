@@ -2465,3 +2465,13 @@ h2,
   gap: 12px;
   padding: 16px;
 }
+
+.dl-pick-row {
+  cursor: pointer;
+  min-width: 0;
+}
+
+.dl-pick-row input {
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}

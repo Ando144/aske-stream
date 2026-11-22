@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import {
   Check,
   Download,
@@ -12,8 +11,8 @@ import {
   Smartphone,
   X,
 } from 'lucide-react';
-import { LIMITS } from '@aske/shared';
 import {
+  classifyPlaylistLink,
   isYoutubeUrl,
   youtubePlaylistId,
   youtubeVideoId,
@@ -25,9 +24,8 @@ import { SettingsLink } from '../components/SettingsLink';
 import { RELEASES_URL } from '../config';
 import { useI18n, useT, type Language } from '../i18n';
 import { formatBytes, formatTime } from '../lib/format';
-import { uniquePlaylistName } from '../downloads/batch';
 import { loadValue, savePref } from '../lib/storage';
-import { listPlaylistOnPhone, searchOnPhone, type PlaylistListing } from '../native/downloader';
+import { searchOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
 import { useDownloads } from '../stores/downloads';
 import { useLibrary } from '../stores/library';
@@ -37,6 +35,7 @@ import { useSetup } from '../stores/setup';
 import { toast } from '../stores/ui';
 import { hubAvailable, searchViaHub } from '../hub/client';
 import { HelpButton } from '../components/HelpSheet';
+import { PlaylistPicker } from '../components/downloads/PlaylistPicker';
 import { Queue } from '../components/downloads/DownloadQueue';
 import { EnginePanel } from '../components/downloads/EnginePanel';
 import { Outbox } from '../components/send/Outbox';
@@ -53,11 +52,8 @@ function sendViaFor(home: string | undefined): SendVia {
 }
 
 /**
- * Find music on YouTube and get it into the library.
- *  - Android app: search and download right here.
- *  - Computer (Cloudflare library): search and "Send to phone"; the phone
- *    downloads it next time it is open.
- *  - Computer (other libraries): pick songs and send them with a code through the Hub.
+ * Find music on YouTube and get it into the library: download on the phone, or from a
+ * computer send it to the phone (Cloudflare library) or with a code through the Hub.
  */
 export function DownloadView() {
   const t = useT();
@@ -115,7 +111,6 @@ function ReceiveButton() {
   );
 }
 
-/** Plain-language explanation, shown until dismissed. */
 function Intro({ via }: { via: SendVia }) {
   const t = useT();
   const [open, setOpen] = useState(() => !loadValue<boolean>('dl-intro-seen', false));
@@ -144,7 +139,6 @@ function Intro({ via }: { via: SendVia }) {
 
 const KINDS: SearchKind[] = ['songs', 'videos', 'playlists'];
 const HUB_KINDS: SearchKind[] = ['songs', 'videos'];
-
 async function searchFor(
   via: SendVia,
   q: string,
@@ -266,7 +260,7 @@ function SearchPanel({ via, children }: { via: SendVia; children: ReactNode }) {
       )}
       {children}
       {openPlaylist && (
-        <PlaylistSheet result={openPlaylist} onClose={() => setOpenPlaylist(null)} />
+        <PlaylistPicker result={openPlaylist} via={via} onClose={() => setOpenPlaylist(null)} />
       )}
     </section>
   );
@@ -377,42 +371,60 @@ function actionIcon(result: SearchResult, via: SendVia): ReactNode {
   return isNative ? <Download size={22} /> : <Send size={20} />;
 }
 
-/** A pasted YouTube / YouTube Music link. */
-function LinkCard({
-  url,
-  via,
-  onDone,
-  onOpenPlaylist,
+const PLAYLIST_ERRORS = { mix: 'pick.err.mix', personal: 'pick.err.personal' } as const;
+
+type LinkKind = ReturnType<typeof classifyPlaylistLink>['kind'];
+
+function LinkNotices({
+  videoId,
+  kind,
+  valid,
+  blockedKind,
 }: {
-  url: string;
-  via: SendVia;
-  onDone: () => void;
-  onOpenPlaylist: (result: SearchResult) => void;
+  videoId: string | null;
+  kind: LinkKind;
+  valid: boolean;
+  blockedKind: 'mix' | 'personal' | null;
 }) {
   const t = useT();
-  const isPlaylist = !youtubeVideoId(url) && !!youtubePlaylistId(url);
+  return (
+    <>
+      {!valid && !blockedKind && <div className="error-text small">{t('dl.linkInvalid')}</div>}
+      {blockedKind && <div className="error-text small">{t(PLAYLIST_ERRORS[blockedKind])}</div>}
+      {videoId && kind === 'mix' && <div className="muted small">{t('pick.mixSongOnly')}</div>}
+    </>
+  );
+}
+
+function LinkActionButton({
+  via,
+  busy,
+  disabled,
+  onClick,
+}: {
+  via: SendVia;
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const t = useT();
+  const idle =
+    via === 'hub' ? <Plus size={16} /> : isNative ? <Download size={16} /> : <Send size={16} />;
+  return (
+    <button className="btn primary small" disabled={disabled || busy} onClick={onClick}>
+      {busy ? <LoaderCircle size={16} className="spin" /> : idle}
+      {via === 'hub' ? t('parcel.add') : isNative ? t('dl.download') : t('send.send')}
+    </button>
+  );
+}
+
+/** Sends or downloads the pasted link; returns the busy flag and the click handler. */
+function useLinkAction(url: string, via: SendVia, videoId: string | null, onDone: () => void) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
-  const valid = !!youtubeVideoId(url) || isPlaylist;
-
-  const hubVideoId = via === 'hub' ? youtubeVideoId(url) : null;
-  const hubPlaylist = via === 'hub' && isPlaylist;
-
   const act = async () => {
-    if (hubVideoId) {
-      useParcel.getState().add({ videoId: hubVideoId, title: hubVideoId, artist: '' });
-      onDone();
-      return;
-    }
-    if (isNative && isPlaylist) {
-      // Same preview as a searched playlist, so the "name already exists" question shows too.
-      onOpenPlaylist({
-        kind: 'playlist',
-        id: youtubePlaylistId(url) ?? '',
-        title: '',
-        author: '',
-        thumbnail: '',
-        url,
-      });
+    if (via === 'hub' && videoId) {
+      useParcel.getState().add({ videoId, title: videoId, artist: '' });
       onDone();
       return;
     }
@@ -432,232 +444,60 @@ function LinkCard({
       setBusy(false);
     }
   };
+  return { busy, act };
+}
 
+/** A pasted YouTube / YouTube Music link. */
+function LinkCard({
+  url,
+  via,
+  onDone,
+  onOpenPlaylist,
+}: {
+  url: string;
+  via: SendVia;
+  onDone: () => void;
+  onOpenPlaylist: (result: SearchResult) => void;
+}) {
+  const t = useT();
+  const videoId = youtubeVideoId(url);
+  const kind = classifyPlaylistLink(url).kind;
+  const isPlaylist = !videoId && kind === 'playlist';
+  const valid = !!videoId || isPlaylist;
+  const blockedKind = !videoId && (kind === 'mix' || kind === 'personal') ? kind : null;
+  const { busy, act } = useLinkAction(url, via, videoId, onDone);
+
+  const openPlaylist = () => {
+    onOpenPlaylist({
+      kind: 'playlist',
+      id: youtubePlaylistId(url) ?? '',
+      title: '',
+      author: '',
+      thumbnail: '',
+      url,
+    });
+    onDone();
+  };
+
+  const showOpen = isPlaylist || (!!videoId && kind === 'playlist');
   return (
     <div className="panel dl-link">
       <div className="grow">
         <strong>{isPlaylist ? t('dl.linkPlaylist') : t('dl.linkSong')}</strong>
         <div className="muted small ellipsis">{url}</div>
-        {!valid && <div className="error-text small">{t('dl.linkInvalid')}</div>}
-        {hubPlaylist && <div className="muted small">{t('parcel.playlistLink')}</div>}
+        <LinkNotices videoId={videoId} kind={kind} valid={valid} blockedKind={blockedKind} />
       </div>
-      {!hubPlaylist && (
-        <button className="btn primary small" disabled={!valid || busy} onClick={() => void act()}>
-          {busy ? (
-            <LoaderCircle size={16} className="spin" />
-          ) : via === 'hub' ? (
-            <Plus size={16} />
-          ) : isNative ? (
-            <Download size={16} />
-          ) : (
-            <Send size={16} />
-          )}
-          {via === 'hub' ? t('parcel.add') : isNative ? t('dl.download') : t('send.send')}
+      {showOpen && (
+        <button className={isPlaylist ? 'btn primary small' : 'btn small'} onClick={openPlaylist}>
+          <ListMusic size={16} /> {t('pick.openPlaylist')}
         </button>
+      )}
+      {!isPlaylist && !blockedKind && (
+        <LinkActionButton via={via} busy={busy} disabled={!valid} onClick={() => void act()} />
       )}
     </div>
   );
 }
-
-/** Cover of a playlist; falls back to an icon when the picture is missing or broken. */
-function PlaylistCover({ src }: { src: string }) {
-  const [broken, setBroken] = useState(!src);
-  useEffect(() => setBroken(!src), [src]);
-  if (broken) {
-    return (
-      <div className="dl-thumb dl-thumb-empty">
-        <ListMusic size={22} />
-      </div>
-    );
-  }
-  return (
-    <img
-      className="dl-thumb"
-      src={src}
-      alt=""
-      referrerPolicy="no-referrer"
-      onError={() => setBroken(true)}
-    />
-  );
-}
-
-type SheetEntry = { id: string; title: string; author: string };
-
-/** Preview of a playlist before downloading (phone) or sending it (computer). */
-function PlaylistSheet({ result, onClose }: { result: SearchResult; onClose: () => void }) {
-  const t = useT();
-  const language = useI18n((s) => s.language);
-  const [listing, setListing] = useState<PlaylistListing | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [title, setTitle] = useState(result.title);
-  const [error, setError] = useState<string | null>(null);
-  const [makePlaylist, setMakePlaylist] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<'merge' | 'new'>('merge');
-  const playlists = useLibrary((s) => s.playlists);
-  const entries: SheetEntry[] | null = listing?.entries ?? null;
-  const playlistName = title.slice(0, LIMITS.nameMax);
-  const existingNames = playlists.map((p) => p.name);
-  const nameTaken =
-    !!playlistName &&
-    existingNames.some((n) => n.trim().toLowerCase() === playlistName.trim().toLowerCase());
-
-  useEffect(() => {
-    if (!isNative) return;
-    let alive = true;
-    // YouTube's own API gave part of the list: show it while yt-dlp reads the rest.
-    const onPartial = (partial: PlaylistListing) => {
-      if (!alive) return;
-      if (partial.title) setTitle(partial.title);
-      setListing(partial);
-      setLoadingMore(true);
-    };
-    listPlaylistOnPhone(result.url, language, onPartial)
-      .then((l) => {
-        if (!alive) return;
-        if (l.title) setTitle(l.title);
-        setListing(l);
-        setLoadingMore(false);
-        if (!l.entries.length) setError(t('dl.playlistEmpty'));
-      })
-      .catch((err: Error) => {
-        if (!alive) return;
-        setLoadingMore(false);
-        setListing((prev) => prev ?? emptyListing());
-        setError(
-          err.message === 'timeout'
-            ? t('dl.playlistSlow')
-            : `${t('dl.playlistFailed')} (${err.message})`,
-        );
-      });
-    return () => {
-      alive = false;
-    };
-  }, [result.url]);
-
-  const go = async () => {
-    setBusy(true);
-    if (isNative && entries) {
-      await useDownloads.getState().enqueue(
-        entries.map((e) => ({ videoId: e.id, title: e.title, author: e.author })),
-        { playlistName: makePlaylist ? title : undefined, playlistMode: mode },
-      );
-    } else if (!isNative) {
-      await useSend.getState().send(result);
-    }
-    setBusy(false);
-    onClose();
-  };
-
-  const total = listing?.totalCount ?? null;
-  const cover = result.thumbnail || (entries?.[0] ? videoThumb(entries[0].id) : '');
-  // Rendered on <body> so it sits above the tab bar and the player, like the other sheets.
-  return createPortal(
-    <div className="backdrop" onClick={onClose}>
-      <div className="sheet dl-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal>
-        <div className="row">
-          <PlaylistCover src={cover} />
-          <div className="grow" style={{ minWidth: 0 }}>
-            <div className="card-title">{result.title || title}</div>
-            <div className="muted small">
-              {[result.author, result.count ? t('dl.songsCount', { count: result.count }) : null]
-                .filter(Boolean)
-                .join(' · ')}
-            </div>
-          </div>
-        </div>
-        {isNative && !listing && !error && (
-          <div className="row muted dl-status">
-            <LoaderCircle className="spin" size={18} /> {t('dl.loadingPlaylist')}
-          </div>
-        )}
-        {loadingMore && entries && total && (
-          <div className="row muted small dl-status">
-            <LoaderCircle className="spin" size={16} />{' '}
-            {t('dl.playlistLoadingMore', { count: entries.length, total })}
-          </div>
-        )}
-        {error && <div className="error-text small">{error}</div>}
-        {listing && !loadingMore && !listing.complete && entries && total && (
-          <div className="muted small">
-            {t('dl.playlistPartial', { count: entries.length, total })}
-          </div>
-        )}
-        {entries && entries.length > 0 && (
-          <div className="dl-entries">
-            {entries.map((e, i) => (
-              <div key={e.id} className="small ellipsis">
-                <span className="faint">{i + 1}.</span> {e.title}
-              </div>
-            ))}
-          </div>
-        )}
-        {isNative && (
-          <label className="row small">
-            <input
-              type="checkbox"
-              checked={makePlaylist}
-              onChange={(e) => setMakePlaylist(e.target.checked)}
-            />
-            {t('dl.makePlaylist', { name: title })}
-          </label>
-        )}
-        {isNative && makePlaylist && nameTaken && (
-          <fieldset className="small" style={{ border: 'none', padding: 0, margin: 0 }}>
-            <legend>{t('dl.playlistExists', { name: playlistName })}</legend>
-            <label className="row">
-              <input
-                type="radio"
-                name="playlist-mode"
-                checked={mode === 'merge'}
-                onChange={() => setMode('merge')}
-              />
-              {t('dl.playlistMerge')}
-            </label>
-            <label className="row">
-              <input
-                type="radio"
-                name="playlist-mode"
-                checked={mode === 'new'}
-                onChange={() => setMode('new')}
-              />
-              {t('dl.playlistNew', {
-                name: uniquePlaylistName(playlistName, existingNames, LIMITS.nameMax),
-              })}
-            </label>
-          </fieldset>
-        )}
-        {!isNative && <p className="small muted">{t('send.playlistHint')}</p>}
-        <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn small" onClick={onClose}>
-            {t('common.cancel')}
-          </button>
-          <button
-            className="btn primary small"
-            disabled={busy || (isNative && !entries?.length)}
-            onClick={() => void go()}
-          >
-            {isNative ? <Download size={16} /> : <Send size={16} />}
-            {isNative
-              ? t('dl.downloadAll', { count: entries?.length ?? 0 })
-              : t('send.sendPlaylist')}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
-const emptyListing = (): PlaylistListing => ({
-  title: '',
-  author: '',
-  entries: [],
-  totalCount: null,
-  complete: true,
-});
-
-const videoThumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 
 /** Where downloaded songs go (and, with Cloudflare, whether to keep a copy here). */
 function WherePanel() {
@@ -675,32 +515,22 @@ function WherePanel() {
   }, [home, jobsDone]);
   return (
     <div className="panel dl-where small">
-      {home === 'cloudflare' ? (
-        <>
-          <div>{t('dl.whereCloud')}</div>
-          <label className="row" style={{ marginTop: 8 }}>
-            <input
-              type="checkbox"
-              checked={keepOffline}
-              onChange={(e) => useDownloads.getState().setKeepOffline(e.target.checked)}
-            />
-            {t('dl.keepOffline')}
-          </label>
-        </>
-      ) : home === 'drive' ? (
-        <>
-          <div>{t('dl.whereDrive')}</div>
-          <label className="row" style={{ marginTop: 8 }}>
-            <input
-              type="checkbox"
-              checked={keepOffline}
-              onChange={(e) => useDownloads.getState().setKeepOffline(e.target.checked)}
-            />
-            {t('dl.keepOffline')}
-          </label>
-        </>
-      ) : (
-        <div>{t('dl.whereDevice')}</div>
+      <div>
+        {home === 'cloudflare'
+          ? t('dl.whereCloud')
+          : home === 'drive'
+            ? t('dl.whereDrive')
+            : t('dl.whereDevice')}
+      </div>
+      {(home === 'cloudflare' || home === 'drive') && (
+        <label className="row" style={{ marginTop: 8 }}>
+          <input
+            type="checkbox"
+            checked={keepOffline}
+            onChange={(e) => useDownloads.getState().setKeepOffline(e.target.checked)}
+          />
+          {t('dl.keepOffline')}
+        </label>
       )}
     </div>
   );

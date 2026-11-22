@@ -9,7 +9,7 @@ import type {
   JamInfo,
   SharedList,
 } from '@aske/shared/hub';
-import type { SearchResult } from '@aske/shared/youtube';
+import type { PlaylistPage, SearchResult } from '@aske/shared/youtube';
 import { HUB_URL } from '../config';
 import type { Language } from '../i18n';
 
@@ -102,8 +102,21 @@ export async function searchInJam(
   return res.results;
 }
 
-export function createParcel(songs: HubSong[]): Promise<CreatedParcel> {
-  return hubFetch('/parcels', { method: 'POST', json: { songs } });
+export function createParcel(
+  songs: HubSong[],
+  meta?: { name: string; unavailable: number },
+): Promise<CreatedParcel> {
+  return hubFetch('/parcels', { method: 'POST', json: meta ? { songs, ...meta } : { songs } });
+}
+
+export function fetchPlaylistPage(
+  id: string,
+  continuation: string | null,
+  lang: Language,
+): Promise<PlaylistPage> {
+  const query = new URLSearchParams({ lang });
+  if (continuation) query.set('continuation', continuation);
+  return hubFetch(`/playlists/${encodeURIComponent(id)}?${query}`);
 }
 
 export function getParcelStatus(code: string, senderKey: string): Promise<ParcelStatus> {

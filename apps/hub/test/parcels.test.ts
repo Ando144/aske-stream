@@ -9,6 +9,9 @@ import { FakeD1 } from './fakeDb';
 const song = { videoId: 'dQw4w9WgXcQ', title: 't', artist: 'a' };
 const other = { videoId: 'aaaaaaaaaaa', title: 'u', artist: 'b' };
 
+const manySongs = (n: number) =>
+  Array.from({ length: n }, (_, i) => ({ ...song, videoId: `v${String(i).padStart(10, '0')}` }));
+
 interface Created {
   code: string;
   senderKey: string;
@@ -54,7 +57,15 @@ describe('create parcel', () => {
     const row = db.parcels.get(created.code)!;
     expect(row.sender_key_hash).not.toBe(created.senderKey);
     expect(Object.keys(row).sort()).toEqual(
-      ['code', 'created_at', 'expires_at', 'sender_key_hash', 'songs_json'].sort(),
+      [
+        'code',
+        'created_at',
+        'expires_at',
+        'name',
+        'sender_key_hash',
+        'songs_json',
+        'unavailable',
+      ].sort(),
     );
   });
 
@@ -62,7 +73,36 @@ describe('create parcel', () => {
     const { create } = setup();
     expect((await create({ songs: [] })).status).toBe(400);
     expect((await create({ songs: [{ ...song, videoId: 'bad' }] })).status).toBe(400);
-    expect((await create({ songs: Array.from({ length: 201 }, () => song) })).status).toBe(413);
+    expect((await create({ songs: manySongs(1001) })).status).toBe(413);
+  });
+
+  it('accepts 1000 songs', async () => {
+    const { create } = setup();
+    const res = await create({ songs: manySongs(1000) });
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as Created).count).toBe(1000);
+  });
+
+  it('stores a clean name and the unavailable count, and claim returns them', async () => {
+    const { create, call, db } = setup();
+    const res = await create({ songs: [song], name: '  My\u0000 list  ', unavailable: 3 });
+    const { code } = (await res.json()) as Created;
+    expect(db.parcels.get(code)).toMatchObject({ name: 'My list', unavailable: 3 });
+    const claimed = await call(`/${code}/claim`, { method: 'POST' });
+    expect(await claimed.json()).toMatchObject({ name: 'My list', unavailable: 3 });
+  });
+
+  it('defaults to no name and no unavailable songs', async () => {
+    const { make, call } = setup();
+    const { code } = await make();
+    const claimed = await call(`/${code}/claim`, { method: 'POST' });
+    expect(await claimed.json()).toMatchObject({ name: '', unavailable: 0 });
+  });
+
+  it('rejects a bad unavailable count', async () => {
+    const { create } = setup();
+    expect((await create({ songs: [song], unavailable: -1 })).status).toBe(400);
+    expect((await create({ songs: [song], unavailable: 100001 })).status).toBe(400);
   });
 });
 

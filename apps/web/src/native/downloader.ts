@@ -5,6 +5,14 @@ import type {
   NativeResult,
   NotificationTemplates,
 } from '../downloads/types';
+import {
+  emptyRead,
+  listingFromRead,
+  readPages,
+  type PageFetcher,
+  type PlaylistListing,
+  type PlaylistRead,
+} from '../downloads/playlistReader';
 import { withTimeout } from '../lib/timeout';
 import {
   buildBrowseRequest,
@@ -14,7 +22,6 @@ import {
   pickLongerList,
   parseSearchResponse,
   youtubePlaylistId,
-  type PlaylistEntry,
   type SearchKind,
   type SearchResult,
 } from '@aske/shared/youtube';
@@ -105,34 +112,15 @@ export async function searchOnPhone(
   }));
 }
 
-export interface PlaylistListing {
-  title: string;
-  author: string;
-  entries: PlaylistEntry[];
-  /** Videos the playlist header announces; null when unknown. */
-  totalCount: number | null;
-  /** false when fewer songs were read than announced and yt-dlp did not get more either. */
-  complete: boolean;
-}
+export type { PlaylistListing } from '../downloads/playlistReader';
 
 /** At most 2 000 songs (20 pages) are read from one playlist. */
 const MAX_PAGES = 20;
 const INNERTUBE_TIMEOUT_MS = 30_000;
 const YTDLP_LIST_TIMEOUT_MS = 120_000;
 
-/** What YouTube's own API gave so far; filled in place so a timeout keeps the partial result. */
-interface InnerTubeRead {
-  title: string;
-  author: string;
-  entries: PlaylistEntry[];
-  totalCount: number | null;
-  /** YouTube said there is nothing more to read. */
-  exhausted: boolean;
-}
-
-async function readPlaylistPages(id: string, lang: string, read: InnerTubeRead): Promise<void> {
-  let continuation: string | null = null;
-  for (let page = 0; page < MAX_PAGES; page++) {
+async function readViaInnerTube(id: string, lang: string): Promise<PlaylistRead> {
+  const fetchPage: PageFetcher = async (continuation) => {
     const req = buildBrowseRequest(id, continuation, lang);
     const res = await CapacitorHttp.post({
       url: req.url,
@@ -142,34 +130,11 @@ async function readPlaylistPages(id: string, lang: string, read: InnerTubeRead):
       connectTimeout: 10_000,
       readTimeout: 20_000,
     });
-    if (res.status !== 200) return;
-    const parsed = parsePlaylistPage(res.data);
-    if (page === 0) {
-      read.title = parsed.title;
-      read.author = parsed.author;
-      read.totalCount = parsed.totalCount;
-    }
-    const known = new Set(read.entries.map((e) => e.id));
-    read.entries.push(...parsed.entries.filter((e) => !known.has(e.id)));
-    continuation = parsed.continuation;
-    if (!continuation) {
-      read.exhausted = true;
-      return;
-    }
-    if (parsed.entries.length === 0) return;
-  }
-}
-
-async function readViaInnerTube(id: string, lang: string): Promise<InnerTubeRead> {
-  const read: InnerTubeRead = {
-    title: '',
-    author: '',
-    entries: [],
-    totalCount: null,
-    exhausted: false,
+    return res.status === 200 ? parsePlaylistPage(res.data) : null;
   };
+  const read = emptyRead();
   try {
-    await withTimeout(readPlaylistPages(id, lang, read), INNERTUBE_TIMEOUT_MS);
+    await withTimeout(readPages(fetchPage, read, { maxPages: MAX_PAGES }), INNERTUBE_TIMEOUT_MS);
   } catch {
     // keep whatever was read; yt-dlp may complete it below
   }
@@ -187,18 +152,11 @@ export async function listPlaylistOnPhone(
   onPartial?: (partial: PlaylistListing) => void,
 ): Promise<PlaylistListing> {
   const id = youtubePlaylistId(url);
-  const inner = id ? await readViaInnerTube(id, lang) : null;
-  const innerEntries = inner?.entries ?? [];
-  const totalCount = inner?.totalCount ?? null;
-  const complete = isPlaylistComplete(innerEntries.length, totalCount, inner?.exhausted ?? false);
-  const fromInner: PlaylistListing = {
-    title: inner?.title ?? '',
-    author: inner?.author ?? '',
-    entries: innerEntries,
-    totalCount,
-    complete,
-  };
-  if (innerEntries.length && complete) return fromInner;
+  const inner = id ? await readViaInnerTube(id, lang) : emptyRead();
+  const innerEntries = inner.entries;
+  const totalCount = inner.totalCount;
+  const fromInner = listingFromRead(inner);
+  if (innerEntries.length && fromInner.complete) return fromInner;
 
   if (innerEntries.length) onPartial?.(fromInner);
   try {
@@ -216,6 +174,7 @@ export async function listPlaylistOnPhone(
       entries,
       totalCount,
       complete: isPlaylistComplete(entries.length, totalCount, false),
+      unavailable: inner.skipped,
     };
   } catch (err) {
     // A partial list is still useful; the sheet tells the user it is incomplete.

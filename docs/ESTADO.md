@@ -10,13 +10,19 @@ Actualizado: 2026-11-22
   - Notificación de descargas: contador, barra del lote, fase «guardando» y aviso final; un solo escritor nativo (máx. 1 actualización/s) y latido del JS cada 5 s.
   - Arranque con mala cobertura: pantalla con logo (1-5 s), tiempos máximos de 4 s, modo sin conexión con banner y reintento automático.
   - Aleatorio: memoria de ciclo por lista, sin repetir hasta agotar; «Todo» es viva y recibe canciones nuevas.
+- **Sin publicar: playlists enteras en Enviar al móvil** (pendiente de `hub:migrate:remote` + `deploy:hub` + `deploy`):
+  - Pegar un enlace de playlist abre una lista con casillas (hasta 1000); el móvil lee YouTube directo y el ordenador lo hace por el Hub.
+  - Los paquetes llevan nombre: el móvil receptor crea esa playlist; las canciones privadas o borradas se saltan y se avisa.
+  - Los Mix automáticos y «Me gusta»/«Ver más tarde» no se pueden abrir enteros; con vídeo, solo se usa la canción.
+  - Ordenador con Cloudflare sin Hub: sigue enviando el enlace entero.
 
 ## En curso / siguiente
 
 - Andoni: mirar en GitHub → Actions los APK v0.8.0 a v0.8.4.
 - Andoni: probar v0.8.4 en el Pixel: notificación de descargas, arranque sin red (modo avión y red mala), aleatorio con 80 h.
 - Pendiente de v0.8.3: Enviar al móvil (QR y código), Jam en dos móviles, `onTimeout` con `adb shell device_config put activity_manager data_sync_fgs_timeout_duration 60000` (restaurar con `delete`).
-- Siguiente: playlists enteras de YouTube en Enviar al móvil; F8b grupos (consentimiento aparte); F9 modo estudio.
+- Pendiente menor (revisión): `playlistReader.ts` no marca `exhausted` al cortar en 1000 (aviso falso de «incompleta»); `PlaylistPicker` de 70 líneas; borrar `dl.loadingPlaylist` y `dl.playlistLoadingMore`; `test:e2e` sin ejecutar.
+- Siguiente: probar playlists enteras en Enviar al móvil; F8b grupos (consentimiento aparte); F9 modo estudio.
 
 ## Decisiones tomadas (y por qué)
 

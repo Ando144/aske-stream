@@ -102,18 +102,30 @@ export function youtubeVideoId(input: string): string | null {
   }
 }
 
+/** Real playlist id; "RD…" lists are endless auto-generated mixes, not real playlists. */
+export function isPlaylistId(id: string): boolean {
+  return /^[\w-]{10,64}$/.test(id) && !id.startsWith('RD');
+}
+
 /** Playlist id of a playlist link (or of a video link opened inside a playlist). */
 export function youtubePlaylistId(input: string): string | null {
-  try {
-    const url = new URL(input);
-    const host = url.hostname.replace(/^(www|m|music)\./, '');
-    if (host !== 'youtube.com' && host !== 'youtu.be') return null;
-    const list = url.searchParams.get('list');
-    // "RD…" lists are endless auto-generated mixes, not real playlists.
-    return list && /^[\w-]{10,}$/.test(list) && !list.startsWith('RD') ? list : null;
-  } catch {
-    return null;
-  }
+  const link = classifyPlaylistLink(input);
+  return link.kind === 'playlist' ? link.id : null;
+}
+
+export type PlaylistLink =
+  | { kind: 'playlist'; id: string }
+  | { kind: 'mix' } // list=RD… (automatic mixes)
+  | { kind: 'personal' } // list=LL, LM or WL ("Liked", "Watch later")
+  | { kind: 'none' }; // not YouTube or no list= at all
+
+export function classifyPlaylistLink(input: string): PlaylistLink {
+  if (!isYoutubeUrl(input)) return { kind: 'none' };
+  const list = new URL(input).searchParams.get('list');
+  if (!list) return { kind: 'none' };
+  if (list.startsWith('RD')) return { kind: 'mix' };
+  if (list === 'LL' || list === 'LM' || list === 'WL') return { kind: 'personal' };
+  return isPlaylistId(list) ? { kind: 'playlist', id: list } : { kind: 'none' };
 }
 
 export function isYoutubeUrl(input: string): boolean {
@@ -393,6 +405,8 @@ export interface PlaylistPage {
   continuation: string | null;
   /** Number of videos the playlist header announces; null when not shown. */
   totalCount: number | null;
+  /** Videos on this page that cannot be played (private, deleted): skipped, only counted. */
+  unavailable: number;
 }
 
 /** First page of a playlist (`continuation` null) or the next one. */
@@ -495,10 +509,15 @@ function playlistTotalCount(json: unknown): number | null {
 export function parsePlaylistPage(json: unknown): PlaylistPage {
   const entries: PlaylistEntry[] = [];
   const seen = new Set<string>();
+  let unavailable = 0;
   for (const v of findAll(json, 'playlistVideoRenderer')) {
     const id = String(v.videoId ?? '');
     // Deleted / private videos stay in playlists but cannot be played.
-    if (!id || seen.has(id) || v.isPlayable === false) continue;
+    if (!id || v.isPlayable === false) {
+      unavailable++;
+      continue;
+    }
+    if (seen.has(id)) continue;
     seen.add(id);
     entries.push({
       id,
@@ -539,7 +558,22 @@ export function parsePlaylistPage(json: unknown): PlaylistPage {
     entries,
     continuation: listContinuationToken(json),
     totalCount: playlistTotalCount(json),
+    unavailable,
   };
+}
+
+/**
+ * Songs we could not list: the ones skipped page by page plus, once YouTube says there is
+ * nothing more, the hidden ones (header count minus what we read).
+ */
+export function countUnavailable(
+  skipped: number,
+  readCount: number,
+  totalCount: number | null,
+  exhausted: boolean,
+): number {
+  if (!exhausted || totalCount === null) return Math.max(0, skipped);
+  return Math.max(0, skipped, totalCount - readCount);
 }
 
 /**

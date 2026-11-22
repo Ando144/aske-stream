@@ -3,6 +3,7 @@ import { cloudflareSetupEu } from './cloudflareSetup';
 import { pairingEu } from './pairing';
 import { shareEu } from './share';
 import { parcelEu } from './parcel';
+import { pickEu } from './pick';
 import { jamEu } from './jam';
 import { statsEu } from './stats';
 
@@ -331,7 +332,6 @@ export const eu: Messages = {
   'dl.batteryText':
     'Pantaila itzalita deskargek jarraitzeko, Androidek aplikazioari atzeko planoan funtzionatzen utzi behar dio. Sakatu «Baimendu» eta onartu.',
   'dl.batteryButton': 'Baimendu',
-  'dl.playlistEmpty': 'Zerrenda hau hutsik dago edo pribatua da.',
   'dl.playlistSlow': 'YouTubek gehiegi behar du erantzuteko. Saiatu berriro geroago.',
   'dl.playlistPartial':
     'Abesti guztietatik {count} bakarrik irakurri ahal izan ditugu ({total} dira). Hauek orain deskarga ditzakezu eta gainerakoak geroago saiatu.',
@@ -706,6 +706,7 @@ export const eu: Messages = {
   ...pairingEu,
   ...shareEu,
   ...parcelEu,
+  ...pickEu,
   ...jamEu,
   ...statsEu,
   ...cloudflareSetupEu,
