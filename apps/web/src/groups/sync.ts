@@ -7,6 +7,12 @@ import { buildUploads, monthsToUpload, uploadRange } from './snapshot';
 
 const FORCE_MIN_GAP_MS = 15 * 60 * 1000;
 let running = false;
+let inFlight: Promise<void> | null = null;
+
+/** Resolves once any upload in progress has finished, so a wipe cannot be overtaken by it. */
+export async function waitForGroupSync(): Promise<void> {
+  await inFlight;
+}
 
 function isDue(last: number | null, now: number, force: boolean): boolean {
   if (last === null) return true;
@@ -22,16 +28,23 @@ export async function syncGroupStats(opts: { force?: boolean } = {}): Promise<vo
   if (running || !isDue(last, now, opts.force === true)) return;
 
   running = true;
+  inFlight = upload(last, now).finally(() => {
+    running = false;
+    inFlight = null;
+  });
+  await inFlight;
+}
+
+async function upload(last: number | null, now: number): Promise<void> {
   try {
     const firstSync = last === null;
     const { from, to } = uploadRange(monthsToUpload(now, firstSync));
     const records = await getStatsRepo().listBetween(from, to);
     const months = buildUploads(records, now, firstSync);
     if (months.length > 0) await uploadStats(months);
-    savePref('groups-last-sync', now);
+    // Sharing may have been switched off while uploading; do not mark it as synced.
+    if (useGroups.getState().consent === 'on') savePref('groups-last-sync', now);
   } catch (err) {
     console.error('Could not sync group stats', err);
-  } finally {
-    running = false;
   }
 }

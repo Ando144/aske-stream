@@ -29,14 +29,20 @@ function parseUpload(raw: unknown, now: number): MonthStats[] {
     throw invalidRequest('Send between 1 and 12 months');
   }
   const seen = new Set<string>();
-  return parsed.data.months.map((item) => {
+  const oldest = oldestKeptMonth(now);
+  const kept: MonthStats[] = [];
+  for (const item of parsed.data.months) {
     const stats = sanitizeMonthStats(item);
-    if (!stats || !isAcceptableMonth(stats.month, now) || seen.has(stats.month)) {
+    if (!stats || !isMonthKey(stats.month) || seen.has(stats.month)) {
       throw invalidRequest('A month is not valid');
     }
     seen.add(stats.month);
-    return stats;
-  });
+    // A phone behind UTC can still hold a month that just aged out; drop it quietly.
+    if (stats.month < oldest) continue;
+    if (!isAcceptableMonth(stats.month, now)) throw invalidRequest('A month is not valid');
+    kept.push(stats);
+  }
+  return kept;
 }
 
 function parseMonthQuery(raw: string | undefined, now: number): string {

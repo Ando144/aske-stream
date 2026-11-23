@@ -77,7 +77,7 @@ describe('PUT /stats', () => {
     const thirteen = Array.from({ length: 13 }, (_, i) => stats(shiftMonthKey(thisMonth, -i)));
     expect((await put(1, thirteen)).status).toBe(400);
     expect((await put(1, [stats(thisMonth), stats(thisMonth)])).status).toBe(400);
-    expect((await put(1, [stats(shiftMonthKey(thisMonth, -12))])).status).toBe(400);
+    expect((await put(1, [stats(shiftMonthKey(thisMonth, -12))])).status).toBe(204);
     expect((await put(1, [stats(shiftMonthKey(thisMonth, 2))])).status).toBe(400);
     expect((await put(1, [])).status).toBe(400);
     expect((await put(1, [{ month: 'nope' }])).status).toBe(400);

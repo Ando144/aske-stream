@@ -25,7 +25,10 @@ vi.mock('../src/lib/storage', () => ({
 vi.mock('../src/stores/ui', () => ({ toast: h.toast }));
 vi.mock('../src/i18n', () => ({ t: (key: string) => key }));
 vi.mock('../src/hub/groupsClient', () => h.api);
-vi.mock('../src/groups/sync', () => ({ syncGroupStats: h.sync }));
+vi.mock('../src/groups/sync', () => ({
+  syncGroupStats: h.sync,
+  waitForGroupSync: () => Promise.resolve(),
+}));
 vi.mock('../src/groups/deviceKey', () => ({ resetDeviceKey: h.resetDeviceKey }));
 vi.mock('../src/hub/errors', () => ({
   hubErrorText: (e: unknown) => `err:${(e as HubError).code}`,

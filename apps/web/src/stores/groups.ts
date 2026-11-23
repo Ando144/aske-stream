@@ -1,7 +1,7 @@
 import type { GroupDetail, GroupSummary } from '@aske/shared/groups';
 import { create } from 'zustand';
 import { resetDeviceKey } from '../groups/deviceKey';
-import { syncGroupStats } from '../groups/sync';
+import { syncGroupStats, waitForGroupSync } from '../groups/sync';
 import { hubErrorText } from '../hub/errors';
 import * as api from '../hub/groupsClient';
 import { t } from '../i18n';
@@ -76,6 +76,7 @@ export const useGroups = create<GroupsState>((set, get) => {
       }
       setConsent('off');
       try {
+        await waitForGroupSync();
         await api.deleteMyStats();
         savePref('groups-stats-wipe-pending', false);
         toast(t('groups.toast.statsDeleted'));
