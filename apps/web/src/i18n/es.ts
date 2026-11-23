@@ -6,6 +6,7 @@ import { parcelEs } from './parcel';
 import { pickEs } from './pick';
 import { jamEs } from './jam';
 import { statsEs } from './stats';
+import { studyEs } from './study';
 import { groupsEs } from './groups';
 
 export const es: Messages = {
@@ -710,6 +711,7 @@ export const es: Messages = {
   ...pickEs,
   ...jamEs,
   ...statsEs,
+  ...studyEs,
   ...groupsEs,
   ...cloudflareSetupEs,
 };

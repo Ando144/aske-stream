@@ -9,6 +9,7 @@ import {
   PartyPopper,
   Radio,
   Settings,
+  Timer,
   Users,
   WifiOff,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ import { Link, useLocation } from 'wouter';
 import { useT, type MessageKey } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { AUTHOR } from '../config';
+import { isNative } from '../native/platform';
 
 const ITEMS: { to: string; key: MessageKey; Icon: typeof Library }[] = [
   { to: '/', key: 'nav.library', Icon: Library },
@@ -32,6 +34,7 @@ const SIDEBAR_ITEMS: typeof ITEMS = [
   ...ITEMS,
   { to: '/jam', key: 'nav.jam', Icon: PartyPopper },
   { to: '/recap', key: 'nav.recap', Icon: BarChart3 },
+  ...(isNative ? [{ to: '/study', key: 'nav.study' as const, Icon: Timer }] : []),
   { to: '/groups', key: 'nav.groups', Icon: Users },
   { to: '/offline', key: 'nav.offline', Icon: WifiOff },
   { to: '/settings', key: 'nav.settings', Icon: Settings },

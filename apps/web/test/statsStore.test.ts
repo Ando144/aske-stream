@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlayRecord } from '../src/stats/recap';
 import { memoryStatsRepo, type StatsRepo } from '../src/stats/repo';
+import { memoryStudyRepo, setStudyRepo } from '../src/study/repo';
 import { setStatsRepo, useStats } from '../src/stores/stats';
 
 const h = vi.hoisted(() => ({ prefs: new Map<string, unknown>() }));
@@ -30,6 +31,7 @@ beforeEach(async () => {
   h.prefs.clear();
   repo = memoryStatsRepo();
   setStatsRepo(repo);
+  setStudyRepo(memoryStudyRepo());
   useStats.setState({ consent: 'unset' });
   await repo.put(record);
 });
@@ -55,6 +57,21 @@ describe('stats store', () => {
     expect(await useStats.getState().clearHistory()).toBe(true);
     expect(useStats.getState().consent).toBe('on');
     expect(await repo.listBetween(0, Infinity)).toHaveLength(0);
+  });
+
+  it('clearHistory also empties the study repo', async () => {
+    const study = memoryStudyRepo();
+    setStudyRepo(study);
+    await study.put({
+      id: 's1',
+      startedAt: 1,
+      endedAt: 2,
+      plannedMin: 25,
+      studiedMin: 25,
+      completed: true,
+    });
+    expect(await useStats.getState().clearHistory()).toBe(true);
+    expect(await study.listBetween(0, Infinity)).toHaveLength(0);
   });
 
   it('returns false on failure and still turns off', async () => {

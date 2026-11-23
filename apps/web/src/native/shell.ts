@@ -1,6 +1,7 @@
 import { App as CapApp } from '@capacitor/app';
 import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { useSetup } from '../stores/setup';
+import { useStudy } from '../stores/study';
 import { useUi } from '../stores/ui';
 import { isNative } from './platform';
 
@@ -26,6 +27,8 @@ export function initNativeShell() {
 
   // Back button: close whatever is on top first, like any Android app.
   void CapApp.addListener('backButton', () => {
+    // Study mode keeps the screen pinned: Back does nothing until it ends.
+    if (useStudy.getState().phase !== 'idle') return;
     const ui = useUi.getState();
     if (ui.confirm) return ui.confirm.resolve(false);
     if (ui.prompt) return ui.prompt.resolve(null);

@@ -5,6 +5,7 @@ import { parcelEn } from './parcel';
 import { pickEn } from './pick';
 import { jamEn } from './jam';
 import { statsEn } from './stats';
+import { studyEn } from './study';
 import { groupsEn } from './groups';
 /** English is the source of truth: the other languages must define every key. */
 export const en = {
@@ -695,6 +696,7 @@ export const en = {
   ...pickEn,
   ...jamEn,
   ...statsEn,
+  ...studyEn,
   ...groupsEn,
   ...cloudflareSetupEn,
 } as const;

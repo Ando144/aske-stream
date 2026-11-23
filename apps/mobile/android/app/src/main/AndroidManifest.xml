@@ -31,6 +31,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Study mode: plays the end-of-session chime even if the app is asleep. -->
+        <receiver
+            android:name=".StudyChimeReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -59,4 +64,9 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- In-app updates: Android still asks you to confirm every update. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Study mode: ring the end-of-session chime on time, even with the screen off. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
 </manifest>

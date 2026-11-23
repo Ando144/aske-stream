@@ -95,14 +95,30 @@ client exists. Setup: [google-drive.md](google-drive.md).
 
 ## Permissions
 
-| Permission                                                | Why                                                                       |
-| --------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `INTERNET`                                                | Streaming, Google Drive, your Cloudflare, radio catalogue, update check   |
-| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Keep playing with the screen off, with the playback notification          |
-| `WAKE_LOCK`                                               | Keep CPU and Wi-Fi awake while (and only while) music plays               |
-| `REQUEST_INSTALL_PACKAGES`                                | In-app updates. Android still asks the user to confirm every installation |
+| Permission                                                   | Why                                                                         |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `INTERNET`                                                   | Streaming, Google Drive, your Cloudflare, radio catalogue, update check     |
+| `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`    | Keep playing with the screen off, with the playback notification            |
+| `WAKE_LOCK`                                                  | Keep CPU and Wi-Fi awake while (and only while) music plays                 |
+| `REQUEST_INSTALL_PACKAGES`                                   | In-app updates. Android still asks the user to confirm every installation   |
+| `USE_EXACT_ALARM` (`SCHEDULE_EXACT_ALARM` up to Android 12L) | Study mode: ring the end-of-session chime on time, even with the screen off |
 
 No contacts, location, microphone or storage-wide permission is requested. `allowBackup` is off so the device token never ends up in a cloud backup.
+
+## Study mode (`StudyLock` plugin)
+
+`StudyLock` (Java, with `StudyChimeReceiver` and `ChimePlayer`) backs the study screen:
+
+- `pin()` / `unpin()` call `startLockTask()` / `stopLockTask()` (screen pinning). Android shows
+  its own "Pin app?" dialog; the app cannot skip it. If "App pinning" is off in Settings, the
+  dialog may not appear on older Android (7-8), so `openPinSettings()` opens Security settings.
+- `scheduleChime()` sets an exact alarm for the end of the session; `chimeNow()` plays the three
+  bells unless JS already did (`lastChimedEndsAt`). This is why the app declares
+  `USE_EXACT_ALARM` (and `SCHEDULE_EXACT_ALARM` up to API 32): the bell must ring on time with
+  the screen off, and a normal alarm could be delayed by Doze.
+- Limit: screen pinning is not a kiosk. The user can leave it holding Back and Overview, and some
+  manufacturers change how incoming calls behave while pinned. The app's own exit asks for a
+  30-second hold on purpose, to avoid leaving by accident.
 
 ## Send to phone through the Hub
 

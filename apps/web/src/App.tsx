@@ -26,6 +26,8 @@ import { GroupView } from './views/GroupView';
 import { syncGroupStats } from './groups/sync';
 import { useGroups } from './stores/groups';
 import { SetupView } from './views/SetupView';
+import { StudyView } from './views/StudyView';
+import { useStudy } from './stores/study';
 import { FolderView } from './views/FolderView';
 import { PlaylistsView } from './views/PlaylistsView';
 import { PlaylistView } from './views/PlaylistView';
@@ -259,6 +261,7 @@ function Shell() {
     withTimeout(useJam.getState().resume(), BOOT_TIMEOUT_MS).catch(warn);
   }, []);
   const hasPlayer = usePlayer((s) => s.mode !== 'idle');
+  const studyPhase = useStudy((s) => s.phase);
   const [location, navigate] = useLocation();
   const mainRef = useRef<HTMLElement>(null);
 
@@ -308,6 +311,17 @@ function Shell() {
     if (!useUi.getState().selectionTarget) useUi.getState().endSelection();
   }, [location]);
 
+  // Focus mode: while a session is on, nothing but the study screen is shown.
+  if (studyPhase !== 'idle') {
+    return (
+      <div className="app study-mode">
+        <StudyView />
+        <Dialogs />
+        <Toasts />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <Sidebar />
@@ -331,6 +345,7 @@ function Shell() {
           </Route>
           <Route path="/jam">{() => <JamView />}</Route>
           <Route path="/recap" component={RecapView} />
+          <Route path="/study" component={StudyView} />
           <Route path="/groups" component={GroupsView} />
           <Route path="/groups/:id">
             {(params) => <GroupView key={params.id} id={params.id} />}

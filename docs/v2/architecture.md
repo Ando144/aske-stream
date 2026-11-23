@@ -112,7 +112,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 8a  | Local listening stats (opt-in, on this device only) and monthly/yearly Recap                                | ✅     |
 | 8   | Telemetry (opt-in) and admin dashboard                                                                      |        |
 | 8b  | Friend groups through the Hub                                                                               | ✅     |
-| 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end                           |        |
+| 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end                           | ✅     |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
 two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,

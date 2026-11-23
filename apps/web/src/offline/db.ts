@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Folder, Playlist, Station } from '@aske/shared';
 import type { LocalTrack, LibrarySnapshot } from '../storage/types';
 import type { PlayRecord } from '../stats/recap';
+import type { StudyRecord } from '../study/records';
 import type { OfflineEntry } from './planner';
 
 export interface CachedLibrary {
@@ -23,12 +24,14 @@ interface AskeDB extends DBSchema {
   folders: { key: string; value: Folder };
   /** Local listening history (opt-in) for the Recap. */
   plays: { key: string; value: PlayRecord; indexes: { 'by-startedAt': number } };
+  /** Study-mode sessions (opt-in with the same consent as the history). */
+  study: { key: string; value: StudyRecord; indexes: { 'by-startedAt': number } };
 }
 
 let dbPromise: Promise<IDBPDatabase<AskeDB>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<AskeDB>> {
-  dbPromise ??= openDB<AskeDB>('aske', 4, {
+  dbPromise ??= openDB<AskeDB>('aske', 5, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('kv');
@@ -45,6 +48,9 @@ export function getDb(): Promise<IDBPDatabase<AskeDB>> {
       }
       if (oldVersion < 4) {
         db.createObjectStore('plays', { keyPath: 'id' }).createIndex('by-startedAt', 'startedAt');
+      }
+      if (oldVersion < 5) {
+        db.createObjectStore('study', { keyPath: 'id' }).createIndex('by-startedAt', 'startedAt');
       }
     },
     blocked() {

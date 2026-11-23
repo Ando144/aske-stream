@@ -6,6 +6,7 @@ import { parcelEu } from './parcel';
 import { pickEu } from './pick';
 import { jamEu } from './jam';
 import { statsEu } from './stats';
+import { studyEu } from './study';
 import { groupsEu } from './groups';
 
 export const eu: Messages = {
@@ -708,6 +709,7 @@ export const eu: Messages = {
   ...pickEu,
   ...jamEu,
   ...statsEu,
+  ...studyEu,
   ...groupsEu,
   ...cloudflareSetupEu,
 };

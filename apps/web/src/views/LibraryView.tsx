@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { CircleCheck, Library, Play, Search, Shuffle } from 'lucide-react';
-import { useSearch } from 'wouter';
+import { CircleCheck, Library, Play, Search, Shuffle, Timer } from 'lucide-react';
+import { Link, useSearch } from 'wouter';
+import { isNative } from '../native/platform';
 import { songCount, useT } from '../i18n';
 import { formatBytes, formatLongDuration, normalizeText } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
@@ -80,6 +81,11 @@ export function LibraryView() {
       <header className="page-header">
         <h1>{t('library.title')}</h1>
         <div className="row">
+          {isNative && (
+            <Link href="/study" className="btn small">
+              <Timer size={16} /> {t('nav.study')}
+            </Link>
+          )}
           {(home === 'device' || home === 'drive') && <ImportButton />}
           <SettingsLink />
         </div>

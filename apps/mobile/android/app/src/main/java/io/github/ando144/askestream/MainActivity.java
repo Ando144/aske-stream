@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(GoogleDrivePlugin.class);
         registerPlugin(QrScannerPlugin.class);
         registerPlugin(CloudflareApiPlugin.class);
+        registerPlugin(StudyLockPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

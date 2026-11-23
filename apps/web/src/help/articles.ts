@@ -3,6 +3,7 @@ import { startArticles } from './articles/start';
 import { musicArticles } from './articles/music';
 import { listenArticles } from './articles/listen';
 import { statsArticles } from './articles/stats';
+import { studyArticles } from './articles/study';
 import { offlineArticles } from './articles/offline';
 import { driveArticles } from './articles/drive';
 import { cloudflareArticles } from './articles/cloudflare';
@@ -65,6 +66,7 @@ export const ARTICLES: HelpArticle[] = [
   ...musicArticles,
   ...listenArticles,
   ...statsArticles,
+  ...studyArticles,
   ...offlineArticles,
   ...driveArticles,
   ...cloudflareArticles,

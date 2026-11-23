@@ -1,0 +1,141 @@
+/* Study mode */
+.study-mode {
+  display: block;
+}
+
+.study-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.study-section h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.study-custom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.study-custom .input {
+  max-width: 120px;
+}
+
+.study-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.study-slider > span {
+  min-width: 110px;
+}
+
+.study-slider input[type='range'] {
+  flex: 1;
+  min-height: 44px;
+  accent-color: var(--accent);
+}
+
+.study-big {
+  min-height: 64px;
+  font-size: 20px;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.study-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.study-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+}
+
+.study-stat strong {
+  font-size: 22px;
+  color: var(--accent);
+}
+
+.study-focus {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 100dvh;
+}
+
+.study-clock {
+  font-size: 22vw;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  line-height: 1.1;
+  margin: 24px 0;
+}
+
+@media (min-width: 700px) {
+  .study-clock {
+    font-size: 120px;
+  }
+}
+
+.study-controls {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.study-round {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.study-pin-banner {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.study-hold {
+  margin-top: auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.study-hold-btn {
+  min-height: 64px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.study-hold-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bg-active);
+  overflow: hidden;
+}
+
+.study-hold-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.study-done {
+  text-align: center;
+  padding-top: 20vh;
+}

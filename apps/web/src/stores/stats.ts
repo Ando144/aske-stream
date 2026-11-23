@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import { loadValue, savePref } from '../lib/storage';
 import { buildRecap, periodRange, type RecapPeriod, type RecapSummary } from '../stats/recap';
 import { idbStatsRepo, type StatsRepo } from '../stats/repo';
+import { getStudyRepo } from '../study/repo';
 import { toast } from './ui';
 
 export type StatsConsent = 'unset' | 'on' | 'off';
@@ -44,6 +45,7 @@ export const useStats = create<StatsState>((set, get) => ({
   async clearHistory() {
     try {
       await repo.clear();
+      await getStudyRepo().clear();
       return true;
     } catch (err) {
       console.error('Could not clear the listening history', err);

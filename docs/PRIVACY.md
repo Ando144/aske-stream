@@ -92,6 +92,9 @@ you listen to, for how long and which ones you skip (not radio or podcasts). Thi
 stored on your device and is not sent to anyone (not to us, nor to Google or Cloudflare), unless
 you turn on sharing with friend groups (above). Turning the Recap off deletes the whole history, and you can also delete it from Settings.
 
+Study mode saves, only if the Recap is on, which study sessions you finished and for how long. They
+stay on your device, are deleted with the history and are never sent to anyone, not even to your groups.
+
 ### Your control
 
 Everything is stored on your device or in your own accounts, so you can delete it whenever you
@@ -145,4 +148,7 @@ que reciban tu información, no tiene anuncios ni rastreo, y no vende nada.**
   y no se envía a nadie (ni a nosotros ni a Google ni a Cloudflare), salvo que actives compartirlo
   con tus grupos. Desactivarlo borra todo el
   historial, y también puedes borrarlo desde Ajustes.
+- **Modo estudio:** solo si el Recap está activado, se guardan las sesiones de estudio que
+  terminas y cuánto duraron. Se quedan en tu dispositivo, se borran con el historial y nunca se
+  envían a nadie, tampoco a tus grupos.
 - **Contacto:** abre una incidencia en <https://github.com/Ando144/aske-stream/issues>.
