@@ -87,17 +87,17 @@ function accumulate(map: Map<string, Group>, key: string, r: PlayRecord): void {
 
 const toMinutes = (sec: number): number => Math.round(sec / 60);
 
-function topTracksOf(map: Map<string, Group>): TopTrack[] {
+function topTracksOf(map: Map<string, Group>, topSize: number): TopTrack[] {
   return [...map.values()]
     .sort((a, b) => byPlaysThenMinutes(a, b, `${a.title}|${a.artist}`, `${b.title}|${b.artist}`))
-    .slice(0, TOP_SIZE)
+    .slice(0, topSize)
     .map((g) => ({ title: g.title, artist: g.artist, plays: g.plays, minutes: toMinutes(g.sec) }));
 }
 
-function topArtistsOf(map: Map<string, Group>): TopArtist[] {
+function topArtistsOf(map: Map<string, Group>, topSize: number): TopArtist[] {
   return [...map.values()]
     .sort((a, b) => byPlaysThenMinutes(a, b, a.artist, b.artist))
-    .slice(0, TOP_SIZE)
+    .slice(0, topSize)
     .map((g) => ({ artist: g.artist, plays: g.plays, minutes: toMinutes(g.sec) }));
 }
 
@@ -119,7 +119,11 @@ function longestStreak(days: Set<number>): number {
 }
 
 /** Only records inside the period are used. */
-export function buildRecap(records: PlayRecord[], period: RecapPeriod): RecapSummary {
+export function buildRecap(
+  records: PlayRecord[],
+  period: RecapPeriod,
+  topSize: number = TOP_SIZE,
+): RecapSummary {
   const { from, to } = periodRange(period);
   const tracks = new Map<string, Group>();
   const artists = new Map<string, Group>();
@@ -150,7 +154,7 @@ export function buildRecap(records: PlayRecord[], period: RecapPeriod): RecapSum
     distinctArtists: artists.size,
     activeDays: days.size,
     longestStreakDays: longestStreak(days),
-    topTracks: topTracksOf(tracks),
-    topArtists: topArtistsOf(artists),
+    topTracks: topTracksOf(tracks, topSize),
+    topArtists: topArtistsOf(artists, topSize),
   };
 }

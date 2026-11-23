@@ -5,6 +5,7 @@ import { parcelEn } from './parcel';
 import { pickEn } from './pick';
 import { jamEn } from './jam';
 import { statsEn } from './stats';
+import { groupsEn } from './groups';
 /** English is the source of truth: the other languages must define every key. */
 export const en = {
   'app.name': 'Aske Stream',
@@ -694,6 +695,7 @@ export const en = {
   ...pickEn,
   ...jamEn,
   ...statsEn,
+  ...groupsEn,
   ...cloudflareSetupEn,
 } as const;
 

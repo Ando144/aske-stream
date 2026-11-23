@@ -111,7 +111,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 7.3 | Send whole YouTube playlists to the phone (pick songs, Hub reads the list, parcel with a name)              |        |
 | 8a  | Local listening stats (opt-in, on this device only) and monthly/yearly Recap                                | ✅     |
 | 8   | Telemetry (opt-in) and admin dashboard                                                                      |        |
-| 8b  | Friend groups through the Hub                                                                               |        |
+| 8b  | Friend groups through the Hub                                                                               | ✅     |
 | 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end                           |        |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
@@ -168,3 +168,12 @@ APK, and enables the `workers.dev` address. The same flow updates an old Worker
 characters, 10 minutes, 5 attempts) shown as a QR and a short code; Android scans it with the
 `QrScanner` plugin. `GET /api/health` reports the Worker version so the app can warn when it
 is older than the app. Not tested against a real Cloudflare account yet.
+
+Phase 8b notes: friend groups live in the Hub (up to 20 people per group, 10 groups per person),
+with no account: a random member id plus a nickname. Groups show a monthly ranking and each
+person's top songs and artists, and members share playlists and Jams. The switch "Share my
+listening with my groups" only controls listening stats, is off by default and turns on the local
+Recap; turning it off deletes your stats from the Hub but keeps you in your groups. Stats are kept
+12 months per device, the creator can remove people (a veto, they cannot rejoin) and groups with
+no activity for 180 days are deleted. Pending: `hub:migrate:remote`, `deploy:hub`, `deploy` and a
+test on two phones.

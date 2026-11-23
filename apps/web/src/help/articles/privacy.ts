@@ -17,6 +17,8 @@ export const privacyArticles: HelpArticle[] = [
 
 Aske Stream no tiene anuncios, no vende datos y no envía tu música a nadie. La app solo habla con tu Google Drive o tu Cloudflare, con YouTube (para buscar y descargar), con el catálogo de radios y con GitHub (para buscar actualizaciones).
 
+**Grupos de amigos:** si entras en un grupo, el Hub guarda tu apodo. Si además activas «Compartir mis escuchas con mis grupos», guarda tus minutos y tus tops de cada mes durante 12 meses, y solo los ve la gente de tus grupos. Nunca guarda música, email, canciones saltadas, radio ni podcasts. Puedes apagarlo o usar **Borrar todos mis datos de grupos** cuando quieras. Mira [[friend-groups|Grupos de amigos]].
+
 Si crees que alguien tiene tu clave, quien montó el servidor puede cambiarla: todos los dispositivos tendrán que conectarse otra vez.`,
       en: `Only you.
 - **On this device**: the music never leaves the phone.
@@ -25,6 +27,8 @@ Si crees que alguien tiene tu clave, quien montó el servidor puede cambiarla: t
 
 Aske Stream has no ads, sells no data and sends your music to nobody. The app only talks to your Google Drive or your Cloudflare, to YouTube (to search and download), to the radio catalogue and to GitHub (to check for updates).
 
+**Friend groups:** if you join a group, the Hub keeps your nickname. If you also turn on “Share my listening with my groups”, it keeps your minutes and monthly tops for 12 months, and only the people in your groups see them. It never stores music, email, skipped songs, radio or podcasts. You can turn it off or use **Delete all my group data** whenever you want. See [[friend-groups|Friend groups]].
+
 If you think someone has your key, whoever set up the server can change it: every device will have to connect again.`,
       eu: `Zuk bakarrik.
 - **Gailu honetan**: musika ez da mugikorretik ateratzen.
@@ -32,6 +36,8 @@ If you think someone has your key, whoever set up the server can change it: ever
 - **Zure Cloudflaren**: zure kontu propioan dago, biltegi pribatu batean. Zure gakoa duten mugikor edo ordenagailuak bakarrik sartzen dira. Ezer ez da publikoa.
 
 Aske Streamek ez du iragarkirik, ez du daturik saltzen eta ez dio inori zure musika bidaltzen. Aplikazioak zure Google Drive edo Cloudflarerekin, YouTuberekin (bilatu eta deskargatzeko), irrati-katalogoarekin eta GitHubekin (eguneraketak bilatzeko) bakarrik hitz egiten du.
+
+**Lagunen taldeak:** talde batean sartzen bazara, Hub-ak zure ezizena gordetzen du. Gainera «Partekatu nire entzunaldiak nire taldeekin» aktibatzen baduzu, hilabete bakoitzeko minutuak eta goiko zerrendak gordetzen ditu 12 hilabetez, eta zure taldeetako lagunek bakarrik ikusten dituzte. Ez ditu inoiz gordetzen musika, posta elektronikoa, saltatutako abestiak, irratia edo podcastak. Itzali dezakezu edo **Ezabatu nire taldeen datu guztiak** erabil dezakezu nahi duzunean. Ikusi [[friend-groups|Lagunen taldeak]].
 
 Norbaitek zure gakoa duela uste baduzu, zerbitzaria prestatu zuenak alda dezake: gailu guztiek berriro konektatu beharko dute.`,
     },

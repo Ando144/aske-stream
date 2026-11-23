@@ -6,6 +6,7 @@ import { parcelEu } from './parcel';
 import { pickEu } from './pick';
 import { jamEu } from './jam';
 import { statsEu } from './stats';
+import { groupsEu } from './groups';
 
 export const eu: Messages = {
   'app.name': 'Aske Stream',
@@ -707,5 +708,6 @@ export const eu: Messages = {
   ...pickEu,
   ...jamEu,
   ...statsEu,
+  ...groupsEu,
   ...cloudflareSetupEu,
 };

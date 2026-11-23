@@ -3,6 +3,9 @@ import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import type { HubAppEnv, HubEnv } from './env';
 import { cleanup } from './cleanup';
+import { cleanupGroups } from './groups/cleanup';
+import { D1GroupRepo } from './groups/repo';
+import { createGroupRoutes } from './groups/routes';
 import { HubHttpError } from './lib/http';
 import { jamRoutes } from './jam/routes';
 import { listRoutes } from './routes/lists';
@@ -17,8 +20,8 @@ app.use(
   '/hub/*',
   cors({
     origin: '*',
-    allowHeaders: ['Content-Type', 'X-Delete-Key'],
-    allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'X-Delete-Key', 'X-Device-Key'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     maxAge: 86400,
   }),
 );
@@ -30,6 +33,10 @@ app.use('/hub/*', async (c, next) => {
 
 app.get('/hub/v1/health', (c) => c.json({ ok: true, hub: true, version: HUB_VERSION }));
 app.route('/hub/v1/lists', listRoutes);
+app.route(
+  '/hub/v1/groups',
+  createGroupRoutes((env) => new D1GroupRepo(env.DB)),
+);
 app.route('/hub/v1/jams', jamRoutes);
 app.route('/hub/v1/parcels', parcelRoutes);
 app.route('/hub/v1/playlists', playlistRoutes);
@@ -52,6 +59,7 @@ export { JamRoom } from './jam/room';
 export default {
   fetch: app.fetch,
   scheduled(_event: ScheduledController, env: HubEnv, ctx: ExecutionContext) {
-    ctx.waitUntil(cleanup(env, Date.now()));
+    const now = Date.now();
+    ctx.waitUntil(Promise.all([cleanup(env, now), cleanupGroups(env.DB, now)]));
   },
 };

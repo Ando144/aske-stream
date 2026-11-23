@@ -7,6 +7,7 @@
   "author": "Andoni Ortiz de Zarate Urruela (https://github.com/Ando144)",
   "exports": {
     ".": "./src/index.ts",
+    "./groups": "./src/groups.ts",
     "./hub": "./src/hub.ts",
     "./pairing": "./src/pairing.ts",
     "./radio-browser": "./src/radioBrowser.ts",

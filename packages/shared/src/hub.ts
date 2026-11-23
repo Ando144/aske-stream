@@ -110,6 +110,12 @@ export type HubErrorCode =
   | 'not_host'
   | 'search_unavailable'
   | 'playlist_unavailable'
+  | 'group_not_found'
+  | 'group_full'
+  | 'not_member'
+  | 'not_owner'
+  | 'kicked'
+  | 'too_many_groups'
   | 'internal_error';
 
 // WebSocket, client to server (JSON)
@@ -232,7 +238,7 @@ export function parseHubHash(hash: string): HubLink | null {
   return code ? { kind: 'jam', code } : null;
 }
 
-function isAllowedOrigin(url: URL): boolean {
+export function isAllowedOrigin(url: URL): boolean {
   if (url.protocol === 'https:') return true;
   return url.protocol === 'http:' && LOCAL_HTTP_HOSTS.has(url.hostname);
 }

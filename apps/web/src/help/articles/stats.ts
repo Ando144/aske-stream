@@ -19,7 +19,7 @@ export const statsArticles: HelpArticle[] = [
 - Las canciones que saltas antes de tiempo también se guardan, pero no suman minutos ni salen en los tops: solo aparecen en «Saltadas».
 - La radio y los podcasts no cuentan.
 
-**Tus datos son solo tuyos**: se guardan únicamente en este dispositivo y no se envían a nadie. No pasan a otro móvil ni al cambiar de almacenamiento, y si borras los datos de la app se pierden.
+**Tus datos son solo tuyos**: se guardan únicamente en este dispositivo y no se envían a nadie, salvo que actives «Compartir mis escuchas con mis grupos» (eso también enciende el Recap): entonces tus minutos y tus tops de cada mes se envían a la gente de tus grupos. Mira [[friend-groups|Grupos de amigos]]. No pasan a otro móvil ni al cambiar de almacenamiento, y si borras los datos de la app se pierden.
 
 **Borrar el historial**: en **Ajustes → Recap**, pulsa «Borrar mi historial» (el Recap sigue activado). **Si desactivas el Recap, se borra todo el historial** y no se puede recuperar.
 
@@ -33,7 +33,7 @@ Más sobre tus datos en [[privacy|Privacidad]].`,
 - Songs you skip early are also saved, but they add no minutes and do not appear in the tops: they only show in “Skipped”.
 - Radio and podcasts do not count.
 
-**Your data is only yours**: it is stored only on this device and is not sent to anyone. It does not move to another phone or when you change storage, and if you clear the app's data it is lost.
+**Your data is only yours**: it is stored only on this device and is not sent to anyone, unless you turn on “Share my listening with my groups” (that also turns the Recap on): then your minutes and monthly tops are sent to the people in your groups. See [[friend-groups|Friend groups]]. It does not move to another phone or when you change storage, and if you clear the app's data it is lost.
 
 **Delete the history**: in **Settings → Recap**, tap “Delete my history” (the Recap stays on). **If you turn the Recap off, the whole history is deleted** and cannot be recovered.
 
@@ -47,7 +47,7 @@ More about your data in [[privacy|Privacy]].`,
 - Garaiz baino lehen saltatzen dituzun abestiak ere gordetzen dira, baina ez dute minutuak gehitzen eta ez dira goiko zerrendetan agertzen: «Saltatuak» atalean bakarrik.
 - Irratia eta podcastak ez dira zenbatzen.
 
-**Zure datuak zureak dira**: gailu honetan bakarrik gordetzen dira eta ez zaizkio inori bidaltzen. Ez dira beste mugikor batera pasatzen, ezta biltegiratzea aldatzean ere, eta aplikazioaren datuak ezabatzen badituzu galdu egiten dira.
+**Zure datuak zureak dira**: gailu honetan bakarrik gordetzen dira eta ez zaizkio inori bidaltzen, «Partekatu nire entzunaldiak nire taldeekin» aktibatzen ez baduzu (horrek Recap-a ere aktibatzen du): orduan hilabete bakoitzeko minutuak eta goiko zerrendak zure taldeetako lagunei bidaltzen zaizkie. Ikusi [[friend-groups|Lagunen taldeak]]. Ez dira beste mugikor batera pasatzen, ezta biltegiratzea aldatzean ere, eta aplikazioaren datuak ezabatzen badituzu galdu egiten dira.
 
 **Historiala ezabatu**: **Ezarpenak → Recap** atalean, sakatu «Ezabatu nire historiala» (Recap-a aktibo jarraitzen du). **Recap-a desaktibatzen baduzu, historial osoa ezabatzen da** eta ezin da berreskuratu.
 

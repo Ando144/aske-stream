@@ -9,6 +9,7 @@ import { cloudflareArticles } from './articles/cloudflare';
 import { cloudflareSetupArticles } from './articles/cloudflareSetup';
 import { androidArticles } from './articles/android';
 import { friendsArticles } from './articles/friends';
+import { groupsArticles } from './articles/groups';
 import { problemsArticles } from './articles/problems';
 import { privacyArticles } from './articles/privacy';
 
@@ -70,6 +71,7 @@ export const ARTICLES: HelpArticle[] = [
   ...cloudflareSetupArticles,
   ...androidArticles,
   ...friendsArticles,
+  ...groupsArticles,
   ...problemsArticles,
   ...privacyArticles,
 ];

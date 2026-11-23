@@ -21,6 +21,10 @@ import { LibraryView } from './views/LibraryView';
 import { OfflineView } from './views/OfflineView';
 import { PairView } from './views/PairView';
 import { RecapView } from './views/RecapView';
+import { GroupsView, takePendingGroupCode } from './views/GroupsView';
+import { GroupView } from './views/GroupView';
+import { syncGroupStats } from './groups/sync';
+import { useGroups } from './stores/groups';
 import { SetupView } from './views/SetupView';
 import { FolderView } from './views/FolderView';
 import { PlaylistsView } from './views/PlaylistsView';
@@ -270,6 +274,21 @@ function Shell() {
     if (sessionStorage.getItem(PENDING_JAM_KEY)) navigate('/jam');
   }, [navigate]);
 
+  // A #group=CODE link opens the Groups screen with the join sheet filled in.
+  useEffect(() => {
+    if (takePendingGroupCode()) navigate('/groups');
+  }, [navigate]);
+
+  // Groups: finish a pending deletion of shared stats and send this month's stats.
+  useEffect(() => {
+    void useGroups.getState().retryPendingWipe();
+    if (useGroups.getState().consent !== 'on' || !canUseNetwork()) return;
+    void useGroups
+      .getState()
+      .refresh()
+      .then(() => syncGroupStats());
+  }, []);
+
   // A #send=CODE link: the phone app receives it; a browser can only explain what to do.
   useEffect(() => {
     const link = parseHubHash(window.location.hash);
@@ -312,6 +331,10 @@ function Shell() {
           </Route>
           <Route path="/jam">{() => <JamView />}</Route>
           <Route path="/recap" component={RecapView} />
+          <Route path="/groups" component={GroupsView} />
+          <Route path="/groups/:id">
+            {(params) => <GroupView key={params.id} id={params.id} />}
+          </Route>
           <Route path="/podcasts" component={PodcastsView} />
           <Route path="/radio" component={RadioView} />
           <Route path="/download" component={DownloadView} />

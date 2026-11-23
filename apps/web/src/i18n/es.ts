@@ -6,6 +6,7 @@ import { parcelEs } from './parcel';
 import { pickEs } from './pick';
 import { jamEs } from './jam';
 import { statsEs } from './stats';
+import { groupsEs } from './groups';
 
 export const es: Messages = {
   'app.name': 'Aske Stream',
@@ -709,5 +710,6 @@ export const es: Messages = {
   ...pickEs,
   ...jamEs,
   ...statsEs,
+  ...groupsEs,
   ...cloudflareSetupEs,
 };

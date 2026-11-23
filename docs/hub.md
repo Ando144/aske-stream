@@ -16,15 +16,22 @@ el navegador.
 
 ## Qué guarda y cuánto tiempo
 
-| Dato                                               | Cuánto tiempo                   |
-| -------------------------------------------------- | ------------------------------- |
-| Nombre de la playlist y referencias de canciones   | 90 días (después se borra sola) |
-| Apodos y cola de una Jam                           | Como mucho 12 horas             |
-| Lista de canciones para enviar al móvil            | hasta 24 h o hasta recibirla    |
-| Nombre de la playlist enviada al móvil             | hasta 24 h o hasta recibirla    |
-| IP (solo como hash con sal diaria, para los topes) | Un día                          |
+| Dato                                               | Cuánto tiempo                                         |
+| -------------------------------------------------- | ----------------------------------------------------- |
+| Nombre de la playlist y referencias de canciones   | 90 días (después se borra sola)                       |
+| Apodos y cola de una Jam                           | Como mucho 12 horas                                   |
+| Lista de canciones para enviar al móvil            | hasta 24 h o hasta recibirla                          |
+| Nombre de la playlist enviada al móvil             | hasta 24 h o hasta recibirla                          |
+| IP (solo como hash con sal diaria, para los topes) | Un día                                                |
+| Grupo: nombre, código de invitación, miembros      | Hasta 180 días sin actividad                          |
+| Miembro: apodo y hash de la clave del dispositivo  | Mientras esté en el grupo                             |
+| Vetos de personas expulsadas (hash de la clave)    | Mientras exista el grupo                              |
+| Escuchas por mes (solo con el interruptor activo)  | Los últimos 12 meses                                  |
+| Playlists y Jams compartidas en un grupo           | Hasta que caduque su enlace o Jam (máx. 50 por grupo) |
 
-No hay estadísticas de uso. Los detalles están en [PRIVACY.md](PRIVACY.md).
+No se recogen estadísticas de uso de la app. La única excepción son las escuchas que tú decides
+compartir con tus grupos (interruptor desactivado por defecto, ver «Grupos»). Los detalles están
+en [PRIVACY.md](PRIVACY.md).
 
 Para no pasarse del plan gratuito se limita por IP: 20 playlists por hora, 10 Jams por hora, 60
 búsquedas cada 10 minutos, 30 envíos al móvil por hora y 20 intentos de recibir o cancelar un
@@ -53,6 +60,43 @@ valiendo: sin nombre se tratan como canciones sueltas.
 La migración `apps/hub/migrations/0003_parcel_playlist.sql` añade las columnas `name` y
 `unavailable` a `parcels`. Aplícala con `npm run hub:migrate:remote` antes de desplegar.
 
+## Grupos
+
+Un grupo reúne hasta 20 personas (y cada dispositivo puede estar en 10) para ver un ranking de
+escuchas y pasarse playlists y Jams. No hay cuentas ni email: cada dispositivo genera una clave
+aleatoria de 64 caracteres hex, la envía en la cabecera `X-Device-Key` y el Hub solo guarda su hash.
+
+API en `/hub/v1/groups` (todas exigen `X-Device-Key`; si falta o es inválida, 400 `invalid_request`):
+
+| Método y ruta                                         | Para qué                                               |
+| ----------------------------------------------------- | ------------------------------------------------------ |
+| `GET /`                                               | Mis grupos                                             |
+| `POST /`                                              | Crear grupo (`name`, `alias`)                          |
+| `POST /join`                                          | Entrar con código (`code`, `alias`)                    |
+| `GET /:id`                                            | Detalle y miembros                                     |
+| `POST /:id/invite`                                    | Renovar el código (solo el creador)                    |
+| `DELETE /:id/members/:memberId`                       | Salir (uno mismo) o expulsar y vetar (solo el creador) |
+| `DELETE /me`                                          | Salir de todos los grupos y borrar mis escuchas        |
+| `PUT /stats`                                          | Subir hasta 12 meses de escuchas                       |
+| `DELETE /stats`                                       | Borrar mis escuchas del Hub (no saca de los grupos)    |
+| `GET /:id/stats?month=YYYY-MM`                        | Ranking del grupo y escuchas de cada persona           |
+| `GET/POST /:id/shares`, `DELETE /:id/shares/:shareId` | Playlists y Jams compartidas en el grupo               |
+
+Límites: 20 personas por grupo, 10 grupos por dispositivo, nombre de hasta 40 caracteres, 50
+elementos compartidos por grupo y escuchas de los últimos 12 meses (se cuenta el mes UTC actual y
+los 11 anteriores). Por IP: 10 grupos creados por hora, 20 intentos de entrar cada 10 minutos, 30
+subidas de escuchas por hora y 300 lecturas cada 10 minutos. Errores propios: `group_not_found`,
+`group_full`, `not_member`, `not_owner`, `kicked` y `too_many_groups`.
+
+Las escuchas se envían solo si la persona activa «Compartir mis escuchas con mis grupos» (lo que
+también enciende el Recap en su móvil). Al apagarlo se borran del Hub, pero la persona sigue en
+sus grupos. La limpieza horaria borra los grupos sin actividad en 180 días y los meses de escuchas
+más antiguos de 12.
+
+La migración `apps/hub/migrations/0004_groups.sql` crea las tablas `groups`, `group_members`,
+`group_bans`, `device_stats` y `group_shares`. Aplícala con `npm run hub:migrate:remote` **antes**
+de `npm run deploy:hub`.
+
 ## Cómo desplegarlo
 
 Hace falta una cuenta de Cloudflare y haber iniciado sesión con `npx wrangler login`.
@@ -77,6 +121,7 @@ Hace falta una cuenta de Cloudflare y haber iniciado sesión con `npx wrangler l
 - `apps/hub/src/routes/parcels.ts`: envíos al móvil con código.
 - `apps/hub/src/routes/playlists.ts`: lectura de playlists de YouTube para elegir canciones.
 - `apps/hub/src/routes/search.ts`: búsqueda en YouTube para quien no tiene Cloudflare (ordenador).
+- `apps/hub/src/groups/`: grupos de amigos (rutas, acceso a D1, ranking y limpieza).
 - `apps/hub/src/jam/`: la Jam (un Durable Object por Jam).
 - `apps/hub/src/cleanup.ts`: limpieza cada hora (cron `17 * * * *`), para que nada viva más de
   unas 25 horas.

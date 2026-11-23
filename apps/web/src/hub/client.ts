@@ -44,7 +44,7 @@ async function readError(res: Response): Promise<HubError> {
   return new HubError(body?.error ?? 'internal_error', res.status, body?.message);
 }
 
-async function hubFetch<T>(path: string, opts: HubRequest = {}): Promise<T> {
+export async function hubFetch<T>(path: string, opts: HubRequest = {}): Promise<T> {
   if (!hubAvailable()) throw new HubError('unavailable', 0);
   const headers = new Headers(opts.headers);
   let body: string | undefined;
