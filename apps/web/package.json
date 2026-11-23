@@ -1,6 +1,6 @@
 {
   "name": "@aske/web",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "private": true,
   "type": "module",
   "description": "Installable PWA: player, library, playlists, radio and smart offline cache.",
