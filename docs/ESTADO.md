@@ -6,7 +6,7 @@ Actualizado: 2026-11-23
 
 - **F1-F7 (hasta v0.7.0):** biblioteca en dispositivo, Cloudflare o Drive; Android; YouTube; ayuda eu/es/en; copia; QR; Hub con playlists compartidas y Jams.
 - **v0.8.0-v0.8.5 (publicadas):** estadísticas y Recap locales, Jam fiable, batería, cola de descargas nativa, Enviar al móvil por código, QR o playlist entera de YouTube (hasta 1000), notificación de descargas, arranque sin red, aleatorio sin repeticiones.
-- **Mejoras sin versión (aún no 0.8.6, sin publicar):**
+- **v0.8.6 (publicada: web, push y tag; el APK lo construye el CI; el Hub no cambia):**
   - Notificación de descargas con progreso continuo que nunca baja (app y `DownloadService.java`).
   - Botones Jam y Recibir arreglados.
   - Nueva animación de arranque del logo: trazo, relleno, destello ámbar, pulso y fundido; respeta reduced-motion.
@@ -16,9 +16,9 @@ Actualizado: 2026-11-23
 
 ## En curso / siguiente
 
-- Andoni: probar el APK: notificación con la app cerrada y abierta; un lote nuevo con el anterior al 100 % deja la barra en 100 hasta alcanzarla (riesgo aceptado).
+- Andoni: probar el APK v0.8.6: notificación con la app cerrada y abierta; un lote nuevo con el anterior al 100 % deja la barra en 100 hasta alcanzarla (riesgo aceptado).
 - Andoni: comprobar a ojo Jam y Recibir a 360 px y la animación de arranque.
-- Andoni: mirar en GitHub → Actions los APK v0.8.0 a v0.8.5.
+- Andoni: mirar en GitHub → Actions los APK v0.8.0 a v0.8.6.
 - Pendiente de v0.8.3: Jam en dos móviles y `onTimeout` con `adb shell device_config put activity_manager data_sync_fgs_timeout_duration 60000` (restaurar con `delete`).
 - Siguiente: F8b grupos (consentimiento aparte); después F9 modo estudio.
 
