@@ -48,7 +48,7 @@ import { t } from './i18n';
 import { mayDoBackgroundWork, mayRotateOfflineNow } from './lib/power';
 import { BootSplash } from './components/BootSplash';
 import { ConnectionBanner } from './components/ConnectionBanner';
-import { BOOT_MAX_WAIT_MS, BOOT_MIN_SPLASH_MS, SPLASH_EXIT_MS, bootReady } from './lib/boot';
+import { BOOT_MAX_WAIT_MS, bootReady, splashTimings } from './lib/boot';
 import { BOOT_TIMEOUT_MS, isTimeout, withTimeout } from './lib/timeout';
 import {
   canUseNetwork,
@@ -83,7 +83,7 @@ function takePendingJamCode(): string | null {
 }
 
 /** Starts setup and the connection watch; true once the opening screen can go away. */
-function useBootReady(setupLoading: boolean): boolean {
+function useBootReady(setupLoading: boolean, minMs: number): boolean {
   const connection = useConnectivity((s) => s.status);
   const [startedAt] = useState(() => Date.now());
   const [, forceRender] = useState(0);
@@ -93,36 +93,39 @@ function useBootReady(setupLoading: boolean): boolean {
     void useSetup.getState().init();
     const stopWatch = startConnectivityWatch();
     void useConnectivity.getState().check();
-    const timers = [BOOT_MIN_SPLASH_MS, BOOT_MAX_WAIT_MS].map((ms) =>
+    const timers = [minMs, BOOT_MAX_WAIT_MS].map((ms) =>
       setTimeout(() => forceRender((n) => n + 1), ms),
     );
     return () => {
       stopWatch();
       timers.forEach(clearTimeout);
     };
-  }, []);
+  }, [minMs]);
 
-  return bootReady({ setupLoading, elapsedMs: Date.now() - startedAt, connection });
+  return bootReady({ setupLoading, elapsedMs: Date.now() - startedAt, connection }, minMs);
 }
 
-/** True for SPLASH_EXIT_MS after the app becomes ready, while the opening screen fades out. */
-function useSplashExit(ready: boolean): boolean {
+/** True for exitMs after the app becomes ready, while the opening screen fades out. */
+function useSplashExit(ready: boolean, exitMs: number): boolean {
   const [exitDone, setExitDone] = useState(false);
   useEffect(() => {
     if (!ready) {
       setExitDone(false);
       return;
     }
-    const timer = setTimeout(() => setExitDone(true), SPLASH_EXIT_MS);
+    const timer = setTimeout(() => setExitDone(true), exitMs);
     return () => clearTimeout(timer);
-  }, [ready]);
+  }, [ready, exitMs]);
   return ready && !exitDone;
 }
 
 export function App() {
   const status = useSetup((s) => s.status);
-  const ready = useBootReady(status === 'loading');
-  const leaving = useSplashExit(ready);
+  const [{ minMs, exitMs }] = useState(() =>
+    splashTimings(window.matchMedia('(prefers-reduced-motion: reduce)').matches),
+  );
+  const ready = useBootReady(status === 'loading', minMs);
+  const leaving = useSplashExit(ready, exitMs);
 
   if (!ready) return <BootSplash />;
   return (

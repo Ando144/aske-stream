@@ -16,7 +16,7 @@
 .boot-pulse {
   width: 96px;
   height: 96px;
-  animation: boot-pulse 1.6s ease-in-out 1.2s infinite;
+  animation: boot-pulse 1.6s ease-in-out 1.8s infinite;
 }
 
 .boot-logo {
@@ -114,18 +114,18 @@
 
 @keyframes boot-logo-exit {
   to {
-    transform: scale(1.08);
+    transform: scale(1.15);
   }
 }
 
-/* Leaving: the logo is already complete; only fade out so nothing restarts. */
+/* Leaving: the logo is already complete; fade out with a soft zoom. Keep 500ms = SPLASH_EXIT_MS. */
 .boot-splash.leaving {
   pointer-events: none;
-  animation: boot-exit 300ms ease-out forwards;
+  animation: boot-exit 500ms ease-in-out forwards;
 }
 
 .leaving .boot-pulse {
-  animation: boot-logo-exit 300ms ease-out forwards;
+  animation: boot-logo-exit 500ms ease-in-out forwards;
 }
 
 .leaving .boot-bar {
@@ -155,7 +155,7 @@
   }
 
   .boot-splash.leaving {
-    animation-duration: 150ms;
+    animation-duration: 200ms; /* = reduced-motion exitMs in splashTimings */
   }
 
   .leaving .boot-pulse {

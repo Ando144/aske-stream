@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { BOOT_MAX_WAIT_MS, BOOT_MIN_SPLASH_MS, bootReady } from '../src/lib/boot';
+import { BOOT_MAX_WAIT_MS, BOOT_MIN_SPLASH_MS, bootReady, splashTimings } from '../src/lib/boot';
+
+describe('splashTimings', () => {
+  it('holds the finished logo and fades out gently', () => {
+    expect(splashTimings(false)).toEqual({ minMs: 1800, exitMs: 500 });
+  });
+
+  it('is short and fade-only with reduced motion', () => {
+    expect(splashTimings(true)).toEqual({ minMs: 600, exitMs: 200 });
+  });
+});
+
+describe('bootReady with a custom minimum', () => {
+  it('is false before minMs and true at minMs', () => {
+    const base = { setupLoading: false, connection: 'online' as const };
+    expect(bootReady({ ...base, elapsedMs: 599 }, 600)).toBe(false);
+    expect(bootReady({ ...base, elapsedMs: 600 }, 600)).toBe(true);
+  });
+});
 
 describe('bootReady', () => {
   it('waits for the minimum splash time', () => {
