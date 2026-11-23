@@ -21,5 +21,8 @@ not offered.
 
 Add the author and link for each file here.
 
-- `rain.ogg`: (author, link)
-- `waves.ogg`: (author, link)
+Both are CC0, converted to mono Opus 48 kbps, normalised, and edited with a 3 s crossfade so they loop.
+
+- `rain.ogg` (24 s): Ylmir, "Rain (loopable)", https://opengameart.org/content/rain-loopable
+- `waves.ogg` (55 s): Joseph Sardin, "Sea waves with tern calls" (s0267),
+  https://bigsoundbank.com/sea-waves-and-seagulls-s0267.html

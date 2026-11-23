@@ -59,3 +59,4 @@ apps/mobile/android/local.properties
 *.apk
 *.aab
 apps/web/test/browser/shots/
+!apps/web/src/study/sounds/*.ogg
