@@ -55,6 +55,13 @@ describe('readPages', () => {
     });
     expect(read.entries.map((e) => e.id)).toEqual(['v1', 'v2']);
     expect(read.exhausted).toBe(false);
+    expect(read.capped).toBe(true);
+  });
+
+  it('is not capped when the list ends before maxSongs', async () => {
+    const read = emptyRead();
+    await readPages(fetcher([page([1], null)]), read, { maxPages: 5, maxSongs: 2 });
+    expect(read.capped).toBe(false);
   });
 
   it('stops on a refused page and keeps what it had', async () => {
@@ -87,6 +94,12 @@ describe('listingFromRead', () => {
   it('counts hidden videos once the list is exhausted', () => {
     const read = { ...emptyRead(), entries: [entry(1), entry(2)], totalCount: 5, exhausted: true };
     expect(listingFromRead(read)).toMatchObject({ complete: true, unavailable: 3 });
+  });
+
+  it('is complete and hides the cut songs when capped', () => {
+    const entries = Array.from({ length: 1000 }, (_, i) => entry(i));
+    const read = { ...emptyRead(), entries, totalCount: 1500, capped: true, skipped: 2 };
+    expect(listingFromRead(read)).toMatchObject({ complete: true, unavailable: 2 });
   });
 
   it('is incomplete when not exhausted and short of the total', () => {

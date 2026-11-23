@@ -9,6 +9,10 @@ import { normalizeServerUrl } from '../lib/url';
 import { parsePairingLink } from '@aske/shared/pairing';
 import { isNative } from '../native/platform';
 import { scanQr } from '../native/qrScanner';
+import { diagnoseConnection, type ConnectionProblem } from '../lib/networkDiagnosis';
+import { BOOT_TIMEOUT_MS } from '../lib/timeout';
+import { HUB_URL } from '../config';
+import { hubAvailable } from '../hub/client';
 
 /** Reads `#key=…` or `#code=…` from the URL (the fragment never reaches the server or its logs). */
 function takeFromHash(name: 'key' | 'code'): string | null {
@@ -18,24 +22,31 @@ function takeFromHash(name: 'key' | 'code'): string | null {
   return decodeURIComponent(match[1]!);
 }
 
-type Problem = 'noInternet' | 'unreachable' | 'blocked';
+type Problem = ConnectionProblem;
 type Mode = 'key' | 'code';
+
+const probe = (url: string) =>
+  fetch(url, {
+    mode: 'no-cors',
+    cache: 'no-store',
+    credentials: 'omit',
+    signal: AbortSignal.timeout(BOOT_TIMEOUT_MS),
+  }).then(
+    () => true,
+    () => false,
+  );
 
 /**
  * The request failed before any answer arrived. Find out why, in words a
  * non-technical person can act on: no internet at all, wrong address, or a
  * server that answers but does not let the app in (usually an old version).
  */
-async function diagnose(baseUrl: string): Promise<Problem> {
-  const probe = (url: string) =>
-    fetch(url, { mode: 'no-cors', cache: 'no-store', credentials: 'omit' }).then(
-      () => true,
-      () => false,
-    );
-  if (!(await probe('https://www.gstatic.com/generate_204'))) return 'noInternet';
-  // A static file: /api answers carry a same-origin resource policy that hides them here.
-  if (!(await probe(`${baseUrl}/favicon.svg`))) return 'unreachable';
-  return 'blocked';
+function diagnose(baseUrl: string): Promise<Problem> {
+  return diagnoseConnection(baseUrl, {
+    probe,
+    hubUrl: hubAvailable() ? HUB_URL : null,
+    online: navigator.onLine,
+  });
 }
 
 /** Turns a failed connection attempt into a plain-language message. */

@@ -21,6 +21,8 @@ describe('bootReady', () => {
   });
 
   it('does not wait when offline', () => {
-    expect(bootReady({ setupLoading: false, elapsedMs: 1000, connection: 'offline' })).toBe(true);
+    expect(
+      bootReady({ setupLoading: false, elapsedMs: BOOT_MIN_SPLASH_MS, connection: 'offline' }),
+    ).toBe(true);
   });
 });

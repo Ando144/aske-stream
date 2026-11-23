@@ -1,6 +1,7 @@
 import type { ConnectionStatus } from '../stores/connectivity';
 
-export const BOOT_MIN_SPLASH_MS = 1000;
+export const BOOT_MIN_SPLASH_MS = 1200;
+export const SPLASH_EXIT_MS = 300;
 export const BOOT_MAX_WAIT_MS = 5000;
 export const BOOT_CONNECTING_HINT_MS = 1500;
 

@@ -229,7 +229,6 @@ export const eu: Messages = {
   'dl.playlistExists': '«{name}» izeneko zerrenda bat baduzu jada. Zer egingo dugu?',
   'dl.playlistMerge': 'Batu: gehitu abestiak daukazun zerrendari',
   'dl.playlistNew': 'Sortu beste bat: «{name}»',
-  'dl.loadingPlaylist': 'Zerrenda irakurtzen…',
   'dl.playlistFailed': 'Ezin izan da zerrenda irakurri. Pribatua izan daiteke.',
   'dl.makePlaylist': 'Sortu «{name}» zerrenda ere zure liburutegian',
   'dl.downloadAll': 'Deskargatu {count} abesti',
@@ -335,7 +334,6 @@ export const eu: Messages = {
   'dl.playlistSlow': 'YouTubek gehiegi behar du erantzuteko. Saiatu berriro geroago.',
   'dl.playlistPartial':
     'Abesti guztietatik {count} bakarrik irakurri ahal izan ditugu ({total} dira). Hauek orain deskarga ditzakezu eta gainerakoak geroago saiatu.',
-  'dl.playlistLoadingMore': 'Zerrendaren gainerakoa kargatzen… {count} / {total}',
   'storage.title': 'Biltegiratzea',
   'storage.cloud': 'Zure Cloudflare',
   'storage.ofLimit': '{used} / {limit}',

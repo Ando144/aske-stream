@@ -88,6 +88,65 @@ describe('buildNotification', () => {
     const content = buildNotification(jobs, false, t)!;
     expect(content.title).toContain('dl.notifTitle');
     expect(content.text).toContain('Song 2');
+    expect(content.title).toBe('dl.notifTitle|done=2|total=2');
+    expect(content.progress).toBe(60);
+  });
+
+  it('never goes back across 5 songs while the batch advances', () => {
+    const steps: DownloadJob[][] = [
+      [
+        job(1, 'downloading', 100),
+        job(2, 'queued'),
+        job(3, 'queued'),
+        job(4, 'queued'),
+        job(5, 'queued'),
+      ],
+      [
+        job(1, 'saving', 100),
+        job(2, 'downloading', 0),
+        job(3, 'queued'),
+        job(4, 'queued'),
+        job(5, 'queued'),
+      ],
+      [
+        job(1, 'done', 100),
+        job(2, 'downloading', 30),
+        job(3, 'queued'),
+        job(4, 'queued'),
+        job(5, 'queued'),
+      ],
+      [
+        job(1, 'done', 100),
+        job(2, 'saving', 100),
+        job(3, 'downloading', 0),
+        job(4, 'queued'),
+        job(5, 'queued'),
+      ],
+    ];
+    const values = steps.map((s) => buildNotification(s, false, t)!.progress);
+    values.forEach((v, i) => {
+      if (i > 0) expect(v).toBeGreaterThanOrEqual(values[i - 1]!);
+    });
+    expect(values[1]).toBe(20);
+    expect(values[2]).toBe(26);
+  });
+
+  it('raises the bar to the floor and never above 100', () => {
+    const jobs = batch(2, [job(1, 'downloading', 0), job(2, 'queued')]);
+    expect(buildNotification(jobs, false, t, 70)!.progress).toBe(70);
+    expect(buildNotification(jobs, false, t, 0)!.progress).toBe(50);
+    expect(buildNotification(jobs, false, t, 250)!.progress).toBe(100);
+  });
+
+  it('does not go down when the batch grows from 5 to 10 songs', () => {
+    const five = batch(3, [job(1, 'downloading', 50), job(2, 'queued')]);
+    const before = buildNotification(five, false, t)!.progress;
+    const ten = batch(3, [
+      job(1, 'downloading', 50),
+      ...[2, 3, 4, 5, 6, 7].map((i) => job(i, 'queued')),
+    ]);
+    expect(buildNotification(ten, false, t)!.progress).toBeLessThan(before);
+    expect(buildNotification(ten, false, t, before)!.progress).toBe(before);
   });
 
   it('keeps the total bar and says it is waiting for the network', () => {

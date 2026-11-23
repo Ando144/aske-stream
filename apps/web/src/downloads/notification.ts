@@ -1,5 +1,5 @@
 // Content of the download notification (no stores, no Capacitor).
-import { notificationCounts } from './batch';
+import { batchCompleted, notificationCounts } from './batch';
 import type { DownloadJob } from './types';
 
 export type Translate = (key: string, params?: Record<string, string | number>) => string;
@@ -46,12 +46,16 @@ export function buildNotification(
   jobs: readonly DownloadJob[],
   waitingNetwork: boolean,
   t: Translate,
+  floor = 0,
 ): NotificationContent | null {
   const active = jobs.filter((j) => ACTIVE.has(j.status));
   if (!active.length) return null;
   const current = currentJob(active);
-  const { position, total } = notificationCounts(jobs) ?? { position: 1, total: active.length };
+  const { total } = notificationCounts(jobs) ?? { total: active.length };
   const saving = current.status === 'saving' || current.status === 'downloaded';
+  // The song being saved is already counted as completed; the bar must not count it twice.
+  const finished = batchCompleted(jobs) - (saving ? 1 : 0);
+  const position = Math.min(finished + 1, total);
   const left = active.length - 1;
   let text =
     left > 0
@@ -61,7 +65,11 @@ export function buildNotification(
   return {
     title: t(saving ? 'dl.notifSavingTitle' : 'dl.notifTitle', { done: position, total }),
     text,
-    progress: batchProgress(position - 1, fractionOf(current, waitingNetwork), total),
+    // Never below the last value sent: the batch can grow and the bar must not step back.
+    progress: Math.min(
+      100,
+      Math.max(floor, batchProgress(finished, fractionOf(current, waitingNetwork), total)),
+    ),
   };
 }
 

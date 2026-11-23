@@ -222,7 +222,6 @@ export const en = {
   'dl.playlistExists': 'You already have a playlist called “{name}”. What shall we do?',
   'dl.playlistMerge': 'Merge: add the songs to the one you already have',
   'dl.playlistNew': 'Create another: “{name}”',
-  'dl.loadingPlaylist': 'Reading the playlist…',
   'dl.playlistFailed': 'Could not read the playlist. It may be private.',
   'dl.makePlaylist': 'Also create the playlist “{name}” in your library',
   'dl.downloadAll': 'Download {count} songs',
@@ -326,7 +325,6 @@ export const en = {
   'dl.playlistSlow': 'YouTube is taking too long to answer. Try again in a while.',
   'dl.playlistPartial':
     'We could only read {count} of {total} songs. You can download these now and try again later for the rest.',
-  'dl.playlistLoadingMore': 'Loading the rest of the playlist… {count} of {total}',
   'storage.title': 'Storage',
   'storage.cloud': 'Your Cloudflare',
   'storage.ofLimit': '{used} of {limit}',

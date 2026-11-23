@@ -103,7 +103,7 @@ function ReceiveButton() {
 
   return (
     <>
-      <button className="btn small" onClick={() => setCode('')}>
+      <button className="btn small receive-btn" onClick={() => setCode('')}>
         <ScanLine size={16} /> {t('parcel.receive')}
       </button>
       {code !== null && <ReceiveSheet initialCode={code} onClose={() => setCode(null)} />}

@@ -59,7 +59,7 @@ export function PlaylistsView() {
       <header className="page-header">
         <h1>{t('playlists.title')}</h1>
         <div className="header-actions">
-          <Link href="/jam" className="btn small" title={t('nav.jam')}>
+          <Link href="/jam" className="btn small with-label" title={t('nav.jam')}>
             <PartyPopper size={16} /> {t('nav.jam')}
           </Link>
           <button

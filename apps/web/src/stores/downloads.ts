@@ -237,7 +237,12 @@ export const useDownloads = create<DownloadsState>((set, get) => {
   }
   function notify() {
     clearTimeout(sendTimer);
-    const content = buildNotification(get().jobs, get().waitingNetwork, tr);
+    const content = buildNotification(
+      get().jobs,
+      get().waitingNetwork,
+      tr,
+      lastSent?.content.progress ?? 0,
+    );
     if (!content) return endNotification();
     batches.collect(get().jobs);
     const now = Date.now();

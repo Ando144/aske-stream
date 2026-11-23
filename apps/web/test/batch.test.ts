@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   arrangeImportedPlaylist,
+  batchCompleted,
   batchForRetry,
   importsToKeep,
   notificationCounts,
@@ -69,6 +70,31 @@ describe('notificationCounts', () => {
     expect(notificationCounts(jobs)).toEqual({ position: 3, total: 3 });
     const finishing = [job('saving', 'a'), job('done', 'a'), job('done', 'a')];
     expect(notificationCounts(finishing)?.position).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('batchCompleted', () => {
+  it('counts done, error, downloaded and saving of the active batches', () => {
+    const jobs = [
+      job('done', 'a'),
+      job('error', 'a'),
+      job('downloaded', 'a'),
+      job('saving', 'a'),
+      job('downloading', 'a'),
+      job('queued', 'a'),
+      job('canceled', 'a'),
+    ];
+    expect(batchCompleted(jobs)).toBe(4);
+  });
+
+  it('ignores finished jobs of batches that are no longer active', () => {
+    const jobs = [...many(5, 'done', 'old'), job('done', 'new'), job('queued', 'new')];
+    expect(batchCompleted(jobs)).toBe(1);
+  });
+
+  it('is 0 when no batch is active', () => {
+    expect(batchCompleted([])).toBe(0);
+    expect(batchCompleted(many(3, 'done', 'a'))).toBe(0);
   });
 });
 

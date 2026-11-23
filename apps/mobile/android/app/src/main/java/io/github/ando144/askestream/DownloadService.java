@@ -67,6 +67,7 @@ public class DownloadService extends Service {
     private long notBefore = 0;
     private volatile int lastPct = 0;
     private int done = 0;
+    private int shownPct = 0;
     private NotificationThrottle throttle;
     private DownloadQueue.Job currentJob;
     private String lastJsTitle = "";
@@ -111,12 +112,22 @@ public class DownloadService extends Service {
         s.main.post(() -> s.submitFromJs(title, text, progress));
     }
 
+    /**
+     * The writer switches between the app and the service and the total can grow, so the raw value
+     * may drop; Android must never see the bar go backwards. Negative means indeterminate.
+     */
+    private int rising(int progress) {
+        if (progress < 0) return progress;
+        shownPct = Math.max(shownPct, Math.min(progress, 100));
+        return shownPct;
+    }
+
     private void submitFromJs(String title, String text, int progress) {
         boolean phaseChange = !title.equals(lastJsTitle) || !text.equals(lastJsText);
         lastJsTitle = title;
         lastJsText = text;
         lastJsUpdateAt = SystemClock.uptimeMillis();
-        throttle.submit(build(this, title, text, progress), phaseChange);
+        throttle.submit(build(this, title, text, rising(progress)), phaseChange);
     }
 
     /** Removes the final notice (also when the app is open again and handles the results). */
@@ -154,7 +165,7 @@ public class DownloadService extends Service {
         // intent == null: Android restarted the service after killing it; the queue is read from disk.
         boolean fromJs = intent != null && intent.hasExtra("title");
         Notification n = fromJs
-            ? build(this, intent.getStringExtra("title"), intent.getStringExtra("text"), intent.getIntExtra("progress", -1))
+            ? build(this, intent.getStringExtra("title"), intent.getStringExtra("text"), rising(intent.getIntExtra("progress", -1)))
             : nativeNotification(0);
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
@@ -248,6 +259,7 @@ public class DownloadService extends Service {
 
     private void onQueueEmpty() {
         done = 0;
+        shownPct = 0;
         setWaiting(false);
         releaseLocks();
         if (jsKeepAlive) return;
@@ -277,7 +289,7 @@ public class DownloadService extends Service {
         if (title.isEmpty()) title = getString(R.string.app_name);
         int shown = waitingNetwork ? 0 : Math.max(pct, 0);
         int overall = Math.min(100, (done * 100 + shown) / total);
-        return build(this, title, currentText(texts), overall);
+        return build(this, title, currentText(texts), rising(overall));
     }
 
     private String currentText(JSObject texts) {

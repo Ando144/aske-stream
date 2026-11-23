@@ -37,13 +37,28 @@ function activeBatchIds(jobs: readonly BatchJob[]): Set<string> {
   return new Set(jobs.filter((j) => ACTIVE.has(j.status)).map(batchOf));
 }
 
+const countedInActiveBatches = (jobs: readonly BatchJob[]): BatchJob[] => {
+  const active = activeBatchIds(jobs);
+  return jobs.filter((j) => active.has(batchOf(j)) && COUNTED.has(j.status));
+};
+
+/** Songs of the active batches already downloaded: done, error, downloaded or saving. */
+export function batchCompleted(jobs: readonly BatchJob[]): number {
+  const downloaded: ReadonlySet<BatchJobStatus> = new Set([
+    'done',
+    'error',
+    'downloaded',
+    'saving',
+  ]);
+  return countedInActiveBatches(jobs).filter((j) => downloaded.has(j.status)).length;
+}
+
 /** Numbers shown in the notification: "Downloading {position} of {total}". */
 export function notificationCounts(
   jobs: readonly BatchJob[],
 ): { position: number; total: number } | null {
-  const active = activeBatchIds(jobs);
-  if (active.size === 0) return null;
-  const counted = jobs.filter((j) => active.has(batchOf(j)) && COUNTED.has(j.status));
+  if (activeBatchIds(jobs).size === 0) return null;
+  const counted = countedInActiveBatches(jobs);
   const finished = counted.filter((j) => j.status === 'done' || j.status === 'error').length;
   const total = counted.length;
   return { position: Math.min(finished + 1, total), total };

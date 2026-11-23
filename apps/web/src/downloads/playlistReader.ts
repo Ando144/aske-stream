@@ -29,10 +29,20 @@ export interface PlaylistRead {
   /** YouTube said there is nothing more to read. */
   exhausted: boolean;
   skipped: number;
+  /** The list was cut at maxSongs on purpose. */
+  capped: boolean;
 }
 
 export function emptyRead(): PlaylistRead {
-  return { title: '', author: '', entries: [], totalCount: null, exhausted: false, skipped: 0 };
+  return {
+    title: '',
+    author: '',
+    entries: [],
+    totalCount: null,
+    exhausted: false,
+    skipped: 0,
+    capped: false,
+  };
 }
 
 function addPage(read: PlaylistRead, page: PlaylistPage, first: boolean): void {
@@ -62,6 +72,7 @@ export async function readPages(
     addPage(read, page, index === 0);
     if (limits.maxSongs !== undefined && read.entries.length >= limits.maxSongs) {
       read.entries.length = limits.maxSongs;
+      read.capped = true;
       limits.onPage?.(read);
       return;
     }
@@ -82,7 +93,7 @@ export function listingFromRead(read: PlaylistRead): PlaylistListing {
     author: read.author,
     entries: read.entries,
     totalCount: read.totalCount,
-    complete: isPlaylistComplete(count, read.totalCount, read.exhausted),
+    complete: read.capped || isPlaylistComplete(count, read.totalCount, read.exhausted),
     unavailable: countUnavailable(read.skipped, count, read.totalCount, read.exhausted),
   };
 }

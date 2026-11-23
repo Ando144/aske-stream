@@ -227,7 +227,6 @@ export const es: Messages = {
   'dl.playlistExists': 'Ya tienes una playlist llamada «{name}». ¿Qué hacemos?',
   'dl.playlistMerge': 'Juntarlas: añadir las canciones a la que ya tienes',
   'dl.playlistNew': 'Crear otra: «{name}»',
-  'dl.loadingPlaylist': 'Leyendo la playlist…',
   'dl.playlistFailed': 'No se pudo leer la playlist. Puede ser privada.',
   'dl.makePlaylist': 'Crear también la playlist «{name}» en tu biblioteca',
   'dl.downloadAll': 'Descargar {count} canciones',
@@ -334,7 +333,6 @@ export const es: Messages = {
   'dl.playlistSlow': 'YouTube tarda demasiado en responder. Inténtalo de nuevo en un rato.',
   'dl.playlistPartial':
     'Solo hemos podido leer {count} de {total} canciones. Puedes descargar estas ahora y volver a intentarlo luego para el resto.',
-  'dl.playlistLoadingMore': 'Cargando el resto de la playlist… {count} de {total}',
   'storage.title': 'Almacenamiento',
   'storage.cloud': 'Tu Cloudflare',
   'storage.ofLimit': '{used} de {limit}',

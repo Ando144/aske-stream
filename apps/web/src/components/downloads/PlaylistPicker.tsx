@@ -7,6 +7,12 @@ import type { SearchResult } from '@aske/shared/youtube';
 import { useI18n, useT, type MessageKey } from '../../i18n';
 import { uniquePlaylistName } from '../../downloads/batch';
 import { pickedEntries } from '../../downloads/pickSelection';
+import {
+  addFreshSelection,
+  pickerActionText,
+  pickerNotices,
+  pickerSubtitle,
+} from '../../downloads/pickerView';
 import type { PlaylistListing } from '../../downloads/playlistReader';
 import { listPlaylist, PlaylistLinkError } from '../../downloads/playlistSource';
 import { hubAvailable, HubError } from '../../hub/client';
@@ -20,7 +26,6 @@ import { toast } from '../../stores/ui';
 import { PickList } from './PickList';
 
 type Via = 'cloudflare' | 'hub' | null;
-type Translate = (key: MessageKey, params?: Record<string, string | number>) => string;
 type Mode = 'merge' | 'new';
 
 const videoThumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -120,16 +125,22 @@ function songsFrom(entries: PlaylistListing['entries']): HubSong[] {
 /** Newly read songs start ticked (up to the limit); the user's later changes are kept. */
 function useSelection() {
   const seen = useRef(new Set<string>());
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const selectedRef = useRef<ReadonlySet<string>>(new Set());
+  const [selected, setSelectedState] = useState<Set<string>>(new Set());
+  const setSelected = (next: Set<string>) => {
+    selectedRef.current = next;
+    setSelectedState(next);
+  };
   const onEntries = (ids: string[]) => {
-    const fresh = ids.filter((id) => !seen.current.has(id));
-    if (fresh.length === 0) return;
-    fresh.forEach((id) => seen.current.add(id));
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const id of fresh) if (next.size < LIMITS.playlistMaxTracks) next.add(id);
-      return next;
-    });
+    // Computed outside the updater so `seen` is not mutated twice by StrictMode.
+    const next = addFreshSelection(
+      selectedRef.current,
+      seen.current,
+      ids,
+      LIMITS.playlistMaxTracks,
+    );
+    if (!next) return;
+    setSelected(next);
   };
   return { selected, setSelected, onEntries };
 }
@@ -199,8 +210,9 @@ function PickerHeader({
 function PickerNotices({ listing, loading, error }: Loaded) {
   const t = useT();
   const count = listing?.entries.length ?? 0;
-  const total = listing?.totalCount ?? null;
+  const total = listing?.totalCount ?? 0;
   const unavailable = listing?.unavailable ?? 0;
+  const { partial, overLimit } = pickerNotices(listing, loading, LIMITS.playlistMaxTracks);
   return (
     <>
       {loading && (
@@ -210,10 +222,8 @@ function PickerNotices({ listing, loading, error }: Loaded) {
         </div>
       )}
       {error && <div className="error-text small">{error}</div>}
-      {listing && !loading && !listing.complete && total && (
-        <div className="muted small">{t('dl.playlistPartial', { count, total })}</div>
-      )}
-      {total !== null && total > LIMITS.playlistMaxTracks && (
+      {partial && <div className="muted small">{t('dl.playlistPartial', { count, total })}</div>}
+      {overLimit && (
         <div className="muted small">
           {t('pick.overLimit', { total, count: LIMITS.playlistMaxTracks })}
         </div>
@@ -258,31 +268,53 @@ function NameChoice({
         {t('dl.makePlaylist', { name: title })}
       </label>
       {makePlaylist && nameTaken && (
-        <fieldset className="small" style={{ border: 'none', padding: 0, margin: 0 }}>
-          <legend>{t('dl.playlistExists', { name: playlistName })}</legend>
-          <label className="row">
-            <input
-              type="radio"
-              name="playlist-mode"
-              checked={mode === 'merge'}
-              onChange={() => onMode('merge')}
-            />
-            {t('dl.playlistMerge')}
-          </label>
-          <label className="row">
-            <input
-              type="radio"
-              name="playlist-mode"
-              checked={mode === 'new'}
-              onChange={() => onMode('new')}
-            />
-            {t('dl.playlistNew', {
-              name: uniquePlaylistName(playlistName, existingNames, LIMITS.nameMax),
-            })}
-          </label>
-        </fieldset>
+        <NameConflict
+          playlistName={playlistName}
+          existingNames={existingNames}
+          mode={mode}
+          onMode={onMode}
+        />
       )}
     </>
+  );
+}
+
+function NameConflict({
+  playlistName,
+  existingNames,
+  mode,
+  onMode,
+}: {
+  playlistName: string;
+  existingNames: string[];
+  mode: Mode;
+  onMode: (value: Mode) => void;
+}) {
+  const t = useT();
+  return (
+    <fieldset className="small" style={{ border: 'none', padding: 0, margin: 0 }}>
+      <legend>{t('dl.playlistExists', { name: playlistName })}</legend>
+      <label className="row">
+        <input
+          type="radio"
+          name="playlist-mode"
+          checked={mode === 'merge'}
+          onChange={() => onMode('merge')}
+        />
+        {t('dl.playlistMerge')}
+      </label>
+      <label className="row">
+        <input
+          type="radio"
+          name="playlist-mode"
+          checked={mode === 'new'}
+          onChange={() => onMode('new')}
+        />
+        {t('dl.playlistNew', {
+          name: uniquePlaylistName(playlistName, existingNames, LIMITS.nameMax),
+        })}
+      </label>
+    </fieldset>
   );
 }
 
@@ -311,35 +343,28 @@ function PickerFooter({
   );
 }
 
-/** Preview of a playlist: pick songs, then download them (phone) or send them (computer). */
-export function PlaylistPicker({
-  result,
-  via,
-  onClose,
-}: {
+interface PickerProps {
   result: SearchResult;
   via: Via;
   onClose: () => void;
-}) {
+}
+
+/** Everything the sheet shows and does: selection, name choice, reading and submitting. */
+function usePickerState({ result, via, onClose }: PickerProps) {
   const t = useT();
   const sendsLink = !isNative && via === 'cloudflare' && !hubAvailable();
   const { selected, setSelected, onEntries } = useSelection();
   const [makePlaylist, setMakePlaylist] = useState(true);
   const [mode, setMode] = useState<Mode>('merge');
-  const { listing, loading, error } = usePlaylistListing(result.url, !sendsLink, onEntries);
+  const loaded = usePlaylistListing(result.url, !sendsLink, onEntries);
+  const { listing } = loaded;
 
   const entries = listing?.entries ?? [];
   const title = listing?.title || result.title;
   const playlistName = title.slice(0, LIMITS.nameMax);
   const picked = pickedEntries(entries, selected);
-  const total = listing?.totalCount ?? null;
   const cover = result.thumbnail || (entries[0] ? videoThumb(entries[0].id) : '');
-  const subtitle = [
-    result.author || listing?.author,
-    total ? t('dl.songsCount', { count: total }) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const subtitle = pickerSubtitle(result.author || listing?.author, listing?.totalCount ?? null, t);
   const { busy, go } = usePickerSubmit({
     result,
     sendsLink,
@@ -350,40 +375,65 @@ export function PlaylistPicker({
     unavailable: listing?.unavailable ?? 0,
     onClose,
   });
+  const label = pickerActionText(t, sendsLink, picked.length, isNative);
+  const disabled = busy || (!sendsLink && picked.length === 0);
+  return {
+    loaded,
+    entries,
+    title,
+    playlistName,
+    cover,
+    subtitle,
+    label,
+    disabled,
+    go,
+    sendsLink,
+    selected,
+    setSelected,
+    makePlaylist,
+    setMakePlaylist,
+    mode,
+    setMode,
+  };
+}
 
-  // Rendered on <body> so it sits above the tab bar and the player, like the other sheets.
-  return createPortal(
+type PickerState = ReturnType<typeof usePickerState>;
+
+function PickerSheet({ s, onClose }: { s: PickerState; onClose: () => void }) {
+  const t = useT();
+  return (
     <div className="backdrop" onClick={onClose}>
       <div className="sheet dl-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal>
-        <PickerHeader cover={cover} title={title} subtitle={subtitle} />
-        <PickerNotices listing={listing} loading={loading} error={error} />
-        {entries.length > 0 && (
-          <PickList entries={entries} selected={selected} onChange={setSelected} />
+        <PickerHeader cover={s.cover} title={s.title} subtitle={s.subtitle} />
+        <PickerNotices {...s.loaded} />
+        {s.entries.length > 0 && (
+          <PickList entries={s.entries} selected={s.selected} onChange={s.setSelected} />
         )}
         {isNative && (
           <NameChoice
-            title={title}
-            playlistName={playlistName}
-            makePlaylist={makePlaylist}
-            onMakePlaylist={setMakePlaylist}
-            mode={mode}
-            onMode={setMode}
+            title={s.title}
+            playlistName={s.playlistName}
+            makePlaylist={s.makePlaylist}
+            onMakePlaylist={s.setMakePlaylist}
+            mode={s.mode}
+            onMode={s.setMode}
           />
         )}
-        {sendsLink && <p className="small muted">{t('send.playlistHint')}</p>}
+        {s.sendsLink && <p className="small muted">{t('send.playlistHint')}</p>}
         <PickerFooter
-          label={actionText(t, sendsLink, picked.length)}
-          disabled={busy || (!sendsLink && picked.length === 0)}
+          label={s.label}
+          disabled={s.disabled}
           onCancel={onClose}
-          onGo={() => void go()}
+          onGo={() => void s.go()}
         />
       </div>
-    </div>,
-    document.body,
+    </div>
   );
 }
 
-function actionText(t: Translate, sendsLink: boolean, count: number): string {
-  if (sendsLink) return t('send.sendPlaylist');
-  return isNative ? t('dl.downloadAll', { count }) : t('pick.send', { count });
+/** Preview of a playlist: pick songs, then download them (phone) or send them (computer). */
+export function PlaylistPicker(props: PickerProps) {
+  const state = usePickerState(props);
+  // Rendered on <body> so it sits above the tab bar and the player, like the other sheets.
+  return createPortal(<PickerSheet s={state} onClose={props.onClose} />, document.body);
 }

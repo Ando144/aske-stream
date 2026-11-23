@@ -48,7 +48,7 @@ import { t } from './i18n';
 import { mayDoBackgroundWork, mayRotateOfflineNow } from './lib/power';
 import { BootSplash } from './components/BootSplash';
 import { ConnectionBanner } from './components/ConnectionBanner';
-import { BOOT_MAX_WAIT_MS, BOOT_MIN_SPLASH_MS, bootReady } from './lib/boot';
+import { BOOT_MAX_WAIT_MS, BOOT_MIN_SPLASH_MS, SPLASH_EXIT_MS, bootReady } from './lib/boot';
 import { BOOT_TIMEOUT_MS, isTimeout, withTimeout } from './lib/timeout';
 import {
   canUseNetwork,
@@ -105,7 +105,35 @@ function useBootReady(setupLoading: boolean): boolean {
   return bootReady({ setupLoading, elapsedMs: Date.now() - startedAt, connection });
 }
 
+/** True for SPLASH_EXIT_MS after the app becomes ready, while the opening screen fades out. */
+function useSplashExit(ready: boolean): boolean {
+  const [exitDone, setExitDone] = useState(false);
+  useEffect(() => {
+    if (!ready) {
+      setExitDone(false);
+      return;
+    }
+    const timer = setTimeout(() => setExitDone(true), SPLASH_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [ready]);
+  return ready && !exitDone;
+}
+
 export function App() {
+  const status = useSetup((s) => s.status);
+  const ready = useBootReady(status === 'loading');
+  const leaving = useSplashExit(ready);
+
+  if (!ready) return <BootSplash />;
+  return (
+    <>
+      <AppScreens />
+      {leaving && <BootSplash leaving />}
+    </>
+  );
+}
+
+function AppScreens() {
   const [pendingListId] = useState(takePendingListId);
   const [pendingJamCode] = useState(takePendingJamCode);
   const [introDone, setIntroDone] = useState(false);
@@ -118,9 +146,6 @@ export function App() {
     (s) => s.mode === 'setup' && (s.phase === 'running' || s.phase === 'done'),
   );
 
-  const bootReadyNow = useBootReady(status === 'loading');
-
-  if (!bootReadyNow) return <BootSplash />;
   const beforeSetup = (status === 'choose' || status === 'pair') && !changing;
   if (beforeSetup && pendingJamCode && !jamIntroDone) {
     return <JamView onExit={() => setJamIntroDone(true)} />;
