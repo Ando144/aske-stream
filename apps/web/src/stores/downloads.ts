@@ -3,17 +3,8 @@ import { LIMITS } from '@aske/shared';
 import { youtubePlaylistId, youtubeVideoId } from '@aske/shared/youtube';
 import { api } from '../api/client';
 import { batchForRetry } from '../downloads/batch';
+import { friendlyError, saveErrorText } from '../downloads/errors';
 import {
-  buildNotification,
-  createBatchTracker,
-  doneNotice,
-  nextSendDelay,
-  shouldSend,
-  type SentNotification,
-  type Translate as NotificationTranslate,
-} from '../downloads/notification';
-import {
-  findInLibrary,
   flushImportSync,
   pruneImports,
   rememberImport,
@@ -22,6 +13,24 @@ import {
   settleImports,
   syncImport,
 } from '../downloads/imports';
+import {
+  STORE_KEY,
+  buildJobs,
+  downloadedPatch,
+  endedPatch,
+  engineAfterFailure,
+  finishCounts,
+  isActive,
+  knownToNative,
+  mergeJobs,
+  persist,
+  progressPatch,
+  requeuePatch,
+  sendOutcome,
+  type DownloadsState,
+  type NewDownload,
+} from '../downloads/jobsStore';
+import { createDownloadNotifier } from '../downloads/notifier';
 import {
   jobsForNative,
   nextToSave,
@@ -32,18 +41,11 @@ import {
 } from '../downloads/pipeline';
 import { classifyFailure, planRetry } from '../downloads/retry';
 import { saveDownloaded } from '../downloads/save';
-import type {
-  DownloadJob,
-  JobStatus,
-  NativePending,
-  NativeResult,
-  NotificationTemplates,
-} from '../downloads/types';
+import type { DownloadJob, JobStatus, NativePending, NativeResult } from '../downloads/types';
 import { t, useI18n } from '../i18n';
 import { loadValue, savePref } from '../lib/storage';
 import { Downloader, listPlaylistOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
-import { DriveAuthRequired } from '../storage/drive/auth';
 import { useSetup } from './setup';
 import { toast } from './ui';
 
@@ -56,129 +58,11 @@ import { toast } from './ui';
  * Cloudflare), retrying by itself when the connection fails.
  */
 
-export type { DownloadJob, JobStatus };
+export type { DownloadJob, JobStatus, NewDownload };
+export { friendlyError };
 
-export interface NewDownload {
-  videoId: string;
-  title: string;
-  author: string;
-  thumbnail?: string;
-}
-
-type EngineStatus = 'idle' | 'starting' | 'updating' | 'ready' | 'error';
-
-interface DownloadsState {
-  jobs: DownloadJob[];
-  engine: { status: EngineStatus; version: string | null; updatedAt: number; error?: string };
-  keepOffline: boolean;
-  /** true while the phone or the app is waiting for internet to come back. */
-  waitingNetwork: boolean;
-  /** jobIds being saved right now. */
-  saving: string[];
-  init: () => Promise<void>;
-  /** Returns how many songs were really queued (songs already in the library are skipped). */
-  enqueue: (
-    items: NewDownload[],
-    opts?: {
-      playlistName?: string;
-      /** Name already taken: 'merge' (default) joins that playlist, 'new' creates "Name (n)". */
-      playlistMode?: 'merge' | 'new';
-      sendId?: string | null;
-    },
-  ) => Promise<number>;
-  /** Expands a YouTube link (song or playlist) and queues it. */
-  enqueueUrl: (url: string, sendId?: string | null) => Promise<number>;
-  cancel: (jobId: string) => Promise<void>;
-  cancelAll: () => Promise<void>;
-  retry: (jobId: string) => void;
-  retryFailed: () => void;
-  clearFinished: () => Promise<void>;
-  setKeepOffline: (keep: boolean) => void;
-  updateEngine: (manual?: boolean) => Promise<void>;
-  /** Re-sends queued jobs to the phone and saves what is ready (app reopened / internet back). */
-  resume: () => Promise<void>;
-}
-
-const STORE_KEY = 'downloads-v1';
 const ENGINE_KEY = 'downloader-engine';
 const ENGINE_MAX_AGE = 7 * 24 * 3600 * 1000;
-const KEEP_FINISHED = 300;
-
-const ACTIVE: ReadonlySet<JobStatus> = new Set(['queued', 'downloading', 'downloaded', 'saving']);
-const isActive = (j: DownloadJob) => ACTIVE.has(j.status);
-const isFinished = (j: DownloadJob) => !isActive(j);
-
-/** Turns yt-dlp's English errors into something the user can act on. */
-export function friendlyError(raw: string): string {
-  const m = raw.toLowerCase();
-  if (m.includes('storage is full') || m.includes('storage_full')) return t('dl.err.cloudFull');
-  if (m.includes('drive_full')) return t('dl.err.driveFull');
-  if (m.includes('drive_auth')) return t('dl.err.driveAuth');
-  if (m.includes('quota') || m.includes('no space') || m.includes('enospc'))
-    return t('dl.err.phoneFull');
-  if (m.includes('confirm you') && m.includes('bot')) return t('dl.err.bot');
-  if (m.includes('private video') || m.includes('unavailable') || m.includes('removed'))
-    return t('dl.err.unavailable');
-  if (m.includes('age') && m.includes('sign in')) return t('dl.err.age');
-  if (m.includes('copyright') || m.includes('not available in your country'))
-    return t('dl.err.blocked');
-  if (
-    m.includes('network') ||
-    m.includes('timed out') ||
-    m.includes('unable to download') ||
-    m.includes('connection') ||
-    m.includes('no connection')
-  )
-    return t('dl.err.network');
-  if (m.includes('too large') || m.includes('too big')) return t('dl.err.tooBig');
-  return t('dl.err.generic');
-}
-
-/** Raw text that `friendlyError` understands for a failed save. */
-function saveErrorText(err: unknown): string {
-  const code = (err as { code?: string }).code;
-  if (code === 'drive_full' || err instanceof DriveAuthRequired) {
-    return code ?? 'drive_auth';
-  }
-  return String((err as Error)?.message ?? err);
-}
-
-/** Saves at most every 400 ms, and never later than that (progress events are frequent). */
-let saveTimer: ReturnType<typeof setTimeout> | undefined;
-let pendingSave: DownloadJob[] | null = null;
-function persist(jobs: DownloadJob[]) {
-  pendingSave = jobs;
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => {
-    saveTimer = undefined;
-    if (pendingSave) savePref(STORE_KEY, pendingSave);
-    pendingSave = null;
-  }, 400);
-}
-
-const tr = t as NotificationTranslate; // plain-string keys for the pure helpers
-const notificationTemplates = (): NotificationTemplates => ({
-  progress: t('dl.notifTitle', { done: '{done}', total: '{total}' }),
-  waiting: t('dl.notifWaiting'),
-  openToSave: t('dl.notifOpenToSave', { count: '{count}' }),
-  openToSaveOne: t('dl.notifOpenToSave', { count: 1 }),
-  paused: t('dl.notifPaused'),
-});
-
-const requeuePatch = (batchId: string): Partial<DownloadJob> => ({
-  status: 'queued',
-  progress: 0,
-  error: undefined,
-  finishedAt: undefined,
-  attempts: 0,
-  retryAt: undefined,
-  batchId,
-});
-
-const knownToNative = (p: NativePending | null): Set<string> =>
-  new Set(
-    p ? [...p.queued, ...(p.current ? [p.current] : []), ...p.results.map((r) => r.jobId)] : [],
-  );
 
 export const useDownloads = create<DownloadsState>((set, get) => {
   let listening = false;
@@ -213,80 +97,16 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
   /** Tells the computer how a "Send to phone" item ended, once all its songs finished. */
   async function reportSend(sendId: string) {
-    const jobs = get().jobs.filter((j) => j.sendId === sendId);
-    if (jobs.some(isActive)) return;
-    const ok = jobs.filter((j) => j.status === 'done' || j.status === 'skipped').length;
-    const failed = jobs.filter((j) => j.status === 'error').length;
-    const status = ok > 0 || failed === 0 ? 'done' : 'error';
-    const detail =
-      failed > 0 ? t('send.detailPartial', { ok, failed }) : t('send.detailDone', { count: ok });
-    await api.sendUpdate(sendId, status, detail).catch(() => undefined);
+    const outcome = sendOutcome(get().jobs.filter((j) => j.sendId === sendId));
+    if (outcome)
+      await api.sendUpdate(sendId, outcome.status, outcome.detail).catch(() => undefined);
   }
 
   const warn = (what: string) => (err: unknown) => console.warn(what, err);
-  /** Last notice sent, and the timer of one held back by the rate limit (the latest wins). */
-  let lastSent: SentNotification | null = null;
-  let sendTimer: ReturnType<typeof setTimeout> | undefined;
-  const batches = createBatchTracker();
-  /** The queue is empty: close the progress notice and, if songs finished, show the final one. */
-  function endNotification() {
-    if (!lastSent) return;
-    lastSent = null;
-    const doneText = doneNotice(batches.take(get().jobs, Date.now()), tr) ?? undefined;
-    void Downloader.setNotification({ active: false, doneText }).catch(warn('notification'));
-  }
-  function notify() {
-    clearTimeout(sendTimer);
-    const content = buildNotification(
-      get().jobs,
-      get().waitingNetwork,
-      tr,
-      lastSent?.content.progress ?? 0,
-    );
-    if (!content) return endNotification();
-    batches.collect(get().jobs);
-    const now = Date.now();
-    if (shouldSend(lastSent, content, now)) {
-      lastSent = { content, at: now };
-      void Downloader.setNotification({ active: true, ...content }).catch(warn('notification'));
-    } else if (lastSent) {
-      sendTimer = setTimeout(notify, nextSendDelay(lastSent, content, now));
-    }
-  }
-
-  /** Jobs for new songs: queued, or already skipped when the library has them. */
-  function buildJobs(items: NewDownload[], playlistId: string | null, sendId: string | null) {
-    const seen = new Set(
-      get()
-        .jobs.filter(isActive)
-        .map((j) => j.videoId),
-    );
-    const now = Date.now();
-    const batchId = `b${now.toString(36)}`;
-    const fresh: DownloadJob[] = [];
-    for (const [i, item] of items.entries()) {
-      if (seen.has(item.videoId)) continue;
-      seen.add(item.videoId);
-      const inLibrary = findInLibrary(item.videoId);
-      fresh.push({
-        id: `${now.toString(36)}-${i}-${item.videoId}`.replace(/[^\w-]/g, ''),
-        videoId: item.videoId,
-        title: item.title || item.videoId,
-        author: item.author,
-        thumbnail: item.thumbnail ?? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
-        status: inLibrary ? 'skipped' : 'queued',
-        progress: 0,
-        playlistId,
-        batchId,
-        sendId,
-        keepOffline: get().keepOffline,
-        trackId: inLibrary?.id,
-        createdAt: now + i,
-        finishedAt: inLibrary ? now : undefined,
-      });
-    }
-    return fresh;
-  }
+  const { notify, templates } = createDownloadNotifier({
+    getJobs: () => get().jobs,
+    getWaitingNetwork: () => get().waitingNetwork,
+  });
 
   /** Hands the queued jobs the phone does not know yet to its own queue. */
   async function sendToNative() {
@@ -295,7 +115,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     if (!jobs.length) {
       // Android may have stopped the service (onTimeout): an empty queue call restarts it.
       if (pending && (pending.queued.length > 0 || pending.current)) {
-        await Downloader.queue({ jobs: [], texts: notificationTemplates() }).catch(() => undefined);
+        await Downloader.queue({ jobs: [], texts: templates() }).catch(() => undefined);
       }
       return;
     }
@@ -306,7 +126,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       set({ engine: { ...get().engine, status: 'error', error: String((err as Error).message) } });
     }
     try {
-      await Downloader.queue({ jobs, texts: notificationTemplates() });
+      await Downloader.queue({ jobs, texts: templates() });
     } catch (err) {
       toast(friendlyError(String((err as Error).message ?? err)), 'error');
     }
@@ -320,18 +140,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       return;
     }
     if (result.ok && result.path && result.info) {
-      update(job.id, {
-        status: 'downloaded',
-        progress: 100,
-        error: undefined,
-        file: {
-          path: result.path,
-          bytes: result.bytes ?? 0,
-          ext: result.ext ?? 'webm',
-          info: result.info,
-        },
-        timings: { ...job.timings, downloadMs: result.elapsedMs },
-      });
+      update(job.id, downloadedPatch(job, result, result.path, result.info));
       return;
     }
     const canceled = result.code === 'canceled';
@@ -339,11 +148,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       set({ engine: { ...get().engine, status: 'error', error: result.error } });
     }
     const raw = result.code === 'network' ? 'network' : (result.error ?? '');
-    update(job.id, {
-      status: canceled ? 'canceled' : 'error',
-      error: canceled ? undefined : friendlyError(raw),
-      finishedAt: Date.now(),
-    });
+    update(job.id, endedPatch(canceled, raw));
     void Downloader.ack({ jobId: result.jobId }).catch(() => undefined);
     if (job.sendId) void reportSend(job.sendId);
   }
@@ -383,13 +188,9 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     void flushImportSync()
       .then(() => pruneImports(get().jobs))
       .catch(() => toast(t('dl.err.generic'), 'error'));
-    const recent = get().jobs.filter((j) => j.finishedAt && Date.now() - j.finishedAt < 60_000);
-    const ok = recent.filter((j) => j.status === 'done').length;
-    if (ok) toast(t('dl.allDone', { count: ok }));
-    const late = [...finishedWhileClosed].filter(
-      (id) => get().jobs.find((j) => j.id === id)?.status === 'done',
-    ).length;
+    const { ok, late } = finishCounts(get().jobs, finishedWhileClosed, Date.now());
     finishedWhileClosed.clear();
+    if (ok) toast(t('dl.allDone', { count: ok }));
     if (late) toast(t('dl.savedAfterClose', { count: late }));
   }
 
@@ -425,11 +226,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       }
     }
     const canceled = kind === 'canceled';
-    update(job.id, {
-      status: canceled ? 'canceled' : 'error',
-      error: canceled ? undefined : friendlyError(saveErrorText(err)),
-      finishedAt: Date.now(),
-    });
+    update(job.id, endedPatch(canceled, saveErrorText(err)));
     void Downloader.ack({ jobId: job.id }).catch(() => undefined);
     if (job.sendId) void reportSend(job.sendId);
   }
@@ -485,11 +282,12 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     if (listening) return;
     listening = true;
     void Downloader.addListener('progress', ({ jobId, progress }) => {
-      const job = get().jobs.find((j) => j.id === jobId);
-      if (!job || (job.status !== 'downloading' && job.status !== 'queued')) return;
-      if (job.status === 'downloading' && Math.abs(progress - job.progress) < 1 && progress < 100)
-        return;
-      update(jobId, { status: 'downloading', progress: Math.max(0, Math.min(100, progress)) });
+      const patch = progressPatch(
+        get().jobs.find((j) => j.id === jobId),
+        progress,
+      );
+      if (!patch) return;
+      update(jobId, patch);
       void notify();
     });
     void Downloader.addListener('finished', (result) => {
@@ -539,11 +337,13 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       const playlistId = opts.playlistName
         ? await resolvePlaylist(opts.playlistName, opts.playlistMode ?? 'merge')
         : null;
-      const fresh = buildJobs(list, playlistId, opts.sendId ?? null);
-      const finished = get().jobs.filter(isFinished).slice(-KEEP_FINISHED);
-      const jobs = [...get().jobs.filter(isActive), ...fresh, ...finished].sort(
-        (a, b) => a.createdAt - b.createdAt,
-      );
+      const fresh = buildJobs(list, {
+        existing: get().jobs,
+        playlistId,
+        sendId: opts.sendId ?? null,
+        keepOffline: get().keepOffline,
+      });
+      const jobs = mergeJobs(get().jobs, fresh);
       set({ jobs });
       persist(jobs);
       if (playlistId) {
@@ -629,13 +429,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
         set({ engine: { status: 'ready', version, updatedAt: now } });
         if (manual) toast(updated ? t('dl.engineUpdated', { version }) : t('dl.engineCurrent'));
       } catch (err) {
-        set({
-          engine: {
-            ...prev,
-            status: prev.version ? 'ready' : 'error',
-            error: String((err as Error).message ?? err),
-          },
-        });
+        set({ engine: engineAfterFailure(prev, err) });
         if (manual) toast(t('dl.engineUpdateFailed'), 'error');
       }
     },
