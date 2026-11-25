@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Redirect, Route, Switch, useLocation, useSearch } from 'wouter';
+import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { parseHubHash } from '@aske/shared/hub';
 import { AddToPlaylistSheet } from './components/AddToPlaylistSheet';
 import { Dialogs } from './components/Dialogs';
@@ -45,6 +45,7 @@ import { useTips } from './stores/tips';
 import { useDownloads } from './stores/downloads';
 import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
+import { PlaylistSelectionBar } from './components/PlaylistSelectionBar';
 import { ParcelSheet } from './components/send/ParcelSheet';
 import { useParcel } from './stores/parcel';
 import { isNative } from './native/platform';
@@ -263,7 +264,6 @@ function Shell() {
   const hasPlayer = usePlayer((s) => s.mode !== 'idle');
   const studyPhase = useStudy((s) => s.phase);
   const [location, navigate] = useLocation();
-  const search = useSearch();
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -308,10 +308,10 @@ function Shell() {
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
-    // Leaving a screen ends multi-select (except the "Add songs" picker and ?select=1, which
-    // LibraryView has already started: child effects run before this one).
-    const keep = new URLSearchParams(search).get('select') === '1';
-    if (!keep && !useUi.getState().selectionTarget) useUi.getState().endSelection();
+    // Leaving a screen ends multi-select (except the "Add songs" picker, which LibraryView has
+    // already started: child effects run before this one).
+    if (!useUi.getState().selectionTarget) useUi.getState().endSelection();
+    useUi.getState().endPlaylistSelection();
   }, [location]);
 
   // Focus mode: while a session is on, nothing but the study screen is shown.
@@ -377,6 +377,7 @@ function Shell() {
       <AddToPlaylistSheet />
       <Dialogs />
       <SelectionBar />
+      <PlaylistSelectionBar />
       <ParcelSheet />
       <Toasts />
     </div>

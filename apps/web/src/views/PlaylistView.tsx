@@ -9,7 +9,6 @@ import {
   Plus,
   Play,
   Share2,
-  Shuffle,
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import type { LocalTrack as Track } from '../storage/types';
@@ -26,6 +25,7 @@ import { useUi } from '../stores/ui';
 import { PlaylistArt } from '../components/PlaylistArt';
 import { PlaylistMenu } from '../components/PlaylistMenu';
 import { SharePlaylistSheet } from '../components/SharePlaylistSheet';
+import { ShuffleToggle } from '../components/ShuffleToggle';
 
 export function PlaylistView({ id, liked = false }: { id?: string; liked?: boolean }) {
   const [reordering, setReordering] = useState(false);
@@ -38,9 +38,6 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
   const playlist = useLibrary((s) => (id ? s.playlists.find((p) => p.id === id) : undefined));
   const entries = useOffline((s) => s.entries);
   const contextPath = liked ? '/liked' : `/playlist/${id}`;
-  const shuffling = usePlayer(
-    (s) => s.mode === 'track' && s.shuffle && s.contextInfo?.path === contextPath,
-  );
 
   const tracks: Track[] = useMemo(() => {
     if (liked) {
@@ -65,8 +62,8 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
   const cloudIds = tracks.filter((tr) => !tr.locations.device).map((tr) => tr.id);
   const allDownloaded = ids.length > 0 && cloudIds.every((tid) => entries[tid]?.mode === 'pinned');
   const context = { label: title, path: contextPath };
-  const play = (startId: string | null, shuffle?: boolean) =>
-    usePlayer.getState().playTracks(ids, startId, { shuffle, context });
+  const play = (startId: string | null) =>
+    usePlayer.getState().playTracks(ids, startId, { context });
 
   return (
     <div className="page">
@@ -97,22 +94,13 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
       <div className="collection-actions">
         <button
           className="play-fab"
-          onClick={() => play(null, false)}
+          onClick={() => play(null)}
           disabled={!ids.length}
           aria-label={t('common.play')}
         >
           <Play size={24} fill="currentColor" style={{ marginLeft: 2 }} />
         </button>
-        <button
-          className={`icon-btn${shuffling ? ' on' : ''}`}
-          onClick={() => play(null, true)}
-          disabled={!ids.length}
-          aria-label={t('common.shuffle')}
-          title={t('common.shuffle')}
-          aria-pressed={shuffling}
-        >
-          <Shuffle size={22} />
-        </button>
+        <ShuffleToggle />
         <button
           className={`icon-btn${allDownloaded ? ' on' : ''}`}
           onClick={() => void useOffline.getState().pin(cloudIds)}

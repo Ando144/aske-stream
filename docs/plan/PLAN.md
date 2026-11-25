@@ -1,369 +1,403 @@
-# PLAN: Vigilante contra cortes de música, menores del revisor y v0.9.1
+# PLAN: v0.9.2 — Enviar en menús y selección, Ordenar compacto, interruptor Aleatorio, Grupos en Ajustes y deuda técnica
 
 Fecha: 2026-11-25 · Estado: COMPLETADO
 
 ## Objetivo
 
-Que la música de Cloudflare no se quede muda a mitad de canción con la pantalla apagada: un
-vigilante en la capa web detecta que el audio no avanza y lo reanuda solo, en el mismo punto y sin
-cambiar de canción. Que la notificación no mienta mientras el audio está parado. Arreglar 4 menores
-del revisor y dejar lista la v0.9.1 (versión, notas y documentación).
-
-## Diagnóstico (datos de Andoni: a mitad de canción, Cloudflare, Pixel 8, batería sin restricciones)
-
-- **Por qué la notificación sigue avanzando.** El plugin `@capgo/capacitor-media-session` llama a
-  `PlaybackStateCompat.setState(STATE_PLAYING, position, speed)` y **Android calcula él solo** la
-  posición a partir de la última que recibió, la hora y la velocidad. Nuestro JS solo envía
-  «paused» con el evento `pause`. Cuando el stream se queda sin datos, el `<audio>` lanza
-  `waiting`/`stalled` pero **no** `pause` (`audio.paused` sigue en `false`), y en `player.ts` el
-  `waiting` solo pone `buffering: true`. La notificación se queda en PLAYING y avanza sola.
-  Mandar `playbackRate: 0` no sirve: el plugin cambia 0 por 1.0 (`MediaSessionPlugin.java:159`).
-  La única forma sin tocar Java es enviar la posición real y el estado «paused» mientras dura el
-  atasco, y «playing» cuando vuelve a avanzar.
-- **Por qué se corta el audio.** Lo más probable es que la conexión HTTP del stream (petición con
-  Range a la API/R2) se quede muerta en segundo plano (Doze, cambio de red o la conexión inactiva
-  mientras el búfer está lleno) y Chromium no la reintente hasta que la app vuelve al frente.
-  Encaja con que «al abrir la app vuelve a sonar en el mismo minuto». La API ya acepta `Range`
-  (`apps/api/src/routes/media.ts`), así que volver a pedir el audio desde el segundo actual es
-  barato.
-- **Hipótesis que el vigilante no arregla:** que Android congele todo el proceso del WebView
-  (renderer). En ese caso tampoco corre el JS. Para saberlo, el vigilante deja trazas en logcat
-  (ver T2) y la prueba de Andoni (T6) lo distingue. Si es eso, el siguiente paso es nativo (opción
-  B o C del plan anterior), en otra fase.
-- **No hace falta tocar Java.** Todo se resuelve con lo que ya expone el plugin (estado y
-  posición).
+Pulir la interfaz pedida por Andoni (Enviar desde el menú ⋮ y la selección, botón «Ordenar» que no se
+corta, interruptor Aleatorio global junto al Play, opciones de privacidad de Grupos en Ajustes) y pagar
+la deuda conocida: `player.ts` y `downloads.ts` más pequeños, el bug de `play()` tras pausar durante una
+recarga y tests de `D1GroupRepo`. Sin subir versión ni hacer commit.
 
 ## Decisiones de arquitectura
 
-- Vigilante en `apps/web/src/player/stallWatchdog.ts` (nuevo): función pura `decideStall` + un
-  pequeño «runner» con reloj y temporizador inyectados — testeable sin `<audio>` y `player.ts`
-  (745 líneas) no pasa de 800.
-- Solo vigila si `mode === 'track'`, hay `src`, `!audio.paused` y `!audio.ended` — así nunca pelea
-  con pausas del usuario, del sistema (llamadas, foco de audio), del fin del modo estudio
-  (`pause()`) ni con «fin de la lista».
-- «Avanza» = `currentTime` cambia al menos 0,25 s (en cualquier sentido, así un seek del usuario
-  cuenta como avance y reinicia los tiempos). Cambio de canción (`trackId` distinto) = reinicio
-  total.
-- Escalera de intentos: a los 3 s sin avanzar, notificación honesta («paused» con la posición
-  real); a los 6 s, primer intento suave (`nudge`: seek en el mismo punto + `play()`, solo si ya hay
-  metadatos); después, `reload` (volver a resolver la fuente de la misma canción y
-  `pendingSeek` = segundo actual) con espera creciente 5, 10, 20, 30, 60 s. Máximo 8 intentos o
-  10 min atascado → `give-up`: `audio.pause()` en silencio (la notificación queda en pausa, sin
-  aviso).
-- Sin conexión (`navigator.onLine === false`) no gasta intentos; al volver la red (evento
-  `online`) reintenta en el acto.
-- Error de red a mitad de canción (`MediaError.code === 2` con `currentTime > 0`): en vez de
-  aviso + saltar a la siguiente (lo de hoy), recarga en el mismo punto con el vigilante. El resto de
-  errores siguen como ahora.
-- Los atascos no dan aviso visible (decisión de Andoni). Solo trazas `console.warn('[aske-stall]
-…')` en atasco, recuperación, rendición y «hueco» del temporizador > 15 s (señal de JS
-  congelado). Son registro de servidor/diagnóstico, no `console.log` de depuración, y salen en
-  `adb logcat`.
-- Mientras está atascado, el botón «play» de la notificación (que se ve porque el estado es
-  «paused») fuerza un reintento inmediato en vez de no hacer nada.
-- Radio fuera de alcance: tiene su propio reintento y no hay datos de cortes.
-- Menores (B): `SendHowSheet` y también `ReceiveSheet` (tiene el mismo fallo) pasan a `<Sheet>`
-  dentro de su `createPortal`.
+- **Refactor de `player.ts` antes de tocar Aleatorio** (T1 → T4) — está en 799 líneas; objetivo < 450.
+- **Aleatorio = una preferencia global (`shuffle`) separada del orden de la lista que suena
+  (`contextShuffled`)** — así los podcasts (siempre en orden) y el modo estudio (siempre aleatorio) no
+  cambian el interruptor del usuario, y la UI muestra siempre lo mismo en Biblioteca, Playlist y reproductor.
+- **La preferencia se guarda en su propia clave `shuffle`** (no dentro de `player-v2`) — `persist()`
+  no guarda nada en modo radio; con clave propia el interruptor se recuerda siempre.
+- **Pausa del usuario con contador (`rt.userPauseSeq`)** — `loadCurrent`/`reloadCurrent` comparan el
+  contador antes y después del `await`; si cambió, no llaman a `audio.play()`.
+- **Enviar reutiliza el flujo «paquete con código» (`useParcel`)** — ya existe y funciona; una playlist
+  viaja con su nombre (`sendPlaylist`), varias se envían como canciones sueltas (el paquete solo admite
+  un nombre).
+- **Selección de playlists = estado nuevo en `ui.ts` (`playlistSelection`) y barra propia** — no mezcla
+  ids de canciones con ids de playlists; empezar una selección cierra la otra.
+- **«Ordenar» = componente genérico `SortMenu` (botón + menú desplegable propio)** — el `<select>`
+  nativo no se puede acortar; el botón muestra icono + criterio corto con elipsis.
+- **CSS nuevo en archivos propios** (`collection.css`, `playlistSelect.css`) y `groups.css` — `styles.css`
+  ya pasa de 2500 líneas; así las tareas paralelas no chocan.
+- **Tests de `D1GroupRepo` con SQLite real (`node:sqlite`) y las migraciones del Hub** — sin dependencias
+  nuevas (prohibido `npm install`); un adaptador mínimo imita la API de D1.
+
+### Cómo funciona Aleatorio (para T4 y T6)
+
+- **Estado:** `usePlayer.shuffle` (preferencia global, lo que pinta el icono) y
+  `usePlayer.contextShuffled` (si la lista actual está barajada). Al arrancar:
+  `shuffle = loadValue('shuffle', saved?.shuffle ?? false)` (los usuarios actuales conservan lo último que
+  tenían); `contextShuffled = saved?.shuffle ?? false` (el campo `shuffle` de `player-v2` pasa a significar
+  `contextShuffled`; se mantiene el nombre del campo guardado por compatibilidad).
+- **Play / tocar una canción:** `playTracks(ids, startId, { context })` sin `shuffle` → usa la preferencia.
+  ON y sin `startId`: la primera canción es al azar (ciclo de `shuffleCycle`, como hoy). ON y con `startId`:
+  empieza por esa canción y el resto al azar. OFF: en orden. `opts.shuffle` (podcasts `false`, estudio
+  `true`) solo afecta a esa lista y **nunca cambia la preferencia**.
+- **Interruptor (`toggleShuffle`)**: invierte `shuffle`, lo guarda (`savePref('shuffle', …)`) y, si suena
+  una lista (`mode === 'track'`), no es de orden fijo (`!contextInfo?.fixedOrder`) y
+  `contextShuffled !== nuevoValor`, reordena lo que queda con la lógica actual (la canción actual sigue
+  sonando; con ON se baraja lo pendiente; con OFF se vuelve al orden original desde la canción actual).
+- **Siguiente / Anterior / cola:** sin cambios de comportamiento. La cola del usuario («Añadir a la cola»,
+  «Reproducir después») nunca se baraja y suena primero. «Siguiente» avanza por `context` (barajado o no);
+  «Anterior» retrocede por ese mismo `context`, o sea, vuelve a la canción que sonó antes también en
+  aleatorio. Con repetir todo y aleatorio, cada vuelta nueva se rebaraja (como hoy). Las canciones nuevas
+  de una lista «viva» entran barajadas si `contextShuffled`.
+- Todo lo que hoy lee `s.shuffle` para decidir el orden (`step`, `loadCurrent`→`recordShufflePlay`,
+  `moveUpcoming`, suscripción de biblioteca viva, `persist`) pasa a leer `contextShuffled`.
 
 ## Contratos (interfaces compartidas)
 
-### `apps/web/src/player/stallWatchdog.ts` (lo crea T1, lo usa T2)
+### Player (T1 crea, T4 amplía)
 
 ```ts
-export const STALL_TIMING = {
-  progressEpsilon: 0.25, // seconds
-  notifyAfterMs: 3_000,
-  firstAttemptAfterMs: 6_000,
-  backoffMs: [5_000, 10_000, 20_000, 30_000, 60_000], // wait after attempt n (last one repeats)
-  maxAttempts: 8,
-  giveUpAfterMs: 10 * 60_000,
-  freezeGapMs: 15_000,
-} as const;
-
-export type StallAction = 'none' | 'nudge' | 'reload' | 'give-up';
-
-export interface StallSample {
-  now: number; // ms, monotonic (performance.now())
-  active: boolean; // mode==='track' && !!audio.src && !audio.paused && !audio.ended
-  trackId: string | null;
-  currentTime: number;
-  readyState: number; // HTMLMediaElement.readyState
-  online: boolean;
+// apps/web/src/player/types.ts  (se mueven aquí; stores/player.ts los re-exporta)
+export interface RadioItem { key; name; streamUrl; favicon; hls; rbUuid; subtitle } // igual que hoy
+export interface PlayContext {
+  label: string; path?: string; live?: 'library'; cycleKey?: string;
+  fixedOrder?: boolean; // T4: true = nunca se baraja (podcasts)
 }
 
-export interface StallState {
-  trackId: string | null;
-  lastTime: number;
-  lastProgressAt: number;
-  stalledSince: number | null; // set once stuck >= notifyAfterMs
-  attempts: number;
-  nextAttemptAt: number;
-}
-
-export function initialStallState(now: number): StallState;
-export function decideStall(
-  state: StallState,
-  sample: StallSample,
-): { state: StallState; action: StallAction };
-/** Immediate reload (network error, notification play, back online). */
-export function forceAttempt(
-  state: StallState,
-  now: number,
-): { state: StallState; action: 'reload' | 'give-up' };
-export function isMidSongNetworkError(e: {
-  code: number | null;
-  mode: 'idle' | 'track' | 'radio';
-  currentTime: number;
-}): boolean; // code === 2 && mode === 'track' && currentTime > 0
-
-export interface StallWatchdogDeps {
-  sample: () => Omit<StallSample, 'now'>;
-  now: () => number;
-  onAction: (action: Exclude<StallAction, 'none'>) => void;
-  onStalledChange: (stalled: boolean) => void;
-  log: (
-    event: 'stall' | 'recovered' | 'retry' | 'give-up' | 'freeze-gap',
-    detail: Record<string, number | string | null>,
-  ) => void;
-  setInterval: (fn: () => void, ms: number) => unknown;
-}
-export function createStallWatchdog(
-  deps: StallWatchdogDeps,
-  intervalMs?: number, // default 1000
-): {
-  check: () => void; // sample + decide + apply; also called from media events
-  retryNow: () => void; // forceAttempt + onAction
-  isStalled: () => boolean;
+// apps/web/src/player/runtime.ts  (T1)
+export const audio: HTMLAudioElement;            // el único <audio>
+export const rt: {
+  hls: Hls | null; objectUrl: string | null; loadSeq: number; pendingSeek: number | null;
+  reloading: boolean; listenedMarked: boolean; consecutiveErrors: number;
+  triedHttpsUpgrade: boolean; userPauseSeq: number;
 };
+export function resetSource(): void;
+export function userPause(): void;               // rt.userPauseSeq++ y audio.pause()
+
+// apps/web/src/player/radioEngine.ts  (T1)
+export function stationAt(list: RadioItem[], currentKey: string | undefined, dir: 1 | -1): RadioItem | null; // pura
+export function startRadio(item: RadioItem, deps: RadioDeps, forceUrl?: string): Promise<void>;
+
+// apps/web/src/player/audioEvents.ts  (T1) — listeners del <audio> (timeupdate … error)
+export function attachAudioEvents(deps: AudioEventDeps): void;
+
+// apps/web/src/player/libraryLinks.ts  (T1) — 2 suscripciones a useLibrary + setProtectedProvider
+export function linkPlayerToLibrary(deps: LibraryLinkDeps): void;
+
+// stores/player.ts (T4) — cambios en PlayerState
+shuffle: boolean;          // preferencia global (UI)
+contextShuffled: boolean;  // orden de la lista que suena
+toggleShuffle(): void;     // ver «Cómo funciona Aleatorio»
 ```
 
-Reglas de `decideStall` (en este orden):
+`RadioDeps`, `AudioEventDeps` y `LibraryLinkDeps` los define T1 (objetos con `getState`/`setState` de
+`usePlayer`, `engine`, funciones de media session y del vigilante). Ningún módulo de `player/` importa
+`stores/player.ts` en tiempo de ejecución (solo `import type`), para evitar ciclos.
 
-1. `trackId` distinto del guardado → estado nuevo (`attempts` 0, sin atasco), acción `none`.
-2. `!active` → `stalledSince = null`, `lastTime = currentTime`, `lastProgressAt = now`; **conserva**
-   `attempts` (para que un bucle error→recarga→error no sea infinito); acción `none`.
-3. `|currentTime − lastTime| ≥ progressEpsilon` → avance: `lastTime`, `lastProgressAt = now`,
-   `attempts = 0`, `stalledSince = null`, `nextAttemptAt = 0`; acción `none`.
-4. `stuck = now − lastProgressAt`. Si `stuck ≥ giveUpAfterMs`, o `attempts ≥ maxAttempts` y
-   `now ≥ nextAttemptAt` → `give-up` y estado reiniciado (`initialStallState(now)` con el mismo
-   `trackId`).
-5. Si `stuck ≥ notifyAfterMs` y `stalledSince === null` → `stalledSince = now`.
-6. Si `!online` → `none` (no gasta intentos).
-7. Si `stuck ≥ firstAttemptAfterMs` y `now ≥ nextAttemptAt` → intento: `nudge` si
-   `attempts === 0 && readyState >= 1`, si no `reload`; `attempts++`;
-   `nextAttemptAt = now + backoffMs[min(attempts − 1, backoffMs.length − 1)]`.
-8. Si no, `none`.
+### Selección de playlists (T5)
 
-`forceAttempt`: si `attempts ≥ maxAttempts` → `give-up` (y estado reiniciado); si no,
-`stalledSince ??= now`, `attempts = attempts + 1`, `nextAttemptAt` con la misma tabla y acción
-`reload`.
+```ts
+// apps/web/src/stores/ui.ts
+playlistSelection: string[] | null;
+startPlaylistSelection: (firstId?: string) => void;   // también pone selection = null
+togglePlaylistSelected: (id: string) => void;
+selectAllPlaylists: (ids: string[]) => void;          // si ya están todas, vacía
+endPlaylistSelection: () => void;
+// startSelection (canciones) pasa a poner también playlistSelection = null
+```
 
-Runner: en cada `check()` calcula `now`, si el hueco desde el `check` anterior supera
-`freezeGapMs` y la muestra anterior estaba activa → `log('freeze-gap', { gapMs })`. Llama a
-`onStalledChange` solo cuando cambia `stalledSince !== null` (y `log('stall' | 'recovered')`).
-Cada acción ≠ `none` → `log('retry' | 'give-up', { attempts, action, trackId })` + `onAction`.
-El temporizador se arranca una vez en `createStallWatchdog` con `deps.setInterval(check, intervalMs)`.
+### Enviar (T5)
 
-### `apps/web/src/player/mediaSession.ts` (lo cambia T2)
+```ts
+// apps/web/src/stores/parcel.ts
+sendPlaylists: (playlistIds: readonly string[]) => Promise<boolean>;
+// 1 id  → songsFromTracks(tracks de la playlist) → sendPlaylist({ name, songs, unavailable: skipped })
+// 2+ ids → ids de canciones de todas, en orden y sin repetir → sendTracks(ids)
+// 0 ids o playlist inexistente → false sin llamar al Hub
+```
 
-- `createMediaSession` devuelve además `setStalled(stalled: boolean)` y
-  `setRetryHandler(fn: () => void)`.
-- `setStalled(true)`: `controls.setPositionState` con la posición real (sin el freno de 1 s) y
-  `controls.setPlaybackState('paused')` **sin** llamar a `keepAwake` (los wake/wifi locks se
-  mantienen durante el reintento). `setStalled(false)`: si `!audio.paused`, posición real +
-  `controls.setPlaybackState('playing')`.
-- Acción `play` de la notificación: si `!player().isPlaying` → `togglePlay()` (como hoy); si está
-  atascado → el `retryHandler`.
+Etiqueta de «Enviar» en menús y barras: clave existente `parcel.sendSelected` («Enviar a otro móvil»).
+Solo se muestra si `hubAvailable()`.
+
+### UI compartida (T6)
+
+```ts
+// apps/web/src/components/ShuffleToggle.tsx
+export function ShuffleToggle({ size }: { size?: number }): JSX.Element;
+// icon-btn con clase `on` (ámbar) si usePlayer.shuffle; aria-pressed; aria-label t('player.shuffle');
+// onClick: toggleShuffle() + toast player.shuffleOn / player.shuffleOff
+// apps/web/src/components/SortMenu.tsx
+export function SortMenu<T extends string>(props: {
+  value: T;
+  options: { value: T; label: string; short: string }[];
+  label: string;
+  onChange: (value: T) => void;
+}): JSX.Element;
+```
+
+### i18n: qué archivo toca cada tarea (para no chocar)
+
+- T3 → `i18n/groups.ts` · T5 → `i18n/parcel.ts` y `i18n/share.ts` · T6 → `i18n/en.ts`, `es.ts`, `eu.ts`.
+- T1, T2 y T4 no añaden textos.
 
 ## Tareas
 
-### T1 · Lógica pura del vigilante · Grupo A · Estado: PENDIENTE
+### T1 · Refactor de player.ts + bug de pausa durante la carga · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/player/stallWatchdog.ts` (nuevo),
-  `apps/web/test/stallWatchdog.test.ts` (nuevo)
-- Leer como contexto: `apps/web/src/player/queue.ts` y `apps/web/test/playerShuffle.test.ts` (estilo
-  de módulo puro y de tests).
-- Qué hacer (primero los tests, en rojo; luego el código):
-  - Implementa exactamente el contrato de `stallWatchdog.ts` y sus reglas. Sin imports de la app
-    (ni `audio`, ni stores, ni `window`): todo entra por parámetros o `deps`.
-  - Tests de `decideStall` como mínimo: avance normal → `none`; 2,9 s parado → sin atasco; 3 s →
-    `stalledSince` puesto y `none`; 6 s con `readyState ≥ 1` → `nudge`; 6 s con `readyState 0` →
-    `reload`; tras `nudge`, nada hasta pasar 5 s y después `reload`; escalera 5/10/20/30/60/60;
-    al 9.º intento → `give-up`; 10 min parado → `give-up` aunque queden intentos; `online: false`
-    → nunca intento pero sí `stalledSince`; al volver `online` con `now ≥ nextAttemptAt` →
-    intento; `active: false` (pausa del usuario) → `none`, sin atasco, conserva `attempts`; un seek
-    hacia atrás cuenta como avance; cambio de `trackId` → reinicio total.
-  - Tests de `forceAttempt` (incrementa, `reload`, y `give-up` al llegar al máximo) y de
-    `isMidSongNetworkError` (código 2 a mitad → true; código 2 con `currentTime` 0, código 4, modo
-    radio → false).
-  - Tests del runner con reloj y `setInterval` falsos: `onStalledChange(true)` una sola vez al
-    atascarse y `(false)` al volver a avanzar; `onAction` recibe las acciones; `retryNow` llama a
-    `onAction('reload')`; `log('freeze-gap')` si entre dos `check` pasan más de 15 s.
-  - Funciones < 50 líneas, comentarios en inglés (el porqué).
-- TDD: sí
-- Criterios de aceptación:
-  - [ ] Todos los casos de arriba pasan.
-  - [ ] El módulo no importa nada de `stores/`, `native/` ni del DOM.
-- Verificación: `npx vitest run test/stallWatchdog.test.ts --root apps/web`
-
-### T3 · Menores del revisor · Grupo A · Estado: PENDIENTE
-
-- Archivos (exclusivos): `apps/web/src/components/send/SendHowSheet.tsx`,
-  `apps/web/src/components/send/ReceiveSheet.tsx`, `apps/web/src/styles.css`,
-  `apps/web/src/views/LibraryView.tsx`, `apps/web/src/i18n/parcel.ts`
-- Leer como contexto: `apps/web/src/components/Sheet.tsx`, `apps/web/src/App.tsx` (efecto de las
-  líneas ~309-315), `apps/web/src/i18n/share.ts` (`share.friendsTitle`, `share.button`),
-  `apps/web/src/i18n/eu.ts` (`nav.playlists`)
+- Archivos (exclusivos): `apps/web/src/stores/player.ts`, `apps/web/src/player/types.ts` (nuevo),
+  `apps/web/src/player/runtime.ts` (nuevo), `apps/web/src/player/radioEngine.ts` (nuevo),
+  `apps/web/src/player/audioEvents.ts` (nuevo), `apps/web/src/player/libraryLinks.ts` (nuevo),
+  `apps/web/test/playerPauseDuringLoad.test.ts` (nuevo), `apps/web/test/radioEngine.test.ts` (nuevo),
+  `apps/web/test/playerShuffle.test.ts` (solo si hay que ajustar mocks por los módulos nuevos).
+- Leer como contexto: `apps/web/src/player/mediaSession.ts`, `apps/web/src/player/stallRecovery.ts`,
+  `apps/web/test/playerShuffle.test.ts` (copiar su arnés de `FakeAudio` y mocks).
 - Qué hacer:
-  1. `SendHowSheet` y `ReceiveSheet`: cambia el `<div className="backdrop">…<div className="sheet
-dl-sheet" role="dialog">` por `<Sheet label={t('parcel.sendHowTitle')} className="sheet
-dl-sheet" onClose={onClose}>` (en `ReceiveSheet`, `label` = la clave de su título actual),
-     **dentro** del `createPortal(…, document.body)` que ya tienen. Mismo contenido. Así ganan
-     Escape y nombre accesible.
-  2. `styles.css`: dentro de un `@media (hover: hover) and (pointer: fine)` (junto al de
-     `.btn:hover`, línea ~371) añade `.btn.on:hover:not(:disabled) { background:
-var(--accent-soft); color: var(--accent); }` para que el aleatorio grande y Seleccionar
-     activos sigan en ámbar con el ratón encima.
-  3. `LibraryView.tsx`: en el efecto de `?select=1`, tras `startSelection()`, quita el parámetro
-     con `navigate('/', { replace: true })` (`const [, navigate] = useLocation()` de wouter).
-     Comprueba que no rompe la excepción de `App.tsx`: allí el efecto depende de `location`
-     (solo la ruta, sin `?…`), así que pasar de `/?select=1` a `/` no lo vuelve a ejecutar y la
-     selección sigue. Compruébalo a mano (abajo); si en esta versión de wouter `location`
-     incluyera el `?`, no toques `App.tsx`: avisa en la entrega.
-  4. `parcel.ts`, `parcel.sendHowPlaylist`: es «Para compartir una playlist entera, ve a Playlists
-     → Con amigos → Compartir.»; en «To share a whole playlist, go to Playlists → With friends →
-     Share.»; eu con los nombres reales de la interfaz: «Playlist oso bat partekatzeko, joan
-     Zerrendak → Lagunekin → Partekatu atalera.» (hoy pone «Playlistak», que no es el nombre de la
-     pestaña, `nav.playlists` = «Zerrendak»).
-- TDD: no
+  1. **Primero el refactor sin cambiar comportamiento** (los tests actuales deben seguir en verde):
+     mover `RadioItem`/`PlayContext` a `player/types.ts` (re-exportar desde `stores/player.ts`); el
+     `<audio>`, las variables sueltas (`hls`, `objectUrl`, `loadSeq`, `pendingSeek`, `reloading`,
+     `listenedMarked`, `consecutiveErrors`, `triedHttpsUpgrade`) y `resetSource` a `player/runtime.ts` (objeto
+     `rt`); `startRadio` y el cálculo de emisora anterior/siguiente a `player/radioEngine.ts` (quitar el
+     truco `engine as … retryRadio`: que sea un campo normal de `engine`); los listeners del `<audio>` a
+     `player/audioEvents.ts`; las dos suscripciones a `useLibrary` y `setProtectedProvider` a
+     `player/libraryLinks.ts`. `stores/player.ts` debe quedar < 450 líneas y todas las funciones < 50.
+  2. **Después el bug (TDD):** añadir `rt.userPauseSeq`; `pause()` del store y la rama de pausa de
+     `togglePlay()` llaman a `userPause()`. En `loadCurrent` y `reloadCurrent`, guardar el contador antes
+     del `await sourceFor(...)` y, si cambió al volver, no llamar a `audio.play()` (en `loadCurrent` dejar
+     `isPlaying: false`). El vigilante (`stallRecovery`) y el evento `pause` del sistema no tocan el
+     contador.
+- TDD: sí (el refactor se apoya en los tests existentes; el bug y `stationAt` con tests nuevos primero).
 - Criterios de aceptación:
-  - [ ] Con la hoja «Enviar» o «Recibir» abierta, Escape la cierra y el diálogo tiene nombre.
-  - [ ] En ordenador, con el aleatorio grande activo, el ratón encima no le quita el ámbar.
-  - [ ] Enviar → «Elegir canciones» abre la Biblioteca en modo selección, la URL queda en `/` y la
-        selección sigue activa; ir a otra pantalla y volver ya no la reactiva.
-  - [ ] Test de paridad i18n en verde.
-- Verificación: `npm run check`; manual en `npm run dev` (y en Descargas con
-  `npm run build -w @aske/web -- --mode fakenative`; después reconstruye el dist normal).
+  - [ ] `stores/player.ts` < 450 líneas; ningún archivo nuevo > 300; funciones < 50 líneas.
+  - [ ] `playerShuffle.test.ts` pasa sin cambiar ninguna expectativa.
+  - [ ] Test: con `resolveAudio` diferido, `reloadCurrent` + `pause()` antes de resolver → `audio.play` no se llama.
+  - [ ] Test: lo mismo con `playTracks` (carga de canción nueva) → no suena y `isPlaying === false`.
+  - [ ] Test: sin pausa del usuario, `reloadCurrent` sí vuelve a llamar a `play()` si estaba sonando.
+  - [ ] Test de `stationAt`: avanza, retrocede y da la vuelta; `null` con lista de 0 o 1.
+- Verificación: `npx vitest run test/playerShuffle.test.ts test/playerPauseDuringLoad.test.ts test/radioEngine.test.ts --root apps/web` y `npm run check`.
 
-### T2 · Conectar el vigilante al reproductor y notificación honesta · Grupo B · Estado: PENDIENTE
+### T2 · Deuda: refactor de downloads.ts + tests de D1GroupRepo · Grupo A · Estado: HECHA
 
-- Depende de: T1.
-- Archivos (exclusivos): `apps/web/src/stores/player.ts`, `apps/web/src/player/mediaSession.ts`
-- Leer como contexto: `apps/web/src/player/stallWatchdog.ts`, `apps/web/src/native/mediaControls.ts`
+- Archivos (exclusivos): `apps/web/src/stores/downloads.ts`, `apps/web/src/downloads/errors.ts` (nuevo),
+  `apps/web/src/downloads/notifier.ts` (nuevo), `apps/web/src/downloads/jobsStore.ts` (nuevo),
+  `apps/web/test/downloadErrors.test.ts` (nuevo), `apps/hub/test/sqliteD1.ts` (nuevo),
+  `apps/hub/test/node-sqlite.d.ts` (nuevo), `apps/hub/test/d1GroupRepo.test.ts` (nuevo).
+- Leer como contexto: `apps/web/test/downloadsStore.test.ts`, `apps/web/src/downloads/notification.ts`,
+  `apps/web/src/stores/send.ts` (importa `friendlyError`), `apps/hub/src/groups/repo.ts`,
+  `apps/hub/migrations/*.sql`, `apps/hub/test/memoryGroupRepo.ts`, `apps/hub/tsconfig.json`.
 - Qué hacer:
-  - `mediaSession.ts`: añade `setStalled` y `setRetryHandler` según el contrato. La acción `play`
-    usa el `retryHandler` si está atascado. Función de posición forzada sin el freno de 1 s.
-  - `player.ts`, dentro de `create(...)`: nueva `async function reloadCurrent()` (< 25 líneas):
-    solo si `mode === 'track'` y hay `currentId`; `at = pendingSeek ?? audio.currentTime`;
-    `seq = ++loadSeq`; `src = await sourceFor(id)`; si cambió `loadSeq` o `currentId`, revoca el
-    `blob:` y sale; si `src` es null, sale (el vigilante lo reintentará); si no, `resetSource()`,
-    `objectUrl` si es blob, `pendingSeek = at > 0 ? at : null`, `audio.src = src`,
-    `audio.playbackRate = audio.defaultPlaybackRate = get().rate`, `audio.play().catch(() =>
-undefined)`. **No** llama a `step`, ni a `recordShufflePlay`, ni cambia `listenedMarked`.
-    Regístrala como `engine.reloadCurrent`.
-  - Tras crear la media session, crea el vigilante con `createStallWatchdog({ sample, now:
-() => performance.now(), onAction, onStalledChange: setStalled, log, setInterval: (f, ms) =>
-setInterval(f, ms) })`:
-    - `sample`: `active` según el contrato, `trackId: currentId`, `currentTime`, `readyState`,
-      `online: navigator.onLine`.
-    - `onAction`: `nudge` → `audio.currentTime = audio.currentTime; void audio.play().catch(() =>
-undefined)`; `reload` → `void engine.reloadCurrent()`; `give-up` → `audio.pause()` y
-      `buffering: false` (sin toast).
-    - `log`: `console.warn('[aske-stall]', event, detail)`.
-    - `setRetryHandler(() => watchdog.retryNow())`.
-  - Eventos: `stalled` y `waiting` → además `watchdog.check()`; `playing` → además
-    `setPlaybackState('playing')` (vuelve a decirle a la notificación que suena);
-    `window` `online` → `if (watchdog.isStalled()) watchdog.retryNow()`.
-  - `error`: al principio de la rama de canciones, si `isMidSongNetworkError({ code:
-audio.error?.code ?? null, mode: s.mode, currentTime: audio.currentTime })` →
-    `watchdog.retryNow()` y `return` (sin toast ni salto). El resto, igual que hoy.
-  - `player.ts` debe quedar < 800 líneas; si te pasas, mueve el cableado (crear el vigilante y
-    los listeners nuevos) a `apps/web/src/player/stallRecovery.ts` (nuevo, también exclusivo de
-    esta tarea) con `attachStallRecovery(audio, deps)`.
-- TDD: no (la lógica la cubren los tests de T1; esto es cableado). Los tests existentes deben
-  seguir en verde.
+  1. **downloads.ts** (sin cambiar comportamiento): `friendlyError` y `saveErrorText` → `downloads/errors.ts`
+     (re-exportar `friendlyError` desde `stores/downloads.ts` para no tocar `send.ts`); `persist` con
+     temporizador, `requeuePatch`, `knownToNative`, `isActive`/`isFinished` → `downloads/jobsStore.ts`;
+     la parte de notificación (`lastSent`, `sendTimer`, `batches`, `notify`, `endNotification`,
+     `notificationTemplates`) → `downloads/notifier.ts` como fábrica
+     `createDownloadNotifier({ getJobs, getWaitingNetwork })` que devuelve `{ notify, templates }`.
+     Objetivo: `stores/downloads.ts` < 450 líneas. Añadir tests unitarios de `friendlyError`
+     (un caso por rama).
+  2. **D1GroupRepo:** `test/sqliteD1.ts` = adaptador mínimo sobre `DatabaseSync` de `node:sqlite` con la
+     forma de D1: `prepare(sql).bind(...args)` → `first<T>()` (null si no hay fila), `all<T>()` →
+     `{ results }`, `run()` → `{ meta: { changes } }`; `batch(stmts)` dentro de `BEGIN`/`COMMIT` con
+     `ROLLBACK` y re-lanzar si falla; convertir `boolean`→0/1 y `undefined`→`null`. Función
+     `createTestD1()` que aplica en orden todos los `apps/hub/migrations/*.sql` (`exec`). `node-sqlite.d.ts`
+     declara solo los tipos usados de `node:sqlite` (el `tsconfig` del Hub solo carga workers-types).
+     `d1GroupRepo.test.ts`: un `describe` por grupo de métodos (grupos, invitación única, miembros, alias,
+     baneos, estadísticas por mes, compartidos con caducidad y `trimShares`, `deleteGroup` borra todo,
+     `createGroup` devuelve `false` con código de invitación repetido y no deja filas a medias).
+- TDD: sí (tests de errores y del repositorio; el refactor se apoya en `downloadsStore.test.ts`).
 - Criterios de aceptación:
-  - [ ] En `npm run dev` (Chrome), con una canción de Cloudflare larga sonando: DevTools → Network
-        → Offline hasta que se acabe el búfer (o «Slow 3G» + seek lejos). La notificación del
-        navegador/lockscreen pasa a pausa con la posición real a los ~3 s; al quitar Offline, la
-        música vuelve en ≤ 6 s en el mismo segundo y en la misma canción, sin avisos.
-  - [ ] Pausar a mano, cambiar de canción, terminar la lista o terminar el modo estudio nunca
-        provocan reanudaciones.
-  - [ ] En consola salen `[aske-stall] stall`, `retry` y `recovered`.
-  - [ ] `npm run check` y `npm run test:e2e` en verde.
-- Verificación: `npm run check`; `npm run test:e2e` (cierra wrangler/workerd colgados después).
+  - [ ] `stores/downloads.ts` < 450 líneas, funciones < 50; `downloadsStore.test.ts` pasa sin cambiar expectativas.
+  - [ ] `friendlyError` cubierto por test en cada rama.
+  - [ ] Cada método público de `D1GroupRepo` tiene al menos un test contra SQLite real.
+  - [ ] `npm run typecheck -w @aske/hub` sin errores.
+- Verificación: `npx vitest run --root apps/hub` y `npx vitest run test/downloadsStore.test.ts test/downloadErrors.test.ts --root apps/web`; después `npm run check`.
 
-### T4 · Subida a v0.9.1 y notas de release · Grupo C · Estado: PENDIENTE
+### T3 · Grupos: opciones a Ajustes y pantalla limpia · Grupo A · Estado: HECHA
 
-- Depende de: T1, T2, T3.
-- Archivos (exclusivos): `package.json`, `apps/api/package.json`, `apps/hub/package.json`,
-  `apps/mobile/package.json`, `apps/web/package.json`, `packages/shared/package.json`,
-  `tools/ingest/package.json`, `package-lock.json`, `docs/releases/v0.9.1.md` (nuevo)
-- Leer como contexto: `docs/releases/v0.9.0.md` (formato y tono)
+- Archivos (exclusivos): `apps/web/src/views/GroupsView.tsx`, `apps/web/src/views/SettingsView.tsx`,
+  `apps/web/src/components/settings/GroupsSection.tsx` (nuevo),
+  `apps/web/src/components/groups/GroupsConsent.tsx`, `apps/web/src/groups.css`,
+  `apps/web/src/i18n/groups.ts`, `apps/web/src/help/articles/groups.ts`.
+- Leer como contexto: `apps/web/src/components/settings/GeneralSections.tsx` (estilo de secciones),
+  `apps/web/src/components/HelpSheet.tsx`, `apps/web/src/views/PlaylistsView.tsx` (clases `card-list`/`card-row`).
 - Qué hacer:
-  - Con un script de node (no sed ni a mano, no `npm install`) pon `"version": "0.9.1"` en los 7
-    `package.json` y en las 8 entradas del lock: `version` de la raíz, `packages[""]` y
-    `packages["apps/api"|"apps/hub"|"apps/mobile"|"apps/web"|"packages/shared"|"tools/ingest"]`.
-    Conserva el formato (JSON con 2 espacios y salto de línea final).
-  - `docs/releases/v0.9.1.md` en lenguaje sencillo: la música de la nube ya no se queda muda con
-    la pantalla apagada (se reanuda sola en el mismo punto) y la notificación ya no avanza si la
-    música está parada; arreglos menores (botones táctiles, tema, Seleccionar, modo estudio,
-    Enviar/Recibir, entrada a Grupos desde Playlists).
-  - No hagas push, tag ni deploy (lo hace Andoni).
-- TDD: no
+  - `GroupsSection` en Ajustes (solo si `hubAvailable()`), después de la sección de Recap: título
+    «Grupos» (clave nueva `groups.settings.section`), el interruptor `GroupsConsent` y `WipeGroupsSection`
+    (importar `../../groups.css`).
+  - `GroupsView`: quitar `GroupsConsent` y `WipeGroupsSection`. Cabecera: el `h1` con `min-width: 0` y
+    elipsis/ajuste de línea, y la ayuda como botón de icono (`CircleHelp`, `icon-btn`, aria-label
+    `groups.help`) que abre `HelpSheet` con `friend-groups`, para que no se pisen en euskera ni en
+    pantallas de 320 px. Lista de grupos como tarjetas (`card-list` + `card-row`: icono `Users` en
+    cuadrado ámbar suave, nombre, «N personas · Eres admin», chevron). Botones Crear/Unirse en una fila.
+  - Aviso al final (texto pequeño + enlace «Ir a Ajustes» a `/settings`): claves nuevas
+    `groups.settingsNote` («Compartir tus escuchas y borrar tus datos de grupos está en Ajustes → Grupos.»)
+    y `groups.settingsLink`. En es, en y eu.
+  - Artículo `friend-groups` (`help/articles/groups.ts`, 3 idiomas): el interruptor y «Borrar todos mis
+    datos de grupos» están en **Ajustes → Grupos**.
+  - Quitar de `groups.css` las reglas que queden sin uso (`.groups-consent`, `.groups-wipe` si se mueven, etc.).
+- TDD: no (interfaz).
 - Criterios de aceptación:
-  - [ ] `git diff` muestra 0.9.1 en 7 `package.json` y 8 líneas del lock, nada más.
-- Verificación: `npm ci` sin cambios en el lock y `npm run check`.
+  - [ ] En Ajustes hay sección «Grupos» con el interruptor y el borrado; funcionan igual que antes.
+  - [ ] La pantalla Grupos no muestra ninguna de las dos opciones y enseña el aviso con enlace a Ajustes.
+  - [ ] El título no se corta ni se solapa con la ayuda a 320 px en eu/es/en.
+  - [ ] Test de paridad i18n y test de enlaces de ayuda en verde.
+- Verificación: `npm run check`; manual en `npm run dev` con ventana de 320 px y idioma euskera.
 
-### T5 · Documentación y nota de prueba en el móvil · Grupo C · Estado: HECHA
+### T4 · Motor de Aleatorio: preferencia global · Grupo B (tras T1) · Estado: HECHA
 
-- Depende de: T1, T2, T3.
-- Archivos (exclusivos): `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/plan/PLAN.md`
+- Archivos (exclusivos): `apps/web/src/stores/player.ts`, `apps/web/src/player/types.ts`,
+  `apps/web/src/player/libraryLinks.ts`, `apps/web/src/views/PodcastsView.tsx`,
+  `apps/web/test/playerShuffle.test.ts`, `apps/web/test/shufflePreference.test.ts` (nuevo).
+- Leer como contexto: sección «Cómo funciona Aleatorio» de este plan, `apps/web/src/player/shuffleCycle.ts`,
+  `apps/web/src/player/queue.ts`, `apps/web/src/stores/study.ts`.
+- Qué hacer: implementar exactamente lo descrito en «Cómo funciona Aleatorio»: estado `contextShuffled`,
+  preferencia `shuffle` con clave propia, `playTracks` sin tocar la preferencia, `toggleShuffle` nuevo,
+  `PlayContext.fixedOrder`, y en `PodcastsView` pasar `fixedOrder: true` en el contexto. Adaptar las
+  pruebas de `playerShuffle.test.ts` que dependían de que `playTracks({ shuffle })` cambiase la
+  preferencia (p. ej. poner `usePlayer.setState({ shuffle: true })` o usar `contextShuffled`), sin perder
+  ningún caso. `stores/player.ts` debe seguir < 500 líneas.
+- TDD: sí.
+- Criterios de aceptación (tests en `shufflePreference.test.ts`):
+  - [ ] Con preferencia ON, `playTracks(ids, null)` empieza por una canción al azar y «siguiente» sigue al azar sin repetir hasta acabar la vuelta.
+  - [ ] Con OFF, suena en orden; `playTracks(ids, 't3')` empieza en t3 y sigue t4…
+  - [ ] `playTracks(..., { shuffle: false })` (podcast) y `{ shuffle: true }` (estudio) no cambian `shuffle`.
+  - [ ] `toggleShuffle` cambia `shuffle`, llama a `savePref('shuffle', …)` también en modo radio e idle, y reordena lo pendiente sin cortar la canción actual.
+  - [ ] Con `fixedOrder` el interruptor cambia la preferencia pero no reordena.
+  - [ ] «Anterior» en aleatorio vuelve a la canción que sonó justo antes.
+  - [ ] Valor inicial: `loadValue('shuffle')` si existe; si no, el `shuffle` guardado en `player-v2`.
+- Verificación: `npx vitest run test/playerShuffle.test.ts test/shufflePreference.test.ts --root apps/web` y `npm run check`.
+
+### T5 · Enviar desde menús y selección (canciones y playlists) · Grupo B · Estado: HECHA
+
+- Archivos (exclusivos): `apps/web/src/stores/parcel.ts`, `apps/web/src/stores/ui.ts`,
+  `apps/web/src/components/TrackMenu.tsx`, `apps/web/src/components/PlaylistMenu.tsx`,
+  `apps/web/src/components/PlaylistSelectionBar.tsx` (nuevo), `apps/web/src/playlistSelect.css` (nuevo),
+  `apps/web/src/views/PlaylistsView.tsx`, `apps/web/src/components/playlists/FriendsRow.tsx`,
+  `apps/web/src/components/playlists/SharePickSheet.tsx` (borrar si queda sin uso),
+  `apps/web/src/views/DownloadView.tsx`, `apps/web/src/components/send/SendHowSheet.tsx` (borrar),
+  `apps/web/src/App.tsx`, `apps/web/src/i18n/parcel.ts`, `apps/web/src/i18n/share.ts`,
+  `apps/web/src/help/articles/music.ts`, `apps/web/test/parcelStore.test.ts`, `apps/web/test/uiSelection.test.ts` (nuevo).
+- Leer como contexto: `apps/web/src/components/SelectionBar.tsx` (copiar estructura y clases
+  `selection-bar`/`selection-actions`), `apps/web/src/components/TrackList.tsx` (pulsación larga, `LONG_PRESS_MS`),
+  `apps/web/src/components/PlaylistDnd.tsx`, `apps/web/src/components/SharePlaylistSheet.tsx`.
 - Qué hacer:
-  - `ESTADO.md` en **≤ 30 líneas**: resume «Hecho» (junta v0.8.x y arreglos tras v0.9.0 en pocas
-    líneas); v0.9.1 lista para publicar (pasos: push, tag `v0.9.1`, `npm run deploy`). En
-    «Problemas conocidos», sustituye el bloque largo del corte por 2-3 líneas: vigilante en web,
-    causa de la notificación, y que si sigue pasando el siguiente paso es nativo.
-  - Añade en «En curso» la **prueba para Andoni** (APK v0.9.1): (1) escuchar canciones de
-    Cloudflare 30-60 min con la pantalla apagada, mejor moviéndose entre Wi-Fi y datos; (2) prueba
-    forzada: canción larga de Cloudflare, pantalla apagada, modo avión ~1-2 min hasta que se
-    corte, quitar modo avión → debe volver sola en ≤ 10 s en el mismo segundo y en la misma
-    canción; mientras está parada, la notificación debe estar en pausa y no avanzar; (3) si aun así
-    se corta, conectar USB y mirar `adb logcat | findstr aske-stall`: si sale `freeze-gap` o no
-    sale nada en el momento del corte, Android está congelando la app → hace falta la vía nativa.
-  - `architecture.md`: solo una nota en la fila de F9 o en «arreglos» si la tabla lo necesita (no
-    hay fase nueva).
-  - Marca este PLAN como COMPLETADO.
-- TDD: no
+  - `parcel.ts`: `sendPlaylists` según el contrato (TDD en `parcelStore.test.ts`).
+  - `ui.ts`: estado y acciones de `playlistSelection` según el contrato (TDD en `uiSelection.test.ts`).
+  - `TrackMenu`: opción «Enviar a otro móvil» (`Send`) → `useParcel.getState().sendTracks([track.id])`,
+    solo si `hubAvailable()` y la canción no es podcast.
+  - `PlaylistMenu`: opciones «Enviar a otro móvil» → `sendPlaylists([playlist.id])` y «Compartir»
+    (`Share2`) → abre `SharePlaylistSheet` (ambas solo si `hubAvailable()`).
+  - `PlaylistsView`/`PlaylistRow`: pulsación larga (500 ms, cancelada si el dedo se mueve > 8 px; el
+    arrastre va por el asa y no choca) → `startPlaylistSelection(id)`; botón «Seleccionar»
+    (`select.start`, `CircleCheck`) encima de la lista; en modo selección tocar una fila marca/desmarca
+    (círculo con check ámbar, `aria-pressed`) en vez de navegar. «Me gusta» y carpetas no se seleccionan.
+  - `PlaylistSelectionBar` (montada en `App.tsx` junto a `SelectionBar`): contador «N playlists»,
+    Cancelar, «Todas», y acciones Enviar (`sendPlaylists`, solo con Hub), Añadir a la cola (canciones de
+    todas, en orden, sin repetir) y Descargar (`useOffline.pin` de las que no están en el dispositivo).
+    Al terminar una acción, `endPlaylistSelection()`.
+  - `App.tsx`: al cambiar de pantalla termina también `playlistSelection`; quitar la excepción
+    `?select=1` (ya nadie navega ahí) y actualizar el comentario.
+  - `FriendsRow`: quitar «Compartir» (queda Recibir, Jam, Grupos); borrar `SharePickSheet` si no se usa.
+  - `DownloadView`: quitar el botón «Enviar» y `SendHowSheet` (borrar archivo y sus claves
+    `parcel.sendHow*`, `parcel.sendPick`, `parcel.sendGoPlaylists` en los 3 idiomas). Se queda «Recibir»
+    con el efecto de `pendingCode`. Cambiar el id del consejo a `dl-send-2` y su texto `parcel.tipSend`:
+    «Para enviar, abre el menú ⋮ de una canción o playlist, o mantén pulsado para elegir varias.»
+  - Claves nuevas en `share.ts` (es/en/eu, con `.one`): `plsel.count`, `plsel.count.one`, `plsel.queue`,
+    `plsel.download`.
+  - Artículo `send-with-code` (`music.ts`, 3 idiomas): nuevo «Enviar desde el móvil» (menú ⋮ de canción
+    o playlist, selección con pulsación larga, la cola) y «Recibir» sigue en **Descargar → Recibir**.
+    Revisar también el texto «Playlists → Con amigos → Compartir» si aparece.
+- TDD: sí en `sendPlaylists` y en el estado de selección de `ui.ts`; no en los componentes.
 - Criterios de aceptación:
-  - [ ] ESTADO.md ≤ 30 líneas y con la prueba para Andoni.
-- Verificación: lectura.
+  - [ ] Tests: `sendPlaylists` con 1 playlist llama a `createParcel` con su nombre y `unavailable`; con 2 une canciones sin repetir; con 0 devuelve `false` sin llamar al Hub.
+  - [ ] Tests: empezar selección de playlists cierra la de canciones y al revés; `toggle` y `selectAll` funcionan.
+  - [ ] No queda ningún botón «Enviar» en Descargar ni en Playlists; «Recibir» sigue en Descargar y los enlaces `#send=` siguen abriéndolo.
+  - [ ] Menú ⋮ de canción y de playlist tienen «Enviar a otro móvil»; la barra de selección de canciones (ya lo tenía) y la nueva de playlists también.
+  - [ ] Paridad i18n y enlaces de ayuda en verde; sin código ni claves muertas.
+- Verificación: `npx vitest run test/parcelStore.test.ts test/uiSelection.test.ts --root apps/web` y `npm run check`; manual en `npm run dev`.
 
-## Entrega (la hace Andoni, no es tarea)
+### T6 · Interruptor Aleatorio y botón «Ordenar» compacto · Grupo C (tras T4) · Estado: HECHA
 
-Tras T4 y T5: commits separados (`feat:` vigilante, `fix:` menores, `chore:` versión, `docs:`),
-`git push`, tag `v0.9.1` (el CI construye el APK) y `npm run deploy` para la web.
+- Archivos (exclusivos): `apps/web/src/components/ShuffleToggle.tsx` (nuevo),
+  `apps/web/src/components/SortMenu.tsx` (nuevo), `apps/web/src/collection.css` (nuevo),
+  `apps/web/src/views/LibraryView.tsx`, `apps/web/src/views/PlaylistView.tsx`,
+  `apps/web/src/components/player/Controls.tsx`, `apps/web/src/styles.css` (solo quitar reglas
+  sin uso como `.collection-actions .select.compact`), `apps/web/src/i18n/en.ts`, `es.ts`, `eu.ts`,
+  `apps/web/src/help/articles/listen.ts`.
+- Leer como contexto: «Cómo funciona Aleatorio» y contratos de UI de este plan; `apps/web/src/stores/player.ts`
+  (tras T4); `apps/web/src/components/Sheet.tsx`.
+- Qué hacer:
+  - `ShuffleToggle` según contrato (icono `Shuffle`, ámbar con `on`). Usarlo en `LibraryView` y
+    `PlaylistView` justo a la derecha del Play, y en `Controls.tsx` en lugar del botón actual (mismo
+    icono y estado). Quitar los botones «Aleatorio» actuales y los selectores `shuffling`; el Play
+    llama a `playTracks(ids, null, { context })` sin `shuffle` (usa la preferencia).
+  - `SortMenu`: botón `btn small` con `ArrowUpDown` + texto corto del criterio (elipsis, `max-width`),
+    `aria-haspopup="menu"`, `aria-expanded`, `aria-label` «Ordenar: {criterio}». Menú desplegable
+    alineado a la derecha con opciones `role="menuitemradio"` y check en la activa; se cierra al elegir,
+    con Escape o tocando fuera. En `LibraryView` sustituye al `<select>`, guardando en `library-sort` igual
+    que hoy. Estilos en `collection.css` (importado desde `SortMenu.tsx`).
+  - Claves nuevas (es/en/eu): `library.sort` («Ordenar»), `library.sortLabel` («Ordenar: {criterion}»),
+    `library.sortShortRecent` («Recientes»), `library.sortShortTitle` («Título»),
+    `library.sortShortArtist` («Artista»). Quitar `common.shuffle` si queda sin uso.
+  - `LibraryView`: borrar el efecto `?select=1` (T5 retiró `SendHowSheet`, que era quien lo usaba).
+  - Artículo de `listen.ts` con el párrafo **Aleatorio** (3 idiomas): es un interruptor junto al Play
+    (y el mismo en el reproductor), ámbar = activo, se recuerda, y qué hace Play con ON/OFF. Mencionar
+    el botón **Ordenar** si el artículo habla de la biblioteca.
+- TDD: no (interfaz; la lógica la cubre T4).
+- Criterios de aceptación:
+  - [ ] Biblioteca y Playlist: Play + interruptor; el reproductor muestra el mismo estado; cambiarlo en un sitio se ve en los demás y sobrevive a recargar.
+  - [ ] Con ON, Play empieza por una canción al azar; con OFF, por la primera.
+  - [ ] «Ordenar» muestra el criterio actual y no se corta a 320 px en eu/es/en; se usa con teclado.
+  - [ ] Paridad i18n y enlaces de ayuda en verde.
+- Verificación: `npm run check`; manual en `npm run dev` (320 px, euskera, recargar la página).
+
+### T7 · Documentación · Grupo D (tras todas) · Estado: HECHA
+
+- Archivos (exclusivos): `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/plan/PLAN.md` (solo estados).
+- Leer como contexto: este plan y el resumen de cada tarea.
+- Qué hacer: en `ESTADO.md` añadir «v0.9.2 (sin publicar)» en Hecho con lo entregado; quitar de
+  «Problemas conocidos» y de «En curso» el bug de `reloadCurrent`, el refactor de `player.ts`/`downloads.ts`
+  y la falta de tests de `D1GroupRepo` (anotar los tamaños finales); añadir decisiones nuevas (Aleatorio
+  como preferencia global separada del orden de la lista; selección de playlists; Grupos en Ajustes).
+  En `docs/v2/architecture.md` no hay fase nueva: solo actualizar la tabla si alguna fila cambia de
+  estado. Marcar las tareas como HECHO y el plan como COMPLETADO.
+- TDD: no.
+- Criterios de aceptación:
+  - [ ] `ESTADO.md` refleja v0.9.2 y no lista problemas ya resueltos.
+  - [ ] `npm run check` (incluye Prettier sobre los `.md`) en verde.
+- Verificación: `npm run check`.
 
 ## Riesgos / dudas abiertas
 
-1. **Si es el sistema (no el usuario) el que pausa el audio, ¿se reanuda?**
-   - **No reanudar (Recomendada):** el vigilante solo actúa si el audio dice «sonando» y no avanza.
-     Nunca pelea con llamadas ni con otras apps; pero si Android pausa sin motivo, no se arregla.
-   - **Reanudar pausas no pedidas por la app:** cubre más casos, pero no se puede distinguir una
-     llamada de un fallo y podría sonar música encima de una llamada.
-   - La recomiendo porque los síntomas (notificación avanzando) indican que no hubo `pause`.
-2. **¿Qué muestra la notificación mientras se reintenta?**
-   - **«En pausa» con la posición real (Recomendada):** honesta y sin tocar Java; el botón play
-     fuerza un reintento. Durante unos segundos la notificación se puede deslizar para quitarla.
-   - **Seguir en «reproduciendo» pero quieta:** haría falta cambiar el plugin nativo (no acepta
-     velocidad 0). Más trabajo y otro APK.
-   - La recomiendo porque cumple «que no mienta» sin código nativo.
-3. **Cuando se rinde (8 intentos o 10 min), ¿avisa?**
-   - **Pausa en silencio (Recomendada):** respeta «sin aviso visible»; al abrir la app se ve en
-     pausa en el punto exacto.
-   - **Pausa + aviso «No se pudo seguir reproduciendo»:** más claro, pero rompe la decisión.
-4. **Riesgo:** si el corte viene de que Android congela el WebView entero, este arreglo no basta
-   (el JS tampoco corre). Las trazas `[aske-stall]` y la prueba de T5 lo dirán; entonces tocará
-   la opción nativa (latido en `AskeNative` o reproductor Media3), en una fase propia.
-5. **Riesgo menor:** `player.ts` queda cerca de 800 líneas; T2 tiene permiso para sacar el cableado
-   a `player/stallRecovery.ts`.
+1. **«Enviar» en Playlists:** en esa pantalla no hay un botón «Enviar»; lo que hay es «Compartir» en la
+   fila «Con amigos» (enlace a una playlist compartida, distinto de enviar canciones con código). ¿Qué hacemos?
+   - **Quitar «Compartir» de la fila y ponerlo en el menú ⋮ de cada playlist junto a «Enviar» (Recomendada)**:
+     la fila queda en Recibir, Jam y Grupos; todo lo de una playlist está en su menú. Inconveniente: quien
+     ya conocía el botón tendrá que buscarlo en el ⋮.
+   - Dejar la fila como está y solo añadir «Enviar» al menú ⋮: cero cambios para quien ya lo usa, pero
+     «Compartir» y «Enviar» quedan en sitios distintos y se confunden.
+   - Quitar la fila «Con amigos» entera (Jam y Grupos solo desde el menú lateral): más limpio, pero esconde
+     Jam y Grupos en el móvil.
+     Recomiendo la primera porque cumple «quitar el botón de Playlists» y deja cada acción en su sitio.
+     (El plan T5 ya está escrito así.)
+2. **Enviar varias playlists a la vez:** un paquete solo puede llevar un nombre de playlist.
+   - **Un solo código con todas las canciones sueltas (Recomendada)**: un único QR que escanear; el otro
+     móvil recibe canciones, no playlists.
+   - Un código por playlist, uno detrás de otro: llegan como playlists con su nombre, pero hay que escanear
+     varios QR.
+     Recomiendo la primera porque es lo más sencillo para gente no técnica.
+3. **Acciones de la barra de selección de playlists:**
+   - **Enviar, Añadir a la cola y Descargar (Recomendada)**: útil y parecido a la barra de canciones.
+   - Solo Enviar: menos trabajo, pero la selección se queda corta.
+   - Además Borrar playlists: práctico, pero borrar en lote es peligroso para usuarios no técnicos.
+     Recomiendo la primera: es coherente con la barra de canciones sin riesgos.
+4. **Valor inicial del interruptor Aleatorio para quien ya usa la app:**
+   - **El último estado que tenía (Recomendada)**: nadie nota un cambio raro al actualizar.
+   - Apagado para todos: comportamiento predecible, pero a quien lo tenía encendido le cambia solo.
+     Recomiendo la primera para no sorprender.
+
+- **Riesgo técnico (T2):** `node:sqlite` funciona sin opciones desde Node 22.13. CI usa la última 22
+  (`.nvmrc`); si el Node local es más antiguo, el programador debe avisar (no saltarse los tests) y valorar
+  subir `engines` a `>=22.13.0`.
+- **Riesgo (T1):** refactor grande del reproductor; por eso va solo y primero, con los tests de aleatorio
+  como red. Tras T1 y T4 conviene una prueba manual de radio, cola, vigilante y podcasts.

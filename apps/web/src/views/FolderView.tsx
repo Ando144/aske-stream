@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, EllipsisVertical, Folder as FolderIcon } from 'lucide-react';
 import { Link } from 'wouter';
 import { sortPlaylists } from '@aske/shared';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
+import { useUi } from '../stores/ui';
 import { FolderMenu } from '../components/FolderMenu';
 import { PlaylistDnd } from '../components/PlaylistDnd';
 import { PlaylistRow } from './PlaylistsView';
@@ -13,6 +14,13 @@ export function FolderView({ id }: { id: string }) {
   const folder = useLibrary((s) => s.folders.find((f) => f.id === id));
   const playlists = useLibrary((s) => s.playlists);
   const [menu, setMenu] = useState(false);
+  const insideKey = playlists
+    .filter((p) => p.folderId === id)
+    .map((p) => p.id)
+    .join(',');
+  useEffect(() => {
+    useUi.getState().setPlaylistVisibleIds(insideKey ? insideKey.split(',') : []);
+  }, [insideKey]);
 
   if (!folder) {
     return (

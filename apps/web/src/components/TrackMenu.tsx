@@ -10,9 +10,12 @@ import {
   CircleCheck,
   Mic,
   Music,
+  Send,
   Trash2,
 } from 'lucide-react';
+import { hubAvailable } from '../hub/client';
 import { useT } from '../i18n';
+import { useParcel } from '../stores/parcel';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { usePodcasts } from '../stores/podcasts';
@@ -98,6 +101,14 @@ export function TrackMenu() {
           onClick={run(() => void useOffline.getState().pin([track.id]))}
         >
           <ArrowDownToLine size={20} /> {t('track.download')}
+        </button>
+      )}
+      {hubAvailable() && track.kind !== 'podcast' && (
+        <button
+          className="menu-item"
+          onClick={run(() => void useParcel.getState().sendTracks([track.id]))}
+        >
+          <Send size={20} /> {t('parcel.sendSelected')}
         </button>
       )}
       {track.kind === 'podcast' && (

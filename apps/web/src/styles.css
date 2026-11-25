@@ -482,15 +482,6 @@ a {
   padding-right: 10px;
 }
 
-.select.compact {
-  height: 32px;
-  max-width: 42%;
-  border-radius: 999px;
-  font-size: 13px;
-  padding: 0 8px 0 12px;
-  flex-shrink: 1;
-}
-
 .search {
   position: relative;
 }
@@ -1801,11 +1792,6 @@ h2,
 /* Keep toasts above the selection toolbar. */
 .selection-bar ~ .toasts {
   bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 170px);
-}
-
-.collection-actions .select.compact {
-  max-width: 38%;
-  min-width: 0;
 }
 
 @media (max-width: 480px) {

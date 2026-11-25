@@ -6,6 +6,7 @@ import {
   type CreatedParcel,
   type HubSong,
 } from '@aske/shared/hub';
+import type { Playlist } from '@aske/shared';
 import type { SearchResult } from '@aske/shared/youtube';
 import { cancelParcel, claimParcel, createParcel, getParcelStatus, HubError } from '../hub/client';
 import { hubErrorText } from '../hub/errors';
@@ -44,6 +45,7 @@ interface ParcelState {
     songs: HubSong[];
     unavailable: number;
   }) => Promise<boolean>;
+  sendPlaylists: (playlistIds: readonly string[]) => Promise<boolean>;
   poll: () => Promise<void>;
   cancel: () => Promise<void>;
   dismiss: () => void;
@@ -74,6 +76,18 @@ export function songsFromTracks(tracks: readonly LocalTrack[]): {
     songs.push({ videoId: ref, title: tr.title, artist: tr.artist, durationMs: tr.durationMs });
   }
   return { songs, skipped };
+}
+
+/** Song ids of the given playlists, in the order of `ids`, without repeats. */
+export function trackIdsOfPlaylists(
+  playlists: readonly Pick<Playlist, 'id' | 'trackIds'>[],
+  ids: readonly string[],
+): string[] {
+  const out = new Set<string>();
+  for (const id of ids) {
+    for (const trackId of playlists.find((p) => p.id === id)?.trackIds ?? []) out.add(trackId);
+  }
+  return [...out];
 }
 
 export function phaseWhenMissing(expiresAt: number, now: number): ParcelPhase {
@@ -182,6 +196,19 @@ export const useParcel = create<ParcelState>((set, get) => {
         return false;
       }
       return start(songs, { name, unavailable });
+    },
+
+    async sendPlaylists(playlistIds) {
+      const { playlists, tracks } = useLibrary.getState();
+      const chosen = playlistIds.filter((id) => playlists.some((p) => p.id === id));
+      if (chosen.length === 0) return false;
+      if (chosen.length > 1) return get().sendTracks(trackIdsOfPlaylists(playlists, chosen));
+      const playlist = playlists.find((p) => p.id === chosen[0])!;
+      const found = playlist.trackIds
+        .map((id) => tracks[id])
+        .filter((tr): tr is LocalTrack => !!tr);
+      const { songs, skipped } = songsFromTracks(found);
+      return get().sendPlaylist({ name: playlist.name, songs, unavailable: skipped });
     },
 
     async poll() {

@@ -19,7 +19,7 @@ Arrastra el asa **⠿** para cambiar el orden y pulsa la **X** para quitar una c
 
 **Reproducir a continuación** (en el menú ⋮) pone la canción la primera de la cola.
 
-**Aleatorio**: no repite ninguna canción hasta que han sonado todas las de esa lista. Cada lista (tu biblioteca, cada playlist…) recuerda por dónde ibas. Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta, la primera nunca es la última que sonó. El botón queda en ámbar mientras está activo.
+**Aleatorio**: no repite ninguna canción hasta que han sonado todas las de esa lista. Cada lista (tu biblioteca, cada playlist…) recuerda por dónde ibas. Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta, la primera nunca es la última que sonó. Es un interruptor junto al botón de reproducir (y el mismo en el reproductor): en ámbar está activado y la app se acuerda aunque la cierres. Con él activado, **Reproducir** empieza por una canción al azar; desactivado, empieza por la primera de la lista. Cambiarlo mientras suena una lista mezcla o ordena lo que queda sin cortar la canción actual. En la biblioteca, el botón **Ordenar** cambia el orden de la lista (recientes, título o artista).
 
 **Repetir** (el botón de la derecha): cada pulsación cambia de modo. Sin repetir: al acabar la lista, la música para. Repetir lista: al acabar, vuelve a empezar. Repetir canción (el icono lleva un «1»): suena la misma una y otra vez.`,
       en: `Open the player full screen and scroll down: you see two lists.
@@ -31,7 +31,7 @@ Drag the **⠿** handle to reorder and tap **X** to remove a song.
 
 **Play next** (in the ⋮ menu) puts the song first in the queue.
 
-**Shuffle**: it does not repeat any song until all the songs in that list have played. Each list (your library, each playlist…) remembers where you were. New songs you add join the shuffle. When a new round starts, the first song is never the last one that played. The button turns amber while it is on.
+**Shuffle**: it does not repeat any song until all the songs in that list have played. Each list (your library, each playlist…) remembers where you were. New songs you add join the shuffle. When a new round starts, the first song is never the last one that played. It is a switch next to the play button (and the same one in the player): amber means on, and the app remembers it even if you close it. With it on, **Play** starts with a random song; off, it starts with the first one in the list. Changing it while a list is playing mixes or sorts what is left without cutting the current song. In the library, the **Sort** button changes the order of the list (recent, title or artist).
 
 **Repeat** (the button on the right): each tap changes the mode. No repeat: music stops at the end of the list. Repeat list: it starts again when it ends. Repeat song (the icon has a “1”): the same song plays again and again.`,
       eu: `Ireki erreproduzitzailea handian eta jaitsi: bi zerrenda ikusiko dituzu.
@@ -43,7 +43,7 @@ Arrastatu **⠿** heldulekua ordena aldatzeko eta sakatu **X** abesti bat kentze
 
 **Erreproduzitu hurrengoa** (⋮ menuan) abestia ilarako lehena jartzen du.
 
-**Ausazkoa**: ez du abesti bat ere errepikatzen zerrenda horretako guztiak entzun arte. Zerrenda bakoitzak (zure liburutegia, zerrenda bakoitza…) gogoratzen du non gelditu zinen. Gehitzen dituzun abesti berriak ausazkoan sartzen dira. Itzuli berri bat hasten denean, lehena ez da inoiz entzundako azkena. Botoia anbar kolorekoa izaten da aktibo dagoen bitartean.
+**Ausazkoa**: ez du abesti bat ere errepikatzen zerrenda horretako guztiak entzun arte. Zerrenda bakoitzak (zure liburutegia, zerrenda bakoitza…) gogoratzen du non gelditu zinen. Gehitzen dituzun abesti berriak ausazkoan sartzen dira. Itzuli berri bat hasten denean, lehena ez da inoiz entzundako azkena. Erreproduzitzeko botoiaren ondoko etengailua da (eta erreproduzigailuan bera): anbarra aktibo dagoela esan nahi du, eta aplikazioak gogoratzen du itxi arren. Aktibo dagoenean, **Erreproduzitu** ausazko abesti batekin hasten da; desaktibatuta, zerrendako lehenengoarekin. Zerrenda bat entzuten ari zarela aldatzen baduzu, geratzen dena nahastu edo ordenatzen da, uneko abestia eten gabe. Liburutegian, **Ordenatu** botoiak zerrendaren ordena aldatzen du (berrienak, izenburua edo artista).
 
 **Errepikatu** (eskuineko botoia): sakatzen duzun bakoitzean modua aldatzen da. Errepikatu gabe: zerrenda bukatzean, musika gelditu egiten da. Errepikatu zerrenda: bukatzean, berriro hasten da. Errepikatu abestia (ikonoak «1» bat du): abesti bera behin eta berriz entzuten da.`,
     },

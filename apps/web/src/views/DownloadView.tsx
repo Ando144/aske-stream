@@ -41,7 +41,6 @@ import { EnginePanel } from '../components/downloads/EnginePanel';
 import { Outbox } from '../components/send/Outbox';
 import { ParcelPanel } from '../components/send/ParcelPanel';
 import { ReceiveSheet } from '../components/send/ReceiveSheet';
-import { SendHowSheet } from '../components/send/SendHowSheet';
 import { ScreenTip } from '../components/ScreenTip';
 
 /** How this screen works: phone app, computer with Cloudflare, or computer through the Hub. */
@@ -73,8 +72,8 @@ export function DownloadView() {
         <>
           {isNative && hubAvailable() && (
             <>
-              <ReceiveSendButtons />
-              <ScreenTip id="dl-send" text="parcel.tipSend" helpId="send-with-code" />
+              <ReceiveButton />
+              <ScreenTip id="dl-send-2" text="parcel.tipSend" helpId="send-with-code" />
             </>
           )}
           <SearchPanel via={sendVia}>{isNative && <Queue />}</SearchPanel>
@@ -96,11 +95,10 @@ export function DownloadView() {
   );
 }
 
-/** Phone: buttons that open the "receive songs" sheet (also opened by a #send= link) and the "send" guide. */
-function ReceiveSendButtons() {
+/** Phone: button that opens the "receive songs" sheet (also opened by a #send= link). */
+function ReceiveButton() {
   const t = useT();
   const [code, setCode] = useState<string | null>(null);
-  const [sendOpen, setSendOpen] = useState(false);
   const pendingCode = useParcel((s) => s.pendingCode);
 
   useEffect(() => {
@@ -115,11 +113,7 @@ function ReceiveSendButtons() {
         <button className="btn small receive-btn" onClick={() => setCode('')}>
           <ScanLine size={16} /> {t('parcel.receive')}
         </button>
-        <button className="btn small" onClick={() => setSendOpen(true)}>
-          <Send size={16} /> {t('parcel.send')}
-        </button>
       </div>
-      {sendOpen && <SendHowSheet onClose={() => setSendOpen(false)} />}
       {code !== null && <ReceiveSheet initialCode={code} onClose={() => setCode(null)} />}
     </>
   );

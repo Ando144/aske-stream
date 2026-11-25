@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Circle,
+  CircleCheck,
   EllipsisVertical,
   Folder as FolderIcon,
   FolderPlus,
@@ -16,7 +18,8 @@ import { Sheet } from '../components/Sheet';
 import { songCount, useT, type Translate } from '../i18n';
 import { groupPlaylists } from '../storage/playlistOps';
 import { useAllTracks, useLibrary } from '../stores/library';
-import { promptDialog } from '../stores/ui';
+import { promptDialog, useUi } from '../stores/ui';
+import '../playlistSelect.css';
 import { FriendsRow } from '../components/playlists/FriendsRow';
 import { FolderMenu } from '../components/FolderMenu';
 import { DraggablePlaylist, PlaylistDnd, SortableFolder } from '../components/PlaylistDnd';
@@ -32,6 +35,11 @@ export function PlaylistsView() {
   const folders = useLibrary((s) => s.folders);
   const liked = useAllTracks().filter((tr) => tr.likedAt !== null).length;
   const groups = groupPlaylists(playlists, folders);
+
+  const looseKey = groups.loose.map((p) => p.id).join(',');
+  useEffect(() => {
+    useUi.getState().setPlaylistVisibleIds(looseKey ? looseKey.split(',') : []);
+  }, [looseKey]);
 
   const create = async () => {
     const name = await promptDialog({
@@ -80,6 +88,13 @@ export function PlaylistsView() {
       <ScreenTip id="playlists" text="tips.playlists" helpId="playlists" />
       <FriendsRow onReceive={() => setOpenLink(true)} />
       <ScreenTip id="playlists-friends" text="share.tipFriends" helpId="share-playlist" />
+      {groups.loose.length > 0 && (
+        <div className="row">
+          <button className="btn small" onClick={() => useUi.getState().startPlaylistSelection()}>
+            <CircleCheck size={16} /> {t('select.start')}
+          </button>
+        </div>
+      )}
 
       <PlaylistDnd playlists={playlists} folders={folders}>
         <div className="card-list">
@@ -220,22 +235,99 @@ function FolderRow({ folder, count, t }: { folder: Folder; count: number; t: Tra
   );
 }
 
+const LONG_PRESS_MS = 500;
+const MOVE_TOLERANCE_PX = 8;
+
+/** Long press on a row starts selecting playlists; `suppressClick` swallows the click after it. */
+function useLongPressSelect(playlistId: string, selecting: boolean) {
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const origin = useRef({ x: 0, y: 0 });
+  const suppressClick = useRef(false);
+  const cancel = () => clearTimeout(timer.current);
+
+  useEffect(() => cancel, []);
+  // The row is swapped for a button when selecting starts, so that click may never arrive.
+  useEffect(() => {
+    suppressClick.current = false;
+  }, [selecting]);
+
+  const handlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      origin.current = { x: e.clientX, y: e.clientY };
+      cancel();
+      timer.current = setTimeout(() => {
+        suppressClick.current = true;
+        navigator.vibrate?.(20);
+        useUi.getState().startPlaylistSelection(playlistId);
+      }, LONG_PRESS_MS);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const moved =
+        Math.abs(e.clientX - origin.current.x) > MOVE_TOLERANCE_PX ||
+        Math.abs(e.clientY - origin.current.y) > MOVE_TOLERANCE_PX;
+      if (moved) cancel();
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
+  const takeSuppressedClick = () => {
+    const was = suppressClick.current;
+    suppressClick.current = false;
+    return was;
+  };
+  return { handlers, takeSuppressedClick };
+}
+
 /** One playlist: link, "…" menu and the drag handle. Also used inside folders. */
 export function PlaylistRow({ playlist }: { playlist: Playlist }) {
   const t = useT();
   const tracks = useLibrary((s) => s.tracks);
   const [menu, setMenu] = useState(false);
+  const selecting = useUi((s) => s.playlistSelection !== null);
+  const picked = useUi((s) => !!s.playlistSelection?.includes(playlist.id));
+  const { handlers, takeSuppressedClick } = useLongPressSelect(playlist.id, selecting);
+
+  const body = (
+    <>
+      {selecting && (
+        <span className="select-circle" aria-hidden>
+          {picked ? <CircleCheck size={22} /> : <Circle size={22} />}
+        </span>
+      )}
+      <PlaylistArt playlist={playlist} tracks={tracks} size={56} />
+      <div className="grow">
+        <div className="card-title ellipsis">{playlist.name}</div>
+        <div className="muted small">{songCount(t, playlist.trackIds.length)}</div>
+      </div>
+    </>
+  );
+
   return (
     <DraggablePlaylist playlist={playlist}>
       {(handle) => (
-        <div className="card-row">
-          <Link href={`/playlist/${playlist.id}`} className="card-row-link">
-            <PlaylistArt playlist={playlist} tracks={tracks} size={56} />
-            <div className="grow">
-              <div className="card-title ellipsis">{playlist.name}</div>
-              <div className="muted small">{songCount(t, playlist.trackIds.length)}</div>
-            </div>
-          </Link>
+        <div className={`card-row${picked ? ' picked' : ''}`}>
+          {selecting ? (
+            <button
+              className="card-row-link"
+              aria-pressed={picked}
+              onClick={() => useUi.getState().togglePlaylistSelected(playlist.id)}
+            >
+              {body}
+            </button>
+          ) : (
+            <Link
+              href={`/playlist/${playlist.id}`}
+              className="card-row-link"
+              onClick={(e) => {
+                if (takeSuppressedClick()) e.preventDefault();
+              }}
+              {...handlers}
+            >
+              {body}
+            </Link>
+          )}
           <button
             className="icon-btn"
             onClick={() => setMenu(true)}

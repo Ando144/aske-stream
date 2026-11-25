@@ -259,6 +259,55 @@ describe('receivedMessage', () => {
   });
 });
 
+describe('sendPlaylists', () => {
+  const setLibrary = (playlists: { id: string; name: string; trackIds: string[] }[]) =>
+    useLibrary.setState({
+      playlists: playlists as never,
+      tracks: {
+        '1': track('1', { sourceRef: song(1).videoId }),
+        '2': track('2', { sourceRef: song(2).videoId }),
+        '3': track('3', { sourceRef: song(3).videoId }),
+        '4': track('4', { source: 'upload' as never }),
+      },
+    });
+
+  it('returns false without calling the Hub for no ids or unknown playlists', async () => {
+    setLibrary([]);
+    expect(await useParcel.getState().sendPlaylists([])).toBe(false);
+    expect(await useParcel.getState().sendPlaylists(['nope'])).toBe(false);
+    expect(hub.createParcel).not.toHaveBeenCalled();
+  });
+
+  it('sends one playlist with its name and the count of unavailable songs', async () => {
+    hub.createParcel.mockResolvedValue(created);
+    setLibrary([{ id: 'p1', name: 'Road', trackIds: ['1', '4', '2'] }]);
+    expect(await useParcel.getState().sendPlaylists(['p1'])).toBe(true);
+    expect(hub.createParcel).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ videoId: song(1).videoId }),
+        expect.objectContaining({ videoId: song(2).videoId }),
+      ],
+      { name: 'Road', unavailable: 1 },
+    );
+  });
+
+  it('joins several playlists in order without repeating songs', async () => {
+    hub.createParcel.mockResolvedValue(created);
+    setLibrary([
+      { id: 'p1', name: 'A', trackIds: ['1', '2'] },
+      { id: 'p2', name: 'B', trackIds: ['2', '3'] },
+    ]);
+    expect(await useParcel.getState().sendPlaylists(['p1', 'p2'])).toBe(true);
+    const [songs, meta] = hub.createParcel.mock.calls[0]!;
+    expect(songs.map((s: { videoId: string }) => s.videoId)).toEqual([
+      song(1).videoId,
+      song(2).videoId,
+      song(3).videoId,
+    ]);
+    expect(meta).toBeUndefined();
+  });
+});
+
 describe('sendTracks', () => {
   const setTracks = (tracks: LocalTrack[]) =>
     useLibrary.setState({ tracks: Object.fromEntries(tracks.map((x) => [x.id, x])) });

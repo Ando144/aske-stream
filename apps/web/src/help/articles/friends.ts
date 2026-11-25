@@ -14,7 +14,7 @@ export const friendsArticles: HelpArticle[] = [
 
 **Qué se comparte:** solo la lista de canciones (los nombres), no la música. Tu amigo descarga cada canción de YouTube en su propio móvil.
 
-1. Ve a **Playlists → Con amigos → Compartir** y elige la playlist (o abre la playlist y pulsa **Compartir**).
+1. En **Playlists**, pulsa **⋮** en la playlist que quieras y elige **Compartir** (también puedes abrir la playlist y pulsar **Compartir**).
 2. Enseña el código QR a tu amigo o pulsa **Compartir enlace** para mandárselo.
 3. Tu amigo abre el enlace, o en **Playlists → Con amigos** pulsa **Recibir** y pega el enlace o escanea el QR.
 4. En la app de Android, él pulsa **Descargar en mi biblioteca**. En la web solo puede ver la lista: para descargar hay que abrir el enlace en la app de Android.
@@ -28,7 +28,7 @@ export const friendsArticles: HelpArticle[] = [
 
 **What is shared:** only the list of songs (the names), not the music. Your friend downloads each song from YouTube onto their own phone.
 
-1. Go to **Playlists → With friends → Share** and pick the playlist (or open the playlist and tap **Share**).
+1. In **Playlists**, tap **⋮** on the playlist you want and choose **Share** (you can also open the playlist and tap **Share**).
 2. Show the QR code to your friend, or tap **Share link** to send it.
 3. Your friend opens the link, or in **Playlists → With friends** taps **Receive** and pastes the link or scans the QR.
 4. In the Android app, they tap **Download to my library**. On the web they can only see the list: to download, the link has to be opened in the Android app.
@@ -42,7 +42,7 @@ export const friendsArticles: HelpArticle[] = [
 
 **Zer partekatzen da:** abesti-zerrenda bakarrik (izenak), ez musika. Zure lagunak abesti bakoitza YouTubetik deskargatzen du bere telefonoan.
 
-1. Joan **Zerrendak → Lagunekin → Partekatu** atalera eta aukeratu zerrenda (edo ireki zerrenda eta sakatu **Partekatu**).
+1. **Zerrendak** atalean, sakatu **⋮** nahi duzun zerrendan eta aukeratu **Partekatu** (zerrenda ireki eta **Partekatu** ere sakatu dezakezu).
 2. Erakutsi QR kodea zure lagunari, edo sakatu **Partekatu esteka** bidaltzeko.
 3. Zure lagunak esteka irekitzen du, edo **Zerrendak → Lagunekin** atalean **Jaso** sakatzen du eta esteka itsasten du edo QR kodea eskaneatzen du.
 4. Android aplikazioan, **Deskargatu nire liburutegian** sakatzen du. Webean zerrenda ikus dezake bakarrik: deskargatzeko, esteka Android aplikazioan ireki behar da.

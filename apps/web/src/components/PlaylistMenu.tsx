@@ -7,11 +7,16 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Send,
+  Share2,
   Trash2,
 } from 'lucide-react';
 import type { Playlist } from '@aske/shared';
+import { hubAvailable } from '../hub/client';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
+import { useParcel } from '../stores/parcel';
+import { SharePlaylistSheet } from './SharePlaylistSheet';
 import { MergeSheet } from './MergeSheet';
 import {
   CoverItems,
@@ -23,7 +28,7 @@ import {
 import { PlaylistArt } from './PlaylistArt';
 import { Sheet } from './Sheet';
 
-type Step = 'main' | 'folders' | 'merge';
+type Step = 'main' | 'folders' | 'merge' | 'share';
 
 /** The «…» sheet of a playlist. */
 export function PlaylistMenu({ playlist, onClose }: { playlist: Playlist; onClose: () => void }) {
@@ -41,6 +46,7 @@ export function PlaylistMenu({ playlist, onClose }: { playlist: Playlist; onClos
   if (step === 'folders') {
     return <FolderPickSheet playlist={playlist} onMove={moveTo} onClose={onClose} />;
   }
+  if (step === 'share') return <SharePlaylistSheet playlist={playlist} onClose={onClose} />;
   if (step === 'merge') {
     return <MergePickSheet playlist={playlist} onPick={setMergeWith} onClose={onClose} />;
   }
@@ -101,6 +107,22 @@ function PlaylistMainSheet({
         <button className="menu-item" onClick={() => onStep('merge')}>
           <Merge size={20} /> {t('playlists.merge')}
         </button>
+      )}
+      {hubAvailable() && (
+        <>
+          <button
+            className="menu-item"
+            onClick={() => {
+              onClose();
+              void useParcel.getState().sendPlaylists([playlist.id]);
+            }}
+          >
+            <Send size={20} /> {t('parcel.sendSelected')}
+          </button>
+          <button className="menu-item" onClick={() => onStep('share')}>
+            <Share2 size={20} /> {t('share.button')}
+          </button>
+        </>
       )}
       <CoverItems playlist={playlist} onClose={onClose} />
       <button

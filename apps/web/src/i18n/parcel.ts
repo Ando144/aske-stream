@@ -34,18 +34,8 @@ export const parcelEn = {
   'parcel.privacy':
     'Only the list of songs goes through the Aske Hub, never the music. It is deleted when your phone receives it, or after 24 hours.',
   'parcel.receive': 'Receive',
-  'parcel.send': 'Send',
-  'parcel.sendHowTitle': 'Send songs to another phone',
-  'parcel.sendHowSelect':
-    'Choose songs from your library and tap "Send to another phone". A QR will appear for the other phone to scan.',
-  'parcel.sendPick': 'Choose songs',
-  'parcel.sendHowQueue':
-    'You can also send the queue: open the player → Queue → "Send the queue to another phone".',
-  'parcel.sendHowPlaylist': 'To share a whole playlist, go to Playlists → With friends → Share.',
-  'parcel.sendGoPlaylists': 'Go to Playlists',
-  'parcel.sendHowNote': 'Only songs that come from YouTube can be sent.',
   'parcel.tipSend':
-    'With "Receive" you get songs another phone sends you; with "Send" you send them yourself.',
+    'To send, open the ⋮ menu of a song or playlist, or press and hold to pick several.',
   'parcel.receiveTitle': 'Receive songs',
   'parcel.receiveText': 'Scan the QR shown on the other screen, or type its code.',
   'parcel.scan': 'Scan QR',
@@ -100,19 +90,8 @@ export const parcelEs: Record<keyof typeof parcelEn, string> = {
   'parcel.privacy':
     'Por el Hub de Aske solo pasa la lista de canciones, nunca la música. Se borra cuando tu móvil la recibe, o a las 24 horas.',
   'parcel.receive': 'Recibir',
-  'parcel.send': 'Enviar',
-  'parcel.sendHowTitle': 'Enviar canciones a otro móvil',
-  'parcel.sendHowSelect':
-    'Elige canciones de tu biblioteca y pulsa «Enviar a otro móvil». Saldrá un QR para que el otro móvil lo escanee.',
-  'parcel.sendPick': 'Elegir canciones',
-  'parcel.sendHowQueue':
-    'También puedes enviar la cola: abre el reproductor → Cola → «Enviar la cola a otro móvil».',
-  'parcel.sendHowPlaylist':
-    'Para compartir una playlist entera, ve a Playlists → Con amigos → Compartir.',
-  'parcel.sendGoPlaylists': 'Ir a Playlists',
-  'parcel.sendHowNote': 'Solo se pueden enviar canciones que vienen de YouTube.',
   'parcel.tipSend':
-    'Con «Recibir» coges canciones que te envía otro móvil; con «Enviar» se las mandas tú.',
+    'Para enviar, abre el menú ⋮ de una canción o playlist, o mantén pulsado para elegir varias.',
   'parcel.receiveTitle': 'Recibir canciones',
   'parcel.receiveText': 'Escanea el QR que se ve en la otra pantalla, o escribe su código.',
   'parcel.scan': 'Escanear QR',
@@ -167,19 +146,8 @@ export const parcelEu: Record<keyof typeof parcelEn, string> = {
   'parcel.privacy':
     'Aske Hubetik abesti-zerrenda bakarrik pasatzen da, inoiz ez musika. Zure mugikorrak jasotzean ezabatzen da, edo 24 ordura.',
   'parcel.receive': 'Jaso',
-  'parcel.send': 'Bidali',
-  'parcel.sendHowTitle': 'Bidali abestiak beste mugikor batera',
-  'parcel.sendHowSelect':
-    'Aukeratu abestiak zure liburutegitik eta sakatu «Bidali beste mugikor batera». QR bat agertuko da beste mugikorrak eskaneatzeko.',
-  'parcel.sendPick': 'Aukeratu abestiak',
-  'parcel.sendHowQueue':
-    'Ilara ere bidal dezakezu: ireki erreproduzitzailea → Ilara → «Bidali ilara beste mugikor batera».',
-  'parcel.sendHowPlaylist':
-    'Playlist oso bat partekatzeko, joan Zerrendak → Lagunekin → Partekatu atalera.',
-  'parcel.sendGoPlaylists': 'Joan Playlistetara',
-  'parcel.sendHowNote': 'YouTubetik datozen abestiak bakarrik bidal daitezke.',
   'parcel.tipSend':
-    '«Jaso» erabiliz beste mugikor batek bidaltzen dizkizun abestiak hartzen dituzu; «Bidali» erabiliz zuk bidaltzen dizkiozu.',
+    'Bidaltzeko, ireki abesti edo playlist baten ⋮ menua, edo eutsi sakatuta hainbat aukeratzeko.',
   'parcel.receiveTitle': 'Jaso abestiak',
   'parcel.receiveText': 'Eskaneatu beste pantailan ageri den QRa, edo idatzi bere kodea.',
   'parcel.scan': 'Eskaneatu QRa',

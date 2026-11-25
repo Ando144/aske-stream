@@ -37,6 +37,10 @@ interface UiState {
   selectionTarget: { playlistId: string; name: string } | null;
   /** Ids of the list currently on screen, for "Select all". */
   visibleIds: string[];
+  /** Multi-select mode on the Playlists screen: selected playlist ids, or null. */
+  playlistSelection: string[] | null;
+  /** Playlist ids selectable on the current screen (main list or an open folder). */
+  playlistVisibleIds: string[];
 
   toast: (message: string, tone?: Toast['tone']) => void;
   dismissToast: (id: number) => void;
@@ -50,6 +54,11 @@ interface UiState {
   selectAll: () => void;
   endSelection: () => void;
   setVisibleIds: (ids: string[]) => void;
+  startPlaylistSelection: (firstId?: string) => void;
+  togglePlaylistSelected: (id: string) => void;
+  selectAllPlaylists: (ids: string[]) => void;
+  setPlaylistVisibleIds: (ids: string[]) => void;
+  endPlaylistSelection: () => void;
 }
 
 let toastId = 0;
@@ -62,6 +71,8 @@ export const useUi = create<UiState>((set, get) => ({
   selection: null,
   selectionTarget: null,
   visibleIds: [],
+  playlistSelection: null,
+  playlistVisibleIds: [],
   confirm: null,
   prompt: null,
   online: navigator.onLine,
@@ -78,7 +89,11 @@ export const useUi = create<UiState>((set, get) => ({
   openTrackMenu: (trackId, playlistId) => set({ trackMenu: { trackId, playlistId } }),
   closeTrackMenu: () => set({ trackMenu: null }),
   startSelection: (firstId, target = null) =>
-    set({ selection: firstId ? [firstId] : [], selectionTarget: target }),
+    set({
+      selection: firstId ? [firstId] : [],
+      selectionTarget: target,
+      playlistSelection: null,
+    }),
   toggleSelected: (id) => {
     const sel = get().selection ?? [];
     set({ selection: sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id] });
@@ -90,6 +105,23 @@ export const useUi = create<UiState>((set, get) => ({
   },
   endSelection: () => set({ selection: null, selectionTarget: null }),
   setVisibleIds: (visibleIds) => set({ visibleIds }),
+  startPlaylistSelection: (firstId) =>
+    set({
+      playlistSelection: firstId ? [firstId] : [],
+      selection: null,
+      selectionTarget: null,
+    }),
+  togglePlaylistSelected: (id) => {
+    const sel = get().playlistSelection ?? [];
+    set({ playlistSelection: sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id] });
+  },
+  selectAllPlaylists: (ids) => {
+    const sel = get().playlistSelection ?? [];
+    const all = ids.length > 0 && ids.every((id) => sel.includes(id));
+    set({ playlistSelection: all ? [] : [...ids] });
+  },
+  setPlaylistVisibleIds: (playlistVisibleIds) => set({ playlistVisibleIds }),
+  endPlaylistSelection: () => set({ playlistSelection: null }),
 }));
 
 /** Promise-based confirm dialog rendered by <Dialogs />. */

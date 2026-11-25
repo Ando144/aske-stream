@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { CircleCheck, Library, Play, Search, Shuffle, Timer } from 'lucide-react';
-import { Link, useLocation, useSearch } from 'wouter';
+import { CircleCheck, Library, Play, Search, Timer } from 'lucide-react';
+import { Link, useSearch } from 'wouter';
 import { isNative } from '../native/platform';
 import { songCount, useT } from '../i18n';
 import { formatBytes, formatLongDuration, normalizeText } from '../lib/format';
@@ -16,6 +16,8 @@ import { SettingsLink } from '../components/SettingsLink';
 import { ScreenTip } from '../components/ScreenTip';
 import { FirstSteps } from '../components/FirstSteps';
 import { CopyPanel } from '../components/CopyPanel';
+import { ShuffleToggle } from '../components/ShuffleToggle';
+import { SortMenu } from '../components/SortMenu';
 
 type Filter = 'all' | 'liked' | 'downloaded';
 type Sort = 'recent' | 'title' | 'artist';
@@ -32,13 +34,9 @@ export function LibraryView() {
   const deferredQuery = useDeferredValue(query);
   const home = useSetup((s) => s.config?.home);
   const selecting = useUi((s) => s.selection !== null);
-  const shuffling = usePlayer(
-    (s) => s.mode === 'track' && s.shuffle && s.contextInfo?.path === '/',
-  );
   const target = useUi((s) => s.selectionTarget);
   const playlists = useLibrary((s) => s.playlists);
   const search = useSearch();
-  const [, navigate] = useLocation();
 
   // "Add songs" from a playlist opens the library in picking mode: ?addTo=<playlistId>
   useEffect(() => {
@@ -46,13 +44,6 @@ export function LibraryView() {
     const pl = addTo ? playlists.find((p) => p.id === addTo) : undefined;
     if (pl) useUi.getState().startSelection(undefined, { playlistId: pl.id, name: pl.name });
   }, [search, playlists]);
-
-  // The "send songs" sheet opens the library in plain picking mode: ?select=1
-  useEffect(() => {
-    if (new URLSearchParams(search).get('select') !== '1') return;
-    useUi.getState().startSelection();
-    navigate('/', { replace: true });
-  }, [search, navigate]);
 
   const tracks = useMemo(() => {
     const q = normalizeText(deferredQuery.trim());
@@ -84,8 +75,13 @@ export function LibraryView() {
     ...(filter === 'all' && !normalizedQuery ? { live: 'library' as const } : {}),
     cycleKey: `library:${filter}:${normalizedQuery}`,
   };
-  const play = (startId: string | null, shuffle?: boolean) =>
-    usePlayer.getState().playTracks(ids, startId, { shuffle, context });
+  const play = (startId: string | null) =>
+    usePlayer.getState().playTracks(ids, startId, { context });
+  const sortOptions: { value: Sort; label: string; short: string }[] = [
+    { value: 'recent', label: t('library.sortRecent'), short: t('library.sortShortRecent') },
+    { value: 'title', label: t('library.sortTitle'), short: t('library.sortShortTitle') },
+    { value: 'artist', label: t('library.sortArtist'), short: t('library.sortShortArtist') },
+  ];
 
   return (
     <div className="page">
@@ -156,20 +152,13 @@ export function LibraryView() {
           <div className="collection-actions">
             <button
               className="play-fab"
-              onClick={() => play(null, false)}
+              onClick={() => play(null)}
               disabled={!ids.length}
               aria-label={t('common.play')}
             >
               <Play size={24} fill="currentColor" style={{ marginLeft: 2 }} />
             </button>
-            <button
-              className={`btn${shuffling ? ' on' : ''}`}
-              onClick={() => play(null, true)}
-              disabled={!ids.length}
-              aria-pressed={shuffling}
-            >
-              <Shuffle size={18} /> {t('common.shuffle')}
-            </button>
+            <ShuffleToggle />
             <button
               className={`btn small${selecting ? ' on' : ''}`}
               onClick={() =>
@@ -181,20 +170,15 @@ export function LibraryView() {
               <CircleCheck size={18} /> {t('select.start')}
             </button>
             <span className="grow" />
-            <select
-              className="select compact"
+            <SortMenu
               value={sort}
-              aria-label="sort"
-              onChange={(e) => {
-                const value = e.target.value as Sort;
+              options={sortOptions}
+              label={t('library.sort')}
+              onChange={(value) => {
                 setSort(value);
                 savePref('library-sort', value);
               }}
-            >
-              <option value="recent">{t('library.sortRecent')}</option>
-              <option value="title">{t('library.sortTitle')}</option>
-              <option value="artist">{t('library.sortArtist')}</option>
-            </select>
+            />
           </div>
           <p className="muted small" style={{ margin: '0 0 6px' }}>
             {songCount(t, tracks.length)} · {formatLongDuration(totalMs)} ·{' '}

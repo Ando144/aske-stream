@@ -59,10 +59,13 @@ export const shareEn = {
 
   'share.friendsTitle': 'With friends',
   'share.receive': 'Receive',
-  'share.pickTitle': 'Which playlist do you want to share?',
-  'share.pickEmpty': 'You have no playlists yet. Create one with the + button.',
   'share.tipFriends':
-    'Here you share your playlists with a link or QR, receive your friends’ playlists, start a Jam or enter your groups.',
+    'Here you receive your friends’ playlists, start a Jam or enter your groups. To share a playlist, open its ⋮ menu.',
+
+  'plsel.count': '{count} playlists',
+  'plsel.count.one': '1 playlist',
+  'plsel.queue': 'Queue',
+  'plsel.download': 'Download',
 } as const;
 
 export const shareEs: Record<keyof typeof shareEn, string> = {
@@ -127,10 +130,13 @@ export const shareEs: Record<keyof typeof shareEn, string> = {
 
   'share.friendsTitle': 'Con amigos',
   'share.receive': 'Recibir',
-  'share.pickTitle': '¿Qué playlist quieres compartir?',
-  'share.pickEmpty': 'Aún no tienes playlists. Crea una con el botón +.',
   'share.tipFriends':
-    'Aquí compartes tus playlists con un enlace o QR, recibes las de tus amigos, haces una Jam o entras en tus grupos.',
+    'Aquí recibes las playlists de tus amigos, haces una Jam o entras en tus grupos. Para compartir una playlist, abre su menú ⋮.',
+
+  'plsel.count': '{count} playlists',
+  'plsel.count.one': '1 playlist',
+  'plsel.queue': 'Cola',
+  'plsel.download': 'Descargar',
 };
 
 export const shareEu: Record<keyof typeof shareEn, string> = {
@@ -196,8 +202,11 @@ export const shareEu: Record<keyof typeof shareEn, string> = {
 
   'share.friendsTitle': 'Lagunekin',
   'share.receive': 'Jaso',
-  'share.pickTitle': 'Zein zerrenda partekatu nahi duzu?',
-  'share.pickEmpty': 'Oraindik ez duzu zerrendarik. Sortu bat + botoiarekin.',
   'share.tipFriends':
-    'Hemen zure zerrendak esteka edo QR batekin partekatzen dituzu, zure lagunenak jasotzen dituzu, Jam bat egiten duzu edo zure taldeetan sartzen zara.',
+    'Hemen zure lagunen zerrendak jasotzen dituzu, Jam bat egiten duzu edo zure taldeetan sartzen zara. Zerrenda bat partekatzeko, ireki bere ⋮ menua.',
+
+  'plsel.count': '{count} playlist',
+  'plsel.count.one': '1 playlist',
+  'plsel.queue': 'Ilara',
+  'plsel.download': 'Deskargatu',
 };
