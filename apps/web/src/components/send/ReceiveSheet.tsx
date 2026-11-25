@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { LoaderCircle, ScanLine } from 'lucide-react';
 import { formatJamCode } from '@aske/shared/hub';
 import { useT } from '../../i18n';
+import { Sheet } from '../Sheet';
 import { scanQr } from '../../native/qrScanner';
 import { useParcel } from '../../stores/parcel';
 import { toast } from '../../stores/ui';
@@ -38,36 +39,34 @@ export function ReceiveSheet({
   };
 
   return createPortal(
-    <div className="backdrop" onClick={onClose}>
-      <div className="sheet dl-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal>
-        <strong>{t('parcel.receiveTitle')}</strong>
-        <p className="muted small">{t('parcel.receiveText')}</p>
-        <button className="btn small" type="button" disabled={busy} onClick={() => void scan()}>
-          <ScanLine size={16} /> {t('parcel.scan')}
+    <Sheet label={t('parcel.receiveTitle')} className="sheet dl-sheet" onClose={onClose}>
+      <strong>{t('parcel.receiveTitle')}</strong>
+      <p className="muted small">{t('parcel.receiveText')}</p>
+      <button className="btn small" type="button" disabled={busy} onClick={() => void scan()}>
+        <ScanLine size={16} /> {t('parcel.scan')}
+      </button>
+      <form
+        className="row wrap"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void receive(code);
+        }}
+      >
+        <input
+          className="input jam-code-input"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder={t('parcel.codePlaceholder')}
+          aria-label={t('parcel.codePlaceholder')}
+          autoCapitalize="characters"
+        />
+        <button className="btn primary small" type="submit" disabled={busy || !code.trim()}>
+          {busy ? <LoaderCircle size={16} className="spin" /> : null}
+          {busy ? t('parcel.receiving') : t('parcel.receiveButton')}
         </button>
-        <form
-          className="row wrap"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void receive(code);
-          }}
-        >
-          <input
-            className="input jam-code-input"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder={t('parcel.codePlaceholder')}
-            aria-label={t('parcel.codePlaceholder')}
-            autoCapitalize="characters"
-          />
-          <button className="btn primary small" type="submit" disabled={busy || !code.trim()}>
-            {busy ? <LoaderCircle size={16} className="spin" /> : null}
-            {busy ? t('parcel.receiving') : t('parcel.receiveButton')}
-          </button>
-        </form>
-        {invalid && <div className="error-text small">{t('parcel.invalidCode')}</div>}
-      </div>
-    </div>,
+      </form>
+      {invalid && <div className="error-text small">{t('parcel.invalidCode')}</div>}
+    </Sheet>,
     document.body,
   );
 }

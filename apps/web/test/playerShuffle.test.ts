@@ -38,6 +38,8 @@ vi.mock('../src/player/mediaSession', () => ({
     setPlaybackState() {},
     updatePositionState() {},
     updateMediaSession() {},
+    setStalled() {},
+    setRetryHandler() {},
   }),
 }));
 vi.mock('../src/stores/library', async () => {

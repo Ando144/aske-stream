@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { CircleCheck, Library, Play, Search, Shuffle, Timer } from 'lucide-react';
-import { Link, useSearch } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { isNative } from '../native/platform';
 import { songCount, useT } from '../i18n';
 import { formatBytes, formatLongDuration, normalizeText } from '../lib/format';
@@ -38,6 +38,7 @@ export function LibraryView() {
   const target = useUi((s) => s.selectionTarget);
   const playlists = useLibrary((s) => s.playlists);
   const search = useSearch();
+  const [, navigate] = useLocation();
 
   // "Add songs" from a playlist opens the library in picking mode: ?addTo=<playlistId>
   useEffect(() => {
@@ -48,8 +49,10 @@ export function LibraryView() {
 
   // The "send songs" sheet opens the library in plain picking mode: ?select=1
   useEffect(() => {
-    if (new URLSearchParams(search).get('select') === '1') useUi.getState().startSelection();
-  }, [search]);
+    if (new URLSearchParams(search).get('select') !== '1') return;
+    useUi.getState().startSelection();
+    navigate('/', { replace: true });
+  }, [search, navigate]);
 
   const tracks = useMemo(() => {
     const q = normalizeText(deferredQuery.trim());

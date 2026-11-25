@@ -21,6 +21,8 @@ import {
   type ShuffleCycles,
 } from '../player/shuffleCycle';
 import { createMediaSession } from '../player/mediaSession';
+import { attachStallRecovery } from '../player/stallRecovery';
+import { isMidSongNetworkError } from '../player/stallWatchdog';
 import { resolveAudio } from '../storage/media';
 import { useLibrary } from './library';
 import { LISTENED_THRESHOLD, setProtectedProvider, useOffline } from './offline';
@@ -132,6 +134,7 @@ let hls: Hls | null = null;
 let objectUrl: string | null = null;
 let loadSeq = 0;
 let pendingSeek: number | null = null;
+let reloading = false; // watchdog reload loading: its errors go back to the watchdog
 let listenedMarked = false;
 let consecutiveErrors = 0;
 let triedHttpsUpgrade = false;
@@ -168,6 +171,7 @@ const engine = {
   advance: (_auto: boolean): void => undefined,
   persist: (): void => undefined,
   forgetTracks: (_removed: Set<string>): void => undefined,
+  reloadCurrent: (): Promise<void> => Promise.resolve(),
 };
 
 export const usePlayer = create<PlayerState>((set, get) => {
@@ -251,6 +255,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const podcast = isPodcast(id);
     if (podcast && startAt === 0) startAt = resumePosition(id);
     pendingSeek = startAt > 0 ? startAt : null;
+    reloading = false;
     const rate = podcast ? usePodcasts.getState().rate : 1;
     set({ mode: 'track', station: null, position: startAt, duration: 0, rate });
     audio.src = src;
@@ -260,6 +265,28 @@ export const usePlayer = create<PlayerState>((set, get) => {
     persist();
     scheduleRunThrottled();
     if (autoplay) audio.play().catch(() => set({ isPlaying: false }));
+  }
+
+  /** Reloads the current song at the same second (stall recovery); never touches the cursor. */
+  async function reloadCurrent(): Promise<void> {
+    const { currentId: id, mode } = get();
+    if (mode !== 'track' || !id) return;
+    const at = pendingSeek ?? audio.currentTime;
+    const seq = ++loadSeq;
+    const wasPlaying = get().isPlaying || !audio.paused;
+    const src = await sourceFor(id);
+    if (seq !== loadSeq || get().currentId !== id) {
+      if (src?.startsWith('blob:')) URL.revokeObjectURL(src);
+      return;
+    }
+    if (!src) return;
+    resetSource();
+    if (src.startsWith('blob:')) objectUrl = src;
+    pendingSeek = at > 0 ? at : null;
+    reloading = true;
+    audio.src = src;
+    audio.playbackRate = audio.defaultPlaybackRate = get().rate;
+    if (wasPlaying) audio.play().catch(() => undefined);
   }
 
   /**
@@ -368,6 +395,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
   engine.advance = advance;
   engine.persist = persist;
   engine.forgetTracks = forgetTracks;
+  engine.reloadCurrent = reloadCurrent;
   (engine as typeof engine & { retryRadio?: () => boolean }).retryRadio = () => {
     const st = get().station;
     if (!st || !triedHttpsUpgrade) return false;
@@ -614,6 +642,7 @@ audio.addEventListener('timeupdate', () => {
   updatePositionState();
 });
 audio.addEventListener('loadedmetadata', () => {
+  reloading = false;
   if (pendingSeek !== null) {
     audio.currentTime = pendingSeek;
     pendingSeek = null;
@@ -632,9 +661,11 @@ audio.addEventListener('playing', () => {
   usePlayer.setState({ buffering: false, isPlaying: true });
   // The source may have switched between local and remote while already playing.
   if (isNative) keepAwake(true);
+  setPlaybackState('playing');
 });
 audio.addEventListener('waiting', () => usePlayer.setState({ buffering: true }));
 audio.addEventListener('pause', () => {
+  reloading = false; // a pause (user or watchdog give-up) ends any reload in flight
   usePlayer.setState({ isPlaying: false, buffering: false });
   setPlaybackState('paused');
   const s = usePlayer.getState();
@@ -663,6 +694,11 @@ audio.addEventListener('volumechange', () => {
 audio.addEventListener('error', () => {
   const s = usePlayer.getState();
   if (!audio.src && !hls) return;
+  const code = audio.error?.code ?? null;
+  if (isMidSongNetworkError({ code, mode: s.mode, currentTime: audio.currentTime, reloading })) {
+    stallWatchdog.retryNow();
+    return;
+  }
   if (s.mode === 'radio') {
     // The https:// variant of an http:// stream failed: try the original once.
     const retry = (engine as typeof engine & { retryRadio?: () => boolean }).retryRadio;
@@ -722,8 +758,26 @@ setInterval(() => {
 
 /* ---------- Media Session (lock screen & notification controls) ---------- */
 
-const { keepAwake, renewAwake, setPlaybackState, updatePositionState, updateMediaSession } =
-  createMediaSession(audio, () => usePlayer.getState());
+const {
+  keepAwake,
+  renewAwake,
+  setPlaybackState,
+  updatePositionState,
+  updateMediaSession,
+  setStalled,
+  setRetryHandler,
+} = createMediaSession(audio, () => usePlayer.getState());
+
+/* ---------- Stall recovery (silent retries; gives up by pausing) ---------- */
+
+const stallWatchdog = attachStallRecovery(audio, {
+  mode: () => usePlayer.getState().mode,
+  currentId: () => usePlayer.getState().currentId,
+  reloadCurrent: () => void engine.reloadCurrent(),
+  onGiveUp: () => usePlayer.setState({ buffering: false }),
+  setStalled,
+  setRetryHandler,
+});
 
 /* ---------- Offline cache integration ---------- */
 

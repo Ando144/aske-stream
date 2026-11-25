@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useLocation } from 'wouter';
+import { Sheet } from '../Sheet';
 import { HelpButton } from '../HelpSheet';
 import { useT } from '../../i18n';
 
@@ -18,26 +19,24 @@ export function SendHowSheet({ onClose }: { onClose: () => void }) {
   };
 
   return createPortal(
-    <div className="backdrop" onClick={onClose}>
-      <div className="sheet dl-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal>
-        <strong>{t('parcel.sendHowTitle')}</strong>
-        <p className="small">{t('parcel.sendHowSelect')}</p>
-        <div>
-          <button className="btn primary small" type="button" onClick={pick}>
-            {t('parcel.sendPick')}
-          </button>
-        </div>
-        <p className="small">{t('parcel.sendHowQueue')}</p>
-        <p className="small">{t('parcel.sendHowPlaylist')}</p>
-        <div>
-          <button className="btn small" type="button" onClick={goPlaylists}>
-            {t('parcel.sendGoPlaylists')}
-          </button>
-        </div>
-        <p className="muted small">{t('parcel.sendHowNote')}</p>
-        <HelpButton id="send-with-code" />
+    <Sheet label={t('parcel.sendHowTitle')} className="sheet dl-sheet" onClose={onClose}>
+      <strong>{t('parcel.sendHowTitle')}</strong>
+      <p className="small">{t('parcel.sendHowSelect')}</p>
+      <div>
+        <button className="btn primary small" type="button" onClick={pick}>
+          {t('parcel.sendPick')}
+        </button>
       </div>
-    </div>,
+      <p className="small">{t('parcel.sendHowQueue')}</p>
+      <p className="small">{t('parcel.sendHowPlaylist')}</p>
+      <div>
+        <button className="btn small" type="button" onClick={goPlaylists}>
+          {t('parcel.sendGoPlaylists')}
+        </button>
+      </div>
+      <p className="muted small">{t('parcel.sendHowNote')}</p>
+      <HelpButton id="send-with-code" />
+    </Sheet>,
     document.body,
   );
 }

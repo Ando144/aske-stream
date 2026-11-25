@@ -372,6 +372,11 @@ a {
   .btn:hover:not(:disabled) {
     background: color-mix(in srgb, var(--bg-active) 85%, var(--text));
   }
+
+  .btn.on:hover:not(:disabled) {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
 }
 
 .btn:active:not(:disabled) {

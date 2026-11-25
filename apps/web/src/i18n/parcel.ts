@@ -41,7 +41,7 @@ export const parcelEn = {
   'parcel.sendPick': 'Choose songs',
   'parcel.sendHowQueue':
     'You can also send the queue: open the player → Queue → "Send the queue to another phone".',
-  'parcel.sendHowPlaylist': 'To share a whole playlist, go to Playlists → Share.',
+  'parcel.sendHowPlaylist': 'To share a whole playlist, go to Playlists → With friends → Share.',
   'parcel.sendGoPlaylists': 'Go to Playlists',
   'parcel.sendHowNote': 'Only songs that come from YouTube can be sent.',
   'parcel.tipSend':
@@ -107,7 +107,8 @@ export const parcelEs: Record<keyof typeof parcelEn, string> = {
   'parcel.sendPick': 'Elegir canciones',
   'parcel.sendHowQueue':
     'También puedes enviar la cola: abre el reproductor → Cola → «Enviar la cola a otro móvil».',
-  'parcel.sendHowPlaylist': 'Para compartir una playlist entera, ve a Playlists → Compartir.',
+  'parcel.sendHowPlaylist':
+    'Para compartir una playlist entera, ve a Playlists → Con amigos → Compartir.',
   'parcel.sendGoPlaylists': 'Ir a Playlists',
   'parcel.sendHowNote': 'Solo se pueden enviar canciones que vienen de YouTube.',
   'parcel.tipSend':
@@ -173,7 +174,8 @@ export const parcelEu: Record<keyof typeof parcelEn, string> = {
   'parcel.sendPick': 'Aukeratu abestiak',
   'parcel.sendHowQueue':
     'Ilara ere bidal dezakezu: ireki erreproduzitzailea → Ilara → «Bidali ilara beste mugikor batera».',
-  'parcel.sendHowPlaylist': 'Playlist oso bat partekatzeko, joan Playlistak → Partekatu atalera.',
+  'parcel.sendHowPlaylist':
+    'Playlist oso bat partekatzeko, joan Zerrendak → Lagunekin → Partekatu atalera.',
   'parcel.sendGoPlaylists': 'Joan Playlistetara',
   'parcel.sendHowNote': 'YouTubetik datozen abestiak bakarrik bidal daitezke.',
   'parcel.tipSend':

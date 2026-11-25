@@ -47,15 +47,13 @@ export function createMediaSession(audio: HTMLAudioElement, player: () => Player
   }
 
   function setPlaybackState(state: 'none' | 'paused' | 'playing') {
-    controls?.setPlaybackState(state);
+    // While stalled the notification keeps showing pause; setStalled(false) restores 'playing'.
+    if (!(stalled && state === 'playing')) controls?.setPlaybackState(state);
     if (isNative) keepAwake(state === 'playing');
   }
 
-  function updatePositionState() {
-    if (!controls || player().mode !== 'track') return;
-    const now = performance.now();
-    if (now - lastPositionState < 1000) return;
-    lastPositionState = now;
+  function pushPositionState() {
+    if (!controls) return;
     const d = audio.duration;
     if (!Number.isFinite(d) || d <= 0) return;
     controls.setPositionState({
@@ -63,6 +61,35 @@ export function createMediaSession(audio: HTMLAudioElement, player: () => Player
       playbackRate: audio.playbackRate,
       position: Math.min(audio.currentTime, d),
     });
+  }
+
+  function updatePositionState() {
+    if (!controls || player().mode !== 'track') return;
+    const now = performance.now();
+    if (now - lastPositionState < 1000) return;
+    lastPositionState = now;
+    pushPositionState();
+  }
+
+  /** While the watchdog retries, the notification shows pause at the real position. */
+  let stalled = false;
+  let retryHandler: () => void = () => undefined;
+
+  function setStalled(value: boolean) {
+    stalled = value;
+    if (!controls) return;
+    if (value) {
+      pushPositionState();
+      // Not setPlaybackState: the wake/Wi-Fi locks must stay held while retrying.
+      controls.setPlaybackState('paused');
+    } else if (!audio.paused) {
+      pushPositionState();
+      controls.setPlaybackState('playing');
+    }
+  }
+
+  function setRetryHandler(fn: () => void) {
+    retryHandler = fn;
   }
 
   function setSeekHandlers(step = 10) {
@@ -108,7 +135,8 @@ export function createMediaSession(audio: HTMLAudioElement, player: () => Player
 
   if (controls) {
     controls.setActionHandler('play', () => {
-      if (!player().isPlaying) player().togglePlay();
+      if (stalled && !audio.paused) retryHandler();
+      else if (!player().isPlaying) player().togglePlay();
     });
     controls.setActionHandler('pause', () => player().pause());
     controls.setActionHandler('stop', () => player().pause());
@@ -117,5 +145,13 @@ export function createMediaSession(audio: HTMLAudioElement, player: () => Player
     setSeekHandlers();
   }
 
-  return { keepAwake, renewAwake, setPlaybackState, updatePositionState, updateMediaSession };
+  return {
+    keepAwake,
+    renewAwake,
+    setPlaybackState,
+    updatePositionState,
+    updateMediaSession,
+    setStalled,
+    setRetryHandler,
+  };
 }
