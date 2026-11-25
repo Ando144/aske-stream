@@ -239,6 +239,57 @@ describe('useStudy edge cases', () => {
     });
   });
 
+  describe('robustness', () => {
+    it('unpins even when cancelling the chime fails', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      mocks.lock.cancelChime.mockRejectedValueOnce(new Error('alarm gone'));
+      await useStudy.getState().start(5, { kind: 'library' });
+      await useStudy.getState().giveUp();
+      expect(mocks.lock.unpin).toHaveBeenCalled();
+      vi.restoreAllMocks();
+    });
+
+    it('a second giveUp works after an error inside finish', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      await useStudy.getState().start(5, { kind: 'library' });
+      mocks.stopAllAmbient.mockImplementationOnce(() => {
+        throw new Error('boom');
+      });
+      await useStudy
+        .getState()
+        .giveUp()
+        .catch(() => undefined);
+      await useStudy.getState().giveUp();
+      expect(useStudy.getState().phase).toBe('idle');
+      expect(useStudy.getState().session).toBeNull();
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe('saved volume', () => {
+    it('restores the volume of a killed session that no longer exists', () => {
+      mocks.prefs.set('study-base-volume', 0.6);
+      restoreStudySession();
+      expect(mocks.setVolume).toHaveBeenCalledWith(0.6);
+      expect(mocks.prefs.get('study-base-volume')).toBeNull();
+    });
+
+    it('does not restore it at once when the session resumes', () => {
+      mocks.prefs.set('study-base-volume', 0.6);
+      mocks.prefs.set('study-session', saved());
+      restoreStudySession();
+      expect(mocks.setVolume).not.toHaveBeenCalled();
+    });
+
+    it('saves the base volume while fading and clears it when done', async () => {
+      await useStudy.getState().start(5, { kind: 'library' });
+      await vi.advanceTimersByTimeAsync(5 * MIN - 4000);
+      expect(mocks.prefs.get('study-base-volume')).toBe(0.8);
+      await useStudy.getState().giveUp();
+      expect(mocks.prefs.get('study-base-volume')).toBeNull();
+    });
+  });
+
   describe('start', () => {
     it('a second start while running is ignored', async () => {
       await useStudy.getState().start(25, { kind: 'library' });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Redirect, Route, Switch, useLocation } from 'wouter';
+import { Redirect, Route, Switch, useLocation, useSearch } from 'wouter';
 import { parseHubHash } from '@aske/shared/hub';
 import { AddToPlaylistSheet } from './components/AddToPlaylistSheet';
 import { Dialogs } from './components/Dialogs';
@@ -263,6 +263,7 @@ function Shell() {
   const hasPlayer = usePlayer((s) => s.mode !== 'idle');
   const studyPhase = useStudy((s) => s.phase);
   const [location, navigate] = useLocation();
+  const search = useSearch();
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -307,8 +308,10 @@ function Shell() {
 
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
-    // Leaving a screen ends multi-select (except the playlist "Add songs" picker).
-    if (!useUi.getState().selectionTarget) useUi.getState().endSelection();
+    // Leaving a screen ends multi-select (except the "Add songs" picker and ?select=1, which
+    // LibraryView has already started: child effects run before this one).
+    const keep = new URLSearchParams(search).get('select') === '1';
+    if (!keep && !useUi.getState().selectionTarget) useUi.getState().endSelection();
   }, [location]);
 
   // Focus mode: while a session is on, nothing but the study screen is shown.

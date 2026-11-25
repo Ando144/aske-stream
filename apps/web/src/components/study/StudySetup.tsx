@@ -23,7 +23,7 @@ export function StudySetup() {
 
   return (
     <div className="page study-setup">
-      <header className="page-header">
+      <header className="page-header study-header">
         <h1>{t('study.title')}</h1>
         <HelpButton id="study-mode" label={t('study.help')} />
       </header>

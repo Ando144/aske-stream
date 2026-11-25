@@ -18,6 +18,7 @@ import { formatTime } from '../../lib/format';
 import { useLibrary } from '../../stores/library';
 import { useCurrentTrackId, usePlayer } from '../../stores/player';
 import { PODCAST_RATES } from '../../stores/podcasts';
+import { toast } from '../../stores/ui';
 
 export function PlayPauseButton({
   size = 22,
@@ -73,13 +74,32 @@ export function TransportControls({ big = false }: { big?: boolean }) {
         ? t('player.repeatAll')
         : t('player.repeatOff');
 
+  const onShuffle = () => {
+    p.toggleShuffle();
+    toast(t(usePlayer.getState().shuffle ? 'player.shuffleOn' : 'player.shuffleOff'));
+  };
+  const onRepeat = () => {
+    p.cycleRepeat();
+    const mode = usePlayer.getState().repeat;
+    toast(
+      t(
+        mode === 'one'
+          ? 'player.repeatOneHint'
+          : mode === 'all'
+            ? 'player.repeatAllHint'
+            : 'player.repeatOffHint',
+      ),
+    );
+  };
+
   return (
     <div className={`controls${big ? ' np-controls' : ''}`}>
       <button
         className={`icon-btn${shuffle ? ' on' : ''}`}
-        onClick={p.toggleShuffle}
+        onClick={onShuffle}
         disabled={isRadio}
         aria-label={t('player.shuffle')}
+        title={t('player.shuffle')}
         aria-pressed={shuffle}
       >
         <Shuffle size={icon - 2} />
@@ -103,8 +123,9 @@ export function TransportControls({ big = false }: { big?: boolean }) {
       </button>
       <button
         className={`icon-btn${repeat !== 'off' ? ' on' : ''}`}
-        onClick={p.cycleRepeat}
+        onClick={onRepeat}
         disabled={isRadio}
+        aria-pressed={repeat !== 'off'}
         aria-label={repeatLabel}
         title={repeatLabel}
       >

@@ -41,6 +41,8 @@ import { EnginePanel } from '../components/downloads/EnginePanel';
 import { Outbox } from '../components/send/Outbox';
 import { ParcelPanel } from '../components/send/ParcelPanel';
 import { ReceiveSheet } from '../components/send/ReceiveSheet';
+import { SendHowSheet } from '../components/send/SendHowSheet';
+import { ScreenTip } from '../components/ScreenTip';
 
 /** How this screen works: phone app, computer with Cloudflare, or computer through the Hub. */
 type SendVia = 'cloudflare' | 'hub' | null;
@@ -69,7 +71,12 @@ export function DownloadView() {
       <Intro via={sendVia} />
       {isNative || sendVia ? (
         <>
-          {isNative && hubAvailable() && <ReceiveButton />}
+          {isNative && hubAvailable() && (
+            <>
+              <ReceiveSendButtons />
+              <ScreenTip id="dl-send" text="parcel.tipSend" helpId="send-with-code" />
+            </>
+          )}
           <SearchPanel via={sendVia}>{isNative && <Queue />}</SearchPanel>
           {sendVia === 'cloudflare' && <Outbox />}
           {sendVia === 'hub' && <ParcelPanel />}
@@ -89,10 +96,11 @@ export function DownloadView() {
   );
 }
 
-/** Phone: button that opens the "receive songs" sheet (also opened by a #send= link). */
-function ReceiveButton() {
+/** Phone: buttons that open the "receive songs" sheet (also opened by a #send= link) and the "send" guide. */
+function ReceiveSendButtons() {
   const t = useT();
   const [code, setCode] = useState<string | null>(null);
+  const [sendOpen, setSendOpen] = useState(false);
   const pendingCode = useParcel((s) => s.pendingCode);
 
   useEffect(() => {
@@ -103,9 +111,15 @@ function ReceiveButton() {
 
   return (
     <>
-      <button className="btn small receive-btn" onClick={() => setCode('')}>
-        <ScanLine size={16} /> {t('parcel.receive')}
-      </button>
+      <div className="row wrap">
+        <button className="btn small receive-btn" onClick={() => setCode('')}>
+          <ScanLine size={16} /> {t('parcel.receive')}
+        </button>
+        <button className="btn small" onClick={() => setSendOpen(true)}>
+          <Send size={16} /> {t('parcel.send')}
+        </button>
+      </div>
+      {sendOpen && <SendHowSheet onClose={() => setSendOpen(false)} />}
       {code !== null && <ReceiveSheet initialCode={code} onClose={() => setCode(null)} />}
     </>
   );

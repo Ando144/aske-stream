@@ -12,6 +12,8 @@ export const groupsArticles: HelpArticle[] = [
     body: {
       es: `Un grupo es un sitio para ti y tus amigos: veis el ranking de lo que escucháis y os pasáis playlists y Jams. Cabe hasta **20 personas** y tú puedes estar en hasta **10 grupos**.
 
+**Dónde está:** en **Playlists → Con amigos → Grupos**.
+
 **Crear un grupo:** abre **Grupos**, pulsa **Crear un grupo**, ponle un nombre y escribe cómo quieres que te llamen los demás (tu apodo). No hace falta cuenta ni email.
 
 **Invitar:** dentro del grupo pulsa **Invitar**. Enseña el código QR o manda el código o el enlace a tus amigos. Quien creó el grupo puede renovar el código si ya no quiere que se use el anterior.
@@ -42,6 +44,8 @@ export const groupsArticles: HelpArticle[] = [
 Más sobre tus datos en [[privacy|Privacidad]].`,
       en: `A group is a place for you and your friends: you see the ranking of what you listen to and you pass playlists and Jams to each other. It holds up to **20 people** and you can be in up to **10 groups**.
 
+**Where it is:** in **Playlists → With friends → Groups**.
+
 **Create a group:** open **Groups**, tap **Create a group**, give it a name and type how you want others to call you (your nickname). No account or email is needed.
 
 **Invite:** inside the group tap **Invite**. Show the QR code or send the code or the link to your friends. The person who created the group can renew the code if they no longer want the old one to work.
@@ -71,6 +75,8 @@ Más sobre tus datos en [[privacy|Privacidad]].`,
 
 More about your data in [[privacy|Privacy]].`,
       eu: `Talde bat zuretzat eta zure lagunentzako lekua da: zer entzuten duzuen ikusten duzue rankingean eta zerrendak eta Jam-ak elkarri pasatzen dizkiozue. **20 lagun** arte kabitzen dira eta zu **10 taldetan** egon zaitezke gehienez.
+
+**Non dagoen:** **Zerrendak → Lagunekin → Taldeak** atalean.
 
 **Taldea sortu:** ireki **Taldeak**, sakatu **Sortu talde bat**, jarri izen bat eta idatzi besteek nola deitzea nahi duzun (zure ezizena). Ez da konturik edo posta elektronikorik behar.
 

@@ -56,6 +56,13 @@ export const shareEn = {
   'shared.nothingToDownload': 'You already have all of these songs. They were added to a playlist.',
   'shared.queued': 'Downloading the missing songs',
   'shared.back': 'Back',
+
+  'share.friendsTitle': 'With friends',
+  'share.receive': 'Receive',
+  'share.pickTitle': 'Which playlist do you want to share?',
+  'share.pickEmpty': 'You have no playlists yet. Create one with the + button.',
+  'share.tipFriends':
+    'Here you share your playlists with a link or QR, receive your friends’ playlists, start a Jam or enter your groups.',
 } as const;
 
 export const shareEs: Record<keyof typeof shareEn, string> = {
@@ -117,6 +124,13 @@ export const shareEs: Record<keyof typeof shareEn, string> = {
   'shared.nothingToDownload': 'Ya tienes todas estas canciones. Se han añadido a una playlist.',
   'shared.queued': 'Descargando las canciones que faltan',
   'shared.back': 'Volver',
+
+  'share.friendsTitle': 'Con amigos',
+  'share.receive': 'Recibir',
+  'share.pickTitle': '¿Qué playlist quieres compartir?',
+  'share.pickEmpty': 'Aún no tienes playlists. Crea una con el botón +.',
+  'share.tipFriends':
+    'Aquí compartes tus playlists con un enlace o QR, recibes las de tus amigos, haces una Jam o entras en tus grupos.',
 };
 
 export const shareEu: Record<keyof typeof shareEn, string> = {
@@ -179,4 +193,11 @@ export const shareEu: Record<keyof typeof shareEn, string> = {
   'shared.nothingToDownload': 'Abesti guztiak badituzu dagoeneko. Zerrenda batera gehitu dira.',
   'shared.queued': 'Falta diren abestiak deskargatzen',
   'shared.back': 'Atzera',
+
+  'share.friendsTitle': 'Lagunekin',
+  'share.receive': 'Jaso',
+  'share.pickTitle': 'Zein zerrenda partekatu nahi duzu?',
+  'share.pickEmpty': 'Oraindik ez duzu zerrendarik. Sortu bat + botoiarekin.',
+  'share.tipFriends':
+    'Hemen zure zerrendak esteka edo QR batekin partekatzen dituzu, zure lagunenak jasotzen dituzu, Jam bat egiten duzu edo zure taldeetan sartzen zara.',
 };

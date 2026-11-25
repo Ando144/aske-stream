@@ -37,6 +37,10 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
   const trackMap = useLibrary((s) => s.tracks);
   const playlist = useLibrary((s) => (id ? s.playlists.find((p) => p.id === id) : undefined));
   const entries = useOffline((s) => s.entries);
+  const contextPath = liked ? '/liked' : `/playlist/${id}`;
+  const shuffling = usePlayer(
+    (s) => s.mode === 'track' && s.shuffle && s.contextInfo?.path === contextPath,
+  );
 
   const tracks: Track[] = useMemo(() => {
     if (liked) {
@@ -60,7 +64,7 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
   const totalMs = tracks.reduce((sum, tr) => sum + tr.durationMs, 0);
   const cloudIds = tracks.filter((tr) => !tr.locations.device).map((tr) => tr.id);
   const allDownloaded = ids.length > 0 && cloudIds.every((tid) => entries[tid]?.mode === 'pinned');
-  const context = { label: title, path: liked ? '/liked' : `/playlist/${id}` };
+  const context = { label: title, path: contextPath };
   const play = (startId: string | null, shuffle?: boolean) =>
     usePlayer.getState().playTracks(ids, startId, { shuffle, context });
 
@@ -100,10 +104,12 @@ export function PlaylistView({ id, liked = false }: { id?: string; liked?: boole
           <Play size={24} fill="currentColor" style={{ marginLeft: 2 }} />
         </button>
         <button
-          className="icon-btn"
+          className={`icon-btn${shuffling ? ' on' : ''}`}
           onClick={() => play(null, true)}
           disabled={!ids.length}
           aria-label={t('common.shuffle')}
+          title={t('common.shuffle')}
+          aria-pressed={shuffling}
         >
           <Shuffle size={22} />
         </button>

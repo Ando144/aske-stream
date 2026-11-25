@@ -49,6 +49,7 @@ interface StudyState {
 const SESSION_KEY = 'study-session';
 const AMBIENT_KEY = 'study-ambient';
 const LAST_KEY = 'study-last';
+const VOLUME_KEY = 'study-base-volume';
 const PIN_POLL_TICKS = 2;
 
 // Plumbing kept outside zustand: the UI does not render it.
@@ -71,13 +72,18 @@ function restoreVolume() {
   if (baseVolume === null) return;
   usePlayer.getState().setVolume(baseVolume);
   baseVolume = null;
+  savePref(VOLUME_KEY, null);
 }
 
 function applyVolume(session: StudySession, now: number) {
   const factor = musicFactor(session, now);
   if (factor >= 1) return;
   const player = usePlayer.getState();
-  baseVolume ??= player.volume;
+  if (baseVolume === null) {
+    baseVolume = player.volume;
+    // Kept on disk so a killed app can still give the volume back.
+    savePref(VOLUME_KEY, baseVolume);
+  }
   player.setVolume(baseVolume * factor);
 }
 
@@ -120,6 +126,10 @@ async function saveRecord(session: StudySession, now: number, completed: boolean
 async function releasePin() {
   try {
     await StudyLock.cancelChime();
+  } catch (e) {
+    reportError('could not cancel the chime', e);
+  }
+  try {
     await StudyLock.unpin();
   } catch (e) {
     reportError('could not release the pinned screen', e);
@@ -140,6 +150,14 @@ async function finish(completed: boolean) {
   const { session } = useStudy.getState();
   if (!session || finishing) return;
   finishing = true;
+  try {
+    await endSession(session, completed);
+  } finally {
+    finishing = false;
+  }
+}
+
+async function endSession(session: StudySession, completed: boolean) {
   stopTick();
   const now = Date.now();
   if (completed) await playChime(session);
@@ -156,7 +174,6 @@ async function finish(completed: boolean) {
     lastResult: { minutes, completed },
   });
   if (!completed) toast(t('study.gaveUp', { minutes }));
-  finishing = false;
 }
 
 function refreshPin() {
@@ -270,9 +287,21 @@ export const useStudy = create<StudyState>((set, get) => ({
   },
 }));
 
+function restoreSavedVolume(resuming: boolean) {
+  const saved = loadValue<number | null>(VOLUME_KEY, null);
+  if (typeof saved !== 'number') return;
+  if (resuming) {
+    baseVolume = saved;
+    return;
+  }
+  usePlayer.getState().setVolume(saved);
+  savePref(VOLUME_KEY, null);
+}
+
 /** Resumes (or closes) a session saved before the app was reloaded or killed. */
 export function restoreStudySession(): void {
   const decision = restoreDecision(loadValue<unknown>(SESSION_KEY, null), Date.now());
+  restoreSavedVolume(decision.kind === 'resume');
   if (decision.kind === 'none') return;
   const { session } = decision;
   if (decision.kind === 'resume') {

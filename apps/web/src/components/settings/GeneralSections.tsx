@@ -1,13 +1,13 @@
-import { ChevronRight, Globe, SunMoon, WifiOff } from 'lucide-react';
+import { ChevronRight, Globe, Moon, Smartphone, Sun, SunMoon, WifiOff } from 'lucide-react';
 import { Link } from 'wouter';
 import { usePrefs } from '../../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../../i18n';
 
-const THEME_LABELS = {
-  system: 'settings.themeSystem',
-  dark: 'settings.themeDark',
-  light: 'settings.themeLight',
-} as const;
+const THEME_OPTIONS = [
+  { mode: 'light', Icon: Sun, label: 'settings.themeLight' },
+  { mode: 'dark', Icon: Moon, label: 'settings.themeDark' },
+  { mode: 'system', Icon: Smartphone, label: 'settings.themeAuto' },
+] as const;
 
 export function LanguageSection() {
   const t = useT();
@@ -46,23 +46,25 @@ export function AppearanceSection() {
     <>
       <h2 className="section-title">{t('settings.appearance')}</h2>
       <div className="panel">
-        <div className="setting">
+        <div className="setting theme-setting">
           <SunMoon size={20} className="muted" />
           <span className="grow">{t('settings.theme')}</span>
-          <div className="segmented" role="radiogroup" aria-label={t('settings.theme')}>
-            {(['system', 'dark', 'light'] as const).map((mode) => (
-              <button
-                key={mode}
-                role="radio"
-                aria-checked={prefs.theme === mode}
-                className={prefs.theme === mode ? 'active' : ''}
-                onClick={() => prefs.set({ theme: mode })}
-              >
-                {t(THEME_LABELS[mode])}
-              </button>
-            ))}
-          </div>
         </div>
+        <div className="segmented theme-picker" role="radiogroup" aria-label={t('settings.theme')}>
+          {THEME_OPTIONS.map(({ mode, Icon, label }) => (
+            <button
+              key={mode}
+              role="radio"
+              aria-checked={prefs.theme === mode}
+              className={prefs.theme === mode ? 'active' : ''}
+              onClick={() => prefs.set({ theme: mode })}
+            >
+              <Icon size={20} aria-hidden="true" />
+              <span>{t(label)}</span>
+            </button>
+          ))}
+        </div>
+        <p className="faint small">{t('settings.themeHint')}</p>
       </div>
     </>
   );

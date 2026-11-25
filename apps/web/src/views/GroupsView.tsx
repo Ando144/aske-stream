@@ -6,6 +6,7 @@ import { CreateGroupSheet } from '../components/groups/CreateGroupSheet';
 import { GroupsConsent, WipeGroupsSection } from '../components/groups/GroupsConsent';
 import { JoinGroupSheet } from '../components/groups/JoinGroupSheet';
 import { HelpButton } from '../components/HelpSheet';
+import { ScreenTip } from '../components/ScreenTip';
 import { hubAvailable } from '../hub/client';
 import { useT } from '../i18n';
 import { useGroups } from '../stores/groups';
@@ -85,6 +86,7 @@ export function GroupsView() {
           <HelpButton id="friend-groups" label={t('groups.help')} />
         </div>
       </header>
+      <ScreenTip id="groups" text="groups.tip" helpId="friend-groups" />
       {!hubAvailable() ? (
         <p className="error-text">{t('hub.err.unavailable')}</p>
       ) : (

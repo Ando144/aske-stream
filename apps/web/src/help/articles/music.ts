@@ -158,8 +158,12 @@ Solo viajan los nombres de las canciones, nunca la música: el móvil que recibe
 3. Pulsa **Enviar al móvil**. Aparece un código QR y un código de 6 símbolos, como ABC-DEF.
 
 **Enviar desde el móvil**
-1. En **Biblioteca**, selecciona canciones y pulsa **Enviar a otro móvil**. También puedes enviar la cola de reproducción desde la cola.
-2. Solo se envían las canciones que vienen de YouTube; las demás se dejan fuera y la app te avisa.
+En **Descargar** pulsa **Enviar** y elige uno de estos tres caminos:
+1. **Canciones sueltas:** pulsa **Elegir canciones**, selecciona las de tu biblioteca y pulsa **Enviar a otro móvil**. Saldrá un QR para que el otro móvil lo escanee.
+2. **La cola:** abre el reproductor, entra en **Cola** y pulsa **Enviar la cola a otro móvil**.
+3. **Una playlist entera:** ve a **Playlists** y pulsa **Compartir**.
+
+Solo se envían las canciones que vienen de YouTube; las demás se dejan fuera y la app te avisa.
 
 **Enviar una playlist entera**
 1. En **Descargar**, pega el enlace de la playlist de YouTube.
@@ -190,8 +194,12 @@ Only the names of the songs travel, never the music: the phone that receives the
 3. Tap **Send to phone**. A QR code and a 6-symbol code, like ABC-DEF, appear.
 
 **Sending from a phone**
-1. In **Library**, select songs and tap **Send to another phone**. You can also send the play queue from the queue.
-2. Only songs that come from YouTube are sent; the others are left out and the app tells you.
+In **Download** tap **Send** and pick one of these three ways:
+1. **Single songs:** tap **Choose songs**, select songs from your library and tap **Send to another phone**. A QR appears for the other phone to scan.
+2. **The queue:** open the player, go to **Queue** and tap **Send the queue to another phone**.
+3. **A whole playlist:** go to **Playlists** and tap **Share**.
+
+Only songs that come from YouTube are sent; the others are left out and the app tells you.
 
 **Sending a whole playlist**
 1. In **Download**, paste the link of the YouTube playlist.
@@ -222,8 +230,12 @@ Abestien izenak bakarrik bidaiatzen dute, inoiz ez musika: jasotzen duen mugikor
 3. Sakatu **Bidali mugikorrera**. QR kode bat eta 6 ikurreko kode bat agertzen dira, ABC-DEF bezala.
 
 **Mugikorretik bidali**
-1. **Liburutegian**, aukeratu abestiak eta sakatu **Bidali beste mugikor batera**. Erreprodukzio-ilara ere bidal dezakezu ilaratik.
-2. YouTubetik datozen abestiak bakarrik bidaltzen dira; besteak kanpoan geratzen dira eta aplikazioak abisatzen dizu.
+**Deskargatu** atalean sakatu **Bidali** eta aukeratu hiru bideetako bat:
+1. **Abesti solteak:** sakatu **Aukeratu abestiak**, hautatu zure liburutegiko abestiak eta sakatu **Bidali beste mugikor batera**. QR bat agertuko da beste mugikorrak eskaneatzeko.
+2. **Ilara:** ireki erreproduzitzailea, sartu **Ilara** atalean eta sakatu **Bidali ilara beste mugikor batera**.
+3. **Playlist oso bat:** joan **Playlistak** atalera eta sakatu **Partekatu**.
+
+YouTubetik datozen abestiak bakarrik bidaltzen dira; besteak kanpoan geratzen dira eta aplikazioak abisatzen dizu.
 
 **Playlist oso bat bidali**
 1. **Deskargatu** atalean, itsatsi YouTubeko playlistaren esteka.

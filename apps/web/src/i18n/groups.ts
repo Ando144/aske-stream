@@ -119,6 +119,8 @@ export const groupsEn = {
   'groups.leave': 'Leave the group',
   'groups.leave.confirm': 'Do you want to leave this group?',
   'groups.leave.label': 'Leave',
+  'groups.tip':
+    'Create a group and share the link with your friends. You will see who listens the most each month and you can share playlists and Jams.',
 } as const;
 
 export const groupsEs: Record<keyof typeof groupsEn, string> = {
@@ -245,6 +247,8 @@ export const groupsEs: Record<keyof typeof groupsEn, string> = {
   'groups.leave': 'Salir del grupo',
   'groups.leave.confirm': '¿Quieres salir de este grupo?',
   'groups.leave.label': 'Salir',
+  'groups.tip':
+    'Crea un grupo y comparte el enlace con tus amigos. Veréis quién escucha más cada mes y podréis compartir playlists y Jams.',
 };
 
 export const groupsEu: Record<keyof typeof groupsEn, string> = {
@@ -371,4 +375,6 @@ export const groupsEu: Record<keyof typeof groupsEn, string> = {
   'groups.leave': 'Utzi taldea',
   'groups.leave.confirm': 'Talde hau utzi nahi duzu?',
   'groups.leave.label': 'Utzi',
+  'groups.tip':
+    'Sortu talde bat eta partekatu esteka zure lagunekin. Hilabete bakoitzean nork gehien entzuten duen ikusiko duzue, eta zerrendak eta Jam-ak partekatu ahalko dituzue.',
 };

@@ -1,550 +1,417 @@
-# PLAN: F9 · Modo estudio (Pomodoro con música y pantalla fijada)
+# PLAN: Arreglos de uso tras v0.9.0 (botones, Seleccionar, estudio, enviar y grupos)
 
-Fecha: 2026-11-23 · Estado: COMPLETADO
+Fecha: 2026-11-25 · Estado: EN CURSO
 
 ## Objetivo
 
-Una sesión de estudio de X minutos (sin descansos) en la app Android: la app se queda fijada
-(«fijar pantalla» de Android), solo se puede manejar la música, el volumen y el sonido ambiente
-(y coger llamadas). Al acabar, la música baja, suena una campanilla 3 veces, se suelta la
-fijación y aparece «¡Bien hecho!». Salir antes = mantener pulsado 30 s. Historial local solo
-con el permiso del Recap. En web/PWA no hay modo estudio (solo un aviso).
+Arreglar lo que Andoni ha visto usando la app: botones que se quedan grises al tocarlos, selector
+de tema poco claro, barra de Seleccionar descuadrada, deslizadores del modo estudio que saltan con
+un toque, título del modo estudio cortado, «enviar» y «grupos» escondidos, y tres flecos de
+`stores/study.ts`. Además, responder dudas (aleatorio, enviar, grupos) e investigar sin tocar
+código por qué se para la música con la pantalla apagada.
+
+## Respuestas a las dudas de Andoni
+
+### (4) ¿El aleatorio hace un orden nuevo cada vez?
+
+Sí, los dos, y son coherentes entre sí (no hace falta tarea):
+
+- **Aleatorio grande** (Biblioteca y playlist): `playTracks(ids, null, { shuffle: true, context })`
+  en `stores/player.ts`. Cada pulsación crea un orden **nuevo** con `shuffledCycleOrder`
+  (`player/shuffleCycle.ts`): primero, mezcladas, las canciones de esa lista que aún no han sonado
+  en la «ronda» actual y después, también mezcladas, las ya oídas. Empieza por la primera del orden
+  nuevo, así que corta la canción que sonaba. Con «Ahorro de datos» y conexión, usa
+  `orderForDataSaver`: primero las que hay sin conexión y luego el resto, las dos partes mezcladas.
+- **Aleatorio pequeño** del reproductor: `toggleShuffle()`. Al encenderlo, mezcla de nuevo la
+  lista con la misma memoria de ronda, pero **la canción actual sigue sonando** y el resto se
+  reordena. Al apagarlo vuelve al orden original. Apagar y encender otra vez = otro orden nuevo.
+- La memoria de ronda es por lista (`cycleKey`, la Biblioteca incluye filtro y búsqueda) y se
+  guarda para las últimas 20 listas. No se repite ninguna canción hasta que suenan todas.
+
+Única diferencia, que es a propósito: el grande empieza de cero y el pequeño no corta la canción.
+
+### (8) ¿Dónde se envía hoy?
+
+- **Playlists:** «Recibir» es el botón del icono de enlace (sin texto) junto a «Jam»: abre
+  «Abrir enlace compartido» (pegar enlace o escanear QR). Para **enviar** hay que entrar en una
+  playlist y pulsar el icono «Compartir» (`Share2`, sin texto), que abre `SharePlaylistSheet`
+  (enlace + QR por el Hub). No hay nada en la pantalla de Playlists que lo diga.
+- **Descargas (móvil):** «Recibir» abre `ReceiveSheet` (código/QR de «Enviar al móvil»). Para
+  **enviar** desde el móvil ya existe, pero escondido: Seleccionar canciones → «Enviar a otro
+  móvil» (`SelectionBar`) o en la cola → «Enviar la cola a otro móvil» (`QueuePanel`). Desde el
+  ordenador, la pantalla «Enviar» tiene `ParcelPanel`. Solo valen canciones que vienen de YouTube.
+- Arreglo: T3 (Playlists) y T4 (Descargas) ponen un botón con texto junto a «Recibir», consejo de
+  pantalla y ayuda.
+
+### (9) ¿Dónde se crean los grupos de amigos?
+
+En la pantalla `/groups` (`views/GroupsView.tsx`): botones «Crear un grupo» y «Unirme». Pero en el
+**móvil no hay ningún enlace**: solo sale en la barra lateral (pantallas de 900 px o más) y al
+abrir un enlace de invitación (`#group=`). Arreglo: T3 añade la entrada «Grupos» en Playlists
+(fila «Con amigos») y un consejo de pantalla en Grupos.
+
+### (10) La música se para con la pantalla apagada (solo análisis, sin cambiar código)
+
+Lo que hay hoy:
+
+- El audio es un `<audio>` del WebView (`stores/player.ts`). El cambio a la siguiente canción lo
+  hace JavaScript en el evento `ended` → `advance()` → `loadCurrent()` (async: IndexedDB, Drive o
+  Cloudflare) → `audio.src = …` → `play()`.
+- El servicio en primer plano lo pone el plugin `@capgo/capacitor-media-session`
+  (`MediaSessionService`, tipo `mediaPlayback`, `startForeground` en `onCreate`). `AskeNative`
+  añade `WakeLock` parcial (caduca a los 30 min; JS lo renueva cada 10 min desde `timeupdate`) y
+  `WifiLock` solo si es streaming. La exención de batería solo se pide para descargas.
+- No hay gestión propia del foco de audio ni vigilancia de que JS siga vivo.
+
+Causa probable (de más a menos):
+
+1. **JS congelado o muy frenado en segundo plano** (Android 12-14 congela procesos «en caché» y
+   algunos fabricantes, como Samsung o Xiaomi, duermen apps aunque tengan notificación). El audio
+   en curso puede seguir, pero **al acabar la canción** nadie procesa `ended`, así que no empieza la
+   siguiente. La interfaz no se actualiza (por eso «sigue reproduciendo») y, al abrir la app, JS se
+   descongela, procesa los eventos pendientes y suena la siguiente. Encaja con todos los síntomas.
+2. **Reposo profundo (Doze) con el móvil quieto**: si en ese momento el proceso no cuenta como
+   servicio en primer plano (servicio desligado o degradado por el fabricante), se ignoran los wake
+   locks y se corta la red. Si la canción venía de Drive o Cloudflare, el búfer se vacía y para.
+   Con canciones del propio móvil afecta menos.
+3. **WakeLock caducado**: si JS no renovó a tiempo, a los 30 min la CPU puede dormir. Es menos
+   probable porque el servicio en primer plano debería bastar.
+4. **Foco de audio**: el WebView no gestiona el foco como una app nativa. Una notificación o un
+   asistente puede silenciarlo sin lanzar `pause`. Es poco probable si no hubo ningún aviso.
+
+Cómo confirmarlo (cuando pase, con USB y `adb`):
+
+- `adb shell dumpsys activity services io.github.ando144.askestream` → ¿`isForeground=true`?
+- `adb logcat | findstr /i "freez ForegroundService askestream chromium"` en el momento del corte.
+- Preguntar a Andoni: ¿se para **al cambiar de canción** o a mitad? ¿Canción del móvil o de la
+  nube? ¿Marca del móvil y versión de Android? ¿La app tiene «Batería sin restricciones»?
+
+Opciones de arreglo (para decidir después):
+
+- **A (Recomendada como primer paso):** pedir también la exención de batería para reproducir (con
+  el mismo aviso de `BatteryHint`) y **precargar la siguiente canción** en un segundo `<audio>`, de
+  forma que el cambio no dependa de red ni de async. Es barato, pero no resuelve del todo un JS
+  congelado.
+- **B:** vigilancia nativa: `AskeNative` recibe un «latido» de JS. Si deja de llegar mientras dice
+  «reproduciendo», actualiza la notificación a «En pausa» para que la interfaz no mienta y se pueda
+  reanudar desde la pantalla de bloqueo. Es un trabajo medio y no evita el corte.
+- **C:** pasar la reproducción a un reproductor nativo (Media3/ExoPlayer en un servicio) con la
+  cola en Java. Es lo que hace Spotify y lo más fiable, pero es un cambio grande (fase propia) y
+  hay que duplicar la lógica de fuentes (Drive, Cloudflare, caché).
 
 ## Decisiones de arquitectura
 
-- **Plugin nativo nuevo `StudyLock`** (no ampliar AskeNative) — AskeNative ya tiene 300+ líneas
-  y otro propósito; así el puente, el falso de tests y los archivos Java quedan aislados y se
-  pueden hacer en paralelo.
-- **Fijar = `Activity.startLockTask()` sin ser propietario del dispositivo** → Android muestra
-  su diálogo «¿Fijar app?». Estado leído con `ActivityManager.getLockTaskModeState()`. La sesión
-  empieza aunque el usuario no acepte: se muestra un aviso con botón «Fijar pantalla» (honesto y
-  sin bloquear al usuario).
-- **Campanilla solo nativa** (`ChimePlayer.java`, sintetizada con `AudioTrack`, sin archivos):
-  - Si la app está viva (la música suena → JS activo), el JS llama `chimeNow` justo a la hora.
-  - Si el JS está dormido (música en pausa y pantalla apagada), suena por una alarma
-    `AlarmManager.setExactAndAllowWhileIdle` → `StudyChimeReceiver`.
-  - Ambas rutas comprueban `lastChimedEndsAt` en SharedPreferences: nunca suena dos veces.
-  - Uso `USAGE_MEDIA`/`SONIFICATION`: sale por los cascos si los hay (no por el altavoz en
-    una biblioteca). Sin pedir foco de audio, para que el WebView no pause la música.
-- **Permisos de alarma exacta:** `USE_EXACT_ALARM` (API 33+, concedido solo; caso
-  «temporizador» permitido) y `SCHEDULE_EXACT_ALARM` con `maxSdkVersion="32"`. Si aun así no
-  se puede, `setAndAllowWhileIdle` (inexacta) como respaldo.
-- **Sesión persistida** en pref `study-session` (`endsAt` absoluto, mismo patrón que
-  `sleepTimer.ts`): al reabrir se reanuda o se cierra como terminada. Tick con `setInterval`
-  de 1 s (Android retrasa los timeouts largos).
-- **Modo foco = pantalla completa:** mientras `phase !== 'idle'`, `Shell` (App.tsx) pinta solo
-  la vista de estudio (sin menú, sin TabBar, sin MiniPlayer) y el botón Atrás no hace nada.
-  Así «durante el bloqueo solo se puede…» se cumple también dentro de la app.
-- **Mezcla «Tranquila / sin letra»** heurística con datos que ya existen: palabras en
-  título/artista/álbum (instrumental, lofi, piano, ambient, study, classical, OST…) o duración
-  ≥ 6 min. Si salen menos de 10 canciones se usa toda la biblioteca y se avisa. No se añaden
-  etiquetas ni se analiza audio (caro y fuera de alcance).
-- **Solo música:** la cola excluye podcasts (`kind === 'podcast'`); radio no se ofrece.
-- **Ruido blanco/gris/marrón generado con Web Audio** (búfer de 10 s en bucle sin corte). Lluvia
-  y olas: archivos opcionales en `apps/web/src/study/sounds/*.ogg` cargados con
-  `import.meta.glob`; si no están, esas opciones no aparecen y todo compila. Andoni consigue los
-  archivos CC0 (ver Riesgos). Cada sonido tiene su propio nivel (mezcla).
-- **Estadísticas de estudio** en un almacén IndexedDB nuevo `study` (DB versión 5), solo si
-  `useStats.consent === 'on'`. Borrar el historial o apagar el Recap borra también el estudio.
-  Nunca se suben al Hub ni a grupos.
-- **Al terminar:** la música baja al 25 % en los últimos 8 s, campanilla (~6,6 s), después se
-  pausa la música y se devuelve el volumen original; el sonido ambiente se apaga con fundido.
-- **Al empezar** se cancela el temporizador de apagado (`useSleepTimer.cancel()`) para que no se
-  peleen por el volumen.
-- **Entrada:** ruta `/study`; enlace en la barra lateral y botón en la cabecera de Biblioteca,
-  ambos solo si `isNative`. En web, `/study` muestra un aviso «solo en la app de Android».
+- El gris pegado es `:hover` en táctil: `.icon-btn:hover:not(:disabled)` (especificidad 0,3,0)
+  gana a `.icon-btn.on` (0,2,0) y pinta gris encima del ámbar, así que parece que no se activó y
+  se pulsa otra vez. Arreglo: hover solo con `@media (hover: hover) and (pointer: fine)` y `.on`
+  siempre gana. Así se corrige en toda la app.
+- El botón de la derecha del todo, junto al aleatorio, se interpreta como **Repetir** del
+  reproductor (está en la misma fila y tiene el mismo fallo). Se explica con un aviso al pulsar y
+  en la ayuda. El botón ✓ de la Biblioteca (Seleccionar) también pasa a tener texto, por si se
+  refería a ese.
+- Los aleatorios grandes se ponen en ámbar mientras esa lista suena en aleatorio, para que se vea
+  que está activo.
+- Cuadrícula de Seleccionar: 3 columnas (2 si mide menos de 340 px). Si un botón se queda solo en
+  la última fila, ocupa todo el ancho.
+- Deslizador del estudio propio (`KnobSlider`, `role="slider"`): solo se mueve arrastrando el pomo
+  o con el teclado. El `<input type=range>` nativo salta al tocar la barra y no se puede impedir de
+  forma fiable.
+- La entrada a Grupos va en Playlists, en una fila «Con amigos» (Compartir, Recibir, Jam, Grupos),
+  sin añadir una sexta pestaña.
+- Sin CSS nuevo en T3 y T4 (usan clases existentes) para no chocar con T1 en `styles.css`.
 
 ## Contratos (interfaces compartidas)
 
-### Puente nativo — `apps/web/src/native/studyLock.ts` (plugin `'StudyLock'`)
+### CSS (lo crea T1 en `apps/web/src/styles.css`)
+
+- `.btn.on`: estado activo ámbar → `background: var(--accent-soft); color: var(--accent);`.
+- `.icon-btn.on` se queda en `color: var(--accent)` también con hover, focus o active.
+- Los `:hover` solo dentro de `@media (hover: hover) and (pointer: fine)`. Respuesta al toque con
+  `:active` (fondo `var(--bg-hover)` mientras se pulsa).
+
+### Claves i18n nuevas en `en.ts`, `es.ts` y `eu.ts` (las añade T2; T6 las usa)
+
+| Clave                  | es                                                     | en                                                      | eu                                                                          |
+| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `player.shuffleOn`     | Aleatorio activado: las canciones suenan mezcladas     | Shuffle on: songs play in a mixed order                 | Ausazkoa aktibatuta: abestiak nahastuta entzungo dira                       |
+| `player.shuffleOff`    | Aleatorio desactivado: suenan en el orden de la lista  | Shuffle off: songs play in list order                   | Ausazkoa desaktibatuta: zerrendaren ordenan entzungo dira                   |
+| `player.repeatOffHint` | Sin repetir: al acabar la lista, la música para        | No repeat: music stops at the end of the list           | Errepikatu gabe: zerrenda bukatzean, musika gelditu egingo da               |
+| `player.repeatAllHint` | Repetir lista: al acabar, vuelve a empezar             | Repeat list: starts again when it ends                  | Errepikatu zerrenda: bukatzean, berriro hasiko da                           |
+| `player.repeatOneHint` | Repetir canción: suena esta una y otra vez             | Repeat song: this one plays again and again             | Errepikatu abestia: hau behin eta berriz entzungo da                        |
+| `settings.themeAuto`   | Automático                                             | Automatic                                               | Automatikoa                                                                 |
+| `settings.themeHint`   | Automático usa el mismo modo que tu móvil u ordenador. | Automatic uses the same mode as your phone or computer. | Automatikoak zure mugikorraren edo ordenagailuaren modu bera erabiltzen du. |
+
+### Claves nuevas en archivos de función (cada tarea, las suyas)
+
+- T3 en `i18n/share.ts` (es/en/eu): `share.friendsTitle` («Con amigos»), `share.receive`
+  («Recibir»), `share.pickTitle` («¿Qué playlist quieres compartir?»), `share.pickEmpty` («Aún no
+  tienes playlists. Crea una con el botón +.»), `share.tipFriends` («Aquí compartes tus playlists
+  con un enlace o QR, recibes las de tus amigos, haces una Jam o entras en tus grupos.»).
+- T3 en `i18n/groups.ts`: `groups.tip` («Crea un grupo y comparte el enlace con tus amigos. Veréis
+  quién escucha más cada mes y podréis compartir playlists y Jams.»).
+- T4 en `i18n/parcel.ts`: `parcel.send` («Enviar»), `parcel.sendHowTitle` («Enviar canciones a otro
+  móvil»), `parcel.sendHowSelect` («Elige canciones de tu biblioteca y pulsa «Enviar a otro
+  móvil». Saldrá un QR para que el otro móvil lo escanee.»), `parcel.sendPick` («Elegir
+  canciones»), `parcel.sendHowQueue` («También puedes enviar la cola: abre el reproductor → Cola →
+  «Enviar la cola a otro móvil».»), `parcel.sendHowPlaylist` («Para compartir una playlist
+  entera, ve a Playlists → Compartir.»), `parcel.sendGoPlaylists` («Ir a Playlists»),
+  `parcel.sendHowNote` («Solo se pueden enviar canciones que vienen de YouTube.»),
+  `parcel.tipSend` («Con «Recibir» coges canciones que te envía otro móvil; con «Enviar» se las
+  mandas tú.»).
+- Traducciones en/eu: las hace cada programador, con frases cortas y sin jerga.
+
+### Lógica del deslizador (T5, `apps/web/src/study/slider.ts`)
 
 ```ts
-export type PinState = 'none' | 'pinned' | 'locked'; // pinned = screen pinning, locked = kiosk
-export interface StudyLockPlugin {
-  /** startLockTask(); Android shows its own "Pin app?" dialog. Resolves at once. */
-  pin(): Promise<void>;
-  /** stopLockTask(); no error if it was not pinned. */
-  unpin(): Promise<void>;
-  status(): Promise<{ pin: PinState; lastChimedEndsAt: number | null }>;
-  /** Exact alarm at endsAt that plays the chime if JS has not done it. */
-  scheduleChime(o: { endsAt: number }): Promise<{ exact: boolean }>;
-  cancelChime(): Promise<void>;
-  /** Plays the 3 bells now, unless lastChimedEndsAt === endsAt. Cancels the alarm. */
-  chimeNow(o: { endsAt: number }): Promise<void>;
-  /** Opens Android Security settings (where "App pinning" lives). */
-  openPinSettings(): Promise<void>;
-}
-export const StudyLock = registerPlugin<StudyLockPlugin>('StudyLock');
+export function valueFromX(
+  x: number,
+  left: number,
+  width: number,
+  min: number,
+  max: number,
+  step?: number,
+): number; // clamp + redondeo a step (por defecto 1)
+export function valueForKey(
+  key: string,
+  value: number,
+  min: number,
+  max: number,
+  step?: number,
+): number | null; // ArrowLeft/Down −step, ArrowRight/Up +step, PageDown/PageUp ±10*step, Home=min, End=max; otra tecla → null
 ```
 
-Falso: `apps/web/test/fake-native/studyLock.ts` (mismo tipo, estado `pin` en memoria; `pin()`
-pone `'pinned'`, `unpin()` pone `'none'`, el resto no hace nada). Alias en `vite.config.ts`
-como los otros (`/^.*\/native\/studyLock$/`).
-
-### Lógica pura — `apps/web/src/study/`
-
-```ts
-// session.ts
-export type StudySource = { kind: 'library' } | { kind: 'calm' } | { kind: 'playlist'; id: string };
-export interface StudySession {
-  id: string;
-  startedAt: number;
-  endsAt: number;
-  plannedMin: number;
-  source: StudySource;
-}
-export const STUDY_PRESETS_MIN = [15, 25, 45, 60, 90] as const;
-export const STUDY_MIN_MIN = 5,
-  STUDY_MAX_MIN = 240,
-  FADE_MS = 8000,
-  DUCK_LEVEL = 0.25;
-export const CHIME_TOTAL_MS = 6600;
-export function clampStudyMinutes(m: number): number; // round, [5,240], NaN → 25
-export function createSession(
-  now: number,
-  minutes: number,
-  source: StudySource,
-  id: string,
-): StudySession;
-export function remainingMs(s: StudySession, now: number): number; // >= 0
-export function musicFactor(s: StudySession, now: number): number; // 1 → DUCK_LEVEL in last FADE_MS; DUCK_LEVEL after end
-export function studiedMinutes(s: StudySession, endedAt: number): number; // floor(min(endedAt,endsAt)-startedAt)/60000, >= 0
-export type RestoreDecision =
-  | { kind: 'none' }
-  | { kind: 'resume'; session: StudySession }
-  | { kind: 'ended'; session: StudySession };
-export function restoreDecision(saved: unknown, now: number): RestoreDecision; // validates shape; invalid → none
-export function formatClock(ms: number): string; // "1:05:09" / "24:59" / "0:07"
-
-// hold.ts — hold-to-exit
-export const HOLD_MS = 30_000;
-export interface HoldState {
-  pressedAt: number | null;
-}
-export function press(s: HoldState, now: number): HoldState; // ignores if already pressed
-export function release(): HoldState; // back to { pressedAt: null }
-export function holdProgress(s: HoldState, now: number, holdMs?: number): number; // 0..1
-export function holdDone(s: HoldState, now: number, holdMs?: number): boolean;
-
-// queue.ts
-export const CALM_MIN_TRACKS = 10,
-  LONG_TRACK_MS = 6 * 60_000;
-export function isCalmTrack(t: Pick<Track, 'title' | 'artist' | 'album' | 'durationMs'>): boolean;
-export function buildStudyQueue(
-  tracks: Pick<Track, 'id' | 'title' | 'artist' | 'album' | 'durationMs' | 'kind'>[],
-  playlists: Pick<Playlist, 'id' | 'trackIds'>[],
-  source: StudySource,
-): { ids: string[]; fellBack: boolean }; // only kind 'music'; playlist missing/empty or calm < 10 → library + fellBack
-```
-
-### Datos de estudio — `apps/web/src/study/records.ts` y `repo.ts`
-
-```ts
-export interface StudyRecord {
-  id: string;
-  startedAt: number;
-  endedAt: number;
-  plannedMin: number;
-  studiedMin: number;
-  completed: boolean;
-}
-export interface StudySummary {
-  todayMin: number;
-  weekMin: number;
-  sessions: number;
-  completed: number;
-  streakDays: number;
-}
-export function summarizeStudy(records: StudyRecord[], now: number): StudySummary; // local time; week = last 7 days incl. today; streak = consecutive days ending today (or yesterday) with studiedMin > 0
-export interface StudyRepo {
-  put(r: StudyRecord): Promise<void>;
-  listBetween(from: number, to: number): Promise<StudyRecord[]>;
-  clear(): Promise<void>;
-}
-export const idbStudyRepo: StudyRepo;
-export function memoryStudyRepo(): StudyRepo;
-export function setStudyRepo(r: StudyRepo): void;
-export function getStudyRepo(): StudyRepo;
-```
-
-IndexedDB: `offline/db.ts` versión 5, almacén `study` (`keyPath: 'id'`, índice `by-startedAt`).
-
-### Sonido ambiente — `apps/web/src/study/noise.ts` y `ambient.ts`
-
-```ts
-// noise.ts (pure, rng injectable)
-export function whiteNoise(length: number, rng?: () => number): Float32Array; // [-1,1]
-export function brownNoise(length: number, rng?: () => number): Float32Array; // integrated, leaky, normalised to peak 0.9
-export function makeSeamless(data: Float32Array, fadeSamples: number): Float32Array; // crossfade tail into head
-// ambient.ts (Web Audio, lazy AudioContext)
-export type AmbientId = 'white' | 'gray' | 'brown' | 'rain' | 'waves';
-export function availableAmbient(): AmbientId[]; // generated always; rain/waves only if the .ogg exists
-export function setAmbientLevel(id: AmbientId, level: number): Promise<void>; // 0 = stop that sound; 0..1
-export function stopAllAmbient(fadeMs?: number): void;
-```
-
-### Store — `apps/web/src/stores/study.ts`
-
-```ts
-export type StudyPhase = 'idle' | 'running' | 'done';
-interface StudyState {
-  phase: StudyPhase;
-  session: StudySession | null;
-  pin: PinState; // refreshed every 2 s while running
-  lastResult: { minutes: number; completed: boolean } | null;
-  fellBack: boolean; // the chosen mix was replaced by the whole library
-  ambient: Partial<Record<AmbientId, number>>; // saved in pref 'study-ambient'
-  lastChoice: { minutes: number; source: StudySource }; // pref 'study-last'
-  start(minutes: number, source: StudySource): Promise<void>;
-  changeSource(source: StudySource): void; // new queue, same session
-  setAmbient(id: AmbientId, level: number): void;
-  repin(): Promise<void>;
-  giveUp(): Promise<void>; // after the 30 s hold
-  dismissDone(): void; // done → idle
-}
-export const useStudy;
-export function restoreStudySession(): void; // called once at module load
-```
-
-Pref de sesión: `study-session` = `StudySession | null`.
-
-### Textos — `apps/web/src/i18n/study.ts` (`studyEn`, `studyEs`, `studyEu`)
-
-Claves mínimas (T4 las crea; si a T6 le falta alguna, la añade en los 3 idiomas):
-`nav.study`, `study.title`, `study.intro`, `study.webOnly`, `study.duration`, `study.minutes`,
-`study.minutes.one`, `study.custom`, `study.source`, `study.source.library`,
-`study.source.calm`, `study.source.calmHint`, `study.source.playlist`, `study.fellBack`,
-`study.ambient`, `study.ambient.white`, `.gray`, `.brown`, `.rain`, `.waves`, `study.ambient.off`,
-`study.pinExplain` (qué hará Android y que hay que pulsar «Fijar»), `study.start`,
-`study.remaining`, `study.notPinned`, `study.pinAgain`, `study.pinSettings`,
-`study.pinSettingsHint`, `study.hold` («Mantén pulsado 30 s para salir»), `study.holdKeep`,
-`study.holdReleased`, `study.volume`, `study.change`, `study.done.title` («¡Bien hecho!»),
-`study.done.body` (`{minutes}`), `study.done.again`, `study.done.close`, `study.gaveUp`
-(`{minutes}`), `study.stats.title`, `study.stats.today`, `study.stats.week`,
-`study.stats.sessions`, `study.stats.streak`, `study.stats.off` (sin permiso no se guarda),
-`study.stats.enable`, `study.queueLabel`, `study.tip`, `study.help`, `study.err.noMusic`,
-`study.err.pin`, `study.err.save`.
-
-Ayuda: artículo `id: 'study-mode'`, sección `listen`, en `apps/web/src/help/articles/study.ts`.
-Consejo de pantalla: `<ScreenTip id="study-pin" text="study.tip" helpId="study-mode" />`.
+`KnobSlider` (`components/study/KnobSlider.tsx`):
+`{ value: number; min: number; max: number; label: string; valueText: string; onChange: (v: number) => void }`.
 
 ## Tareas
 
-### T1 · Plugin nativo StudyLock + puente + falso · Grupo A · Estado: HECHA
+### T1 · Botones sin gris pegado y cuadrícula de Seleccionar · Grupo A · Estado: PENDIENTE
 
-- Archivos (exclusivos):
-  `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/StudyLockPlugin.java`,
-  `.../askestream/StudyChimeReceiver.java`, `.../askestream/ChimePlayer.java`,
-  `.../askestream/MainActivity.java`, `apps/mobile/android/app/src/main/AndroidManifest.xml`,
-  `apps/web/src/native/studyLock.ts`, `apps/web/test/fake-native/studyLock.ts`,
-  `apps/web/vite.config.ts`
-- Leer como contexto: `AskeNativePlugin.java` (estilo de plugin), `apps/web/src/native/askeNative.ts`,
-  `apps/web/test/fake-native/askeNative.ts`
+- Archivos (exclusivos): `apps/web/src/styles.css`
+- Leer como contexto: `apps/web/src/components/SelectionBar.tsx`,
+  `apps/web/src/components/player/Controls.tsx`
 - Qué hacer:
-  - Puente TS y falso exactamente como en Contratos; alias en `vite.config.ts`.
-  - `StudyLockPlugin` (`@CapacitorPlugin(name = "StudyLock")`):
-    - `pin`/`unpin` en el hilo de UI (`getActivity().runOnUiThread`).
-    - `status` con `getLockTaskModeState()` (NONE/PINNED/LOCKED → 'none'/'pinned'/'locked').
-    - `scheduleChime`: `PendingIntent.getBroadcast` (FLAG_IMMUTABLE | UPDATE_CURRENT) con
-      extra `endsAt`. En API ≥ 31 y `!canScheduleExactAlarms()` usar
-      `setAndAllowWhileIdle` y devolver `exact:false`.
-    - `cancelChime`, `chimeNow`, `openPinSettings` (`Settings.ACTION_SECURITY_SETTINGS`).
-  - `ChimePlayer.playOnce(Context, long endsAt)`:
-    - Sincronizado; lee y escribe `lastChimedEndsAt` en SharedPreferences `aske-study`.
-    - Si ya sonó para ese `endsAt`, no hace nada.
-    - Sintetiza 3 golpes de campana (PCM 16 bit, 44,1 kHz, mono) con 880 Hz (0,6),
-      1318,5 Hz (0,25) y 2637 Hz (0,1), caída exponencial τ = 0,9 s, pico 0,35.
-      Cada golpe dura 2,2 s: unos 6,6 s en total.
-    - `AudioTrack` MODE_STATIC con `USAGE_MEDIA` + `CONTENT_TYPE_SONIFICATION`, sin foco de
-      audio; se libera con `Handler.postDelayed` al terminar.
-  - `StudyChimeReceiver` (exported=false): `goAsync()`, llama `ChimePlayer.playOnce` y termina.
-  - Manifest:
-    - `<receiver>`;
-    - `USE_EXACT_ALARM`;
-    - `SCHEDULE_EXACT_ALARM` con `android:maxSdkVersion="32"`.
-  - `MainActivity`: `registerPlugin(StudyLockPlugin.class)`.
-  - Métodos Java de menos de 50 líneas; comentarios en inglés.
-- TDD: no (código nativo sin tests en el repo; el falso se prueba vía T5)
-- Criterios de aceptación:
-  - [ ] `npm run check` pasa; `npm run build -w @aske/web -- --mode fakenative` compila
-        (después reconstruir el dist normal).
-  - [ ] `.\gradlew.bat assembleDebug` en `apps/mobile/android` compila.
-  - [ ] En el móvil: `pin()` muestra el diálogo de Android; `status()` devuelve 'pinned'
-        tras aceptar; `chimeNow` suena 3 veces y una segunda llamada con el mismo `endsAt`
-        no suena.
-- Verificación: `npm run check`; `cd apps/mobile/android; .\gradlew.bat assembleDebug`
-
-### T2 · Lógica pura: sesión, mantener-para-salir y cola · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/study/session.ts`, `apps/web/src/study/hold.ts`,
-  `apps/web/src/study/queue.ts`, `apps/web/test/studySession.test.ts`,
-  `apps/web/test/studyHold.test.ts`, `apps/web/test/studyQueue.test.ts`
-- Leer como contexto: `apps/web/src/stores/sleepTimer.ts` (patrón endsAt),
-  `packages/shared/src/index.ts` (Track, Playlist)
-- Qué hacer:
-  - Implementar las firmas de Contratos (session, hold, queue). Sin imports de stores ni de
-    `i18n`: funciones puras.
-  - `restoreDecision` exige `id` string, números finitos, `endsAt > startedAt` y un `source`
-    válido.
-  - `isCalmTrack`:
-    - Regex sin distinguir mayúsculas sobre título+artista+álbum: `instrumental`, `lo-?fi`,
-      `piano`, `ambient`, `study|estudio|ikas`, `classical|clásica|klasiko`, `chill`, `relax`,
-      `focus`, `soundtrack|\bost\b|banda sonora`, `no vocals|sin letra|letrarik gabe`,
-      `beats`, `meditation|meditación`.
-    - O bien `durationMs >= LONG_TRACK_MS`.
-  - La cola respeta el orden de la playlist y no repite ids; el aleatorio lo pone el
-    reproductor.
-- TDD: sí
-- Criterios de aceptación:
-  - [ ] Tests: - clamp (NaN, 0, 300); - `musicFactor` (antes, mitad y después del fundido); - `restoreDecision` (none/resume/ended/basura); - `studiedMinutes` al rendirse a mitad; - `formatClock`.
-  - [ ] Tests de hold: progreso 0 → 0,5 → 1; `release` reinicia; `press` doble no reinicia.
-  - [ ] Tests de cola: - excluye podcasts; - playlist inexistente → biblioteca + `fellBack`; - calm con < 10 → `fellBack`; - calm por palabra y por duración.
-- Verificación: `npx vitest run test/studySession.test.ts test/studyHold.test.ts test/studyQueue.test.ts --root apps/web`
-
-### T3 · Datos de estudio (IndexedDB) y motor de sonido ambiente · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/study/records.ts`, `apps/web/src/study/repo.ts`,
-  `apps/web/src/offline/db.ts`, `apps/web/src/stores/stats.ts`, `apps/web/src/study/noise.ts`,
-  `apps/web/src/study/ambient.ts`, `apps/web/src/study/sounds/README.md`,
-  `apps/web/test/studyRecords.test.ts`, `apps/web/test/studyNoise.test.ts`,
-  `apps/web/test/statsStore.test.ts`, `apps/web/test/offlineDb.test.ts`
-- Leer como contexto: `apps/web/src/stats/repo.ts`, `apps/web/src/stats/recap.ts` (cálculo de
-  rachas y días locales)
-- Qué hacer:
-  - Datos:
-    - `records.ts` y `repo.ts` según Contratos (copiar el patrón de `stats/repo.ts`).
-    - `db.ts` pasa a la versión 5 y crea el almacén `study` con su índice.
-    - En `stores/stats.ts`, `clearHistory()` borra también `getStudyRepo().clear()`.
-      Si cualquiera falla: mismo toast y `false`.
-  - Sonido:
-    - `noise.ts` con las funciones puras de Contratos. Marrón: integración con fuga
-      `y = 0.98 * y + 0.02 * white`, después normalizada a pico 0,9.
-    - `ambient.ts`:
-      - un `AudioContext` perezoso (`resume()` en cada `setAmbientLevel`) y un `GainNode` por
-        sonido;
-      - buffer mono de 10 s con `makeSeamless(…, 0.5 s)` en `loop`;
-      - el gris es blanco + `lowshelf` +10 dB a 250 Hz + `peaking` −6 dB a 3 kHz (Q 1) +
-        `highshelf` +4 dB a 10 kHz;
-      - los cambios de nivel con `setTargetAtTime` (0,3 s);
-      - `stopAllAmbient` hace un fundido y para las fuentes.
-    - Archivos de lluvia y olas: `import.meta.glob('./sounds/*.ogg', { query: '?url', import:
-'default', eager: true })`, se decodifican con `decodeAudioData` la primera vez. Si falla
-      la carga: `console.error` y ese sonido no suena (sin romper los demás).
-    - `sounds/README.md` (en inglés):
-      - nombres esperados `rain.ogg` y `waves.ogg`;
-      - requisitos: CC0, Opus mono 48 kbps, 60-120 s, bucle sin corte, ≤ 600 KB cada uno;
-      - fuentes recomendadas: Freesound con filtro CC0, BigSoundBank y OpenGameArt con
-        filtro CC0;
-      - poner aquí autor y enlace de cada archivo.
-- TDD: sí (records y noise); el motor Web Audio sin test
-- Criterios de aceptación:
-  - [ ] `summarizeStudy`: hoy/semana en hora local, sesiones y completadas, racha que
-        termina hoy o ayer, 0 con lista vacía.
-  - [ ] Ruido: - valores en [−1, 1] y deterministas con un rng fijo; - el marrón tiene menos diferencia media entre muestras que el blanco; - tras `makeSeamless`, |último − primero| es pequeño.
-  - [ ] `statsStore.test.ts`: `clearHistory` también vacía el repo de estudio (con
-        `memoryStudyRepo`).
-  - [ ] `offlineDb.test.ts` sigue en verde con la versión 5.
-  - [ ] `npm run check` pasa sin archivos `.ogg`.
-- Verificación: `npx vitest run test/studyRecords.test.ts test/studyNoise.test.ts test/statsStore.test.ts test/offlineDb.test.ts --root apps/web`
-
-### T4 · Textos (es/en/eu) y artículo de ayuda · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/i18n/study.ts`, `apps/web/src/i18n/en.ts`,
-  `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/eu.ts`, `apps/web/src/help/articles/study.ts`,
-  `apps/web/src/help/articles.ts`
-- Leer como contexto: `apps/web/src/i18n/stats.ts`, `apps/web/src/help/articles/stats.ts`,
-  `apps/web/src/help/articles/types.ts`
-- Qué hacer:
-  - Textos:
-    - Crear todas las claves de Contratos en los 3 idiomas (inglés = fuente) y registrarlas
-      con `...studyEn` / `...studyEs` / `...studyEu`.
-    - Singulares en `.one`; usar `{minutes}` y `{count}`.
-    - Lenguaje sencillo, sin «lock task», «pinning» ni otra jerga.
-  - `study.pinExplain`: Android preguntará «¿Fijar la app?»; pulsa «Fijar» o «Aceptar».
-    Mientras esté fijada no podrás abrir otras apps ni ver notificaciones, pero sí coger
-    llamadas.
-  - Artículo `study-mode` (sección `listen`), con:
-    - qué es;
-    - cómo empezar;
-    - qué se puede hacer durante la sesión;
-    - cómo salir antes (30 s);
-    - qué pasa al acabar;
-    - que la sesión sigue aunque Android cierre la app;
-    - **honestidad:** Android siempre deja salir con su combinación de botones
-      (p. ej. mantener Atrás + Recientes; depende del móvil), porque es una ayuda para
-      concentrarse y no un candado;
-    - qué hacer si no aparece el aviso de fijar («Fijar aplicaciones» en Ajustes →
-      Seguridad);
-    - mezcla tranquila: se elige por el nombre y la duración, así que puede fallar;
-    - sonidos ambiente;
-    - historial: solo con el Recap y solo en el móvil; enlaces `[[listening-stats|…]]` y
-      `[[privacy|…]]`.
-  - `study.tip`: una frase («Pulsa Empezar; Android te pedirá permiso para fijar la
-    pantalla»).
-- TDD: no (lo cubren los tests de paridad y de enlaces que ya existen)
-- Criterios de aceptación:
-  - [ ] `npx vitest run test/i18n.test.ts test/help.test.ts --root apps/web` en verde.
-  - [ ] Todas las claves de Contratos existen.
-- Verificación: `npx vitest run test/i18n.test.ts test/help.test.ts --root apps/web`
-
-### T5 · Store `useStudy` (orquestación) y botón Atrás · Grupo B · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/stores/study.ts`, `apps/web/src/native/shell.ts`,
-  `apps/web/test/studyStore.test.ts`
-- Leer como contexto: los archivos de T1–T3, `apps/web/src/stores/sleepTimer.ts`,
-  `apps/web/src/stores/player.ts` (solo la interfaz `PlayerState`),
-  `apps/web/src/stores/library.ts` (`tracks`, `playlists`), `apps/web/src/stores/stats.ts`,
-  `apps/web/test/sleepTimer.test.ts` (cómo mockear)
-- Qué hacer: implementar el store de Contratos.
-  - `start`:
-    - `buildStudyQueue`; si `ids` vacío → toast `study.err.noMusic` y no empieza.
-    - `useSleepTimer.cancel()`.
-    - `playTracks(ids, null, { shuffle: true, context: { label: t('study.queueLabel'),
-cycleKey: 'study:' + kind } })`.
-    - `createSession(Date.now(), …, crypto.randomUUID())`, guardar la pref
-      `study-session` y `lastChoice`.
-    - `StudyLock.scheduleChime` y `StudyLock.pin()`.
-    - Volver a aplicar los niveles de `ambient` y arrancar el tick.
-  - Tick cada 1 s:
-    - volumen = base × `musicFactor` (guardar la base la primera vez que el factor sea < 1,
-      igual que `sleepTimer`);
-    - cada 2 s, `status()` → `pin`;
-    - al llegar a `endsAt` → `finish(true)`.
-  - `finish(completed)`:
-    - si `completed`: `chimeNow({endsAt})` y esperar `CHIME_TOTAL_MS` antes de `pause()`;
-    - devolver el volumen, `stopAllAmbient()`, `cancelChime()`, `unpin()`;
-    - guardar el `StudyRecord` solo si `useStats.getState().consent === 'on'` (si falla:
-      `console.error` + toast `study.err.save`; la sesión termina igual);
-    - borrar la pref; `phase` = 'done' si completada y 'idle' + toast `study.gaveUp` si te
-      rindes;
-    - `lastResult` lleno.
-  - `giveUp` = `finish(false)` sin campanilla (la música sigue).
-  - `restoreStudySession`:
-    - `resume` → `phase` 'running', tick y `pin` (Android vuelve a preguntar);
-    - `ended` → guardar el registro (si hay permiso), `phase` 'done' y `unpin()`, sin
-      campanilla (ya sonó la nativa o llegó tarde).
-  - Errores del plugin (`pin`, `scheduleChime`): `console.error` + toast `study.err.pin`; la
-    sesión sigue.
-  - `shell.ts`: al principio del listener de Atrás,
-    `if (useStudy.getState().phase !== 'idle') return;`.
-  - Funciones de menos de 50 líneas; partir en helpers si hace falta.
-- TDD: sí
-- Criterios de aceptación (con `vi.useFakeTimers`, `memoryStudyRepo`, mocks de `StudyLock`,
-  `usePlayer` y `ambient`):
-  - [ ] `start` con la biblioteca vacía no empieza y avisa.
-  - [ ] `start` llama a `pin`, `scheduleChime` y `playTracks` y guarda `study-session`.
-  - [ ] En el minuto final el volumen baja; al final suena `chimeNow` una vez, el volumen
-        vuelve, `unpin`, `phase` 'done'.
-  - [ ] `giveUp` guarda `completed:false` con los minutos estudiados; sin permiso no
-        guarda nada.
-  - [ ] `restoreStudySession`: pasado → 'done' sin `chimeNow`; futuro → 'running'.
-- Verificación: `npx vitest run test/studyStore.test.ts --root apps/web`; `npm run check`
-
-### T6 · Pantalla «Estudio» y modo foco · Grupo C · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/views/StudyView.tsx`,
-  `apps/web/src/components/study/StudySetup.tsx`,
-  `apps/web/src/components/study/StudyFocus.tsx`,
-  `apps/web/src/components/study/HoldToExit.tsx`,
-  `apps/web/src/components/study/AmbientMixer.tsx`,
-  `apps/web/src/components/study/StudyDone.tsx`,
-  `apps/web/src/components/study/StudyStats.tsx`, `apps/web/src/study.css`,
-  `apps/web/src/App.tsx`, `apps/web/src/components/Nav.tsx`,
-  `apps/web/src/views/LibraryView.tsx`, `apps/web/src/i18n/study.ts` (solo para añadir claves
-  que falten)
-- Leer como contexto: `apps/web/src/stores/study.ts`, `apps/web/src/study/*.ts`,
-  `apps/web/src/views/RecapView.tsx` y `components/stats/ConsentSheet.tsx` (pedir permiso),
-  `components/ScreenTip.tsx`, `apps/web/src/groups.css` (cómo se importa un CSS propio),
-  `apps/web/src/styles.css` (variables; solo ámbar)
-- Qué hacer:
-  - `App.tsx`:
-    - ruta `/study` → `StudyView`;
-    - en `Shell`, después de todos los hooks, si `useStudy(phase) !== 'idle'` devolver
-      `<div className="app study-mode"><StudyView /><Dialogs /><Toasts /></div>`.
-  - `Nav.tsx`: item `/study` (`nav.study`, icono `Timer` de lucide) en `SIDEBAR_ITEMS` solo
-    si `isNative`.
-  - `LibraryView.tsx`: botón en la cabecera (icono + «Estudiar») que va a `/study`, solo si
-    `isNative`.
-  - `StudyView`:
-    - si `!isNative` → aviso `study.webOnly` con enlace a `/help/study-mode`;
-    - si no, según `phase`: `idle` → `StudySetup`; `running` → `StudyFocus`; `done` →
-      `StudyDone`.
-  - `StudySetup`:
-    - presets + campo de minutos (5-240);
-    - fuente: biblioteca / tranquila (con su nota) / lista de playlists;
-    - `AmbientMixer`;
-    - `study.pinExplain`, `ScreenTip id="study-pin"`;
-    - botón grande «Empezar»;
-    - `StudyStats` (si el permiso está apagado, texto `study.stats.off` + botón que abre
-      `ConsentSheet`).
-  - `StudyFocus`:
-    - reloj grande (`formatClock`);
-    - pausa/play y siguiente grandes (≥ 64 px);
-    - deslizador de volumen de la música;
-    - botón «Cambiar música» (hoja con las fuentes → `changeSource`) y `AmbientMixer`;
-    - si `pin !== 'pinned' && pin !== 'locked'`: banner `study.notPinned` con botones
-      «Fijar pantalla» (`repin`) y `study.pinSettings`;
-    - aviso `fellBack` si toca;
-    - `HoldToExit` abajo.
-  - `HoldToExit`:
-    - usa `hold.ts` con pointerdown/up/cancel/leave y requestAnimationFrame;
-    - barra de progreso ámbar con `role="progressbar"`;
-    - al soltar antes: texto `study.holdReleased`;
-    - al completar → `giveUp()`;
-    - también vale mantener la tecla Espacio o Intro.
-  - `AmbientMixer`: un deslizador 0-100 por cada `availableAmbient()` → `setAmbient`.
-  - `StudyDone`: «¡Bien hecho!», minutos, «Otra sesión» (`start(lastChoice)`) y «Cerrar»
-    (`dismissDone`).
-  - Lenguaje sencillo, controles grandes, solo variables de color existentes (ámbar).
+  - Mete en `@media (hover: hover) and (pointer: fine) { … }` todas las reglas `:hover` de
+    `styles.css` que cambian fondo o color de botones, chips, pestañas o filas (como mínimo
+    `.btn:hover`, `.btn.primary:hover`, `.icon-btn:hover`, `.selection-actions button…:hover`).
+  - Añade `.icon-btn.on, .icon-btn.on:hover, .icon-btn.on:active { color: var(--accent); }` para
+    que el ámbar gane siempre. Añade `.btn.on` según el contrato.
+  - Respuesta al toque: `.icon-btn:active:not(:disabled)` y `.btn:active:not(:disabled)` con fondo
+    `var(--bg-hover)` (fuera del media query).
+  - `.selection-actions`: `grid-template-columns: repeat(3, 1fr)` y, con
+    `@media (max-width: 339px)`, `repeat(2, 1fr)`. Botones con `min-height: 56px`, texto que puede
+    ir en 2 líneas (`white-space: normal; line-height: 1.2; text-align: center`). El último botón
+    que queda solo en su fila ocupa todo el ancho: con 3 columnas,
+    `button:last-child:nth-child(3n+1)`; con 2 columnas, `button:last-child:nth-child(odd)` →
+    `grid-column: 1 / -1`.
+  - No toques `.segmented` (lo hace T6).
 - TDD: no
 - Criterios de aceptación:
-  - [ ] `npm run check` pasa.
-  - [ ] Con `npm run build -w @aske/web -- --mode fakenative` y el navegador: empezar 5 min
-        muestra el modo foco sin menú; mantener 30 s sale; soltar antes reinicia la barra.
-  - [ ] En web normal no hay entrada en el menú y `/study` muestra el aviso.
-  - [ ] En el APK: diálogo de fijar, aviso si se rechaza, campanilla con la pantalla
-        apagada y música en pausa, «¡Bien hecho!» y desbloqueo al acabar.
-- Verificación: `npm run check`; prueba manual en fakenative y en el móvil
+  - [ ] En el móvil (o DevTools con modo táctil), tras tocar aleatorio o repetir, el icono queda
+        ámbar sin fondo gris.
+  - [ ] En ordenador, el hover sigue funcionando.
+  - [ ] Seleccionar con 5 acciones = 3 + 2; con 4 = 3 + 1 a todo el ancho. Todo visible a 360 px.
+- Verificación: `npm run check`; prueba manual en `npm run dev` con DevTools en móvil 360 px.
 
-### T7 · Documentación y privacidad · Grupo D · Estado: HECHA
+### T2 · Reproductor y botones de lista que se explican solos · Grupo A · Estado: PENDIENTE
 
-- Archivos (exclusivos): `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/PRIVACY.md`,
-  `docs/android.md`, `docs/plan/PLAN.md` (solo los estados)
-- Leer como contexto: este plan
+- Archivos (exclusivos): `apps/web/src/components/player/Controls.tsx`,
+  `apps/web/src/views/LibraryView.tsx`, `apps/web/src/views/PlaylistView.tsx`,
+  `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/eu.ts`,
+  `apps/web/src/help/articles/listen.ts`
+- Leer como contexto: `apps/web/src/stores/player.ts` (solo `toggleShuffle`, `cycleRepeat`,
+  `contextInfo`), `apps/web/src/stores/ui.ts` (`toast`)
 - Qué hacer:
-  - `PRIVACY.md` (y su resumen si hay versiones en otros idiomas):
-    - las sesiones de estudio se guardan solo en el dispositivo y solo con el Recap
-      activado;
-    - se borran con el historial;
-    - nunca se envían.
-  - `android.md`:
-    - plugin `StudyLock`;
-    - permisos `USE_EXACT_ALARM` / `SCHEDULE_EXACT_ALARM` y por qué;
-    - fijar pantalla y su limitación.
-  - Arquitectura: fila 9 a ✅ cuando T1–T6 estén hechas.
-  - `ESTADO.md`:
-    - F9 hecha;
-    - pendientes de Andoni: archivos CC0 de lluvia y olas, prueba en el móvil (llamada
-      entrante con la app fijada, campanilla con la pantalla apagada, reinicio de la app a
-      mitad de sesión).
+  - Añade a `en.ts`, `es.ts` y `eu.ts` **todas** las claves de la tabla del contrato, también las
+    `settings.theme*`, que usará T6.
+  - `Controls.tsx` (`TransportControls`): al pulsar aleatorio, después de `toggleShuffle()`, haz
+    `toast(t(shuffle ? 'player.shuffleOn' : 'player.shuffleOff'))` con el estado nuevo. Al pulsar
+    repetir, después de `cycleRepeat()`, muestra un aviso con `repeat*Hint` según el modo nuevo.
+    Añade `title={t('player.shuffle')}` al aleatorio. Para repetir, usa `aria-pressed` con
+    `repeat !== 'off'`.
+  - `LibraryView.tsx`: el botón ✓ pasa a `btn small` con icono y texto `t('select.start')`, clase
+    `on` y `aria-pressed` cuando `selecting`. El botón «Aleatorio» lleva la clase `on` y
+    `aria-pressed` cuando suena esta lista en aleatorio:
+    `usePlayer(s => s.mode === 'track' && s.shuffle && s.contextInfo?.path === '/')`.
+  - `PlaylistView.tsx`: el aleatorio (`icon-btn`) lleva `on` y `aria-pressed` con la misma
+    condición, pero con `context.path`, y añade `title`.
+  - `help/articles/listen.ts`, artículo `queue`: añade un párrafo corto (es/en/eu) que explique el
+    botón Repetir (sin repetir → repetir lista → repetir canción, y que el icono con un «1» es
+    repetir canción) y que el aleatorio queda en ámbar cuando está activo.
 - TDD: no
 - Criterios de aceptación:
-  - [ ] `npm run check` (Prettier sobre los .md) pasa.
+  - [ ] Al pulsar repetir sale un aviso que dice qué hará en palabras sencillas (en es, en y eu).
+  - [ ] El aleatorio grande de Biblioteca y playlist se ve ámbar mientras esa lista suena en
+        aleatorio.
+  - [ ] El botón Seleccionar de la Biblioteca tiene texto.
+  - [ ] El test de paridad i18n y el de enlaces de ayuda pasan.
 - Verificación: `npm run check`
+
+### T3 · Playlists: fila «Con amigos» y Grupos visibles · Grupo A · Estado: PENDIENTE
+
+- Archivos (exclusivos): `apps/web/src/views/PlaylistsView.tsx`,
+  `apps/web/src/components/playlists/FriendsRow.tsx` (nuevo),
+  `apps/web/src/components/playlists/SharePickSheet.tsx` (nuevo),
+  `apps/web/src/views/GroupsView.tsx`, `apps/web/src/i18n/share.ts`,
+  `apps/web/src/i18n/groups.ts`, `apps/web/src/help/articles/friends.ts`,
+  `apps/web/src/help/articles/groups.ts`
+- Leer como contexto: `apps/web/src/components/SharePlaylistSheet.tsx` (props
+  `{ playlist, onClose }`), `apps/web/src/components/Sheet.tsx`,
+  `apps/web/src/components/ScreenTip.tsx`, `apps/web/src/hub/client.ts` (`hubAvailable`)
+- Qué hacer:
+  - `FriendsRow`: título pequeño `share.friendsTitle` y una fila `row wrap` con 4 `btn small` con
+    icono y texto: Compartir (`Share2`, `share.button`, abre `SharePickSheet`), Recibir
+    (`ScanLine`, `share.receive`, llama a `onReceive` que abre el `OpenLinkSheet` existente), Jam
+    (`PartyPopper`, enlace a `/jam`) y Grupos (`Users`, `nav.groups`, enlace a `/groups`).
+    Compartir y Grupos solo si `hubAvailable()`.
+  - `SharePickSheet`: lista de playlists (nombre + número de canciones). Al tocar una, se cierra y
+    se abre `SharePlaylistSheet` de esa playlist. Si no hay playlists, `share.pickEmpty`.
+  - `PlaylistsView`: quita del encabezado los botones Jam y enlace (`Link2`) y pon `<FriendsRow />`
+    bajo el `ScreenTip` actual, más un `ScreenTip id="playlists-friends"
+text="share.tipFriends" helpId="share-playlist"`. Sin CSS nuevo (usa `row wrap`, `btn small`,
+    `card-row`…).
+  - `GroupsView`: `ScreenTip id="groups" text="groups.tip" helpId="friend-groups"` bajo el
+    encabezado.
+  - Ayuda: en `share-playlist` (friends.ts), explica en es/en/eu que se comparte desde
+    Playlists → Con amigos → Compartir (o con el botón Compartir dentro de la playlist) y se recibe
+    con Recibir. En `friend-groups` (groups.ts), di que se entra desde Playlists → Con amigos →
+    Grupos.
+- TDD: no
+- Criterios de aceptación:
+  - [ ] En el móvil, desde Playlists se llega a Grupos en un toque.
+  - [ ] «Compartir» y «Recibir» se ven con texto, uno al lado del otro.
+  - [ ] Compartir → elegir playlist → sale el QR o enlace de esa playlist.
+  - [ ] Paridad i18n y enlaces de ayuda en verde.
+- Verificación: `npm run check`; manual en `npm run dev` a 360 px.
+
+### T4 · Descargas: botón «Enviar» junto a «Recibir» · Grupo A · Estado: COMPLETADO
+
+- Archivos (exclusivos): `apps/web/src/views/DownloadView.tsx`,
+  `apps/web/src/components/send/SendHowSheet.tsx` (nuevo), `apps/web/src/i18n/parcel.ts`,
+  `apps/web/src/help/articles/music.ts`
+- Leer como contexto: `apps/web/src/components/send/ReceiveSheet.tsx`,
+  `apps/web/src/components/Sheet.tsx`, `apps/web/src/stores/ui.ts` (`startSelection`),
+  `apps/web/src/components/ScreenTip.tsx`
+- Qué hacer:
+  - En `DownloadView`, donde está `ReceiveButton` (solo `isNative && hubAvailable()`), pon los dos
+    botones en una fila `row wrap`: Recibir (como ahora) y Enviar (`Send`, `parcel.send`), que abre
+    `SendHowSheet`. Debajo, `ScreenTip id="dl-send" text="parcel.tipSend" helpId="send-with-code"`
+    con la misma condición.
+  - `SendHowSheet({ onClose })`: título `parcel.sendHowTitle`. Tres bloques cortos: (1)
+    `parcel.sendHowSelect` + botón primario `parcel.sendPick` → `onClose()`, `navigate('/')` y
+    `useUi.getState().startSelection()`; (2) `parcel.sendHowQueue`; (3) `parcel.sendHowPlaylist` +
+    botón `parcel.sendGoPlaylists` → `/playlists`. Al final, en pequeño, `parcel.sendHowNote` y un
+    `HelpButton id="send-with-code"`.
+  - Ayuda `send-with-code` (music.ts): añade en es/en/eu un apartado «Enviar desde el móvil» con
+    esos tres caminos.
+- TDD: no
+- Criterios de aceptación:
+  - [ ] En el móvil, Descargas muestra «Recibir» y «Enviar» juntos.
+  - [ ] «Elegir canciones» abre la Biblioteca en modo selección.
+  - [ ] Paridad i18n y enlaces de ayuda en verde.
+- Verificación: `npm run check`; manual con `npm run build -w @aske/web -- --mode fakenative`
+  (después, reconstruir el dist normal).
+
+### T5 · Modo estudio: pomo, título y flecos de study.ts · Grupo A · Estado: PENDIENTE
+
+- Archivos (exclusivos): `apps/web/src/stores/study.ts`, `apps/web/src/study/slider.ts` (nuevo),
+  `apps/web/src/components/study/KnobSlider.tsx` (nuevo),
+  `apps/web/src/components/study/AmbientMixer.tsx`,
+  `apps/web/src/components/study/StudySetup.tsx`, `apps/web/src/study.css`,
+  `apps/web/test/studySlider.test.ts` (nuevo), `apps/web/test/studyStoreEdge.test.ts`
+- Leer como contexto: `apps/web/test/studyStore.test.ts` (cómo se simulan StudyLock y el player),
+  `apps/web/src/study/session.ts`, `apps/web/src/lib/storage.ts`
+- Qué hacer (primero los tests):
+  - `study/slider.ts` según el contrato, con tests en `studySlider.test.ts` (límites, redondeo,
+    teclas y tecla desconocida → null).
+  - `KnobSlider`: pista con relleno y pomo de 28 px (área táctil de 44 px), `role="slider"`,
+    `tabIndex=0`, `aria-valuemin/max/now`, `aria-valuetext`, `aria-label`. `onPointerDown`
+    **solo en el pomo**: `setPointerCapture` y modo arrastre. `pointermove` → `onChange(valueFromX
+(...))` con el rectángulo de la pista. `pointerup` o `pointercancel` → fin. Tocar la pista no
+    hace nada. `touch-action: none` solo en el pomo, para que la página siga desplazándose.
+    `onKeyDown` con `valueForKey`. Funciones de menos de 50 líneas.
+  - `AmbientMixer`: cambia el `<input type=range>` por `KnobSlider` (mismos label y valueText).
+  - Título: en `StudySetup`, el encabezado pasa a dos líneas (h1 arriba y enlace de ayuda debajo)
+    con una clase `study-header`. En `study.css`: `.study-header { flex-direction: column;
+align-items: flex-start; gap: 4px }` y `.study-header h1 { white-space: normal; }`. Estilos
+    del deslizador también en `study.css`, en ámbar.
+  - `stores/study.ts`:
+    - `releasePin`: `cancelChime` y `unpin` en dos `try/catch` separados (cada uno con su
+      `reportError`), para que el fallo de uno no impida el otro.
+    - `finish`: el cuerpo, desde `finishing = true`, va en `try { … } finally { finishing =
+false; }`.
+    - Volumen: nueva clave `'study-base-volume'`. Cuando `applyVolume` fija `baseVolume` por
+      primera vez → `savePref(clave, baseVolume)`. `restoreVolume` → `savePref(clave, null)`. En
+      `restoreStudySession`, antes de mirar la decisión, se lee el guardado: si es `resume`,
+      `baseVolume = guardado`; en cualquier otro caso (también `none`), si hay valor,
+      `usePlayer.getState().setVolume(guardado)` y se borra la clave.
+  - Tests en `studyStoreEdge.test.ts`: (a) si `cancelChime` falla, `unpin` se llama igual; (b) si
+    algo dentro de `finish` lanza un error, una segunda `giveUp` funciona; (c) con
+    `'study-base-volume'` guardado y sin sesión, `restoreStudySession()` restaura el volumen y
+    borra la clave; (d) con sesión `resume`, no lo restaura de golpe.
+- TDD: sí
+- Criterios de aceptación:
+  - [ ] Tocar la barra de lluvia, olas o ruido no cambia el volumen; arrastrar el pomo sí.
+  - [ ] «Modo estudio» se ve entero en 360 px y la ayuda queda debajo.
+  - [ ] Los tests nuevos pasan y los antiguos del estudio siguen en verde.
+- Verificación: `npx vitest run test/studySlider.test.ts test/studyStoreEdge.test.ts
+test/studyStore.test.ts --root apps/web` y `npm run check`
+
+### T6 · Selector de tema con iconos · Grupo B · Estado: PENDIENTE
+
+- Depende de: T1 (`styles.css`) y T2 (claves `settings.themeAuto` y `settings.themeHint`).
+- Archivos (exclusivos): `apps/web/src/components/settings/GeneralSections.tsx`,
+  `apps/web/src/styles.css`
+- Qué hacer:
+  - `AppearanceSection`: control segmentado a todo el ancho, debajo del título «Claro u oscuro»,
+    con 3 botones en este orden: Claro (`Sun`, `settings.themeLight`), Oscuro (`Moon`,
+    `settings.themeDark`) y Automático (`Smartphone`, `settings.themeAuto`). Cada botón tiene el
+    icono arriba y la etiqueta debajo, y se mantienen `role="radiogroup"`, `role="radio"` y
+    `aria-checked`. Debajo, `settings.themeHint` en `faint small`. `settings.themeSystem` ya no se
+    usa aquí: si no se usa en ningún otro sitio, bórrala de en, es y eu.
+  - CSS: nueva variante `.segmented.theme-picker` (no cambies la `.segmented` base, que usan
+    PeriodPicker, GroupView y DownloadView): `display: grid; grid-template-columns: repeat(3,
+1fr); width: 100%`. Botones en columna con `min-height: 64px`. El elegido:
+    `background: var(--accent); color: var(--accent-ink)`. Sin colores nuevos.
+- TDD: no
+- Criterios de aceptación:
+  - [ ] Los 3 modos se ven con icono y texto, y el elegido en ámbar, en claro y en oscuro.
+  - [ ] Ajustes → tema sigue cambiando y guardándose (`v4_test.py` busca `.segmented`: se mantiene).
+- Verificación: `npm run check`; manual en `npm run dev`.
+
+### T7 · Documentación · Grupo C · Estado: PENDIENTE
+
+- Archivos (exclusivos): `docs/ESTADO.md`, `docs/v2/architecture.md`
+- Qué hacer: en ESTADO.md, añade «Arreglos tras v0.9.0» (botones táctiles, tema, Seleccionar,
+  estudio, Enviar/Recibir, entrada a Grupos) y quita de «En curso» los menores de `study.ts`. En
+  «Problemas conocidos», resume en 2-3 líneas el corte de música con la pantalla apagada
+  (pendiente de decidir las opciones A, B o C de este plan). En `architecture.md`, solo si la tabla
+  de fases lo necesita (no hay fase nueva: como mucho, una nota en F9). Marca este PLAN como
+  COMPLETADO.
+- TDD: no
+- Criterios de aceptación:
+  - [ ] ESTADO.md al día, en menos de 60 líneas.
+- Verificación: lectura.
 
 ## Riesgos / dudas abiertas
 
-- **Archivos de lluvia y olas (pendiente de Andoni):** no se descarga nada. Hay que conseguir
-  `rain.ogg` y `waves.ogg` con licencia CC0 y dejarlos en `apps/web/src/study/sounds/`. Fuentes
-  recomendadas: freesound.org (filtro «Creative Commons 0»), bigsoundbank.com y
-  opengameart.org (filtro CC0). Hasta entonces solo salen los tres ruidos generados.
-- **Llamadas con la app fijada:** en la mayoría de móviles la llamada entrante se ve y se puede
-  coger, pero algunos fabricantes lo cambian. Hay que comprobarlo en el móvil (T6/T7).
-- **Android antiguo (7-8):** si «Fijar aplicaciones» está apagado en Ajustes, puede que no salga
-  el diálogo. La UI ofrece abrir Ajustes y lo explica la ayuda.
-- **Sonido ambiente con la pantalla apagada y la música en pausa:** el WebView podría
-  silenciarlo. Con música sonando funciona igual que el reproductor. Hay que comprobarlo en el
-  móvil.
-- **Al acabar se pausa la música** (después de la campanilla). Es una decisión del plan, no
-  bloquea: si Andoni prefiere que siga sonando bajita, basta con quitar el `pause()` en T5.
-- **Peso del APK:** el código añade ~0 KB de audio. Con los dos .ogg, ≤ 1,2 MB en total.
+1. **¿Qué botón es «el de la derecha del todo junto al aleatorio»?**
+   - **Repetir del reproductor (Recomendada):** está en la misma fila que el aleatorio y tiene el
+     mismo gris pegado. T2 añade aviso y ayuda.
+   - **✓ Seleccionar de la Biblioteca:** T2 también le pone texto, así que queda cubierto.
+   - Lo recomiendo porque cuadra con «no sé qué hace» y con el mismo fallo de estilo. Con este plan
+     se arreglan los dos, así que solo hay que confirmarlo.
+2. **¿Dónde va la entrada a Grupos en el móvil?**
+   - **Fila «Con amigos» en Playlists (Recomendada):** junta Compartir, Recibir, Jam y Grupos. Se
+     descubre fácil, pero añade una fila más a Playlists.
+   - **Enlace en Ajustes:** limpio, pero escondido para gente no técnica.
+   - **Sexta pestaña:** muy visible, pero aprieta la barra de abajo en móviles pequeños.
+   - La recomiendo porque todo lo «social» queda en un sitio y sin tocar la barra.
+3. **¿El aleatorio grande se queda en ámbar mientras suena esa lista mezclada?**
+   - **Sí (Recomendada):** se ve que está activo, como pedía Andoni («naranja de seleccionado»).
+   - **No:** es solo un botón de acción y no muestra estado. Es más simple, pero confunde.
+4. **Corte de música (punto 10):** hace falta que Andoni diga si pasa al cambiar de canción o a
+   mitad, si eran canciones del móvil o de la nube, qué móvil y qué Android tiene y si la batería
+   está «sin restricciones». Con eso se elige entre A, B o C.
+5. **Cuadrícula de Seleccionar:** 3 por fila (Recomendada, 5 acciones = 3 + 2) o 2 por fila (botones
+   más grandes, pero ocupa 3 filas y tapa más lista).

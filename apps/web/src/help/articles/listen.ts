@@ -19,7 +19,9 @@ Arrastra el asa **⠿** para cambiar el orden y pulsa la **X** para quitar una c
 
 **Reproducir a continuación** (en el menú ⋮) pone la canción la primera de la cola.
 
-**Aleatorio**: no repite ninguna canción hasta que han sonado todas las de esa lista. Cada lista (tu biblioteca, cada playlist…) recuerda por dónde ibas. Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta, la primera nunca es la última que sonó.`,
+**Aleatorio**: no repite ninguna canción hasta que han sonado todas las de esa lista. Cada lista (tu biblioteca, cada playlist…) recuerda por dónde ibas. Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta, la primera nunca es la última que sonó. El botón queda en ámbar mientras está activo.
+
+**Repetir** (el botón de la derecha): cada pulsación cambia de modo. Sin repetir: al acabar la lista, la música para. Repetir lista: al acabar, vuelve a empezar. Repetir canción (el icono lleva un «1»): suena la misma una y otra vez.`,
       en: `Open the player full screen and scroll down: you see two lists.
 
 - **Queue**: songs you add with “Add to queue” or by swiping a song to the right. They always play first.
@@ -29,7 +31,9 @@ Drag the **⠿** handle to reorder and tap **X** to remove a song.
 
 **Play next** (in the ⋮ menu) puts the song first in the queue.
 
-**Shuffle**: it does not repeat any song until all the songs in that list have played. Each list (your library, each playlist…) remembers where you were. New songs you add join the shuffle. When a new round starts, the first song is never the last one that played.`,
+**Shuffle**: it does not repeat any song until all the songs in that list have played. Each list (your library, each playlist…) remembers where you were. New songs you add join the shuffle. When a new round starts, the first song is never the last one that played. The button turns amber while it is on.
+
+**Repeat** (the button on the right): each tap changes the mode. No repeat: music stops at the end of the list. Repeat list: it starts again when it ends. Repeat song (the icon has a “1”): the same song plays again and again.`,
       eu: `Ireki erreproduzitzailea handian eta jaitsi: bi zerrenda ikusiko dituzu.
 
 - **Ilara**: zuk «Gehitu ilarara» erabiliz edo abesti bat eskuinera irristatuz gehitzen dituzunak. Beti lehenik entzuten dira.
@@ -39,7 +43,9 @@ Arrastatu **⠿** heldulekua ordena aldatzeko eta sakatu **X** abesti bat kentze
 
 **Erreproduzitu hurrengoa** (⋮ menuan) abestia ilarako lehena jartzen du.
 
-**Ausazkoa**: ez du abesti bat ere errepikatzen zerrenda horretako guztiak entzun arte. Zerrenda bakoitzak (zure liburutegia, zerrenda bakoitza…) gogoratzen du non gelditu zinen. Gehitzen dituzun abesti berriak ausazkoan sartzen dira. Itzuli berri bat hasten denean, lehena ez da inoiz entzundako azkena.`,
+**Ausazkoa**: ez du abesti bat ere errepikatzen zerrenda horretako guztiak entzun arte. Zerrenda bakoitzak (zure liburutegia, zerrenda bakoitza…) gogoratzen du non gelditu zinen. Gehitzen dituzun abesti berriak ausazkoan sartzen dira. Itzuli berri bat hasten denean, lehena ez da inoiz entzundako azkena. Botoia anbar kolorekoa izaten da aktibo dagoen bitartean.
+
+**Errepikatu** (eskuineko botoia): sakatzen duzun bakoitzean modua aldatzen da. Errepikatu gabe: zerrenda bukatzean, musika gelditu egiten da. Errepikatu zerrenda: bukatzean, berriro hasten da. Errepikatu abestia (ikonoak «1» bat du): abesti bera behin eta berriz entzuten da.`,
     },
   },
   {

@@ -32,6 +32,9 @@ export function LibraryView() {
   const deferredQuery = useDeferredValue(query);
   const home = useSetup((s) => s.config?.home);
   const selecting = useUi((s) => s.selection !== null);
+  const shuffling = usePlayer(
+    (s) => s.mode === 'track' && s.shuffle && s.contextInfo?.path === '/',
+  );
   const target = useUi((s) => s.selectionTarget);
   const playlists = useLibrary((s) => s.playlists);
   const search = useSearch();
@@ -42,6 +45,11 @@ export function LibraryView() {
     const pl = addTo ? playlists.find((p) => p.id === addTo) : undefined;
     if (pl) useUi.getState().startSelection(undefined, { playlistId: pl.id, name: pl.name });
   }, [search, playlists]);
+
+  // The "send songs" sheet opens the library in plain picking mode: ?select=1
+  useEffect(() => {
+    if (new URLSearchParams(search).get('select') === '1') useUi.getState().startSelection();
+  }, [search]);
 
   const tracks = useMemo(() => {
     const q = normalizeText(deferredQuery.trim());
@@ -151,19 +159,23 @@ export function LibraryView() {
             >
               <Play size={24} fill="currentColor" style={{ marginLeft: 2 }} />
             </button>
-            <button className="btn" onClick={() => play(null, true)} disabled={!ids.length}>
+            <button
+              className={`btn${shuffling ? ' on' : ''}`}
+              onClick={() => play(null, true)}
+              disabled={!ids.length}
+              aria-pressed={shuffling}
+            >
               <Shuffle size={18} /> {t('common.shuffle')}
             </button>
             <button
-              className={`icon-btn${selecting ? ' on' : ''}`}
+              className={`btn small${selecting ? ' on' : ''}`}
               onClick={() =>
                 selecting ? useUi.getState().endSelection() : useUi.getState().startSelection()
               }
-              aria-label={t('select.start')}
-              title={t('select.start')}
+              aria-pressed={selecting}
               disabled={!ids.length}
             >
-              <CircleCheck size={22} />
+              <CircleCheck size={18} /> {t('select.start')}
             </button>
             <span className="grow" />
             <select

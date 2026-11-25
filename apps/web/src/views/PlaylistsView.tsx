@@ -4,8 +4,6 @@ import {
   Folder as FolderIcon,
   FolderPlus,
   Heart,
-  Link2,
-  PartyPopper,
   Plus,
   ScanLine,
 } from 'lucide-react';
@@ -19,6 +17,7 @@ import { songCount, useT, type Translate } from '../i18n';
 import { groupPlaylists } from '../storage/playlistOps';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { promptDialog } from '../stores/ui';
+import { FriendsRow } from '../components/playlists/FriendsRow';
 import { FolderMenu } from '../components/FolderMenu';
 import { DraggablePlaylist, PlaylistDnd, SortableFolder } from '../components/PlaylistDnd';
 import { PlaylistArt } from '../components/PlaylistArt';
@@ -59,17 +58,6 @@ export function PlaylistsView() {
       <header className="page-header">
         <h1>{t('playlists.title')}</h1>
         <div className="header-actions">
-          <Link href="/jam" className="btn small with-label" title={t('nav.jam')}>
-            <PartyPopper size={16} /> {t('nav.jam')}
-          </Link>
-          <button
-            className="btn small"
-            onClick={() => setOpenLink(true)}
-            aria-label={t('share.open')}
-            title={t('share.open')}
-          >
-            <Link2 size={16} />
-          </button>
           <button
             className="btn small"
             onClick={() => void createFolder()}
@@ -90,6 +78,8 @@ export function PlaylistsView() {
         </div>
       </header>
       <ScreenTip id="playlists" text="tips.playlists" helpId="playlists" />
+      <FriendsRow onReceive={() => setOpenLink(true)} />
+      <ScreenTip id="playlists-friends" text="share.tipFriends" helpId="share-playlist" />
 
       <PlaylistDnd playlists={playlists} folders={folders}>
         <div className="card-list">
