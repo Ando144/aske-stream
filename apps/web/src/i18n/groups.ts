@@ -21,6 +21,10 @@ export const groupsEn = {
   'nav.groups': 'Groups',
   'groups.title': 'Friend groups',
   'groups.help': 'Help about groups',
+  'groups.settings.section': 'Groups',
+  'groups.settingsNote':
+    'Sharing your listening and deleting your group data is in Settings → Groups.',
+  'groups.settingsLink': 'Go to Settings',
   'groups.intro':
     'Make a group with your friends to see who listens to what each month and to share playlists and Jams. Nobody sees your music, only what you choose to share.',
   'groups.loading': 'Loading your groups…',
@@ -145,6 +149,10 @@ export const groupsEs: Record<keyof typeof groupsEn, string> = {
   'nav.groups': 'Grupos',
   'groups.title': 'Grupos de amigos',
   'groups.help': 'Ayuda sobre los grupos',
+  'groups.settings.section': 'Grupos',
+  'groups.settingsNote':
+    'Compartir tus escuchas y borrar tus datos de grupos está en Ajustes → Grupos.',
+  'groups.settingsLink': 'Ir a Ajustes',
   'groups.intro':
     'Crea un grupo con tus amigos para ver quién escucha qué cada mes y para compartir playlists y Jams. Nadie ve tu música, solo lo que tú decidas compartir.',
   'groups.loading': 'Cargando tus grupos…',
@@ -274,6 +282,10 @@ export const groupsEu: Record<keyof typeof groupsEn, string> = {
   'nav.groups': 'Taldeak',
   'groups.title': 'Lagunen taldeak',
   'groups.help': 'Taldeei buruzko laguntza',
+  'groups.settings.section': 'Taldeak',
+  'groups.settingsNote':
+    'Zure entzunaldiak partekatzea eta taldeen datuak ezabatzea Ezarpenak → Taldeak atalean dago.',
+  'groups.settingsLink': 'Joan Ezarpenetara',
   'groups.intro':
     'Sortu talde bat zure lagunekin hilero nork zer entzuten duen ikusteko eta zerrendak eta Jam-ak partekatzeko. Inork ez du zure musika ikusten, zuk partekatzea erabakitzen duzuna baino ez.',
   'groups.loading': 'Zure taldeak kargatzen…',

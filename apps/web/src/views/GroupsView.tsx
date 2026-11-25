@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, LoaderCircle, Plus, UserPlus } from 'lucide-react';
+import { ChevronRight, CircleHelp, LoaderCircle, Plus, UserPlus, Users } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { normalizeInviteCode } from '@aske/shared/groups';
 import { CreateGroupSheet } from '../components/groups/CreateGroupSheet';
-import { GroupsConsent, WipeGroupsSection } from '../components/groups/GroupsConsent';
 import { JoinGroupSheet } from '../components/groups/JoinGroupSheet';
-import { HelpButton } from '../components/HelpSheet';
+import { HelpSheet } from '../components/HelpSheet';
 import { ScreenTip } from '../components/ScreenTip';
 import { hubAvailable } from '../hub/client';
 import { useT } from '../i18n';
@@ -39,22 +38,23 @@ function GroupList({ loaded }: { loaded: boolean }) {
   }
   if (groups.length === 0) return <p className="muted">{t('groups.empty')}</p>;
   return (
-    <ul className="groups-list panel">
+    <div className="card-list">
       {groups.map((group) => (
-        <li key={group.id}>
-          <Link href={`/groups/${group.id}`} className="row groups-link">
-            <div className="grow ellipsis">
-              <div className="ellipsis">{group.name}</div>
-              <div className="faint small">
-                {t('groups.people', { count: group.members })}
-                {group.isOwner && ` · ${t('groups.owner')}`}
-              </div>
+        <Link key={group.id} href={`/groups/${group.id}`} className="card-row">
+          <span className="groups-icon">
+            <Users size={22} />
+          </span>
+          <div className="grow groups-card-text">
+            <div className="card-title ellipsis">{group.name}</div>
+            <div className="muted small">
+              {t('groups.people', { count: group.members })}
+              {group.isOwner && ` · ${t('groups.owner')}`}
             </div>
-            <ChevronRight size={20} className="faint" />
-          </Link>
-        </li>
+          </div>
+          <ChevronRight size={20} className="faint" />
+        </Link>
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -64,6 +64,7 @@ export function GroupsView() {
   const [loaded, setLoaded] = useState(false);
   const [pendingCode] = useState(() => sessionStorage.getItem(PENDING_GROUP_KEY) ?? '');
   const [dialog, setDialog] = useState<Dialog>(pendingCode ? 'join' : null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     sessionStorage.removeItem(PENDING_GROUP_KEY);
@@ -80,20 +81,27 @@ export function GroupsView() {
 
   return (
     <div className="page">
-      <header className="page-header">
+      <header className="page-header groups-header">
         <h1>{t('groups.title')}</h1>
         <div className="header-actions">
-          <HelpButton id="friend-groups" label={t('groups.help')} />
+          <button
+            className="icon-btn"
+            aria-label={t('groups.help')}
+            title={t('groups.help')}
+            onClick={() => setHelpOpen(true)}
+          >
+            <CircleHelp size={20} />
+          </button>
         </div>
       </header>
+      {helpOpen && <HelpSheet id="friend-groups" onClose={() => setHelpOpen(false)} />}
       <ScreenTip id="groups" text="groups.tip" helpId="friend-groups" />
       {!hubAvailable() ? (
         <p className="error-text">{t('hub.err.unavailable')}</p>
       ) : (
         <>
           <p className="muted">{t('groups.intro')}</p>
-          <GroupsConsent />
-          <div className="row wrap groups-actions">
+          <div className="row groups-actions">
             <button className="btn primary" onClick={() => setDialog('create')}>
               <Plus size={16} /> {t('groups.create.button')}
             </button>
@@ -102,7 +110,9 @@ export function GroupsView() {
             </button>
           </div>
           <GroupList loaded={loaded} />
-          <WipeGroupsSection />
+          <p className="faint small groups-settings-note">
+            {t('groups.settingsNote')} <Link href="/settings">{t('groups.settingsLink')}</Link>
+          </p>
         </>
       )}
       {dialog === 'create' && (

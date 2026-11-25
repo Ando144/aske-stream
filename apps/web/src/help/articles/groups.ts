@@ -27,7 +27,7 @@ export const groupsArticles: HelpArticle[] = [
 
 **Qué no se comparte nunca:** tu música, tu email, las canciones que saltas, ni la radio ni los podcasts.
 
-**El interruptor «Compartir mis escuchas con mis grupos»:** está en **Grupos**, arriba. Está apagado hasta que tú lo enciendas.
+**El interruptor «Compartir mis escuchas con mis grupos»:** está en **Ajustes → Grupos**. Está apagado hasta que tú lo enciendas.
 - Solo controla tus escuchas. Puedes crear grupos, entrar y compartir playlists sin encenderlo.
 - Al encenderlo se activa también tu [[listening-stats|Recap]] en este móvil, porque las escuchas salen de ahí.
 - Al apagarlo se borran tus escuchas del Hub. Sigues dentro de tus grupos y el Recap sigue como estaba.
@@ -37,7 +37,7 @@ export const groupsArticles: HelpArticle[] = [
 **Salir, expulsar y borrar:**
 - Para salir de un grupo, ábrelo y pulsa **Salir del grupo**.
 - Solo quien creó el grupo puede expulsar a alguien. Una persona expulsada no puede volver a entrar.
-- Para irte de todos los grupos y borrar todo lo tuyo, pulsa **Borrar todos mis datos de grupos** al final de **Grupos**.
+- Para irte de todos los grupos y borrar todo lo tuyo, pulsa **Borrar todos mis datos de grupos** en **Ajustes → Grupos**.
 
 **Si algo falla:** si ves que el grupo está lleno, que ya estás en 10 grupos o que tu invitación no vale, lo dice la propia pantalla: pide a tu amigo un código nuevo o sal de algún grupo.
 
@@ -59,7 +59,7 @@ Más sobre tus datos en [[privacy|Privacidad]].`,
 
 **What is never shared:** your music, your email, the songs you skip, or radio and podcasts.
 
-**The “Share my listening with my groups” switch:** it is at the top of **Groups**. It is off until you turn it on.
+**The “Share my listening with my groups” switch:** it is in **Settings → Groups**. It is off until you turn it on.
 - It only controls your listening. You can create groups, join and share playlists without turning it on.
 - Turning it on also turns on your [[listening-stats|Recap]] on this phone, because the listening comes from there.
 - Turning it off deletes your listening from the Hub. You stay in your groups and the Recap stays as it was.
@@ -69,7 +69,7 @@ Más sobre tus datos en [[privacy|Privacidad]].`,
 **Leave, remove and delete:**
 - To leave a group, open it and tap **Leave the group**.
 - Only the person who created the group can remove someone. A removed person cannot join again.
-- To leave every group and delete everything of yours, tap **Delete all my group data** at the bottom of **Groups**.
+- To leave every group and delete everything of yours, tap **Delete all my group data** in **Settings → Groups**.
 
 **If something goes wrong:** if the group is full, you are already in 10 groups or your invitation does not work, the screen says so: ask your friend for a new code or leave a group.
 
@@ -91,7 +91,7 @@ More about your data in [[privacy|Privacy]].`,
 
 **Zer ez den inoiz partekatzen:** zure musika, zure posta elektronikoa, saltatzen dituzun abestiak, irratia eta podcastak.
 
-**«Partekatu nire entzunaldiak nire taldeekin» etengailua:** **Taldeak** atalaren goialdean dago. Zuk aktibatu arte itzalita dago.
+**«Partekatu nire entzunaldiak nire taldeekin» etengailua:** **Ezarpenak → Taldeak** atalean dago. Zuk aktibatu arte itzalita dago.
 - Zure entzunaldiak bakarrik kontrolatzen ditu. Taldeak sor ditzakezu, sartu eta zerrendak partekatu aktibatu gabe.
 - Aktibatzean, mugikor honetako [[listening-stats|Recap]]-a ere aktibatzen da, entzunaldiak hortik ateratzen direlako.
 - Itzaltzean, zure entzunaldiak Hub-etik ezabatzen dira. Zure taldeetan jarraitzen duzu eta Recap-a lehen bezala geratzen da.
@@ -101,7 +101,7 @@ More about your data in [[privacy|Privacy]].`,
 **Atera, kendu eta ezabatu:**
 - Talde bat uzteko, ireki eta sakatu **Utzi taldea**.
 - Taldea sortu duenak bakarrik kendu dezake norbait. Kendutako pertsona ezin da berriro sartu.
-- Talde guztiak utzi eta zure datu guztiak ezabatzeko, sakatu **Ezabatu nire taldeen datu guztiak** **Taldeak** atalaren amaieran.
+- Talde guztiak utzi eta zure datu guztiak ezabatzeko, sakatu **Ezabatu nire taldeen datu guztiak** **Ezarpenak → Taldeak** atalean.
 
 **Zerbaitek huts egiten badu:** taldea beteta badago, jada 10 taldetan bazaude edo zure gonbidapenak ez badu balio, pantailak berak esaten du: eskatu kode berri bat zure lagunari edo utzi talde bat.
 

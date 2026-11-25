@@ -11,6 +11,7 @@ import {
   LanguageSection,
   PlaybackSection,
 } from '../components/settings/GeneralSections';
+import { GroupsSection } from '../components/settings/GroupsSection';
 import { DeviceSection } from '../components/settings/DeviceSection';
 import { AboutSection, HelpSection } from '../components/settings/HelpAboutSections';
 
@@ -30,6 +31,8 @@ export function SettingsView() {
 
       <h2 className="section-title">{t('stats.settings.section')}</h2>
       <StatsSettingsPanel />
+
+      <GroupsSection />
 
       <h2 className="section-title">{t('storage.title')}</h2>
       <StoragePanel />
