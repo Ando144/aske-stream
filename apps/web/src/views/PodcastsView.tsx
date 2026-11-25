@@ -45,7 +45,7 @@ export function PodcastsView() {
     usePlayer.getState().playTracks(
       show.episodes.map((e) => e.id),
       id,
-      { shuffle: false, context: { label: show.name, path: '/podcasts' } },
+      { shuffle: false, context: { label: show.name, path: '/podcasts', fixedOrder: true } },
     );
 
   return (

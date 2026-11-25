@@ -213,7 +213,8 @@ describe('unheard songs play first', () => {
 
   it('turning shuffle off restores the original order at the current song', async () => {
     const all = ids(6);
-    usePlayer.getState().playTracks(all, null, { shuffle: true, context: ALL });
+    usePlayer.setState({ shuffle: true });
+    usePlayer.getState().playTracks(all, null, { context: ALL });
     await flush();
     const current = usePlayer.getState().currentId!;
     usePlayer.getState().toggleShuffle();
