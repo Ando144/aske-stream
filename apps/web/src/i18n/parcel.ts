@@ -155,7 +155,7 @@ export const parcelEu: Record<keyof typeof parcelEn, string> = {
     'Aske Hubetik abesti-zerrenda bakarrik pasatzen da, inoiz ez musika. Zure mugikorrak jasotzean ezabatzen da, edo 24 ordura.',
   'parcel.receive': 'Jaso',
   'parcel.tipSend':
-    'Bidaltzeko, ireki abesti edo playlist baten ⋮ menua, edo eutsi sakatuta hainbat aukeratzeko.',
+    'Bidaltzeko, ireki abesti edo zerrenda baten ⋮ menua, edo eutsi sakatuta hainbat aukeratzeko.',
   'parcel.receiveTitle': 'Jaso abestiak',
   'parcel.receiveText': 'Eskaneatu beste pantailan ageri den QRa, edo idatzi bere kodea.',
   'parcel.scan': 'Eskaneatu QRa',

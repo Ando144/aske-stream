@@ -59,13 +59,13 @@ export const pickEs: Record<keyof typeof pickEn, string> = {
 };
 
 export const pickEu: Record<keyof typeof pickEn, string> = {
-  'pick.loading': 'Playlista irakurtzen…',
-  'pick.loadingMore': 'Playlista irakurtzen: {count}/{total}…',
+  'pick.loading': 'Zerrenda irakurtzen…',
+  'pick.loadingMore': 'Zerrenda irakurtzen: {count}/{total}…',
   'pick.selected': '{count}/{total} hautatuta',
   'pick.all': 'Guztiak hautatu',
   'pick.none': 'Guztiak kendu',
   'pick.max': 'Aldi berean {count} abesti arte aukera ditzakezu. Kendu bat beste bat hautatzeko.',
-  'pick.overLimit': 'Playlist honek {total} abesti ditu. Lehen {count}ak bakarrik erakusten dira.',
+  'pick.overLimit': 'Zerrenda honek {total} abesti ditu. Lehen {count}ak bakarrik erakusten dira.',
   'pick.unavailableNote':
     '{count} abesti ez daude eskuragarri (pribatuak edo ezabatuak) eta saltatu egingo dira.',
   'pick.unavailableNote.one':
@@ -75,15 +75,15 @@ export const pickEu: Record<keyof typeof pickEn, string> = {
   'pick.send': 'Bidali {count} mugikorrera',
   'pick.send.one': 'Bidali 1 mugikorrera',
   'pick.noneSelected': 'Hautatu abesti bat gutxienez.',
-  'pick.gotPlaylist': '«{name}» playlisteko {count} abesti datoz. Playlist horretan gordeko dira.',
-  'pick.gotPlaylist.one': '«{name}» playlisteko abesti 1 dator. Playlist horretan gordeko da.',
+  'pick.gotPlaylist': '«{name}» zerrendako {count} abesti datoz. Zerrenda horretan gordeko dira.',
+  'pick.gotPlaylist.one': '«{name}» zerrendako abesti 1 dator. Zerrenda horretan gordeko da.',
   'pick.mixSongOnly': 'YouTubeko Mix automatiko bat da: abesti hau bakarrik erabiliko da.',
-  'pick.openPlaylist': 'Ikusi playlist osoa',
+  'pick.openPlaylist': 'Ikusi zerrenda osoa',
   'pick.err.mix':
-    'YouTubeko Mixak beren kabuz aldatzen dira eta ezin dira osorik bidali. Ireki playlist arrunt bat edo aukeratu abestiak banan-banan.',
+    'YouTubeko Mixak beren kabuz aldatzen dira eta ezin dira osorik bidali. Ireki zerrenda arrunt bat edo aukeratu abestiak banan-banan.',
   'pick.err.personal':
-    '«Gustuko bideoak» eta «Ikusteko geroago» zure YouTube kontuko zerrenda pribatuak dira eta ezin dira ireki. Kopiatu abestiak playlist publiko edo zerrendatu gabeko batera eta itsatsi haren esteka.',
+    '«Gustuko bideoak» eta «Ikusteko geroago» zure YouTube kontuko zerrenda pribatuak dira eta ezin dira ireki. Kopiatu abestiak zerrenda publiko edo zerrendatu gabeko batera eta itsatsi haren esteka.',
   'pick.err.private':
-    'Ezin dugu playlist hau ireki: pribatua da edo ez dago jada. YouTuben, jarri «Publikoa» edo «Zerrendatu gabea» eta itsatsi esteka berriro.',
-  'pick.err.none': 'Esteka hau ez da YouTubeko playlist batena.',
+    'Ezin dugu zerrenda hau ireki: pribatua da edo ez dago jada. YouTuben, jarri «Publikoa» edo «Zerrendatu gabea» eta itsatsi esteka berriro.',
+  'pick.err.none': 'Esteka hau ez da YouTubeko zerrenda batena.',
 };

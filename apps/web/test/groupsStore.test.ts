@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HubError } from '../src/hub/client';
 import { setStatsRepo, useStats } from '../src/stores/stats';
 import { memoryStatsRepo } from '../src/stats/repo';
@@ -36,7 +36,7 @@ vi.mock('../src/hub/errors', () => ({
 
 import { useGroups } from '../src/stores/groups';
 
-const group = { id: 'g1', name: 'Friends', members: 2, isOwner: true };
+const group = { id: 'g1', name: 'Friends', members: 2, isOwner: true, photoAt: null };
 const detail = {
   id: 'g1',
   name: 'Friends',
@@ -44,6 +44,7 @@ const detail = {
   isOwner: true,
   you: 'm1',
   members: [],
+  photoAt: null,
 };
 
 beforeEach(() => {
@@ -128,6 +129,28 @@ describe('wipeAll', () => {
     expect(useGroups.getState().groups).toEqual([group]);
     expect(h.resetDeviceKey).not.toHaveBeenCalled();
     expect(h.toast).toHaveBeenCalledWith('err:network', 'error');
+  });
+});
+
+describe('refresh and patchSummary', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('asks for the local month and accepts an old hub answer', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 1, 0, 30));
+    useGroups.setState({ groups: [] });
+    await useGroups.getState().refresh();
+    expect(h.api.listMyGroups).toHaveBeenCalledWith('2026-01');
+    expect(useGroups.getState().groups).toEqual([group]);
+  });
+
+  it('changes only the patched group', () => {
+    const other = { ...group, id: 'g2' };
+    useGroups.setState({ groups: [group, other] });
+    useGroups.getState().patchSummary('g1', { name: 'Trips', photoAt: 7 });
+    expect(useGroups.getState().groups).toEqual([{ ...group, name: 'Trips', photoAt: 7 }, other]);
   });
 });
 

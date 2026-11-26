@@ -1,0 +1,29 @@
+/* Jam bar for guests. Doubled classes: these must win over styles.css whatever the load order. */
+.jam-bar .jam-bar-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  text-align: left;
+  touch-action: pan-y;
+}
+
+.jam-bar .jam-bar-open .grow {
+  min-width: 0;
+}
+
+.jam-bar .jam-bar-skip {
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .player-bar.jam-bar {
+    display: flex;
+  }
+}
+
+.jam-skip-note {
+  margin: 0 0 12px;
+}

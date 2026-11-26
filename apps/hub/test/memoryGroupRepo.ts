@@ -12,6 +12,7 @@ export class MemoryGroupRepo implements GroupRepo {
   bans = new Set<string>();
   stats = new Map<string, StatsRow>(); // `${deviceHash}|${month}`
   shares: ShareRow[] = [];
+  photos = new Map<string, Uint8Array>();
   /** shared_lists stand-in: list id -> expires_at. */
   lists = new Map<string, number>();
 
@@ -54,8 +55,31 @@ export class MemoryGroupRepo implements GroupRepo {
     if (g) g.lastActiveAt = now;
   }
 
+  async renameGroup(groupId: string, name: string, now: number): Promise<void> {
+    const g = this.groups.get(groupId);
+    if (g) Object.assign(g, { name, lastActiveAt: now });
+  }
+
+  async putPhoto(groupId: string, data: Uint8Array, now: number): Promise<void> {
+    this.photos.set(groupId, new Uint8Array(data));
+    const g = this.groups.get(groupId);
+    if (g) Object.assign(g, { photoAt: now, lastActiveAt: now });
+  }
+
+  async getPhoto(groupId: string): Promise<Uint8Array | null> {
+    const photo = this.photos.get(groupId);
+    return photo ? new Uint8Array(photo) : null;
+  }
+
+  async deletePhoto(groupId: string, now: number): Promise<void> {
+    this.photos.delete(groupId);
+    const g = this.groups.get(groupId);
+    if (g) Object.assign(g, { photoAt: null, lastActiveAt: now });
+  }
+
   async deleteGroup(groupId: string): Promise<void> {
     this.groups.delete(groupId);
+    this.photos.delete(groupId);
     this.members = this.members.filter((m) => m.groupId !== groupId);
     this.shares = this.shares.filter((s) => s.groupId !== groupId);
     for (const ban of [...this.bans]) if (ban.startsWith(`${groupId}|`)) this.bans.delete(ban);

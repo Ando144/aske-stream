@@ -10,6 +10,9 @@ import { groupsEn } from './groups';
 import { podcastsEn } from './podcasts';
 import { playbackEn } from './playback';
 import { downloadsEn } from './downloads';
+import { jamRemoteEn } from './jamRemote';
+import { groupListEn } from './groupList';
+import { groupLookEn } from './groupLook';
 /** English is the source of truth: the other languages must define every key. */
 export const en = {
   'app.name': 'Aske Stream',
@@ -714,6 +717,9 @@ export const en = {
   ...podcastsEn,
   ...playbackEn,
   ...downloadsEn,
+  ...jamRemoteEn,
+  ...groupListEn,
+  ...groupLookEn,
   ...cloudflareSetupEn,
 } as const;
 

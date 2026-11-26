@@ -560,4 +560,107 @@ describe('useJam store', () => {
       expect(h.playTracks).not.toHaveBeenCalled();
     });
   });
+
+  describe('remote skip', () => {
+    const playing = { id: 'i-v1', song: song('v1') };
+    const skippable = (over: Record<string, unknown> = {}) =>
+      deliver({
+        type: 'state',
+        jam: {
+          ...snap([], playing),
+          members: [{ nickname: 'Ana', isHost: true }],
+          canSkip: true,
+          ...over,
+        },
+        you: { id: 'me' },
+      });
+    const joinAsGuest = async () => {
+      h.getJam.mockResolvedValue({});
+      await useJam.getState().join('A', 'n');
+    };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('announces remoteSkip in hello', async () => {
+      await joinAsGuest();
+      expect(h.socket.connect.mock.calls[0]![1]).toMatchObject({ features: ['remoteSkip'] });
+    });
+
+    it('guest sends skip for the current song and is locked for 2 s', async () => {
+      await joinAsGuest();
+      skippable();
+      vi.useFakeTimers();
+      useJam.getState().requestSkip();
+      vi.advanceTimersByTime(1999);
+      useJam.getState().requestSkip();
+      expect(h.socket.send.mock.calls.map((c) => c[0])).toEqual([{ type: 'skip', itemId: 'i-v1' }]);
+      expect(useJam.getState().skipLocked).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(useJam.getState().skipLocked).toBe(false);
+      useJam.getState().requestSkip();
+      expect(sentTypes()).toEqual(['skip', 'skip']);
+    });
+
+    it('guest sends nothing when skipping is not available', async () => {
+      await joinAsGuest();
+      skippable({ canSkip: false });
+      useJam.getState().requestSkip();
+      expect(h.socket.send).not.toHaveBeenCalled();
+      expect(useJam.getState().skipLocked).toBe(false);
+    });
+
+    it('leaving the Jam releases the lock', async () => {
+      await joinAsGuest();
+      skippable();
+      useJam.getState().requestSkip();
+      useJam.getState().leave();
+      expect(useJam.getState().skipLocked).toBe(false);
+    });
+
+    it('host requestSkip() skips and locks', async () => {
+      await startHost();
+      useJam.getState().requestSkip();
+      useJam.getState().requestSkip();
+      expect(sentTypes()).toEqual(['finish']);
+      expect(useJam.getState().skipLocked).toBe(true);
+    });
+
+    it('host obeys a skip request only once', async () => {
+      await startHost();
+      setLibrary({ v1: 't1' });
+      skippable({ skipRequested: 'i-v1' });
+      skippable({ skipRequested: 'i-v1' });
+      expect(sentTypes()).toEqual(['finish']);
+      expect(h.pause).toHaveBeenCalledTimes(1);
+    });
+
+    it('host starts the next ready song when a guest asks to skip', async () => {
+      await startHost();
+      setLibrary({ v1: 't1', v2: 't2' });
+      deliver({
+        type: 'state',
+        jam: { ...snap(['v2'], playing), skipRequested: 'i-v1' },
+        you: { id: 'me' },
+      });
+      expect(h.socket.send.mock.calls.map((c) => c[0])).toEqual([
+        { type: 'start', itemId: 'i-v2' },
+      ]);
+      expect(h.playTracks).toHaveBeenCalledWith(['t2'], 't2');
+    });
+
+    it('guest ignores skip requests of others', async () => {
+      await joinAsGuest();
+      skippable({ skipRequested: 'i-v1' });
+      expect(h.socket.send).not.toHaveBeenCalled();
+      expect(h.pause).not.toHaveBeenCalled();
+    });
+
+    it('stores host_away like any other error', async () => {
+      await joinAsGuest();
+      deliver({ type: 'error', code: 'host_away' });
+      expect(useJam.getState().error).toBe('host_away');
+    });
+  });
 });

@@ -25,9 +25,14 @@ export interface JamData {
   expiresAt: number;
   nowPlaying: JamItem | null;
   queue: JamItem[];
+  /** Absent in Jams stored before remote skip existed. */
+  skipRequested?: string | null;
 }
 
 export type ActionResult = { data: JamData } | { error: HubErrorCode };
+/** Whether a connected host phone is able to carry out a skip. */
+export type HostReadiness = 'ready' | 'outdated' | 'away';
+export type SkipResult = ActionResult | { ignored: true };
 
 /** Most votes first; ties go to whoever was added earlier. */
 export function sortQueue(queue: readonly JamItem[]): JamItem[] {
@@ -46,7 +51,12 @@ function toView(item: JamItem, viewerId: string): JamItemView {
   };
 }
 
-export function toSnapshot(data: JamData, members: JamMember[], viewerId: string): JamSnapshot {
+export function toSnapshot(
+  data: JamData,
+  members: JamMember[],
+  viewerId: string,
+  canSkip: boolean,
+): JamSnapshot {
   return {
     code: data.code,
     hostName: data.hostName,
@@ -54,6 +64,8 @@ export function toSnapshot(data: JamData, members: JamMember[], viewerId: string
     nowPlaying: data.nowPlaying ? toView(data.nowPlaying, viewerId) : null,
     queue: sortQueue(data.queue).map((item) => toView(item, viewerId)),
     members: members.map(({ nickname, isHost }) => ({ nickname, isHost })),
+    canSkip,
+    skipRequested: data.skipRequested ?? null,
   };
 }
 
@@ -120,7 +132,28 @@ function removeItem(data: JamData, actor: JamMember, itemId: string): ActionResu
 function startItem(data: JamData, itemId: string): ActionResult {
   const target = data.queue.find((i) => i.id === itemId);
   if (!target) return { error: 'not_found' };
-  return { data: { ...data, nowPlaying: target, queue: data.queue.filter((i) => i !== target) } };
+  const queue = data.queue.filter((i) => i !== target);
+  return { data: { ...data, nowPlaying: target, queue, skipRequested: null } };
+}
+
+function finishItem(data: JamData): ActionResult {
+  return { data: { ...data, nowPlaying: null, skipRequested: null } };
+}
+
+/** Only records the wish: the host's phone does the actual skip with `start` or `finish`. */
+export function requestSkip(
+  data: JamData,
+  itemId: string,
+  ctx: { now: number; lastSkipAt?: number; host: HostReadiness },
+): SkipResult {
+  if (ctx.host !== 'ready') {
+    return { error: ctx.host === 'outdated' ? 'host_outdated' : 'host_away' };
+  }
+  const tooSoon =
+    ctx.lastSkipAt !== undefined && ctx.now - ctx.lastSkipAt < HUB_LIMITS.jamSkipEveryMs;
+  const stale = data.nowPlaying?.id !== itemId || data.skipRequested === itemId;
+  if (tooSoon || stale) return { ignored: true };
+  return { data: { ...data, skipRequested: itemId } };
 }
 
 /** Pure state machine for the queue. 'end' only checks permission; the room closes itself. */
@@ -141,7 +174,7 @@ export function applyAction(
     case 'start':
       return actor.isHost ? startItem(data, msg.itemId) : { error: 'not_host' };
     case 'finish':
-      return actor.isHost ? { data: { ...data, nowPlaying: null } } : { error: 'not_host' };
+      return actor.isHost ? finishItem(data) : { error: 'not_host' };
     case 'end':
       return actor.isHost ? { data } : { error: 'not_host' };
     default:

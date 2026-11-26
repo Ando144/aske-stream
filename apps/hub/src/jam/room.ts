@@ -4,6 +4,7 @@ import {
   normalizeNickname,
   type HubErrorCode,
   type JamClientMessage,
+  type JamFeature,
   type JamInfo,
   type JamMember,
   type JamServerMessage,
@@ -11,7 +12,7 @@ import {
 import type { HubEnv } from '../env';
 import { safeEqual, sha256Hex } from '../lib/crypto';
 import { parseClientMessage } from './protocol';
-import { applyAction, toSnapshot, type JamData } from './state';
+import { applyAction, requestSkip, toSnapshot, type HostReadiness, type JamData } from './state';
 
 const STORAGE_KEY = 'jam';
 const CLOSE_ENDED = 4000;
@@ -39,8 +40,21 @@ function safeClose(ws: WebSocket, code?: number, reason?: string): void {
   }
 }
 
-function memberOf(ws: WebSocket): JamMember | null {
-  return (ws.deserializeAttachment() as JamMember | null) ?? null;
+/** `features` and `lastSkipAt` are internal: they must never be sent to clients. */
+type Attachment = JamMember & { features?: JamFeature[]; lastSkipAt?: number };
+
+function memberOf(ws: WebSocket): Attachment | null {
+  return (ws.deserializeAttachment() as Attachment | null) ?? null;
+}
+
+function publicSelf({ memberId, nickname, isHost }: Attachment): JamMember {
+  return { memberId, nickname, isHost };
+}
+
+function hostReadiness(members: Attachment[]): HostReadiness {
+  const hosts = members.filter((m) => m.isHost);
+  if (hosts.length === 0) return 'away';
+  return hosts.some((m) => m.features?.includes('remoteSkip')) ? 'ready' : 'outdated';
 }
 
 export class JamRoom extends DurableObject<HubEnv> {
@@ -92,6 +106,7 @@ export class JamRoom extends DurableObject<HubEnv> {
     if (msg.type === 'hello') return this.handleHello(ws, data, msg);
     const actor = memberOf(ws);
     if (!actor) return this.fail(ws, 'invalid_request');
+    if (msg.type === 'skip') return this.handleSkip(ws, data, actor, msg.itemId);
     await this.handleAction(ws, data, actor, msg);
   }
 
@@ -118,7 +133,7 @@ export class JamRoom extends DurableObject<HubEnv> {
     return data;
   }
 
-  private membersOf(): JamMember[] {
+  private membersOf(): Attachment[] {
     return this.ctx.getWebSockets().flatMap((ws) => memberOf(ws) ?? []);
   }
 
@@ -153,8 +168,29 @@ export class JamRoom extends DurableObject<HubEnv> {
     const isHost = msg.hostKey
       ? await safeEqual(await sha256Hex(msg.hostKey), data.hostKeyHash)
       : false;
-    ws.serializeAttachment({ memberId: msg.memberId, nickname, isHost } satisfies JamMember);
+    const { memberId, features } = msg;
+    ws.serializeAttachment({ memberId, nickname, isHost, features } satisfies Attachment);
     await this.broadcast();
+  }
+
+  private async handleSkip(
+    ws: WebSocket,
+    data: JamData,
+    actor: Attachment,
+    itemId: string,
+  ): Promise<void> {
+    const now = Date.now();
+    const host = hostReadiness(this.membersOf());
+    const result = requestSkip(data, itemId, { now, lastSkipAt: actor.lastSkipAt, host });
+    if ('ignored' in result) return;
+    if ('error' in result) return this.fail(ws, result.error);
+    ws.serializeAttachment({ ...actor, lastSkipAt: now } satisfies Attachment);
+    await this.save(result.data);
+  }
+
+  private async save(data: JamData): Promise<void> {
+    await this.ctx.storage.put(STORAGE_KEY, data);
+    await this.broadcast(data);
   }
 
   private async handleAction(
@@ -166,17 +202,19 @@ export class JamRoom extends DurableObject<HubEnv> {
     const result = applyAction(data, actor, msg, Date.now(), crypto.randomUUID());
     if ('error' in result) return this.fail(ws, result.error);
     if (msg.type === 'end') return this.endJam('host');
-    await this.ctx.storage.put(STORAGE_KEY, result.data);
-    await this.broadcast(result.data);
+    await this.save(result.data);
   }
 
   private async broadcast(current?: JamData): Promise<void> {
     const data = current ?? (await this.ctx.storage.get<JamData>(STORAGE_KEY));
     if (!data) return;
     const members = this.membersOf();
+    const canSkip = hostReadiness(members) === 'ready';
     for (const ws of this.ctx.getWebSockets()) {
-      const you = memberOf(ws);
-      if (you) safeSend(ws, { type: 'state', jam: toSnapshot(data, members, you.memberId), you });
+      const member = memberOf(ws);
+      if (!member) continue;
+      const jam = toSnapshot(data, members, member.memberId, canSkip);
+      safeSend(ws, { type: 'state', jam, you: publicSelf(member) });
     }
   }
 

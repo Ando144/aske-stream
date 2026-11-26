@@ -205,8 +205,8 @@ export const shareEu: Record<keyof typeof shareEn, string> = {
   'share.tipFriends':
     'Hemen zure lagunen zerrendak jasotzen dituzu, Jam bat egiten duzu edo zure taldeetan sartzen zara. Zerrenda bat partekatzeko, ireki bere ⋮ menua.',
 
-  'plsel.count': '{count} playlist',
-  'plsel.count.one': '1 playlist',
+  'plsel.count': '{count} zerrenda',
+  'plsel.count.one': 'Zerrenda 1',
   'plsel.queue': 'Ilara',
   'plsel.download': 'Deskargatu',
 };

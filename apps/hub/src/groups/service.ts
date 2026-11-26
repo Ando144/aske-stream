@@ -1,13 +1,18 @@
 import {
   GROUP_LIMITS,
+  sanitizeMonthStats,
+  type GroupCardMonth,
   type GroupDetail,
   type GroupMember,
   type GroupSummary,
+  type MonthStats,
 } from '@aske/shared/groups';
 import type { HubErrorCode } from '@aske/shared/hub';
 import { randomCode } from '../lib/ids';
 import { HubHttpError } from '../lib/http';
 import type { GroupRepo, GroupRow, MemberRow } from './repo';
+
+export type { GroupPreview } from '@aske/shared/groups';
 
 const ATTEMPTS = 5;
 
@@ -28,17 +33,74 @@ export function toDetail(group: GroupRow, members: MemberRow[], you: string): Gr
     isOwner: you === group.ownerMemberId,
     you,
     members: list,
+    photoAt: group.photoAt,
   };
 }
 
-export async function listSummaries(repo: GroupRepo, deviceHash: string): Promise<GroupSummary[]> {
-  const mine = await repo.groupsOfDevice(deviceHash);
-  return mine.map((m) => ({
-    id: m.group.id,
-    name: m.group.name,
-    members: m.members,
-    isOwner: m.memberId === m.group.ownerMemberId,
-  }));
+function parseStoredStats(statsJson: string): MonthStats | null {
+  try {
+    return sanitizeMonthStats(JSON.parse(statsJson));
+  } catch (err) {
+    console.error('Skipping unreadable month stats', err);
+    return null;
+  }
+}
+
+/** Rows come oldest member first, so a tie goes to whoever joined first. */
+export function cardMonth(
+  rows: Array<{ memberId: string; alias: string; statsJson: string }>,
+  month: string,
+): GroupCardMonth {
+  let minutes = 0;
+  let sharing = 0;
+  let topMinutes = 0;
+  let topAlias: string | null = null;
+  for (const row of rows) {
+    const stats = parseStoredStats(row.statsJson);
+    if (!stats) continue;
+    sharing += 1;
+    minutes += stats.minutes;
+    if (stats.minutes > topMinutes) {
+      topMinutes = stats.minutes;
+      topAlias = row.alias;
+    }
+  }
+  return { month, minutes: Math.round(minutes), sharing, topAlias };
+}
+
+export async function listSummaries(
+  repo: GroupRepo,
+  deviceHash: string,
+  month: string,
+): Promise<GroupSummary[]> {
+  const summaries: GroupSummary[] = [];
+  // At most maxGroupsPerDevice groups, so two queries per group are affordable.
+  for (const { group, memberId, members } of await repo.groupsOfDevice(deviceHash)) {
+    const oldest = (await repo.listMembers(group.id)).slice(0, GROUP_LIMITS.cardPeople);
+    summaries.push({
+      id: group.id,
+      name: group.name,
+      members,
+      isOwner: memberId === group.ownerMemberId,
+      photoAt: group.photoAt,
+      people: oldest.map((m) => m.alias),
+      month: cardMonth(await repo.statsForGroup(group.id, month), month),
+    });
+  }
+  return summaries;
+}
+
+/** Start (FF D8 FF) and end (FF D9) markers of a JPEG file, without overlapping. */
+export function isJpeg(bytes: Uint8Array): boolean {
+  const end = bytes.length;
+  return (
+    end >= 5 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff &&
+    bytes[end - 2] === 0xff &&
+    bytes[end - 1] === 0xd9
+  );
 }
 
 async function assertRoomForAnotherGroup(repo: GroupRepo, deviceHash: string): Promise<void> {
@@ -65,6 +127,7 @@ export async function createGroup(
       ownerMemberId: memberId,
       createdAt: now,
       lastActiveAt: now,
+      photoAt: null,
     };
     const owner: MemberRow = { groupId: group.id, memberId, deviceHash, alias, joinedAt: now };
     if (await repo.createGroup(group, owner)) return toDetail(group, [owner], memberId);

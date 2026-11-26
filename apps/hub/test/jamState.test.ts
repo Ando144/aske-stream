@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HUB_LIMITS, type JamClientMessage, type JamMember } from '@aske/shared/hub';
-import { applyAction, sortQueue, toSnapshot, type JamData } from '../src/jam/state';
+import { applyAction, requestSkip, sortQueue, toSnapshot, type JamData } from '../src/jam/state';
 
 const host: JamMember = { memberId: 'h', nickname: 'Host', isHost: true };
 const ana: JamMember = { memberId: 'a', nickname: 'Ana', isHost: false };
@@ -104,11 +104,72 @@ describe('applyAction', () => {
 
   it('builds a personal snapshot', () => {
     const d = run(empty(), ana, { type: 'add', song: song(1) }, 1, 'one');
-    expect(toSnapshot(d, [host], 'a').queue[0]).toMatchObject({
+    expect(toSnapshot(d, [host], 'a', false).queue[0]).toMatchObject({
       votes: 1,
       votedByMe: true,
       mine: true,
     });
-    expect(toSnapshot(d, [host], 'b').queue[0]).toMatchObject({ votedByMe: false, mine: false });
+    expect(toSnapshot(d, [host], 'b', false).queue[0]).toMatchObject({
+      votedByMe: false,
+      mine: false,
+    });
+  });
+
+  it('reports canSkip and the pending skip in the snapshot', () => {
+    expect(toSnapshot(empty(), [host], 'a', false)).toMatchObject({
+      canSkip: false,
+      skipRequested: null,
+    });
+    const d: JamData = { ...empty(), skipRequested: 'one' };
+    expect(toSnapshot(d, [host], 'a', true)).toMatchObject({
+      canSkip: true,
+      skipRequested: 'one',
+    });
+  });
+
+  it('start and finish clear the pending skip', () => {
+    let d = run(empty(), ana, { type: 'add', song: song(1) }, 1, 'one');
+    d = { ...d, skipRequested: 'old' };
+    expect(run(d, host, { type: 'start', itemId: 'one' }).skipRequested).toBeNull();
+    expect(run(d, host, { type: 'finish' }).skipRequested).toBeNull();
+  });
+});
+
+describe('requestSkip', () => {
+  const playing = (): JamData => {
+    const d = run(empty(), ana, { type: 'add', song: song(1) }, 1, 'one');
+    return run(d, host, { type: 'start', itemId: 'one' });
+  };
+  const ready = { now: 10_000, host: 'ready' as const };
+
+  it('records the song that is playing', () => {
+    expect(requestSkip(playing(), 'one', ready)).toMatchObject({
+      data: { skipRequested: 'one', nowPlaying: { id: 'one' } },
+    });
+  });
+
+  it('fails when the host cannot skip', () => {
+    expect(requestSkip(playing(), 'one', { ...ready, host: 'outdated' })).toEqual({
+      error: 'host_outdated',
+    });
+    expect(requestSkip(playing(), 'one', { ...ready, host: 'away' })).toEqual({
+      error: 'host_away',
+    });
+  });
+
+  it('ignores a second request within the per-person interval', () => {
+    const recent = ready.now - HUB_LIMITS.jamSkipEveryMs + 1;
+    expect(requestSkip(playing(), 'one', { ...ready, lastSkipAt: recent })).toEqual({
+      ignored: true,
+    });
+    const old = ready.now - HUB_LIMITS.jamSkipEveryMs;
+    expect(requestSkip(playing(), 'one', { ...ready, lastSkipAt: old })).toHaveProperty('data');
+  });
+
+  it('ignores a song that is not playing or is already requested', () => {
+    expect(requestSkip(playing(), 'other', ready)).toEqual({ ignored: true });
+    expect(requestSkip(empty(), 'one', ready)).toEqual({ ignored: true });
+    const pending: JamData = { ...playing(), skipRequested: 'one' };
+    expect(requestSkip(pending, 'one', ready)).toEqual({ ignored: true });
   });
 });

@@ -1,13 +1,16 @@
-import type {
-  HubErrorCode,
-  HubSong,
-  JamMember,
-  JamServerMessage,
-  JamSnapshot,
+import {
+  HUB_LIMITS,
+  JAM_FEATURES,
+  type HubErrorCode,
+  type HubSong,
+  type JamMember,
+  type JamServerMessage,
+  type JamSnapshot,
 } from '@aske/shared/hub';
 import { create } from 'zustand';
 import { createJam, getJam, HubError, jamSocketUrl } from '../hub/client';
 import { libraryByVideoId, nextReadyItem, songsToPrepare } from '../hub/jamHost';
+import { hostSkipTarget, skipAvailability } from '../hub/jamRemote';
 import { JamSocket, type JamSocketStatus } from '../hub/jamSocket';
 import { loadValue, savePref } from '../lib/storage';
 import { isNative } from '../native/platform';
@@ -40,6 +43,8 @@ interface JamState {
   error: JamErrorCode | null;
   endedReason: 'host' | 'expired' | null;
   preparing: Preparing;
+  /** True for a moment after asking for a skip, against double taps. */
+  skipLocked: boolean;
   create(o: { nickname: string; playlistName: string }): Promise<void>;
   join(code: string, nickname: string): Promise<void>;
   resume(): Promise<void>;
@@ -51,6 +56,8 @@ interface JamState {
   vote(itemId: string): void;
   remove(itemId: string): void;
   skip(): void;
+  /** Skips the current song, from the host's phone or by asking it to. */
+  requestSkip(): void;
   playItem(itemId: string): void;
   end(): void;
   clearError(): void;
@@ -68,6 +75,9 @@ let startPending = false;
 let songHasPlayed = false;
 /** Player settings put aside while a Jam song plays, so repeat and the manual queue stay out. */
 let stashed: { repeat: RepeatMode; queue: string[] } | null = null;
+/** Host: last item skipped on request, so a repeated `state` does not skip twice. */
+let lastHandledSkip: string | null = null;
+let skipTimer: ReturnType<typeof setTimeout> | undefined;
 
 function stashPlayerSettings() {
   const { repeat, queue } = usePlayer.getState();
@@ -112,7 +122,10 @@ export const useJam = create<JamState>((set, get) => {
     stopWatching();
     socket.close();
     savePref(SESSION_KEY, null);
+    clearTimeout(skipTimer);
+    lastHandledSkip = null;
     set({
+      skipLocked: false,
       session: null,
       snapshot: null,
       you: null,
@@ -200,11 +213,27 @@ export const useJam = create<JamState>((set, get) => {
     hostTick();
   }
 
+  function lockSkip() {
+    set({ skipLocked: true });
+    clearTimeout(skipTimer);
+    skipTimer = setTimeout(() => set({ skipLocked: false }), HUB_LIMITS.jamSkipEveryMs);
+  }
+
+  /** Host: someone in the Jam asked to skip the song that is playing. */
+  function followSkipRequest(snapshot: JamSnapshot) {
+    const target = hostSkipTarget(snapshot, lastHandledSkip);
+    if (!target) return;
+    lastHandledSkip = target;
+    get().skip();
+  }
+
   function handleServerMessage(msg: JamServerMessage) {
     if (msg.type === 'state') {
       startPending = false;
       set({ snapshot: msg.jam, you: msg.you });
-      if (isHost()) hostTick();
+      if (!isHost()) return;
+      followSkipRequest(msg.jam);
+      hostTick();
     } else if (msg.type === 'error') {
       set({ error: msg.code });
     } else {
@@ -227,6 +256,7 @@ export const useJam = create<JamState>((set, get) => {
       memberId: session.memberId,
       nickname: session.nickname,
       hostKey: session.hostKey,
+      features: [...JAM_FEATURES],
     });
     if (session.role === 'host') {
       unsubscribers = [
@@ -245,6 +275,7 @@ export const useJam = create<JamState>((set, get) => {
     error: null,
     endedReason: null,
     preparing: {},
+    skipLocked: false,
 
     async create({ nickname, playlistName }) {
       if (!isNative) return set({ error: 'unavailable' });
@@ -311,6 +342,18 @@ export const useJam = create<JamState>((set, get) => {
       usePlayer.getState().pause();
       socket.send({ type: 'finish' });
       hostTick();
+    },
+
+    requestSkip() {
+      const { skipLocked, snapshot } = get();
+      if (skipLocked) return;
+      if (isHost()) get().skip();
+      else {
+        const itemId = snapshot?.nowPlaying?.id;
+        if (!itemId || skipAvailability(snapshot) !== 'ok') return;
+        socket.send({ type: 'skip', itemId });
+      }
+      lockSkip();
     },
 
     playItem(itemId) {

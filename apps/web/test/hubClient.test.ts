@@ -106,6 +106,34 @@ describe('hub client', () => {
     });
   });
 
+  it('sends a blob body with its content type', async () => {
+    const client = await loadClient('https://hub.example');
+    fetchMock.mockResolvedValue(json(200, { photoAt: 1 }));
+    const body = new Blob(['jpeg'], { type: 'image/jpeg' });
+    await client.hubFetch('/groups/g/photo', { method: 'PUT', body });
+    const init = fetchMock.mock.calls[0]![1];
+    expect(init.body).toBe(body);
+    expect(new Headers(init.headers).get('Content-Type')).toBe('image/jpeg');
+  });
+
+  it('returns a blob, or null when there is none', async () => {
+    const client = await loadClient('https://hub.example');
+    fetchMock.mockResolvedValueOnce(new Response('jpeg', { status: 200 }));
+    expect(await (await client.hubFetchBlob('/groups/g/photo'))!.text()).toBe('jpeg');
+    fetchMock.mockResolvedValueOnce(json(404, { error: 'not_found' }));
+    expect(await client.hubFetchBlob('/groups/g/photo')).toBeNull();
+  });
+
+  it('throws a HubError when a blob request fails', async () => {
+    const client = await loadClient('https://hub.example');
+    fetchMock.mockResolvedValue(json(500, { error: 'internal_error' }));
+    await expect(client.hubFetchBlob('/groups/g/photo')).rejects.toMatchObject({
+      name: 'HubError',
+      code: 'internal_error',
+      status: 500,
+    });
+  });
+
   it('maps https to wss and http to ws for the socket', async () => {
     expect((await loadClient('https://hub.example/')).jamSocketUrl('ABCDEF')).toBe(
       'wss://hub.example/hub/v1/jams/ABCDEF/ws',

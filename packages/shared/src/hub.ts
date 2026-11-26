@@ -19,7 +19,12 @@ export const HUB_LIMITS = {
   parcelBodyMaxBytes: 1024 * 1024,
   playlistMaxPages: 10, // 100 songs per page → 1000
   continuationMax: 4096,
+  jamSkipEveryMs: 2000, // per person
 } as const;
+
+/** What a client can do beyond the base protocol; announced in `hello`. */
+export const JAM_FEATURES = ['remoteSkip'] as const;
+export type JamFeature = (typeof JAM_FEATURES)[number];
 
 export interface HubSong {
   videoId: string;
@@ -96,6 +101,11 @@ export interface JamSnapshot {
   nowPlaying: JamItemView | null;
   queue: JamItemView[]; // already sorted
   members: JamPublicMember[];
+  // Both optional: an old hub does not send them.
+  /** A connected host announced 'remoteSkip'. */
+  canSkip?: boolean;
+  /** Item id waiting for the host to skip. */
+  skipRequested?: string | null;
 }
 
 export type HubErrorCode =
@@ -116,11 +126,20 @@ export type HubErrorCode =
   | 'not_owner'
   | 'kicked'
   | 'too_many_groups'
+  | 'host_outdated'
+  | 'host_away'
   | 'internal_error';
 
 // WebSocket, client to server (JSON)
 export type JamClientMessage =
-  | { type: 'hello'; memberId: string; nickname: string; hostKey?: string }
+  | {
+      type: 'hello';
+      memberId: string;
+      nickname: string;
+      hostKey?: string;
+      features?: JamFeature[];
+    }
+  | { type: 'skip'; itemId: string } // anyone: asks the host's phone to skip that song
   | { type: 'add'; song: HubSong }
   | { type: 'vote'; itemId: string } // toggles the vote
   | { type: 'remove'; itemId: string } // host only (or whoever added it)

@@ -33,13 +33,14 @@ export function CreateGroupSheet({
   return (
     <Sheet onClose={onClose} label={t('groups.create.title')}>
       <form
-        className="sheet-body"
+        className="sheet-body groups-sheet"
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
         }}
       >
-        <h2>{t('groups.create.title')}</h2>
+        <h2 className="groups-sheet-title">{t('groups.create.title')}</h2>
+        <p className="muted small">{t('groups.create.photoHint')}</p>
         <input
           className="input groups-field"
           value={name}
@@ -50,7 +51,7 @@ export function CreateGroupSheet({
         />
         <AliasField value={alias} onChange={setAlias} />
         {problem && <div className="error-text">{problem}</div>}
-        <button className="btn primary" type="submit" disabled={busy}>
+        <button className="btn primary groups-big-btn" type="submit" disabled={busy}>
           {t('groups.create.go')}
         </button>
       </form>

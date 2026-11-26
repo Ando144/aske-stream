@@ -58,7 +58,9 @@ describe('create, join and read', () => {
     const mine = (await (await call(1, 'GET', '')).json()) as { groups: unknown[] };
     const other = (await (await call(2, 'GET', '')).json()) as { groups: unknown[] };
     expect(mine.groups).toHaveLength(1);
+    expect(mine.groups[0]).toMatchObject({ photoAt: null, people: ['Ana'] });
     expect(other.groups).toHaveLength(0);
+    expect(detail.photoAt).toBeNull();
   });
 
   it('never stores the device key itself', async () => {

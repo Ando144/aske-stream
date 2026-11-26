@@ -1,14 +1,55 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The store registers online/offline listeners on import; tests run in plain Node.
-vi.hoisted(() => {
-  (globalThis as unknown as { window: unknown }).window = { addEventListener() {} };
+const screen = vi.hoisted(() => {
+  const location = { pathname: '/playlists' };
+  Object.assign(globalThis, { window: { addEventListener() {} }, location });
+  return location;
 });
 
-import { useUi } from '../src/stores/ui';
+import { leftPlaylistSelectionScreen, useUi } from '../src/stores/ui';
 
 beforeEach(() => {
-  useUi.setState({ selection: null, selectionTarget: null, playlistSelection: null });
+  screen.pathname = '/playlists';
+  useUi.setState({
+    selection: null,
+    selectionTarget: null,
+    playlistSelection: null,
+    playlistSelectionPath: null,
+  });
+});
+
+describe('playlist selection belongs to its screen', () => {
+  it('remembers the screen where it started', () => {
+    useUi.getState().startPlaylistSelection('a');
+    expect(useUi.getState().playlistSelectionPath).toBe('/playlists');
+    expect(leftPlaylistSelectionScreen(useUi.getState(), '/playlists')).toBe(false);
+  });
+
+  it('is over once the route changes', () => {
+    useUi.getState().startPlaylistSelection('a');
+    expect(leftPlaylistSelectionScreen(useUi.getState(), '/folder/f1')).toBe(true);
+    useUi.getState().endPlaylistSelection();
+    expect(useUi.getState().playlistSelection).toBeNull();
+    expect(useUi.getState().playlistSelectionPath).toBeNull();
+  });
+
+  it('has no screen to leave while nothing is being selected', () => {
+    expect(leftPlaylistSelectionScreen(useUi.getState(), '/')).toBe(false);
+  });
+
+  it('drops the playlists that are no longer on screen', () => {
+    const ui = useUi.getState();
+    ui.startPlaylistSelection('a');
+    ui.togglePlaylistSelected('b');
+    ui.setPlaylistVisibleIds(['b', 'c']);
+    expect(useUi.getState().playlistSelection).toEqual(['b']);
+  });
+
+  it('does not start a selection by publishing the visible ids', () => {
+    useUi.getState().setPlaylistVisibleIds(['a']);
+    expect(useUi.getState().playlistSelection).toBeNull();
+  });
 });
 
 describe('playlist selection', () => {

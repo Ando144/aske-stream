@@ -60,7 +60,7 @@ Lehen deskargak pixka bat gehiago irauten du, aplikazioak deskargatzailea presta
 
 Dagoeneko dituzun abestiek «Baduzu» jartzen dute eta ez dira bi aldiz deskargatzen.
 
-Mugikorrean playlist baten esteka itsatsiz gero, abesti batzuk kendu ditzakezu deskargatu aurretik.`,
+Mugikorrean zerrenda baten esteka itsatsiz gero, abesti batzuk kendu ditzakezu deskargatu aurretik.`,
     },
   },
   {
@@ -246,17 +246,17 @@ Abestien izenak bakarrik bidaiatzen dute, inoiz ez musika: jasotzen duen mugikor
 **Mugikorretik bidali**
 Aukeratu bideetako bat:
 1. **Abesti bat:** sakatu abestiaren ⋮ menua eta aukeratu **Bidali beste mugikor batera**. QR bat agertuko da beste mugikorrak eskaneatzeko.
-2. **Hainbat abesti edo playlist:** eutsi sakatuta abesti bati (edo **Playlistak** atalean playlist bati) hainbat aukeratzeko, eta sakatu **Bidali beste mugikor batera**.
-3. **Playlist oso bat:** sakatu playlistaren ⋮ menua eta aukeratu **Bidali beste mugikor batera**.
+2. **Hainbat abesti edo zerrenda:** eutsi sakatuta abesti bati (edo **Zerrendak** atalean zerrenda bati) hainbat aukeratzeko, eta sakatu **Bidali beste mugikor batera**.
+3. **Zerrenda oso bat:** sakatu zerrendaren ⋮ menua eta aukeratu **Bidali beste mugikor batera**.
 4. **Ilara:** ireki erreproduzitzailea, sartu **Ilara** atalean eta sakatu **Bidali ilara beste mugikor batera**.
 
 YouTubetik datozen abestiak bakarrik bidaltzen dira; besteak kanpoan geratzen dira eta aplikazioak abisatzen dizu.
 
-**Playlist oso bat bidali**
-1. **Deskargatu** atalean, itsatsi YouTubeko playlistaren esteka.
+**Zerrenda oso bat bidali**
+1. **Deskargatu** atalean, itsatsi YouTubeko zerrendaren esteka.
 2. Abesti guztiak markatuta agertzen dira. Kendu nahi ez dituzunak.
 3. Sakatu **Bidali mugikorrera** eta eskaneatu kodea.
-4. Mugikorrean izen horrekin playlist bat sortzen da. Berdin bat baduzu, «Izena (2)» izango da.
+4. Mugikorrean izen horrekin zerrenda bat sortzen da. Berdin bat baduzu, «Izena (2)» izango da.
 
 1.000 abesti arte sartzen dira. Pribatuak edo ezabatuak saltatu egiten dira eta abisatuko dizugu. YouTubeko Mixak, «Gustuko bideoak» eta «Ikusteko geroago» ezin dira bidali.
 

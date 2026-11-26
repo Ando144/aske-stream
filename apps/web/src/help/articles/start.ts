@@ -150,7 +150,7 @@ If something is interrupted (internet, or Google asks you to reconnect), the cop
 
 **6 norabidetan kopia daiteke:** Gailu hautik Google Drive-ra edo Cloudflare-ra, Google Drive-tik Gailu hautara edo Cloudflare-ra, eta Cloudflare-tik Gailu hautara edo Google Drive-ra.
 
-**Zer kopiatzen den:** abestiak azalekin eta zure «gustuko»ekin, zure playlistak (gehienez 1.000 abestikoak) karpeta eta argazkiekin, eta zure irrati gogokoenak.
+**Zer kopiatzen den:** abestiak azalekin eta zure «gustuko»ekin, zure zerrendak (gehienez 1.000 abestikoak) karpeta eta argazkiekin, eta zure irrati gogokoenak.
 
 **Zer ez den gertatzen:**
 - **Ez da ezer ezabatzen** jatorrizko lekutik. Berriro aukeratzen baduzu, dena hor dago.

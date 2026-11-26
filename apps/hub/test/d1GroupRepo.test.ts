@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { cleanupGroups } from '../src/groups/cleanup';
 import { D1GroupRepo, type GroupRow, type MemberRow, type ShareRow } from '../src/groups/repo';
 import { createTestD1, type SqliteD1 } from './sqliteD1';
 
@@ -9,6 +10,7 @@ const group = (n: number, patch: Partial<GroupRow> = {}): GroupRow => ({
   ownerMemberId: `m${n}`,
   createdAt: 1000 + n,
   lastActiveAt: 1000 + n,
+  photoAt: null,
   ...patch,
 });
 
@@ -225,5 +227,50 @@ describe('deleteGroup', () => {
     expect(await repo.isBanned('g1', 'dev9')).toBe(false);
     expect(await repo.findGroup('g2')).not.toBeNull();
     expect(await repo.isBanned('g2', 'dev9')).toBe(true);
+  });
+});
+
+describe('name and photo', () => {
+  const photo = new Uint8Array([0xff, 0xd8, 0xff, 0x00, 0x80, 0xff, 0xd9]);
+
+  it('renames a group and marks it active', async () => {
+    await repo.renameGroup('g1', 'New name', 7000);
+    expect(await repo.findGroup('g1')).toMatchObject({ name: 'New name', lastActiveAt: 7000 });
+  });
+
+  it('stores the bytes untouched and overwrites them', async () => {
+    expect(await repo.getPhoto('g1')).toBeNull();
+    await repo.putPhoto('g1', new Uint8Array([1, 2, 3]), 6000);
+    await repo.putPhoto('g1', photo, 7000);
+    expect(await repo.getPhoto('g1')).toEqual(photo);
+    expect(await repo.findGroup('g1')).toMatchObject({ photoAt: 7000, lastActiveAt: 7000 });
+    expect(count('group_photos')).toBe(1);
+  });
+
+  it('removes the photo and its version', async () => {
+    await repo.putPhoto('g1', photo, 7000);
+    await repo.deletePhoto('g1', 8000);
+    expect(await repo.getPhoto('g1')).toBeNull();
+    expect(await repo.findGroup('g1')).toMatchObject({ photoAt: null, lastActiveAt: 8000 });
+  });
+
+  it('deleteGroup removes only the photo of that group', async () => {
+    await repo.createGroup(group(2), member('g2', 2));
+    await repo.putPhoto('g1', photo, 7000);
+    await repo.putPhoto('g2', photo, 7000);
+    await repo.deleteGroup('g1');
+    expect(await repo.getPhoto('g1')).toBeNull();
+    expect(await repo.getPhoto('g2')).toEqual(photo);
+  });
+
+  it('the cleanup removes the photo of an inactive group only', async () => {
+    const now = Date.UTC(2026, 10, 26);
+    await repo.createGroup(group(2), member('g2', 2));
+    await repo.putPhoto('g1', photo, 1);
+    await repo.putPhoto('g2', photo, now);
+    await cleanupGroups(sql as unknown as D1Database, now);
+    expect(await repo.findGroup('g1')).toBeNull();
+    expect(await repo.getPhoto('g1')).toBeNull();
+    expect(await repo.getPhoto('g2')).toEqual(photo);
   });
 });

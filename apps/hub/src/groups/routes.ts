@@ -1,11 +1,18 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { normalizeInviteCode, sanitizeGroupName, type GroupDetail } from '@aske/shared/groups';
+import {
+  isAcceptableMonth,
+  normalizeInviteCode,
+  sanitizeGroupName,
+  utcMonthKey,
+  type GroupDetail,
+} from '@aske/shared/groups';
 import { normalizeNickname } from '@aske/shared/hub';
 import type { HubAppEnv } from '../env';
 import { HubHttpError } from '../lib/http';
 import { enforceRateLimit } from '../lib/rateLimit';
 import { deviceHashOf, invalidRequest, readJsonBody, requireMember, type RepoFor } from './auth';
+import { createLookRoutes } from './lookRoutes';
 import {
   createGroup,
   joinGroup,
@@ -38,13 +45,19 @@ async function parseBody<T extends z.ZodType>(req: Request, schema: T): Promise<
   return parsed.data;
 }
 
+/** The phone's local month; an odd value must not break the list, so it falls back to UTC. */
+function cardMonthKey(raw: string | undefined, now: number): string {
+  return raw && isAcceptableMonth(raw, now) ? raw : utcMonthKey(now);
+}
+
 export function createGroupRoutes(repoFor: RepoFor): Hono<HubAppEnv> {
   const app = new Hono<HubAppEnv>();
 
   app.get('/', async (c) => {
     const deviceHash = await deviceHashOf(c);
     await enforceRateLimit(c, c.env.DB, 'group_read', 300, TEN_MIN_MS);
-    return c.json({ groups: await listSummaries(repoFor(c.env), deviceHash) });
+    const month = cardMonthKey(c.req.query('month'), Date.now());
+    return c.json({ groups: await listSummaries(repoFor(c.env), deviceHash, month) });
   });
 
   app.post('/', async (c) => {
@@ -88,6 +101,7 @@ export function createGroupRoutes(repoFor: RepoFor): Hono<HubAppEnv> {
 
   app.route('/', createStatsRoutes(repoFor));
   app.route('/', createShareRoutes(repoFor));
+  app.route('/', createLookRoutes(repoFor));
 
   app.get('/:id', async (c) => {
     const deviceHash = await deviceHashOf(c);

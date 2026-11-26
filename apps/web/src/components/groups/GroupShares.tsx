@@ -132,8 +132,8 @@ export function GroupShares({ group }: { group: GroupDetail }) {
   };
 
   return (
-    <section className="panel groups-section">
-      <h2 className="section-title">{t('groups.shares.title')}</h2>
+    <section className="panel groups-section group-shared">
+      <h2 className="section-title">{t('groups.section.shared')}</h2>
       {shares?.length === 0 && <p className="muted small">{t('groups.shares.empty')}</p>}
       <ul className="groups-list">
         {shares?.map((share) => (

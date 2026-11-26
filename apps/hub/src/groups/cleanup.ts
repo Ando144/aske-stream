@@ -8,6 +8,7 @@ export async function cleanupGroups(db: D1Database, now: number): Promise<void> 
     db.prepare(`DELETE FROM group_members WHERE group_id IN (${idle})`).bind(cutoff),
     db.prepare(`DELETE FROM group_bans WHERE group_id IN (${idle})`).bind(cutoff),
     db.prepare(`DELETE FROM group_shares WHERE group_id IN (${idle})`).bind(cutoff),
+    db.prepare(`DELETE FROM group_photos WHERE group_id IN (${idle})`).bind(cutoff),
     db.prepare('DELETE FROM groups WHERE last_active_at < ?').bind(cutoff),
     db.prepare('DELETE FROM group_shares WHERE expires_at < ?').bind(now),
     db.prepare('DELETE FROM device_stats WHERE month < ?').bind(oldestKeptMonth(now)),

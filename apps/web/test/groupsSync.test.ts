@@ -18,7 +18,7 @@ vi.mock('../src/hub/groupsClient', () => ({ uploadStats: h.uploadStats }));
 import { syncGroupStats } from '../src/groups/sync';
 import { useGroups } from '../src/stores/groups';
 
-const group = { id: 'g1', name: 'Friends', members: 2, isOwner: true };
+const group = { id: 'g1', name: 'Friends', members: 2, isOwner: true, photoAt: null };
 const HOUR = 3600_000;
 
 beforeEach(async () => {

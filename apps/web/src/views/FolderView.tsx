@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, EllipsisVertical, Folder as FolderIcon } from 'lucide-react';
+import { ChevronLeft, CircleCheck, EllipsisVertical, Folder as FolderIcon } from 'lucide-react';
 import { Link } from 'wouter';
 import { sortPlaylists } from '@aske/shared';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { useUi } from '../stores/ui';
+import '../playlistSelect.css';
 import { FolderMenu } from '../components/FolderMenu';
 import { PlaylistDnd } from '../components/PlaylistDnd';
 import { PlaylistRow } from './PlaylistsView';
@@ -56,6 +57,13 @@ export function FolderView({ id }: { id: string }) {
           <EllipsisVertical size={20} />
         </button>
       </header>
+      {inside.length > 0 && (
+        <div className="row playlists-select-row">
+          <button className="btn small" onClick={() => useUi.getState().startPlaylistSelection()}>
+            <CircleCheck size={16} /> {t('select.start')}
+          </button>
+        </div>
+      )}
 
       <PlaylistDnd playlists={playlists} rootZone>
         <div className="card-list">

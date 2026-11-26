@@ -11,6 +11,9 @@ import { groupsEu } from './groups';
 import { podcastsEu } from './podcasts';
 import { playbackEu } from './playback';
 import { downloadsEu } from './downloads';
+import { jamRemoteEu } from './jamRemote';
+import { groupListEu } from './groupList';
+import { groupLookEu } from './groupLook';
 
 export const eu: Messages = {
   'app.name': 'Aske Stream',
@@ -668,8 +671,8 @@ export const eu: Messages = {
   'copy.place.device': 'Gailu hau',
   'copy.place.drive': 'Google Drive',
   'copy.place.cloudflare': 'Cloudflare',
-  'copy.offer': '{count} abesti kopiatuko ditugu, zure «gustuko», playlist eta irrati gogokoekin?',
-  'copy.offer.one': 'Abesti 1 kopiatuko dugu, zure «gustuko», playlist eta irrati gogokoekin?',
+  'copy.offer': '{count} abesti kopiatuko ditugu, zure «gustuko», zerrenda eta irrati gogokoekin?',
+  'copy.offer.one': 'Abesti 1 kopiatuko dugu, zure «gustuko», zerrenda eta irrati gogokoekin?',
   'copy.explain':
     'Ez da ezer ezabatzen jatorrizko lekuan. Zure karpetak eta zerrenden azalak ere kopiatzen dira. Nahi duzunean gelditu dezakezu: berriro sakatzean, utzitako lekutik jarraitzen du eta ez du ezer bi aldiz kopiatzen. Hobe Wi-Fiarekin.',
   'copy.start': 'Kopiatu',
@@ -696,7 +699,7 @@ export const eu: Messages = {
   'copy.failed.one':
     'Abesti 1 ezin izan da kopiatu. Sakatu «Kopiatzen jarraitu» berriro saiatzeko.',
   'copy.playlistFull':
-    '«{name}» playlistak {count} abesti ditu eta ez dira denak sartzen helmugan: sartzen diren lehenak kopiatu dira.',
+    '«{name}» zerrendak {count} abesti ditu eta ez dira denak sartzen helmugan: sartzen diren lehenak kopiatu dira.',
   'copy.close': 'Itxi',
   'copy.fromOther': 'Kopiatu musika beste leku batetik',
   'copy.nothing': 'Ez dago musikarik beste leku batetik kopiatzeko.',
@@ -728,5 +731,8 @@ export const eu: Messages = {
   ...podcastsEu,
   ...playbackEu,
   ...downloadsEu,
+  ...jamRemoteEu,
+  ...groupListEu,
+  ...groupLookEu,
   ...cloudflareSetupEu,
 };

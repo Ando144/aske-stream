@@ -42,6 +42,7 @@ import { SharedListView } from './views/SharedListView';
 import { JamView, PENDING_JAM_KEY } from './views/JamView';
 import { JamBanner } from './components/jam/JamBanner';
 import { useJam } from './stores/jam';
+import { useJamBarVisible } from './hub/jamRemote';
 import { useTips } from './stores/tips';
 import { useDownloads } from './stores/downloads';
 import { useSend } from './stores/send';
@@ -262,7 +263,9 @@ function Shell() {
     withTimeout(useServerUpdate.getState().check(), BOOT_TIMEOUT_MS).catch(warn);
     withTimeout(useJam.getState().resume(), BOOT_TIMEOUT_MS).catch(warn);
   }, []);
-  const hasPlayer = usePlayer((s) => s.mode !== 'idle');
+  const playerActive = usePlayer((s) => s.mode !== 'idle');
+  const jamBarShown = useJamBarVisible();
+  const hasPlayer = playerActive || jamBarShown;
   const studyPhase = useStudy((s) => s.phase);
   const [location, navigate] = useLocation();
   const mainRef = useRef<HTMLElement>(null);

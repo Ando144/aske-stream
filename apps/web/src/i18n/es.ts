@@ -11,6 +11,9 @@ import { groupsEs } from './groups';
 import { podcastsEs } from './podcasts';
 import { playbackEs } from './playback';
 import { downloadsEs } from './downloads';
+import { jamRemoteEs } from './jamRemote';
+import { groupListEs } from './groupList';
+import { groupLookEs } from './groupLook';
 
 export const es: Messages = {
   'app.name': 'Aske Stream',
@@ -729,5 +732,8 @@ export const es: Messages = {
   ...podcastsEs,
   ...playbackEs,
   ...downloadsEs,
+  ...jamRemoteEs,
+  ...groupListEs,
+  ...groupLookEs,
   ...cloudflareSetupEs,
 };

@@ -2,9 +2,12 @@
 import { api } from '../api/client';
 import { t } from '../i18n';
 import { Downloader } from '../native/downloader';
+// Circular import (that store creates these controls): only use it inside functions.
+import { useDownloads } from '../stores/downloads';
 import { useLibrary } from '../stores/library';
 import { toast } from '../stores/ui';
 import { endedPatch, isActive, sendOutcome, type DownloadsState } from './jobsStore';
+import { snapshotKnownIds, sweepAfterCancel } from './orphans';
 import { stuckSaving } from './pipeline';
 import type { SaveOutcome } from './save';
 import type { DownloadJob } from './types';
@@ -16,6 +19,9 @@ interface Store {
 }
 
 const ack = (jobId: string) => Downloader.ack({ jobId }).catch(() => undefined);
+
+const watchJobs = (onChange: (jobs: readonly DownloadJob[]) => void) =>
+  useDownloads.subscribe((state) => onChange(state.jobs));
 
 /** A save that ended although it had been stopped: its song must not stay in the library. */
 export async function discardSaved(outcome: SaveOutcome): Promise<void> {
@@ -76,8 +82,11 @@ export function createJobControls(store: Store) {
     const job = get().jobs.find((j) => j.id === jobId);
     if (!job || job.status === 'done' || job.status === 'skipped') return false;
     const wasSaving = job.status === 'saving';
+    // Read before aborting: whatever appears afterwards was left behind by this save.
+    const knownIds = wasSaving ? snapshotKnownIds(job.videoId) : null;
     abort(jobId);
     update(jobId, { status: 'canceled', error: undefined, finishedAt: Date.now() });
+    if (knownIds) sweepAfterCancel(job, knownIds, () => get().jobs, watchJobs);
     if (wasSaving) toast(t('dl.toast.canceledSaving'));
     if (wasSaving || job.status === 'downloaded') await ack(jobId);
     if (job.sendId) await reportSend(job.sendId);

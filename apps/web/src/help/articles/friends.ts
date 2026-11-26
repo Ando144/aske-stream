@@ -65,7 +65,15 @@ export const friendsArticles: HelpArticle[] = [
     body: {
       es: `Una Jam es una cola de canciones compartida. Cada amigo añade y vota canciones desde su móvil, y suenan en el móvil del anfitrión.
 
-**Quién la pone a sonar:** solo suena el móvil del anfitrión. Los demás no oyen nada en su móvil: ponen canciones y votan. Las canciones con más votos suenan antes.
+**Quién la pone a sonar:** solo suena el móvil del anfitrión. Los demás no oyen nada en su móvil: ponen canciones, votan y pueden saltar la que suena. Las canciones con más votos suenan antes.
+
+**Saltar una canción:** cualquiera de la Jam puede hacerlo, con el botón **Siguiente** de la pantalla de la Jam.
+- Salta al momento: no pide confirmación y no avisa a nadie de quién ha sido. Quien creó la Jam no puede impedirlo.
+- Cada persona puede saltar una vez cada 2 segundos, para que un doble toque no salte dos canciones.
+- **La barra de la Jam:** si has entrado en la Jam de otra persona y tu móvil no está reproduciendo nada, abajo aparece una barra con la portada, el título y «Suena en el móvil de…». Pulsa **Siguiente** o desliza la barra a la **izquierda** para saltar; tócala para abrir la Jam.
+- Si estás escuchando tu propia música, ves tu reproductor de siempre: salta desde la pantalla de la Jam.
+- Si sale «Quien creó la Jam tiene que actualizar la app para que podáis saltar canciones.», pídele que vaya a **Ajustes → Aplicación → Buscar actualizaciones**, actualice y vuelva a abrir la Jam.
+- Si sale «Quien creó la Jam no está conectado ahora mismo», pídele que abra la app y revise su internet.
 
 **Para ser anfitrión** (solo en la app de Android):
 1. Ve a **Jam** (en el móvil, desde **Playlists** pulsa **Jam**) y escribe tu nombre.
@@ -94,7 +102,15 @@ Solo pueden sonar canciones que vienen de YouTube. Si eliges otra (por ejemplo u
 **Si no se conecta:** revisa que tengas internet y vuelve a entrar. Si ves «Esta Jam no existe», revisa el código. Si dice que ha terminado, el anfitrión la cerró o pasaron 12 horas: pídele que empiece otra.`,
       en: `A Jam is a shared song queue. Each friend adds and votes for songs from their own phone, and they play on the host's phone.
 
-**Who plays the music:** only the host's phone plays. Everyone else hears nothing on their phone: they add songs and vote. The songs with more votes play first.
+**Who plays the music:** only the host's phone plays. Everyone else hears nothing on their phone: they add songs, vote and can skip the one that is playing. The songs with more votes play first.
+
+**Skipping a song:** anyone in the Jam can do it, with the **Next song** button on the Jam screen.
+- It skips right away: there is no confirmation and nobody is told who did it. The person who created the Jam cannot prevent it.
+- Each person can skip once every 2 seconds, so that a double tap does not skip two songs.
+- **The Jam bar:** if you joined someone else’s Jam and your phone is not playing anything, a bar appears at the bottom with the cover, the title and “Playing on …’s phone”. Tap **Next song** or swipe the bar to the **left** to skip; tap it to open the Jam.
+- If you are listening to your own music, you see your usual player: skip from the Jam screen.
+- If you see “The person who created the Jam needs to update the app so that you can skip songs.”, ask them to go to **Settings → App → Check for updates**, update and open the Jam again.
+- If you see “The person who created the Jam is not connected right now”, ask them to open the app and check their internet.
 
 **To be the host** (Android app only):
 1. Go to **Jam** (on a phone, tap **Jam** inside **Playlists**) and write your name.
@@ -123,7 +139,15 @@ Only songs that come from YouTube can play. If you pick another one (a file from
 **If it does not connect:** check your internet and join again. If you see “This Jam does not exist”, check the code. If it says it has ended, the host closed it or 12 hours went by: ask them to start another.`,
       eu: `Jam bat abesti-ilara partekatu bat da. Lagun bakoitzak bere telefonotik abestiak gehitu eta bozkatzen ditu, eta antolatzailearen telefonoan jotzen dira.
 
-**Nork jotzen duen:** antolatzailearen telefonoak bakarrik jotzen du. Besteek ez dute ezer entzuten beren telefonoan: abestiak jarri eta bozkatzen dituzte. Boto gehien dituzten abestiak lehenago jotzen dira.
+**Nork jotzen duen:** antolatzailearen telefonoak bakarrik jotzen du. Besteek ez dute ezer entzuten beren telefonoan: abestiak jarri, bozkatu eta jotzen ari dena salta dezakete. Boto gehien dituzten abestiak lehenago jotzen dira.
+
+**Abesti bat saltatu:** Jam-eko edonork egin dezake, Jam-aren pantailako **Hurrengoa** botoiarekin.
+- Berehala saltatzen du: ez du berrespenik eskatzen eta ez dio inori esaten nork egin duen. Jam-a sortu duenak ezin du eragotzi.
+- Pertsona bakoitzak 2 segundotik behin salta dezake, ukitu bikoitz batek bi abesti salta ez ditzan.
+- **Jam-aren barra:** beste norbaiten Jam-ean sartu bazara eta zure telefonoa ez bada ezer jotzen ari, behean barra bat agertzen da, azalarekin, izenburuarekin eta abestia noren mugikorrean jotzen ari den esaten duen testuarekin. Saltatzeko, sakatu **Hurrengoa** edo irristatu barra **ezkerrera**; Jam-a irekitzeko, ukitu barra.
+- Zure musika entzuten ari bazara, betiko erreproduzitzailea ikusten duzu: saltatu Jam-aren pantailatik.
+- «Jam-a sortu duenak aplikazioa eguneratu behar du abestiak saltatu ahal izateko.» agertzen bada, eskatu **Ezarpenak → Aplikazioa → Bilatu eguneraketak** atalera joateko, eguneratzeko eta Jam-a berriro irekitzeko.
+- «Jam-a sortu duena ez dago konektatuta orain» agertzen bada, eskatu aplikazioa irekitzeko eta internet egiaztatzeko.
 
 **Antolatzailea izateko** (Android aplikazioan bakarrik):
 1. Joan **Jam** atalera (telefonoan, **Zerrendak** atalean sakatu **Jam**) eta idatzi zure izena.

@@ -7,6 +7,7 @@ export interface GroupRow {
   ownerMemberId: string;
   createdAt: number;
   lastActiveAt: number;
+  photoAt: number | null;
 }
 export interface MemberRow {
   groupId: string;
@@ -35,7 +36,14 @@ export interface GroupRepo {
   setInviteCode(groupId: string, code: string): Promise<boolean>;
   setOwner(groupId: string, memberId: string): Promise<void>;
   touchGroup(groupId: string, now: number): Promise<void>;
-  /** Also removes members, bans and shares. */
+  /** Also marks the group as active. */
+  renameGroup(groupId: string, name: string, now: number): Promise<void>;
+  /** Replaces any previous photo, sets photoAt and marks the group as active. */
+  putPhoto(groupId: string, data: Uint8Array, now: number): Promise<void>;
+  getPhoto(groupId: string): Promise<Uint8Array | null>;
+  /** Clears photoAt and marks the group as active. */
+  deletePhoto(groupId: string, now: number): Promise<void>;
+  /** Also removes members, bans, shares and the photo. */
   deleteGroup(groupId: string): Promise<void>;
   /** Oldest first. */
   listMembers(groupId: string): Promise<MemberRow[]>;
@@ -73,6 +81,7 @@ interface GroupDbRow {
   owner_member_id: string;
   created_at: number;
   last_active_at: number;
+  photo_at: number | null;
 }
 interface MemberDbRow {
   group_id: string;
@@ -99,6 +108,7 @@ const toGroup = (r: GroupDbRow): GroupRow => ({
   ownerMemberId: r.owner_member_id,
   createdAt: r.created_at,
   lastActiveAt: r.last_active_at,
+  photoAt: r.photo_at,
 });
 const toMember = (r: MemberDbRow): MemberRow => ({
   groupId: r.group_id,
@@ -190,8 +200,50 @@ export class D1GroupRepo implements GroupRepo {
     await this.run('UPDATE groups SET last_active_at = ? WHERE id = ?', now, groupId);
   }
 
+  async renameGroup(groupId: string, name: string, now: number): Promise<void> {
+    await this.run(
+      'UPDATE groups SET name = ?, last_active_at = ? WHERE id = ?',
+      name,
+      now,
+      groupId,
+    );
+  }
+
+  async putPhoto(groupId: string, data: Uint8Array, now: number): Promise<void> {
+    await this.db.batch([
+      this.db
+        .prepare(
+          `INSERT INTO group_photos (group_id, data, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT (group_id) DO UPDATE SET data = excluded.data,
+             updated_at = excluded.updated_at`,
+        )
+        .bind(groupId, data, now),
+      this.db
+        .prepare('UPDATE groups SET photo_at = ?, last_active_at = ? WHERE id = ?')
+        .bind(now, now, groupId),
+    ]);
+  }
+
+  async getPhoto(groupId: string): Promise<Uint8Array | null> {
+    // D1 may return a BLOB as a list of numbers; other SQLite drivers return bytes.
+    const row = await this.first<{ data: ArrayBuffer | number[] }>(
+      'SELECT data FROM group_photos WHERE group_id = ?',
+      groupId,
+    );
+    return row ? new Uint8Array(row.data) : null;
+  }
+
+  async deletePhoto(groupId: string, now: number): Promise<void> {
+    await this.db.batch([
+      this.db.prepare('DELETE FROM group_photos WHERE group_id = ?').bind(groupId),
+      this.db
+        .prepare('UPDATE groups SET photo_at = NULL, last_active_at = ? WHERE id = ?')
+        .bind(now, groupId),
+    ]);
+  }
+
   async deleteGroup(groupId: string): Promise<void> {
-    const tables = ['group_members', 'group_bans', 'group_shares'];
+    const tables = ['group_members', 'group_bans', 'group_shares', 'group_photos'];
     await this.db.batch([
       ...tables.map((t) => this.db.prepare(`DELETE FROM ${t} WHERE group_id = ?`).bind(groupId)),
       this.db.prepare('DELETE FROM groups WHERE id = ?').bind(groupId),

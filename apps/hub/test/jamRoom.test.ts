@@ -237,6 +237,118 @@ describe('JamRoom', () => {
     spy.mockRestore();
   });
 
+  describe('skip', () => {
+    type State = {
+      type: string;
+      jam: {
+        canSkip: boolean;
+        skipRequested: string | null;
+        nowPlaying: { id: string } | null;
+        queue: Array<{ id: string }>;
+        members: object[];
+      };
+      you: Record<string, unknown>;
+    };
+    const stateOf = (ws: FakeSocket) => ws.last() as unknown as State;
+
+    async function playingRoom(features: string[] = ['remoteSkip']) {
+      const { ctx, room, hostKey } = await liveRoom();
+      const host = join(ctx, room);
+      const ann = join(ctx, room);
+      const bob = join(ctx, room);
+      await host.say({ type: 'hello', memberId: 'h', nickname: 'Host', hostKey, features });
+      await ann.say({ type: 'hello', memberId: 'a', nickname: 'Ann' });
+      await bob.say({ type: 'hello', memberId: 'b', nickname: 'Bob' });
+      await ann.say({ type: 'add', song });
+      await ann.say({ type: 'add', song: { ...song, videoId: 'aaaaaaaaaaa' } });
+      const [first, second] = stateOf(ann.ws).jam.queue.map((item) => item.id) as [string, string];
+      await host.say({ type: 'start', itemId: first });
+      return { ctx, room, host, ann, bob, first, second };
+    }
+
+    it("a guest's skip is stored and broadcast without changing what plays", async () => {
+      const { ctx, host, ann, bob, first } = await playingRoom();
+      await ann.say({ type: 'skip', itemId: first });
+      for (const member of [host, ann, bob]) {
+        expect(stateOf(member.ws).jam).toMatchObject({
+          canSkip: true,
+          skipRequested: first,
+          nowPlaying: { id: first },
+        });
+      }
+      expect(ctx.store.get('jam')).toMatchObject({ skipRequested: first });
+      expect(ann.ws.deserializeAttachment()).toMatchObject({ lastSkipAt: NOW });
+    });
+
+    it('ignores a repeated request and a song that is not playing', async () => {
+      const { host, ann, bob, first, second } = await playingRoom();
+      await ann.say({ type: 'skip', itemId: second });
+      expect(ann.ws.deserializeAttachment()).not.toHaveProperty('lastSkipAt');
+      await ann.say({ type: 'skip', itemId: first });
+      const sent = [host.ws.sent.length, bob.ws.sent.length];
+      await bob.say({ type: 'skip', itemId: first });
+      expect([host.ws.sent.length, bob.ws.sent.length]).toEqual(sent);
+      expect(bob.ws.deserializeAttachment()).not.toHaveProperty('lastSkipAt');
+    });
+
+    it('limits each person to one skip every 2 s, without limiting the others', async () => {
+      const { host, ann, bob, first, second } = await playingRoom();
+      await ann.say({ type: 'skip', itemId: first });
+      await host.say({ type: 'start', itemId: second });
+      expect(stateOf(ann.ws).jam.skipRequested).toBeNull();
+      vi.setSystemTime(NOW + HUB_LIMITS.jamSkipEveryMs - 1);
+      const sent = host.ws.sent.length;
+      await ann.say({ type: 'skip', itemId: second });
+      expect(host.ws.sent).toHaveLength(sent);
+      await bob.say({ type: 'skip', itemId: second });
+      expect(stateOf(host.ws).jam.skipRequested).toBe(second);
+    });
+
+    it('lets the same person skip again after 2 s', async () => {
+      const { host, ann, first, second } = await playingRoom();
+      await ann.say({ type: 'skip', itemId: first });
+      await host.say({ type: 'start', itemId: second });
+      vi.setSystemTime(NOW + HUB_LIMITS.jamSkipEveryMs);
+      await ann.say({ type: 'skip', itemId: second });
+      expect(stateOf(host.ws).jam.skipRequested).toBe(second);
+    });
+
+    it('answers host_outdated when the host did not announce remoteSkip', async () => {
+      const { ann, first } = await playingRoom([]);
+      expect(stateOf(ann.ws).jam.canSkip).toBe(false);
+      await ann.say({ type: 'skip', itemId: first });
+      expect(ann.ws.last()).toEqual({ type: 'error', code: 'host_outdated' });
+    });
+
+    it('a v0.9.3 hello without features works and counts as an outdated host', async () => {
+      const { ctx, room, hostKey } = await liveRoom();
+      const host = join(ctx, room);
+      await host.say({ type: 'hello', memberId: 'h', nickname: 'Host', hostKey });
+      expect(stateOf(host.ws)).toMatchObject({ type: 'state', jam: { canSkip: false } });
+      await host.say({ type: 'skip', itemId: 'x' });
+      expect(host.ws.last()).toEqual({ type: 'error', code: 'host_outdated' });
+    });
+
+    it('answers host_away when no host is connected', async () => {
+      const { ctx, room, host, ann, first } = await playingRoom();
+      ctx.sockets = ctx.sockets.filter((s) => s !== host.ws);
+      await room.webSocketClose(host.ws as never);
+      expect(stateOf(ann.ws).jam.canSkip).toBe(false);
+      await ann.say({ type: 'skip', itemId: first });
+      expect(ann.ws.last()).toEqual({ type: 'error', code: 'host_away' });
+    });
+
+    it('never sends the internal attachment fields to clients', async () => {
+      const { host, ann, first } = await playingRoom();
+      await ann.say({ type: 'skip', itemId: first });
+      expect(stateOf(ann.ws).you).toEqual({ memberId: 'a', nickname: 'Ann', isHost: false });
+      expect(stateOf(host.ws).you).toEqual({ memberId: 'h', nickname: 'Host', isHost: true });
+      for (const member of stateOf(ann.ws).jam.members) {
+        expect(Object.keys(member).sort()).toEqual(['isHost', 'nickname']);
+      }
+    });
+  });
+
   describe('fetch', () => {
     it('answers 426 without the WebSocket upgrade header', async () => {
       const { room } = await liveRoom();

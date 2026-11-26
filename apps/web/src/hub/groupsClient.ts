@@ -1,5 +1,6 @@
 import type {
   GroupDetail,
+  GroupPreview,
   GroupShare,
   GroupShareKind,
   GroupStats,
@@ -7,23 +8,58 @@ import type {
   MonthStats,
 } from '@aske/shared/groups';
 import { getDeviceKey } from '../groups/deviceKey';
-import { hubFetch } from './client';
+import { hubFetch, hubFetchBlob } from './client';
 
 const seg = encodeURIComponent;
 
-function groupFetch<T>(
-  path: string,
-  opts: { method?: string; json?: unknown; deviceKey?: string } = {},
-): Promise<T> {
-  const { deviceKey, ...rest } = opts;
-  return hubFetch<T>(`/groups${path}`, {
-    ...rest,
-    headers: { 'X-Device-Key': deviceKey ?? getDeviceKey() },
-  });
+interface GroupRequest {
+  method?: string;
+  json?: unknown;
+  body?: Blob;
+  deviceKey?: string;
 }
 
-export async function listMyGroups(): Promise<GroupSummary[]> {
-  return (await groupFetch<{ groups: GroupSummary[] }>('')).groups;
+function withDeviceKey({ deviceKey, ...rest }: GroupRequest) {
+  return { ...rest, headers: { 'X-Device-Key': deviceKey ?? getDeviceKey() } };
+}
+
+function groupFetch<T>(path: string, opts: GroupRequest = {}): Promise<T> {
+  return hubFetch<T>(`/groups${path}`, withDeviceKey(opts));
+}
+
+function groupFetchBlob(path: string, opts: GroupRequest = {}): Promise<Blob | null> {
+  return hubFetchBlob(`/groups${path}`, withDeviceKey(opts));
+}
+
+/** `month` is the phone's local 'YYYY-MM', used for the summary on each card. */
+export async function listMyGroups(month?: string): Promise<GroupSummary[]> {
+  const query = month ? `?month=${seg(month)}` : '';
+  return (await groupFetch<{ groups: GroupSummary[] }>(query)).groups;
+}
+
+export function renameGroup(id: string, name: string): Promise<GroupDetail> {
+  return groupFetch(`/${seg(id)}/name`, { method: 'PUT', json: { name } });
+}
+
+export function uploadGroupPhoto(id: string, jpeg: Blob): Promise<{ photoAt: number }> {
+  return groupFetch(`/${seg(id)}/photo`, { method: 'PUT', body: jpeg });
+}
+
+export function deleteGroupPhoto(id: string): Promise<void> {
+  return groupFetch(`/${seg(id)}/photo`, { method: 'DELETE' });
+}
+
+export function fetchGroupPhoto(id: string): Promise<Blob | null> {
+  return groupFetchBlob(`/${seg(id)}/photo`);
+}
+
+// POST so that the invite code never ends up in a URL.
+export function peekGroup(code: string): Promise<GroupPreview> {
+  return groupFetch('/peek', { method: 'POST', json: { code } });
+}
+
+export function fetchInvitePhoto(code: string): Promise<Blob | null> {
+  return groupFetchBlob('/peek/photo', { method: 'POST', json: { code } });
 }
 
 export function createGroup(name: string, alias: string): Promise<GroupDetail> {

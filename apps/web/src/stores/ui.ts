@@ -43,6 +43,8 @@ interface UiState {
   playlistSelection: string[] | null;
   /** Playlist ids selectable on the current screen (main list or an open folder). */
   playlistVisibleIds: string[];
+  /** Screen where the playlist selection started; it ends when the user leaves it. */
+  playlistSelectionPath: string | null;
 
   toast: (message: string, tone?: Toast['tone']) => void;
   dismissToast: (id: number) => void;
@@ -78,6 +80,7 @@ export const useUi = create<UiState>((set, get) => ({
   visibleIds: [],
   playlistSelection: null,
   playlistVisibleIds: [],
+  playlistSelectionPath: null,
   confirm: null,
   prompt: null,
   online: navigator.onLine,
@@ -115,6 +118,7 @@ export const useUi = create<UiState>((set, get) => ({
   startPlaylistSelection: (firstId) =>
     set({
       playlistSelection: firstId ? [firstId] : [],
+      playlistSelectionPath: location.pathname,
       selection: null,
       selectionTarget: null,
     }),
@@ -127,9 +131,22 @@ export const useUi = create<UiState>((set, get) => ({
     const all = ids.length > 0 && ids.every((id) => sel.includes(id));
     set({ playlistSelection: all ? [] : [...ids] });
   },
-  setPlaylistVisibleIds: (playlistVisibleIds) => set({ playlistVisibleIds }),
-  endPlaylistSelection: () => set({ playlistSelection: null }),
+  setPlaylistVisibleIds: (playlistVisibleIds) => {
+    // A playlist that left the screen (deleted, moved to a folder) cannot stay selected.
+    const selected = get().playlistSelection;
+    set({
+      playlistVisibleIds,
+      playlistSelection: selected && selected.filter((id) => playlistVisibleIds.includes(id)),
+    });
+  },
+  endPlaylistSelection: () => set({ playlistSelection: null, playlistSelectionPath: null }),
 }));
+
+/** True when a playlist selection is still open but the user is on another screen. */
+export const leftPlaylistSelectionScreen = (
+  s: Pick<UiState, 'playlistSelection' | 'playlistSelectionPath'>,
+  path: string,
+) => s.playlistSelection !== null && s.playlistSelectionPath !== path;
 
 /** Promise-based confirm dialog rendered by <Dialogs />. */
 export function confirmDialog(

@@ -130,7 +130,7 @@ export const studyEu: Record<keyof typeof studyEn, string> = {
   'study.source.calm': 'Lasaia, letrarik gabe',
   'study.source.calmHint':
     'Abestien izenaren eta iraupenaren arabera aukeratzen da, beraz akatsen bat izan dezake. Saltatu gustatzen ez zaizkizunak.',
-  'study.source.playlist': 'Playlist bat',
+  'study.source.playlist': 'Zerrenda bat',
   'study.fellBack': 'Ez dago abesti lasai nahikorik, beraz zure liburutegi osoa erabiltzen da.',
   'study.ambient': 'Hondoko soinua',
   'study.ambient.white': 'Zarata zuria',

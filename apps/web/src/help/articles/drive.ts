@@ -32,7 +32,7 @@ export const driveArticles: HelpArticle[] = [
 **What you need:** just your Google account. See [[drive-connect|how to connect it]].`,
       eu: `Google Drive edozein Google konturekin (Gmail-ekoa edo Android mugikorrekoa) datorren «Interneteko disko gogorra» da. Zure musika bertan gordetzea aukeratzen baduzu:
 
-- Aplikazioak **Aske Stream** izeneko karpeta bat sortzen du zure Drive-n. Barruan zure abestiak (**audio** karpeta), azalak (**covers**) eta zure playlistak, «gustuko»ak eta irratiak dituen **library.json** fitxategia daude.
+- Aplikazioak **Aske Stream** izeneko karpeta bat sortzen du zure Drive-n. Barruan zure abestiak (**audio** karpeta), azalak (**covers**) eta zure zerrendak, «gustuko»ak eta irratiak dituen **library.json** fitxategia daude.
 - Deskargatzen edo inportatzen duzun guztia karpeta horretara igotzen da.
 - Aplikazioa beste mugikor batean edo ordenagailuan Google kontu berarekin irekitzen baduzu, liburutegi bera ikusten duzu.
 - Mugikorrak abesti-hautaketa bat gordetzen du Internetik gabe entzuteko, Cloudflarerekin bezala. Ikusi [[offline-how|nola dabilen konexiorik gabe]].

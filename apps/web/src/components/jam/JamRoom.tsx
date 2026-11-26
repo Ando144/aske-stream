@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { LoaderCircle, Plus, SkipForward } from 'lucide-react';
 import { formatJamCode, hubJamLink, type JamSnapshot } from '@aske/shared/hub';
 import { HUB_URL } from '../../config';
+import { skipAvailability } from '../../hub/jamRemote';
 import { useT, type Translate } from '../../i18n';
 import { useJam } from '../../stores/jam';
 import { confirmDialog } from '../../stores/ui';
 import { QrCode } from '../QrCode';
 import { JamAddSheet } from './JamAddSheet';
 import { JamQueue } from './JamQueue';
+import '../../jamRemote.css';
 
 function useNow(everyMs: number): number {
   const [now, setNow] = useState(() => Date.now());
@@ -47,6 +49,37 @@ function RoomHeader({ snapshot, isHost }: { snapshot: JamSnapshot; isHost: boole
   );
 }
 
+/** The host's own skip always works; guests depend on the host's phone being able to obey. */
+function SkipButton({ isHost }: { isHost: boolean }) {
+  const t = useT();
+  const locked = useJam((s) => s.skipLocked);
+  const available = useJam((s) => isHost || skipAvailability(s.snapshot) === 'ok');
+  return (
+    <button
+      className="btn"
+      onClick={() => useJam.getState().requestSkip()}
+      disabled={locked || !available}
+      aria-label={t('jam.skip.label')}
+    >
+      <SkipForward size={16} /> {t('jam.next')}
+    </button>
+  );
+}
+
+/** Tells a guest what skipping does, or why it is not possible right now. */
+function GuestSkipNote({ snapshot }: { snapshot: JamSnapshot }) {
+  const t = useT();
+  const availability = skipAvailability(snapshot);
+  const blocked = availability === 'outdated' || availability === 'away';
+  return (
+    <p className="muted small jam-skip-note">
+      {blocked
+        ? t(`jam.skip.${availability}`)
+        : t('jam.skip.guestHint', { name: snapshot.hostName })}
+    </p>
+  );
+}
+
 function RoomActions({ isHost, onAdd }: { isHost: boolean; onAdd: () => void }) {
   const t = useT();
   const end = async () => {
@@ -59,11 +92,7 @@ function RoomActions({ isHost, onAdd }: { isHost: boolean; onAdd: () => void }) 
       <button className="btn primary" onClick={onAdd}>
         <Plus size={16} /> {t('jam.add')}
       </button>
-      {isHost && (
-        <button className="btn" onClick={() => useJam.getState().skip()}>
-          <SkipForward size={16} /> {t('jam.next')}
-        </button>
-      )}
+      <SkipButton isHost={isHost} />
       {isHost ? (
         <button className="btn danger" onClick={() => void end()}>
           {t('jam.end')}
@@ -131,6 +160,7 @@ export function JamRoom({ hasLibrary }: { hasLibrary: boolean }) {
       {connection === 'reconnecting' && <p className="error-text">{t('jam.reconnecting')}</p>}
       <RoomHeader snapshot={snapshot} isHost={isHost} />
       <RoomActions isHost={isHost} onAdd={() => setAdding(true)} />
+      {!isHost && <GuestSkipNote snapshot={snapshot} />}
       <JamQueue nowPlaying={snapshot.nowPlaying} queue={snapshot.queue} isHost={isHost} />
       {adding && (
         <JamAddSheet code={session.code} hasLibrary={hasLibrary} onClose={() => setAdding(false)} />

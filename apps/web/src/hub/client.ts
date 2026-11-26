@@ -34,6 +34,8 @@ interface HubRequest {
   method?: string;
   json?: unknown;
   headers?: Record<string, string>;
+  /** Binary upload; its type becomes the Content-Type. */
+  body?: Blob;
 }
 
 async function readError(res: Response): Promise<HubError> {
@@ -44,17 +46,17 @@ async function readError(res: Response): Promise<HubError> {
   return new HubError(body?.error ?? 'internal_error', res.status, body?.message);
 }
 
-export async function hubFetch<T>(path: string, opts: HubRequest = {}): Promise<T> {
+async function hubRequest(path: string, opts: HubRequest): Promise<Response> {
   if (!hubAvailable()) throw new HubError('unavailable', 0);
   const headers = new Headers(opts.headers);
-  let body: string | undefined;
+  let body: string | Blob | undefined = opts.body;
+  if (opts.body?.type) headers.set('Content-Type', opts.body.type);
   if (opts.json !== undefined) {
     headers.set('Content-Type', 'application/json');
     body = JSON.stringify(opts.json);
   }
-  let res: Response;
   try {
-    res = await fetch(`${hubBase()}/hub/v1${path}`, {
+    return await fetch(`${hubBase()}/hub/v1${path}`, {
       method: opts.method ?? 'GET',
       headers,
       body,
@@ -62,9 +64,25 @@ export async function hubFetch<T>(path: string, opts: HubRequest = {}): Promise<
   } catch {
     throw new HubError('network', 0);
   }
+}
+
+export async function hubFetch<T>(path: string, opts: HubRequest = {}): Promise<T> {
+  const res = await hubRequest(path, opts);
   if (!res.ok) throw await readError(res);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** For binary answers such as photos; null when the Hub has none. */
+export async function hubFetchBlob(path: string, opts: HubRequest = {}): Promise<Blob | null> {
+  const res = await hubRequest(path, opts);
+  if (res.status === 404) return null;
+  if (!res.ok) throw await readError(res);
+  try {
+    return await res.blob();
+  } catch {
+    throw new HubError('network', res.status);
+  }
 }
 
 export function createSharedList(name: string, songs: HubSong[]): Promise<CreatedList> {

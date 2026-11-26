@@ -36,6 +36,7 @@ export function initNativeShell() {
     if (ui.playlistSheet) return ui.closePlaylistSheet();
     if (ui.nowPlayingOpen) return ui.setNowPlayingOpen(false);
     if (ui.selection) return ui.endSelection();
+    if (ui.playlistSelection) return ui.endPlaylistSelection();
 
     const setup = useSetup.getState();
     if (setup.status === 'pair') return setup.backToChoice();

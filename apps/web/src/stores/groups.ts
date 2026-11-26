@@ -1,11 +1,13 @@
 import type { GroupDetail, GroupSummary } from '@aske/shared/groups';
 import { create } from 'zustand';
 import { resetDeviceKey } from '../groups/deviceKey';
+import { monthKeyOfPeriod } from '../groups/snapshot';
 import { syncGroupStats, waitForGroupSync } from '../groups/sync';
 import { hubErrorText } from '../hub/errors';
 import * as api from '../hub/groupsClient';
 import { t } from '../i18n';
 import { loadValue, savePref } from '../lib/storage';
+import { currentPeriod } from '../stats/recap';
 import { useStats } from './stats';
 import { toast } from './ui';
 
@@ -20,6 +22,8 @@ interface GroupsState {
   retryPendingWipe(): Promise<void>;
   wipeAll(): Promise<boolean>;
   refresh(): Promise<void>;
+  /** Shows a saved name or photo in the list without asking the Hub again. */
+  patchSummary(id: string, patch: Partial<Pick<GroupSummary, 'name' | 'photoAt'>>): void;
   create(name: string, alias: string): Promise<GroupDetail | null>;
   join(code: string, alias: string): Promise<GroupDetail | null>;
   leave(groupId: string, memberId: string): Promise<boolean>;
@@ -117,10 +121,15 @@ export const useGroups = create<GroupsState>((set, get) => {
 
     async refresh() {
       try {
-        set({ groups: await api.listMyGroups() });
+        const month = monthKeyOfPeriod(currentPeriod('month', Date.now()));
+        set({ groups: await api.listMyGroups(month) });
       } catch (err) {
         showError(err);
       }
+    },
+
+    patchSummary(id, patch) {
+      set({ groups: get().groups.map((g) => (g.id === id ? { ...g, ...patch } : g)) });
     },
 
     create: (name, alias) => enter(() => api.createGroup(name, alias)),

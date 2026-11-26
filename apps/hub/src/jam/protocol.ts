@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HUB_LIMITS, type JamClientMessage } from '@aske/shared/hub';
+import { HUB_LIMITS, JAM_FEATURES, type JamClientMessage } from '@aske/shared/hub';
 
 const song = z.object({
   videoId: z.string().max(32),
@@ -10,13 +10,21 @@ const song = z.object({
 
 const itemId = z.string().min(1).max(64);
 
+// Unknown names are dropped, not rejected, so newer clients keep working with this hub.
+const features = z
+  .array(z.string().max(32))
+  .max(8)
+  .transform((names) => JAM_FEATURES.filter((feature) => names.includes(feature)));
+
 const ClientMessage = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('hello'),
     memberId: z.string().min(1).max(64),
     nickname: z.string().max(200),
     hostKey: z.string().max(128).optional(),
+    features: features.optional(),
   }),
+  z.object({ type: z.literal('skip'), itemId }),
   z.object({ type: z.literal('add'), song }),
   z.object({ type: z.literal('vote'), itemId }),
   z.object({ type: z.literal('remove'), itemId }),

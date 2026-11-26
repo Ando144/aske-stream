@@ -1,11 +1,13 @@
+import { useEffect } from 'react';
 import { ArrowDownToLine, CheckCheck, ListEnd, Send, X } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { hubAvailable } from '../hub/client';
 import { useT } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { trackIdsOfPlaylists, useParcel } from '../stores/parcel';
 import { usePlayer } from '../stores/player';
-import { useUi } from '../stores/ui';
+import { leftPlaylistSelectionScreen, useUi } from '../stores/ui';
 import '../playlistSelect.css';
 
 /** Actions for several playlists at once; shown while selecting on the Playlists screen. */
@@ -15,7 +17,13 @@ export function PlaylistSelectionBar() {
   const playlists = useLibrary((s) => s.playlists);
   const selectable = useUi((s) => s.playlistVisibleIds);
   const tracks = useLibrary((s) => s.tracks);
-  if (!selection) return null;
+  // Subscribes to route changes; the path is compared in the same form the store saved it.
+  useLocation();
+  const left = useUi((s) => leftPlaylistSelectionScreen(s, window.location.pathname));
+  useEffect(() => {
+    if (left) useUi.getState().endPlaylistSelection();
+  }, [left]);
+  if (!selection || left) return null;
 
   const ui = useUi.getState();
   const trackIds = trackIdsOfPlaylists(playlists, selection);

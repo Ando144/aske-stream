@@ -18,6 +18,13 @@ export const GROUP_LIMITS = {
   statsMaxMonthsPerUpload: 12,
   statsBodyMaxBytes: 64 * 1024,
   syncEveryMs: 6 * 3600 * 1000,
+  photoMaxBytes: 100 * 1024,
+  /** Side in pixels of the square photo the app uploads. */
+  photoSide: 256,
+  editsPerHour: 20,
+  peekPer10Min: 30,
+  /** People named on each card of the group list. */
+  cardPeople: 4,
 } as const;
 
 export interface GroupMember {
@@ -31,6 +38,29 @@ export interface GroupSummary {
   name: string;
   members: number;
   isOwner: boolean;
+  /** Version of the photo; null when the group has none. */
+  photoAt: number | null;
+  /** Aliases, oldest member first, at most cardPeople. An old hub does not send it. */
+  people?: string[];
+  /** An old hub does not send it. */
+  month?: GroupCardMonth;
+}
+/** Monthly summary of a group card; only members who share their listening count. */
+export interface GroupCardMonth {
+  /** 'YYYY-MM' actually used. */
+  month: string;
+  /** Sum of the sharing members (rounded). */
+  minutes: number;
+  /** Members with stats that month. */
+  sharing: number;
+  /** Most minutes (> 0); tie: who joined first; null if nobody. */
+  topAlias: string | null;
+}
+/** What someone with a valid invite code sees before joining. */
+export interface GroupPreview {
+  name: string;
+  members: number;
+  photoAt: number | null;
 }
 export interface GroupDetail {
   id: string;
@@ -41,6 +71,8 @@ export interface GroupDetail {
   you: string;
   /** Ordered by joinedAt ascending. */
   members: GroupMember[];
+  /** Version of the photo; null when the group has none. */
+  photoAt: number | null;
 }
 export interface MonthTopTrack {
   title: string;

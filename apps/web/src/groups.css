@@ -4,8 +4,183 @@
   padding: 4px 16px;
 }
 
-.groups-actions {
-  margin: 12px 0;
+.groups-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0 14px;
+}
+
+.groups-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  line-height: 1.25;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.groups-tile svg {
+  color: var(--accent);
+}
+
+.groups-tile small {
+  color: var(--text-muted);
+}
+
+.groups-tile.groups-tile-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.groups-tile-primary svg,
+.groups-tile-primary small {
+  color: inherit;
+}
+
+.groups-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.groups-card {
+  display: block;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: inherit;
+  text-decoration: none;
+}
+
+.groups-card-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.groups-card-line > svg {
+  flex-shrink: 0;
+}
+
+.groups-card-name {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.group-photo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 18%;
+  background: #3a2c12;
+  color: #f4d38b;
+  object-fit: cover;
+  object-position: center;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.groups-stack {
+  display: flex;
+  margin-top: 6px;
+}
+
+.groups-person {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--bg-elevated);
+  border-radius: 50%;
+  background: var(--bg-active);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.groups-person + .groups-person {
+  margin-left: -4px;
+}
+
+.groups-person:nth-child(1) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.groups-person:nth-child(2) {
+  background: color-mix(in srgb, var(--accent) 45%, var(--bg));
+}
+
+.groups-person:nth-child(3) {
+  background: color-mix(in srgb, var(--accent) 32%, var(--bg));
+}
+
+.groups-person:nth-child(4) {
+  background: color-mix(in srgb, var(--accent) 55%, var(--bg));
+}
+
+.groups-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.groups-summary-top {
+  flex-basis: 100%;
+}
+
+/* Two classes: .sheet-body is loaded later and would otherwise win. */
+.sheet-body.groups-sheet {
+  align-items: stretch;
+}
+
+.groups-sheet-title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.groups-sheet > p {
+  margin: 0;
+}
+
+.btn.groups-big-btn {
+  height: auto;
+  min-height: 54px;
+  width: 100%;
+  padding-block: 8px;
+  font-size: 16px;
+  white-space: normal;
+}
+
+.groups-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
 }
 
 .groups-list {
@@ -23,22 +198,6 @@
   overflow-wrap: anywhere;
   white-space: normal;
   line-height: 1.15;
-}
-
-.groups-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: var(--bg-active);
-  color: var(--accent);
-}
-
-.groups-card-text {
-  min-width: 0;
 }
 
 .groups-settings-note {
