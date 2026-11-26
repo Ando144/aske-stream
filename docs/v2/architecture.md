@@ -196,5 +196,5 @@ were redesigned (list cards and detail), any member can change the name and the 
 in the Hub's D1, visible to members and holders of a valid invite code, with a preview before
 joining) and card figures count only the people who share their listening. Also: a cloud song left
 by a canceled save is removed, "Select" works inside folders and the Sort menu works with the
-keyboard. Pending: `hub:migrate:remote` (0005), `deploy:hub`, `deploy`, the tag and a test on two
+keyboard. Published; pending: a test on two
 phones.
