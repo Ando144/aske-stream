@@ -77,11 +77,19 @@ export const friendsArticles: HelpArticle[] = [
 2. Si te dan un código, escríbelo en **Unirme a una Jam**.
 3. Pulsa **Añadir canción**, busca una y listo. Con el corazón votas las que te gustan.
 
+**Cómo añadir canciones** (mientras estás conectado a la Jam):
+- En **Añadir canción** hay un solo buscador: arriba salen las de **En tu biblioteca** y, al escribir 2 letras o más, también las de **En YouTube**.
+- Desde tu biblioteca: menú **⋮** de una canción → «Enviar a la Jam».
+- Varias a la vez: mantén pulsada una canción, toca las demás y pulsa **Enviar a la Jam** abajo.
+- Deslizando una canción hacia la derecha: se añade a la Jam en vez de a tu cola.
+
+Solo pueden sonar canciones que vienen de YouTube. Si eliges otra (por ejemplo un archivo de tu ordenador), la app te avisa y no la envía.
+
 **Cuánto dura:** una Jam dura 12 horas. Después caduca sola.
 
 **Dónde quedan las canciones:** las canciones que se añaden se descargan en el móvil del anfitrión y se guardan en una playlist suya llamada «Jam dd/mm» (con la fecha).
 
-**Límites:** cada persona puede tener hasta 10 canciones esperando a la vez. Cuando suene alguna, podrá añadir más.
+**Límites:** cada persona puede tener hasta 10 canciones esperando a la vez. Si envías más, las que sobran se quedan fuera y la app te lo dice. Cuando suene alguna, podrás añadir más.
 
 **Si no se conecta:** revisa que tengas internet y vuelve a entrar. Si ves «Esta Jam no existe», revisa el código. Si dice que ha terminado, el anfitrión la cerró o pasaron 12 horas: pídele que empiece otra.`,
       en: `A Jam is a shared song queue. Each friend adds and votes for songs from their own phone, and they play on the host's phone.
@@ -98,11 +106,19 @@ export const friendsArticles: HelpArticle[] = [
 2. If you were given a code, type it in **Join a Jam**.
 3. Tap **Add a song**, find one and that is it. Use the heart to vote for the ones you like.
 
+**How to add songs** (while you are connected to the Jam):
+- **Add a song** has a single search box: songs **In your library** appear first and, once you type 2 letters or more, songs **On YouTube** too.
+- From your library: a song's **⋮** menu → “Send to the Jam”.
+- Several at once: press and hold a song, tap the others and tap **Send to the Jam** at the bottom.
+- By swiping a song to the right: it goes to the Jam instead of your queue.
+
+Only songs that come from YouTube can play. If you pick another one (a file from your computer, for example), the app tells you and does not send it.
+
 **How long it lasts:** a Jam lasts 12 hours. After that it expires by itself.
 
 **Where the songs end up:** the songs people add are downloaded to the host's phone and saved in a playlist of theirs called “Jam dd/mm” (with the date).
 
-**Limits:** each person can have up to 10 songs waiting at once. When one plays, they can add more.
+**Limits:** each person can have up to 10 songs waiting at once. If you send more, the extra ones are left out and the app tells you. When one plays, you can add more.
 
 **If it does not connect:** check your internet and join again. If you see “This Jam does not exist”, check the code. If it says it has ended, the host closed it or 12 hours went by: ask them to start another.`,
       eu: `Jam bat abesti-ilara partekatu bat da. Lagun bakoitzak bere telefonotik abestiak gehitu eta bozkatzen ditu, eta antolatzailearen telefonoan jotzen dira.
@@ -119,11 +135,19 @@ export const friendsArticles: HelpArticle[] = [
 2. Kode bat eman badizute, idatzi **Sartu Jam batean** atalean.
 3. Sakatu **Gehitu abestia**, bilatu bat eta listo. Bihotzarekin gustuko dituzunak bozkatzen dituzu.
 
+**Nola gehitu abestiak** (Jam-era konektatuta zauden bitartean):
+- **Gehitu abestia** atalean bilatzaile bakarra dago: **Zure liburutegian** daudenak agertzen dira eta, 2 letra edo gehiago idaztean, **YouTuben** daudenak ere bai.
+- Zure liburutegitik: abesti baten **⋮** menua → «Bidali Jam-era».
+- Hainbat batera: eutsi sakatuta abesti bati, ukitu besteak eta sakatu behean **Bidali Jam-era**.
+- Abesti bat eskuinera irristatuz: zure ilarara joan beharrean, Jam-era gehitzen da.
+
+YouTubetik datozen abestiak bakarrik entzun daitezke. Beste bat aukeratzen baduzu (zure ordenagailuko fitxategi bat, adibidez), aplikazioak abisatzen dizu eta ez du bidaltzen.
+
 **Zenbat irauten du:** Jam batek 12 ordu irauten du. Gero berez iraungitzen da.
 
 **Non geratzen diren abestiak:** gehitzen diren abestiak antolatzailearen telefonora deskargatzen dira eta bere «Jam ee/hh» (dataz) zerrenda batean gordetzen dira.
 
-**Mugak:** pertsona bakoitzak 10 abesti izan ditzake zain aldi berean. Bat jotzen denean, gehiago gehitu ahalko ditu.
+**Mugak:** pertsona bakoitzak 10 abesti izan ditzake zain aldi berean. Gehiago bidaltzen badituzu, soberan daudenak kanpoan geratzen dira eta aplikazioak esaten dizu. Bat jotzen denean, gehiago gehitu ahalko dituzu.
 
 **Konektatzen ez bada:** egiaztatu zure internet eta sartu berriro. «Jam hau ez da existitzen» ikusten baduzu, egiaztatu kodea. Amaitu dela badio, antolatzaileak itxi du edo 12 ordu pasa dira: eskatu beste bat hasteko.`,
     },

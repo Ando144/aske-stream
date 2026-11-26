@@ -12,3 +12,7 @@
 .card-row.picked {
   background: var(--accent-soft);
 }
+
+.playlists-select-row {
+  margin: 12px 0 8px;
+}

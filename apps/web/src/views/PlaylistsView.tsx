@@ -89,7 +89,7 @@ export function PlaylistsView() {
       <FriendsRow onReceive={() => setOpenLink(true)} />
       <ScreenTip id="playlists-friends" text="share.tipFriends" helpId="share-playlist" />
       {groups.loose.length > 0 && (
-        <div className="row">
+        <div className="row playlists-select-row">
           <button className="btn small" onClick={() => useUi.getState().startPlaylistSelection()}>
             <CircleCheck size={16} /> {t('select.start')}
           </button>

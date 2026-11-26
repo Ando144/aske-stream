@@ -3,11 +3,15 @@ import { t } from '../i18n';
 import { loadValue, savePref } from '../lib/storage';
 import { nextIndex, orderForDataSaver, previousIndex, withoutTracks } from '../player/queue';
 import {
+  avoidOpeningWith,
   cycleFor,
   cycleKey,
+  LIBRARY_CYCLE_KEY,
+  newSeed,
   recordPlayed,
   rememberCycle,
-  shuffledCycleOrder,
+  reseedAll,
+  roundOrder,
 } from '../player/shuffleCycle';
 import { createAudioControls, createListActions } from '../player/actions';
 import { attachAudioEvents } from '../player/audioEvents';
@@ -64,6 +68,13 @@ const isPodcast = (id: string | null) =>
 const availableOffline = (id: string) =>
   !!useLibrary.getState().tracks[id]?.locations.device || !!useOffline.getState().entries[id];
 
+const savingData = () => usePrefs.getState().dataSaver && navigator.onLine;
+
+const librarySongIds = () =>
+  Object.values(useLibrary.getState().tracks)
+    .filter((track) => track.kind !== 'podcast')
+    .map((track) => track.id);
+
 /** Engine internals the media-element listeners below need to call. */
 const engine = {
   advance: (_auto: boolean): void => undefined,
@@ -99,14 +110,54 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const s = get();
     const key = cycleKey(s.contextInfo);
     const now = Date.now();
-    const cycle = recordPlayed(cycleFor(s.shuffleCycles, key, now), id, s.original);
+    // A filtered library list must not end the round of the whole library.
+    const roundIds = key === LIBRARY_CYCLE_KEY ? librarySongIds() : s.original;
+    const cycle = recordPlayed(cycleFor(s.shuffleCycles, key, now), id, roundIds);
     set({ shuffleCycles: rememberCycle(s.shuffleCycles, cycle, now) });
   }
 
-  /** Shuffled order that puts songs not yet heard in this list first. */
-  function cycleOrder(ids: string[], firstId: string | null, ctx: PlayContext | null) {
-    const cycle = cycleFor(get().shuffleCycles, cycleKey(ctx), Date.now());
-    return shuffledCycleOrder(ids, firstId, new Set(cycle.played), get().currentId);
+  /** The round of a list, created (with its seed) the first time it is needed. */
+  function seededCycle(ctx: PlayContext | null) {
+    const now = Date.now();
+    const stored = cycleFor(get().shuffleCycles, cycleKey(ctx), now);
+    const cycle = { ...stored, seed: stored.seed ?? newSeed() };
+    set({ shuffleCycles: rememberCycle(get().shuffleCycles, cycle, now) });
+    return cycle;
+  }
+
+  /** Fixed order of the round; with data saver, unheard offline songs go before streamed ones. */
+  function shuffledOrder(ids: string[], firstId: string | null, ctx: PlayContext | null) {
+    const cycle = seededCycle(ctx);
+    const played = new Set(cycle.played);
+    let order = roundOrder(ids, firstId, played, cycle.seed);
+    if (savingData()) {
+      const head = order[0] === firstId ? 1 : 0;
+      const unheard = order.slice(head).filter((id) => !played.has(id));
+      order = [
+        ...order.slice(0, head),
+        ...orderForDataSaver(unheard, availableOffline, false),
+        ...order.slice(head + unheard.length),
+      ];
+    }
+    // After a finished round, the song that has just played must not open the list.
+    const mayRepeat = !firstId && (!played.size || played.has(order[0]!));
+    return mayRepeat ? avoidOpeningWith(order, get().currentId) : order;
+  }
+
+  /** Sorts the playing list by its round, keeping the song at the cursor first. */
+  function reorderFromCursor() {
+    const s = get();
+    const anchor = s.context[s.index] ?? null;
+    const context = shuffledOrder(s.original, anchor, s.contextInfo);
+    const index = anchor ? Math.max(0, context.indexOf(anchor)) : 0;
+    set({ contextShuffled: true, context, index });
+  }
+
+  /** persist() saves nothing in radio mode, so there only the rounds are patched. */
+  function persistRounds() {
+    if (get().mode !== 'radio') return persist();
+    const stored = loadValue<SavedPlayer | null>('player-v2', null);
+    if (stored) savePref('player-v2', { ...stored, shuffleCycles: get().shuffleCycles });
   }
 
   /** Device file → offline cache → cloud stream (see storage/media.ts). */
@@ -198,11 +249,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     const ni = nextIndex(s.context.length, s.index, mode);
     if (ni === null) return false;
     if (ni === 0 && s.contextShuffled && s.context.length > 1) {
-      const last = s.context[s.index] ?? null;
-      const cycle = cycleFor(s.shuffleCycles, cycleKey(s.contextInfo), Date.now());
-      // An empty cycle means the round just ended: treat all as heard so the last song doesn't open the next round.
-      const played = cycle.played.length ? new Set(cycle.played) : new Set(s.original);
-      const context = shuffledCycleOrder(s.original, null, played, last);
+      const context = shuffledOrder(s.original, null, s.contextInfo);
       set({ context, index: 0, currentId: context[0]!, fromQueue: false });
       return true;
     }
@@ -289,10 +336,12 @@ export const usePlayer = create<PlayerState>((set, get) => {
       if (!ids.length) return;
       const shuffle = opts.shuffle ?? (get().shuffle && !opts.context?.fixedOrder);
       let context: string[];
-      if (!startId && usePrefs.getState().dataSaver && navigator.onLine) {
-        context = orderForDataSaver(ids, availableOffline, shuffle);
+      if (shuffle) {
+        context = shuffledOrder(ids, startId, opts.context ?? null);
+      } else if (!startId && savingData()) {
+        context = orderForDataSaver(ids, availableOffline, false);
       } else {
-        context = shuffle ? cycleOrder(ids, startId, opts.context ?? null) : [...ids];
+        context = [...ids];
       }
       const index = startId ? Math.max(0, context.indexOf(startId)) : 0;
       rt.consecutiveErrors = 0;
@@ -343,14 +392,15 @@ export const usePlayer = create<PlayerState>((set, get) => {
     pause: userPause,
     next: () => advance(false),
 
-    previous() {
+    previous(opts?: { skipRestart?: boolean }) {
       const s = get();
       if (s.mode === 'radio') {
         const prev = stationAt(s.stationList, s.station?.key, -1);
         if (prev) void startRadio(prev);
         return;
       }
-      if (audio.currentTime > 3 || !s.context.length) {
+      const restart = !opts?.skipRestart && audio.currentTime > 3;
+      if (restart || !s.context.length) {
         audio.currentTime = 0;
         return;
       }
@@ -369,15 +419,21 @@ export const usePlayer = create<PlayerState>((set, get) => {
       // Own key: remembered even in radio mode, where persist() saves nothing.
       savePref('shuffle', shuffle);
       if (s.mode !== 'track' || s.contextInfo?.fixedOrder || s.contextShuffled === shuffle) return;
-      const anchor = s.context[s.index] ?? null;
       if (shuffle) {
-        const context = cycleOrder(s.original, anchor, s.contextInfo);
-        set({ contextShuffled: true, context, index: anchor ? context.indexOf(anchor) : 0 });
+        reorderFromCursor();
       } else {
+        const anchor = s.context[s.index] ?? null;
         const index = anchor ? Math.max(0, s.original.indexOf(anchor)) : 0;
         set({ contextShuffled: false, context: [...s.original], index });
       }
       persist();
+    },
+
+    reshuffle() {
+      set({ shuffleCycles: reseedAll(get().shuffleCycles) });
+      if (get().mode === 'track' && get().contextShuffled) reorderFromCursor();
+      persistRounds();
+      toast(t('toast.reshuffled'));
     },
 
     ...createListActions(get, set, persist),

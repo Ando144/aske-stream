@@ -4,11 +4,13 @@ import type { GroupDetail, GroupShare } from '@aske/shared/groups';
 import { hubErrorText } from '../../hub/errors';
 import { deleteShare, listShares } from '../../hub/groupsClient';
 import { shareJamToGroup, shareListToGroup } from '../../groups/shareActions';
-import { useT } from '../../i18n';
+import { songCount, useT } from '../../i18n';
 import { useJam } from '../../stores/jam';
 import { useLibrary } from '../../stores/library';
 import { toast } from '../../stores/ui';
+import { PlaylistArt } from '../PlaylistArt';
 import { Sheet } from '../Sheet';
+import '../../socialCovers.css';
 
 function PlaylistPicker({
   onPick,
@@ -19,16 +21,21 @@ function PlaylistPicker({
 }) {
   const t = useT();
   const playlists = useLibrary((s) => s.playlists);
+  const tracks = useLibrary((s) => s.tracks);
   return (
     <Sheet onClose={onClose} label={t('groups.shares.pickList')}>
       <div className="sheet-body">
         <h2>{t('groups.shares.pickList')}</h2>
         {playlists.length === 0 && <p className="muted">{t('groups.shares.noPlaylists')}</p>}
-        <ul className="groups-list groups-pick">
+        <ul className="groups-list social-playlists">
           {playlists.map((pl) => (
             <li key={pl.id}>
-              <button className="btn" onClick={() => onPick(pl.id)}>
-                {pl.name}
+              <button className="card-row social-playlist" onClick={() => onPick(pl.id)}>
+                <PlaylistArt playlist={pl} tracks={tracks} size={44} />
+                <span className="grow">
+                  <span className="card-title ellipsis">{pl.name}</span>
+                  <span className="muted small">{songCount(t, pl.trackIds.length)}</span>
+                </span>
               </button>
             </li>
           ))}

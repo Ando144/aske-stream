@@ -1,14 +1,38 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, ListMusic, Trash2 } from 'lucide-react';
 import type { SendItem } from '@aske/shared';
+import { youtubeVideoId } from '@aske/shared/youtube';
 import { useT } from '../../i18n';
 import { useSend } from '../../stores/send';
+import { SongThumb } from '../SongThumb';
 
 function sendStatus(t: ReturnType<typeof useT>, item: SendItem): string {
   if (item.status === 'pending') return t('send.st.pending');
   if (item.status === 'taken') return t('send.st.taken');
   if (item.status === 'done') return item.detail || t('send.st.done');
   return item.detail || t('send.st.error');
+}
+
+function ItemThumb({ item }: { item: SendItem }) {
+  const [broken, setBroken] = useState(false);
+  const videoId = item.kind === 'video' ? youtubeVideoId(item.url) : null;
+  if (videoId) return <SongThumb videoId={videoId} />;
+  if (item.thumbnail && !broken) {
+    return (
+      <img
+        className="dl-thumb"
+        src={item.thumbnail}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setBroken(true)}
+      />
+    );
+  }
+  return (
+    <div className="dl-thumb station-logo">
+      {item.kind === 'playlist' ? <ListMusic size={20} /> : <Download size={20} />}
+    </div>
+  );
 }
 
 /** Computer with a Cloudflare library: list of songs sent to the phone. */
@@ -34,18 +58,7 @@ export function Outbox() {
         <div className="card-list">
           {sorted.map((item) => (
             <div key={item.id} className="card-row">
-              {item.thumbnail ? (
-                <img
-                  className="dl-thumb"
-                  src={item.thumbnail}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="dl-thumb station-logo">
-                  {item.kind === 'playlist' ? <ListMusic size={20} /> : <Download size={20} />}
-                </div>
-              )}
+              <ItemThumb item={item} />
               <div className="grow" style={{ minWidth: 0 }}>
                 <div className="card-title ellipsis">{item.title || item.url}</div>
                 <div

@@ -1,27 +1,35 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LoaderCircle, Plus } from 'lucide-react';
 import type { HubSong } from '@aske/shared/hub';
 import type { SearchResult } from '@aske/shared/youtube';
 import { useI18n, useT } from '../../i18n';
 import { searchInJam } from '../../hub/client';
 import { hubErrorText } from '../../hub/errors';
+import { filterLibrarySongs, toHubSong } from '../../hub/jamFromLibrary';
 import { useJam } from '../../stores/jam';
 import { useLibrary } from '../../stores/library';
 import { toast } from '../../stores/ui';
+import { Cover } from '../Cover';
 import { Sheet } from '../Sheet';
+import { SongThumb } from '../SongThumb';
+import '../../jamPick.css';
 
 const SEARCH_DELAY_MS = 400;
+const MIN_YOUTUBE_QUERY = 2;
+const MAX_LIBRARY_SONGS = 200;
 
 type Found = { results: SearchResult[] } | { error: string } | null;
+type AddSong = (song: HubSong) => void;
 
-/** Debounced search through the Hub; `null` while loading or when the query is empty. */
+/** Debounced search through the Hub; `null` while loading or when the query is too short. */
 function useJamSearch(code: string, query: string): { found: Found; loading: boolean } {
   const language = useI18n((s) => s.language);
   const [state, setState] = useState<{ query: string; found: Found } | null>(null);
   const trimmed = query.trim();
+  const active = trimmed.length >= MIN_YOUTUBE_QUERY;
 
   useEffect(() => {
-    if (!trimmed) return;
+    if (!active) return;
     let cancelled = false;
     const timer = setTimeout(() => {
       searchInJam(code, trimmed, language)
@@ -34,16 +42,17 @@ function useJamSearch(code: string, query: string): { found: Found; loading: boo
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [code, trimmed, language]);
+  }, [code, trimmed, language, active]);
 
-  const current = trimmed && state?.query === trimmed ? state.found : null;
-  return { found: current, loading: trimmed !== '' && current === null };
+  const current = active && state?.query === trimmed ? state.found : null;
+  return { found: current, loading: active && current === null };
 }
 
-function SongRow({ song, onAdd }: { song: HubSong; onAdd: (song: HubSong) => void }) {
+function SongRow({ song, art, onAdd }: { song: HubSong; art: ReactNode; onAdd: AddSong }) {
   const t = useT();
   return (
-    <li className="jam-item">
+    <li className="jam-item jam-pick-item">
+      {art}
       <div className="grow">
         <div className="card-title ellipsis">{song.title}</div>
         <div className="muted small ellipsis">{song.artist}</div>
@@ -60,32 +69,53 @@ function SongRow({ song, onAdd }: { song: HubSong; onAdd: (song: HubSong) => voi
   );
 }
 
-function SearchTab({ code, onAdd }: { code: string; onAdd: (song: HubSong) => void }) {
+function LibraryResults({ query, onAdd }: { query: string; onAdd: AddSong }) {
   const t = useT();
-  const [query, setQuery] = useState('');
-  const { found, loading } = useJamSearch(code, query);
-  const songs: HubSong[] =
-    found && 'results' in found
-      ? found.results
-          .filter((r) => r.kind === 'video')
-          .map((r) => ({
-            videoId: r.id,
-            title: r.title,
-            artist: r.author,
-            durationMs: r.duration ? r.duration * 1000 : undefined,
-          }))
-      : [];
+  const tracks = useLibrary((s) => s.tracks);
+  const matches = useMemo(
+    () => filterLibrarySongs(Object.values(tracks), query, MAX_LIBRARY_SONGS),
+    [tracks, query],
+  );
+  const empty = query.trim() ? t('jam.search.empty') : t('jam.library.empty');
   return (
-    <div className="sheet-body">
-      <input
-        className="input"
-        style={{ alignSelf: 'stretch' }}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t('jam.search.placeholder')}
-        aria-label={t('jam.search.placeholder')}
-        autoFocus
-      />
+    <section className="jam-pick-section">
+      <h3>{t('jam.add.fromLibrary')}</h3>
+      {matches.length === 0 && <p className="muted small">{empty}</p>}
+      <ul className="jam-list">
+        {matches.map((track) => (
+          <SongRow
+            key={track.id}
+            song={toHubSong(track)!}
+            art={<Cover trackId={track.id} hasCover={track.hasCover} />}
+            onAdd={onAdd}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function toSongs(results: SearchResult[]): HubSong[] {
+  return results
+    .filter((r) => r.kind === 'video')
+    .map((r) => ({
+      videoId: r.id,
+      title: r.title,
+      artist: r.author,
+      durationMs: r.duration ? r.duration * 1000 : undefined,
+    }));
+}
+
+function YoutubeResults({ code, query, onAdd }: { code: string; query: string; onAdd: AddSong }) {
+  const t = useT();
+  const { found, loading } = useJamSearch(code, query);
+  if (query.trim().length < MIN_YOUTUBE_QUERY) {
+    return <p className="muted small">{t('jam.add.typeMore')}</p>;
+  }
+  const songs = found && 'results' in found ? toSongs(found.results) : [];
+  return (
+    <section className="jam-pick-section">
+      <h3>{t('jam.add.fromYoutube')}</h3>
       {loading && (
         <p className="muted small">
           <LoaderCircle size={14} className="spin" /> {t('jam.search.loading')}
@@ -97,39 +127,19 @@ function SearchTab({ code, onAdd }: { code: string; onAdd: (song: HubSong) => vo
       )}
       <ul className="jam-list">
         {songs.map((song) => (
-          <SongRow key={song.videoId} song={song} onAdd={onAdd} />
+          <SongRow
+            key={song.videoId}
+            song={song}
+            art={<SongThumb videoId={song.videoId} />}
+            onAdd={onAdd}
+          />
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
 
-function LibraryTab({ onAdd }: { onAdd: (song: HubSong) => void }) {
-  const t = useT();
-  const tracks = useLibrary((s) => s.tracks);
-  const songs = useMemo<HubSong[]>(
-    () =>
-      Object.values(tracks)
-        .filter((tr) => tr.source === 'youtube' && tr.sourceRef)
-        .map((tr) => ({
-          videoId: tr.sourceRef as string,
-          title: tr.title,
-          artist: tr.artist,
-          durationMs: tr.durationMs || undefined,
-        })),
-    [tracks],
-  );
-  if (songs.length === 0) return <p className="muted small sheet-body">{t('jam.library.empty')}</p>;
-  return (
-    <ul className="jam-list sheet-body">
-      {songs.map((song) => (
-        <SongRow key={song.videoId} song={song} onAdd={onAdd} />
-      ))}
-    </ul>
-  );
-}
-
-/** Two tabs: search YouTube through the Hub, or pick from the user's own library. */
+/** One search box over the user's library and, through the Hub, YouTube. */
 export function JamAddSheet({
   code,
   hasLibrary,
@@ -140,8 +150,8 @@ export function JamAddSheet({
   onClose: () => void;
 }) {
   const t = useT();
-  const [tab, setTab] = useState<'search' | 'library'>('search');
-  const add = (song: HubSong) => {
+  const [query, setQuery] = useState('');
+  const add: AddSong = (song) => {
     useJam.getState().add(song);
     toast(t('jam.add.done'));
   };
@@ -150,27 +160,18 @@ export function JamAddSheet({
       <div className="sheet-header">
         <div className="track-title grow">{t('jam.add.title')}</div>
       </div>
-      {hasLibrary && (
-        <div className="row wrap" style={{ padding: '0 12px' }}>
-          <button
-            className={`chip${tab === 'search' ? ' active' : ''}`}
-            onClick={() => setTab('search')}
-          >
-            {t('jam.tab.search')}
-          </button>
-          <button
-            className={`chip${tab === 'library' ? ' active' : ''}`}
-            onClick={() => setTab('library')}
-          >
-            {t('jam.tab.library')}
-          </button>
-        </div>
-      )}
-      {tab === 'search' || !hasLibrary ? (
-        <SearchTab code={code} onAdd={add} />
-      ) : (
-        <LibraryTab onAdd={add} />
-      )}
+      <div className="sheet-body jam-pick">
+        <input
+          className="input"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('jam.add.placeholder')}
+          aria-label={t('jam.add.placeholder')}
+          autoFocus
+        />
+        {hasLibrary && <LibraryResults query={query} onAdd={add} />}
+        <YoutubeResults code={code} query={query} onAdd={add} />
+      </div>
     </Sheet>
   );
 }

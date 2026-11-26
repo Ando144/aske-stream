@@ -5,6 +5,8 @@ import {
   nextWakeAt,
   reconcile,
   saveConcurrency,
+  saveTarget,
+  stuckSaving,
 } from '../src/downloads/pipeline';
 import type {
   DownloadJob,
@@ -53,7 +55,7 @@ describe('nextToSave', () => {
       job('a', 'downloaded', { createdAt: 5 }),
       job('b', 'downloaded', { createdAt: 2 }),
     ];
-    expect(nextToSave(jobs, 10, new Set())?.id).toBe('b');
+    expect(nextToSave(jobs, 10, new Set(), 'device')?.id).toBe('b');
   });
 
   it('skips busy jobs, other statuses and future retries', () => {
@@ -63,8 +65,8 @@ describe('nextToSave', () => {
       job('c', 'downloaded', { createdAt: 3, retryAt: 100 }),
       job('d', 'downloaded', { createdAt: 4, retryAt: 10 }),
     ];
-    expect(nextToSave(jobs, 10, new Set(['a']))?.id).toBe('d');
-    expect(nextToSave(jobs, 10, new Set(['a', 'd']))).toBeUndefined();
+    expect(nextToSave(jobs, 10, new Set(['a']), 'cloudflare')?.id).toBe('d');
+    expect(nextToSave(jobs, 10, new Set(['a', 'd']), 'cloudflare')).toBeUndefined();
   });
 });
 
@@ -148,5 +150,71 @@ describe('reconcile', () => {
   it('leaves other jobs unchanged', () => {
     const saved = [job('a', 'done'), job('b', 'queued'), job('c', 'downloaded', { file })];
     expect(reconcile(saved, pending()).jobs).toEqual(saved);
+  });
+});
+
+const MB = 1024 * 1024;
+const sized = (id: string, bytes: number, extra: Partial<DownloadJob> = {}) =>
+  job(id, 'downloaded', { file: { ...file, bytes }, ...extra });
+
+describe('saveTarget', () => {
+  it('keeps on the phone only what does not fit in Cloudflare', () => {
+    expect(saveTarget('cloudflare', 96 * MB)).toBe('device-only');
+    expect(saveTarget('cloudflare', 95 * MB)).toBe('home');
+    expect(saveTarget('drive', 500 * MB)).toBe('home');
+    expect(saveTarget('device', 500 * MB)).toBe('home');
+  });
+});
+
+describe('save lanes', () => {
+  it('uploads only one big file at a time and lets small ones pass', () => {
+    const jobs = [
+      sized('a', 40 * MB, { createdAt: 1 }),
+      sized('b', 40 * MB, { createdAt: 2 }),
+      sized('c', MB, { createdAt: 3 }),
+    ];
+    expect(nextToSave(jobs, 10, new Set(['a']), 'cloudflare')?.id).toBe('c');
+    expect(nextToSave(jobs, 10, new Set(['a', 'c']), 'drive')).toBeUndefined();
+  });
+
+  it('saves phone-only audio in its own lane, one at a time', () => {
+    const jobs = [
+      sized('a', 100 * MB, { createdAt: 1 }),
+      sized('b', 100 * MB, { createdAt: 2 }),
+      sized('c', MB, { createdAt: 3 }),
+      sized('d', MB, { createdAt: 4 }),
+    ];
+    expect(nextToSave(jobs, 10, new Set(['a']), 'cloudflare')?.id).toBe('c');
+    expect(nextToSave(jobs, 10, new Set(['c', 'd']), 'cloudflare')?.id).toBe('a');
+    expect(nextToSave(jobs, 10, new Set(['a', 'c', 'd']), 'cloudflare')).toBeUndefined();
+  });
+
+  it('ignores a phone-only target once the library is not in Cloudflare', () => {
+    const jobs = [
+      sized('a', MB, { target: 'device-only' }),
+      sized('b', MB, { target: 'device-only', createdAt: 2 }),
+    ];
+    expect(nextToSave(jobs, 10, new Set(['a']), 'drive')?.id).toBe('b');
+    expect(nextToSave(jobs, 10, new Set(['a']), 'cloudflare')).toBeUndefined();
+  });
+});
+
+describe('stuckSaving', () => {
+  it('finds saves older than their time limit plus two minutes', () => {
+    const limit = 120_000 + 120_000;
+    const jobs = [
+      job('old', 'saving', { file, savingSince: 0 }),
+      job('new', 'saving', { file, savingSince: 5000 }),
+      job('done', 'done', { file, savingSince: 0 }),
+    ];
+    expect(stuckSaving(jobs, limit + 1)).toEqual(['old']);
+  });
+});
+
+describe('reconcile with the library home', () => {
+  it('moves a stuck oversized save to the phone lane', () => {
+    const saved = [job('a', 'saving', { file: { ...file, bytes: 100 * MB } })];
+    const { jobs } = reconcile(saved, pending(), 'cloudflare');
+    expect(jobs[0]).toMatchObject({ status: 'downloaded', target: 'device-only' });
   });
 });

@@ -72,6 +72,8 @@ describe('create', () => {
     expect(hub.createParcel).toHaveBeenCalledWith([song(1)]);
     expect(useParcel.getState().basket).toEqual([]);
     expect(useParcel.getState().current?.phase).toBe('waiting');
+    expect(useParcel.getState().current?.songs).toEqual([song(1)]);
+    expect(useParcel.getState().current?.name).toBeUndefined();
   });
 
   it('keeps the basket and shows an error when it fails', async () => {
@@ -88,7 +90,7 @@ describe('create', () => {
 
 describe('poll', () => {
   const wait = (expiresAt: number) =>
-    useParcel.setState({ current: { ...created, expiresAt, phase: 'waiting' } });
+    useParcel.setState({ current: { ...created, expiresAt, phase: 'waiting', songs: [] } });
 
   it('404 before expiry means received', async () => {
     wait(Date.now() + 60_000);
@@ -213,6 +215,13 @@ describe('sendPlaylist', () => {
     expect(useParcel.getState().current?.phase).toBe('waiting');
   });
 
+  it('remembers what is being sent', async () => {
+    hub.createParcel.mockResolvedValue(created);
+    await send([song(1), song(2)]);
+    expect(useParcel.getState().current?.name).toBe('Mix');
+    expect(useParcel.getState().current?.songs).toEqual([song(1), song(2)]);
+  });
+
   it('ignores a second send while busy', async () => {
     useParcel.setState({ busy: true });
     expect(await send([song(1)])).toBe(false);
@@ -335,6 +344,10 @@ describe('sendTracks', () => {
     expect(await useParcel.getState().sendTracks(['1', '2'])).toBe(true);
     expect(useParcel.getState().current?.phase).toBe('waiting');
     expect(useParcel.getState().basket).toHaveLength(1);
+    expect(useParcel.getState().current?.songs).toEqual([
+      expect.objectContaining({ videoId: 'dQw4w9WgXcQ' }),
+    ]);
+    expect(useParcel.getState().current?.name).toBeUndefined();
     expect(toast).toHaveBeenCalledTimes(1);
   });
 });

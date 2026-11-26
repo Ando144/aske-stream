@@ -26,6 +26,8 @@ interface UiState {
   nowPlayingOpen: boolean;
   /** Track ids for the "add to playlist" sheet; null when closed. */
   playlistSheet: string[] | null;
+  /** Episode ids for the "change show" sheet; null when closed. */
+  showPicker: string[] | null;
   /** Song whose ⋮ menu is open (and the playlist it was opened from, if any). */
   trackMenu: { trackId: string; playlistId?: string } | null;
   confirm: ConfirmRequest | null;
@@ -47,6 +49,8 @@ interface UiState {
   setNowPlayingOpen: (open: boolean) => void;
   openPlaylistSheet: (trackIds: string[]) => void;
   closePlaylistSheet: () => void;
+  openShowPicker: (trackIds: string[]) => void;
+  closeShowPicker: () => void;
   openTrackMenu: (trackId: string, playlistId?: string) => void;
   closeTrackMenu: () => void;
   startSelection: (firstId?: string, target?: UiState['selectionTarget']) => void;
@@ -67,6 +71,7 @@ export const useUi = create<UiState>((set, get) => ({
   toasts: [],
   nowPlayingOpen: false,
   playlistSheet: null,
+  showPicker: null,
   trackMenu: null,
   selection: null,
   selectionTarget: null,
@@ -86,6 +91,8 @@ export const useUi = create<UiState>((set, get) => ({
   setNowPlayingOpen: (nowPlayingOpen) => set({ nowPlayingOpen }),
   openPlaylistSheet: (trackIds) => set({ playlistSheet: trackIds }),
   closePlaylistSheet: () => set({ playlistSheet: null }),
+  openShowPicker: (trackIds) => set({ showPicker: trackIds }),
+  closeShowPicker: () => set({ showPicker: null }),
   openTrackMenu: (trackId, playlistId) => set({ trackMenu: { trackId, playlistId } }),
   closeTrackMenu: () => set({ trackMenu: null }),
   startSelection: (firstId, target = null) =>

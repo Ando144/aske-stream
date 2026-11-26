@@ -4,6 +4,8 @@ import { DriveAuthRequired } from '../storage/drive/auth';
 /** Turns yt-dlp's English errors into something the user can act on. */
 export function friendlyError(raw: string): string {
   const m = raw.toLowerCase();
+  if (m.includes('upload_timeout')) return t('dl.err.saveTooSlow');
+  if (m.includes('local_failed')) return t('dl.err.localFailed');
   if (m.includes('storage is full') || m.includes('storage_full')) return t('dl.err.cloudFull');
   if (m.includes('drive_full')) return t('dl.err.driveFull');
   if (m.includes('drive_auth')) return t('dl.err.driveAuth');
@@ -30,8 +32,14 @@ export function friendlyError(raw: string): string {
 /** Raw text that `friendlyError` understands for a failed save. */
 export function saveErrorText(err: unknown): string {
   const code = (err as { code?: string }).code;
-  if (code === 'drive_full' || err instanceof DriveAuthRequired) {
+  if (code === 'drive_full' || code === 'upload_timeout' || err instanceof DriveAuthRequired) {
     return code ?? 'drive_auth';
   }
   return String((err as Error)?.message ?? err);
+}
+
+/** Raw text that `friendlyError` understands for a failed save on this phone. */
+export function localErrorText(err: unknown): string {
+  const { name = '', message = '' } = (err ?? {}) as Partial<Error>;
+  return /quota|no space|enospc/i.test(`${name} ${message}`) ? 'quota' : 'local_failed';
 }

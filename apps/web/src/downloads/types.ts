@@ -53,6 +53,12 @@ export interface DownloadJob {
   attempts?: number;
   /** Epoch ms; do not try to save before this. */
   retryAt?: number;
+  /** Server errors or timeouts while uploading a big file. */
+  serverFailures?: number;
+  /** Epoch ms when the current save started. */
+  savingSince?: number;
+  /** Where the file is saved; 'device-only' when it cannot go to the cloud library. */
+  target?: 'home' | 'device-only';
   /** Set when status becomes 'downloaded'. */
   file?: DownloadedFile;
   timings?: JobTimings;

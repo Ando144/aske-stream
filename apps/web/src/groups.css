@@ -53,7 +53,8 @@
   text-transform: uppercase;
 }
 
-.groups-invite {
+/* Two classes: .sheet-body is loaded later and would otherwise win. */
+.sheet-body.groups-invite {
   align-items: center;
   text-align: center;
 }
@@ -112,11 +113,6 @@
 .groups-share {
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.groups-pick .btn {
-  width: 100%;
-  justify-content: flex-start;
 }
 
 .groups-wipe {

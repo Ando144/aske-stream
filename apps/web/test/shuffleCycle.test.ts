@@ -4,9 +4,13 @@ import {
   cycleKey,
   insertShuffled,
   MAX_REMEMBERED_CYCLES,
+  newSeed,
+  rankBySeed,
   recordPlayed,
   rememberCycle,
-  shuffledCycleOrder,
+  reseedAll,
+  roundOrder,
+  type ShuffleCycle,
   type ShuffleCycles,
 } from '../src/player/shuffleCycle';
 
@@ -81,10 +85,25 @@ describe('recordPlayed', () => {
     expect(recordPlayed(c, 't0', ids(3)).played).toEqual(['t0']);
   });
 
-  it('resets the cycle when every song has been heard', () => {
-    let c = { key: 'a', played: [] as string[], usedAt: 7 };
-    for (const id of ids(3)) c = recordPlayed(c, id, ids(3));
-    expect(c).toEqual({ key: 'a', played: [], usedAt: 7 });
+  it('starts a new round with another seed when every song has been heard', () => {
+    const open = { key: 'a', played: ['t0', 't1'], usedAt: 7, seed: 1 };
+    const c = recordPlayed(open, 't2', ids(3), seeded(9));
+    expect(c).toMatchObject({ key: 'a', played: [], usedAt: 7 });
+    expect(c.seed).not.toBe(1);
+  });
+
+  it('the last song heard never opens the new round', () => {
+    const all = ids(3);
+    for (let seed = 1; seed <= 100; seed++) {
+      const open = { key: 'a', played: ['t0', 't1'], usedAt: 1 };
+      const c = recordPlayed(open, 't2', all, seeded(seed));
+      expect(rankBySeed(all, c.seed!)[0]).not.toBe('t2');
+    }
+  });
+
+  it('keeps the seed while the round is open', () => {
+    const c = recordPlayed({ key: 'a', played: [], usedAt: 1, seed: 5 }, 't0', ids(3));
+    expect(c.seed).toBe(5);
   });
 
   it('never resets on an empty list', () => {
@@ -97,77 +116,104 @@ describe('recordPlayed', () => {
   });
 });
 
-describe('shuffledCycleOrder', () => {
-  it('plays the unheard songs before the heard ones', () => {
-    const all = ids(10);
+describe('newSeed', () => {
+  it('is an unsigned 32-bit integer taken from the random source', () => {
+    expect(newSeed(() => 0)).toBe(0);
+    expect(newSeed(() => 0.5)).toBe(2147483648);
+    expect(newSeed(() => 0.9999999999)).toBeLessThanOrEqual(0xffffffff);
+    expect(Number.isInteger(newSeed())).toBe(true);
+  });
+});
+
+describe('rankBySeed', () => {
+  it('orders by the FNV-1a hash of seed and id', () => {
+    const fnv = (text: string) => {
+      let h = 0x811c9dc5;
+      for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+      return h;
+    };
+    const expected = ids(12).sort((a, b) => fnv(`7:${a}`) - fnv(`7:${b}`));
+    expect(rankBySeed(ids(12), 7)).toEqual(expected);
+  });
+
+  it('does not depend on the input order nor mutate it', () => {
+    const input = ids(10).reverse();
+    expect(rankBySeed(input, 3)).toEqual(rankBySeed(ids(10), 3));
+    expect(input).toEqual(ids(10).reverse());
+  });
+
+  it('adding a song keeps the relative order of the others', () => {
+    const before = rankBySeed(ids(10), 11);
+    const after = rankBySeed([...ids(10), 'new'], 11);
+    expect(after.filter((id) => id !== 'new')).toEqual(before);
+  });
+
+  it('different seeds give different orders', () => {
+    expect(rankBySeed(ids(20), 1)).not.toEqual(rankBySeed(ids(20), 2));
+  });
+});
+
+describe('roundOrder', () => {
+  it('plays the unheard songs before the heard ones, both by rank', () => {
     const played = new Set(['t0', 't1', 't2', 't3']);
-    for (let seed = 1; seed <= 20; seed++) {
-      const order = shuffledCycleOrder(all, null, played, null, seeded(seed));
-      expect(order).toHaveLength(10);
-      expect(new Set(order).size).toBe(10);
-      const firstOld = order.findIndex((id) => played.has(id));
-      expect(firstOld).toBe(6);
-      expect(order.slice(0, 6).every((id) => !played.has(id))).toBe(true);
-    }
+    const ranked = rankBySeed(ids(10), 4);
+    expect(roundOrder(ids(10), null, played, 4)).toEqual([
+      ...ranked.filter((id) => !played.has(id)),
+      ...ranked.filter((id) => played.has(id)),
+    ]);
   });
 
   it('puts the chosen first song at the head even if already heard', () => {
-    const order = shuffledCycleOrder(ids(5), 't2', new Set(['t2', 't0']), null, seeded(3));
+    const order = roundOrder(ids(5), 't2', new Set(['t2', 't0']), 3);
     expect(order[0]).toBe('t2');
+    expect(order[4]).toBe('t0');
     expect(new Set(order).size).toBe(5);
   });
 
   it('ignores a firstId that is not in the list', () => {
-    const order = shuffledCycleOrder(ids(4), 'zzz', new Set(), null, seeded(3));
+    const order = roundOrder(ids(4), 'zzz', new Set(), 3);
     expect(order).toHaveLength(4);
     expect(order).not.toContain('zzz');
   });
 
-  it('a new round never opens with the last song that played', () => {
-    const all = ids(6);
-    for (let seed = 1; seed <= 200; seed++) {
-      const order = shuffledCycleOrder(all, null, new Set(all), 't3', seeded(seed));
-      expect(order[0]).not.toBe('t3');
-      expect([...order].sort()).toEqual([...all].sort());
-    }
-  });
-
   it('handles empty and single-song lists', () => {
-    expect(shuffledCycleOrder([], null, new Set(), null)).toEqual([]);
-    expect(shuffledCycleOrder(['a'], null, new Set(['a']), 'a')).toEqual(['a']);
-  });
-
-  it('two-song list that is fully heard starts with the other song', () => {
-    for (let seed = 1; seed <= 30; seed++) {
-      const order = shuffledCycleOrder(['a', 'b'], null, new Set(['a', 'b']), 'a', seeded(seed));
-      expect(order).toEqual(['b', 'a']);
-    }
+    expect(roundOrder([], null, new Set(), 1)).toEqual([]);
+    expect(roundOrder(['a'], null, new Set(['a']), 1)).toEqual(['a']);
   });
 
   it('every song plays exactly once per round across consecutive rounds', () => {
     const all = ids(7);
-    let cycle = { key: 'k', played: [] as string[], usedAt: 0 };
-    let last: string | null = null;
     const random = seeded(42);
+    let cycle: ShuffleCycle = { key: 'k', played: [], usedAt: 0, seed: 1 };
+    let last: string | undefined;
     for (let round = 0; round < 5; round++) {
-      const order = shuffledCycleOrder(all, null, new Set(cycle.played), last, random);
-      const heard: string[] = [];
-      for (const id of order) {
-        heard.push(id);
-        cycle = recordPlayed(cycle, id, all);
-        last = id;
-      }
-      expect([...heard].sort()).toEqual([...all].sort());
+      const order = roundOrder(all, null, new Set(cycle.played), cycle.seed!);
+      expect(order[0]).not.toBe(last);
+      for (const id of order) cycle = recordPlayed(cycle, id, all, random);
+      last = order[order.length - 1];
+      expect([...order].sort()).toEqual([...all].sort());
       expect(cycle.played).toEqual([]);
     }
   });
 
-  it('resumes an interrupted round without repeating heard songs', () => {
-    const all = ids(8);
-    const first = shuffledCycleOrder(all, null, new Set(), null, seeded(5));
-    const heard = first.slice(0, 3);
-    const second = shuffledCycleOrder(all, null, new Set(heard), heard[2]!, seeded(6));
-    expect(second.slice(0, 5).some((id) => heard.includes(id))).toBe(false);
+  it('resumes an interrupted round in the same order', () => {
+    const first = roundOrder(ids(8), null, new Set(), 5);
+    const second = roundOrder(ids(8), null, new Set(first.slice(0, 3)), 5);
+    expect(second).toEqual([...first.slice(3), ...first.slice(0, 3)]);
+  });
+});
+
+describe('reseedAll', () => {
+  it('gives every round a new seed and keeps what was heard', () => {
+    const before: ShuffleCycles = {
+      a: { key: 'a', played: ['x'], usedAt: 1, seed: 1 },
+      b: { key: 'b', played: [], usedAt: 2 },
+    };
+    const after = reseedAll(before, seeded(8));
+    expect(after.a).toMatchObject({ key: 'a', played: ['x'], usedAt: 1 });
+    expect(after.a!.seed).not.toBe(1);
+    expect(after.b!.seed).toBeDefined();
+    expect(before.a!.seed).toBe(1);
   });
 });
 

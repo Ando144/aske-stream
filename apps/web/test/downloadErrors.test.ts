@@ -5,7 +5,7 @@ class FakeDriveAuthRequired extends Error {}
 vi.mock('../src/i18n', () => ({ t: (key: string) => key }));
 vi.mock('../src/storage/drive/auth', () => ({ DriveAuthRequired: FakeDriveAuthRequired }));
 
-const { friendlyError, saveErrorText } = await import('../src/downloads/errors');
+const { friendlyError, localErrorText, saveErrorText } = await import('../src/downloads/errors');
 
 describe('friendlyError', () => {
   it.each([
@@ -29,6 +29,8 @@ describe('friendlyError', () => {
     ['Connection reset', 'dl.err.network'],
     ['The file is too large', 'dl.err.tooBig'],
     ['file too big', 'dl.err.tooBig'],
+    ['upload_timeout', 'dl.err.saveTooSlow'],
+    ['local_failed', 'dl.err.localFailed'],
     ['something else entirely', 'dl.err.generic'],
   ])('maps "%s" to %s', (raw, key) => {
     expect(friendlyError(raw)).toBe(key);
@@ -44,8 +46,27 @@ describe('saveErrorText', () => {
     expect(saveErrorText(new FakeDriveAuthRequired('x'))).toBe('drive_auth');
   });
 
+  it('keeps the upload timeout code', () => {
+    expect(saveErrorText(Object.assign(new Error('x'), { code: 'upload_timeout' }))).toBe(
+      'upload_timeout',
+    );
+  });
+
   it('uses the message of any other error, or the value itself', () => {
     expect(saveErrorText(new Error('boom'))).toBe('boom');
     expect(saveErrorText('plain')).toBe('plain');
+  });
+});
+
+describe('localErrorText', () => {
+  it('recognises a full phone', () => {
+    const quota = Object.assign(new Error('x'), { name: 'QuotaExceededError' });
+    expect(friendlyError(localErrorText(quota))).toBe('dl.err.phoneFull');
+  });
+
+  it('explains any other failure as a phone save problem', () => {
+    expect(friendlyError(localErrorText(new TypeError('Failed to fetch')))).toBe(
+      'dl.err.localFailed',
+    );
   });
 });

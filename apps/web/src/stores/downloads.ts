@@ -3,7 +3,8 @@ import { LIMITS } from '@aske/shared';
 import { youtubePlaylistId, youtubeVideoId } from '@aske/shared/youtube';
 import { api } from '../api/client';
 import { batchForRetry } from '../downloads/batch';
-import { friendlyError, saveErrorText } from '../downloads/errors';
+import { createJobControls, discardSaved } from '../downloads/cancel';
+import { friendlyError, localErrorText, saveErrorText } from '../downloads/errors';
 import {
   flushImportSync,
   pruneImports,
@@ -26,7 +27,6 @@ import {
   persist,
   progressPatch,
   requeuePatch,
-  sendOutcome,
   type DownloadsState,
   type NewDownload,
 } from '../downloads/jobsStore';
@@ -36,13 +36,14 @@ import {
   nextToSave,
   nextWakeAt,
   reconcile,
-  saveConcurrency,
+  targetFor,
   type HomeKind,
 } from '../downloads/pipeline';
-import { classifyFailure, planRetry } from '../downloads/retry';
-import { saveDownloaded } from '../downloads/save';
+import { planSaveFailure } from '../downloads/retry';
+import { saveDeviceOnly, saveDownloaded, type SaveOutcome } from '../downloads/save';
 import type { DownloadJob, JobStatus, NativePending, NativeResult } from '../downloads/types';
 import { t, useI18n } from '../i18n';
+import { formatBytes } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
 import { Downloader, listPlaylistOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
@@ -63,6 +64,8 @@ export { friendlyError };
 
 const ENGINE_KEY = 'downloader-engine';
 const ENGINE_MAX_AGE = 7 * 24 * 3600 * 1000;
+/** How often running saves are checked for being stuck. */
+const WATCHDOG_MS = 60_000;
 
 export const useDownloads = create<DownloadsState>((set, get) => {
   let listening = false;
@@ -95,12 +98,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     if (Date.now() - get().engine.updatedAt > ENGINE_MAX_AGE) await get().updateEngine(false);
   }
 
-  /** Tells the computer how a "Send to phone" item ended, once all its songs finished. */
-  async function reportSend(sendId: string) {
-    const outcome = sendOutcome(get().jobs.filter((j) => j.sendId === sendId));
-    if (outcome)
-      await api.sendUpdate(sendId, outcome.status, outcome.detail).catch(() => undefined);
-  }
+  const controls = createJobControls({ get, set, update });
+  const { reportSend } = controls;
 
   const warn = (what: string) => (err: unknown) => console.warn(what, err);
   const { notify, templates } = createDownloadNotifier({
@@ -157,19 +156,10 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     if (wakeTimer) clearTimeout(wakeTimer);
     wakeTimer = undefined;
     const now = Date.now();
-    const wake = nextWakeAt(get().jobs, now);
-    if (wake !== null) wakeTimer = setTimeout(pump, Math.max(0, wake - now));
-  }
-
-  /** Cancels one active job on the phone and marks it; imports are settled by the caller. */
-  async function cancelOne(jobId: string) {
-    const job = get().jobs.find((j) => j.id === jobId);
-    if (!job || !isActive(job) || job.status === 'saving') return;
-    if (job.status === 'downloaded') await Downloader.ack({ jobId }).catch(() => undefined);
-    else await Downloader.cancel({ jobId }).catch(() => undefined);
-    update(jobId, { status: 'canceled', finishedAt: Date.now() });
-    if (job.sendId) void reportSend(job.sendId);
-    void notify();
+    const retry = nextWakeAt(get().jobs, now);
+    const check = get().saving.length ? now + WATCHDOG_MS : null;
+    const wakes = [retry, check].filter((at): at is number => at !== null);
+    if (wakes.length) wakeTimer = setTimeout(pump, Math.max(0, Math.min(...wakes) - now));
   }
 
   /** Flushes pending playlist syncs, then forgets finished imports; tells the user on failure. */
@@ -194,67 +184,89 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     if (late) toast(t('dl.savedAfterClose', { count: late }));
   }
 
+  /** Jobs that may start now: without internet, only those that stay on this phone. */
+  function startable(home: HomeKind): DownloadJob[] {
+    const { jobs, saving } = get();
+    if (!saveBlocked) return jobs;
+    return jobs.filter((j) => saving.includes(j.id) || targetFor(j, home) === 'device-only');
+  }
+
   function pump() {
-    if (!saveBlocked) {
-      const home = homeKind();
-      for (
-        let job = nextToSave(get().jobs, Date.now(), new Set(get().saving));
-        job && get().saving.length < saveConcurrency(home);
-        job = nextToSave(get().jobs, Date.now(), new Set(get().saving))
-      ) {
-        void saveJob(job, home);
-      }
-    }
+    controls.expireStuck(Date.now());
+    const home = homeKind();
+    const next = () => nextToSave(startable(home), Date.now(), new Set(get().saving), home);
+    for (let job = next(); job; job = next()) void saveJob(job, home);
     scheduleWake();
     if (hadWork && !get().jobs.some(isActive)) finishQueue();
   }
 
-  /** A save failed: wait for internet, try again later, or give up. */
-  function handleSaveFailure(job: DownloadJob, err: unknown) {
-    const kind = classifyFailure(err);
-    if (kind === 'network') {
-      const plan = planRetry(job.attempts ?? 0, Date.now(), navigator.onLine);
-      if (plan.action === 'wait-network') {
-        saveBlocked = true;
-        set({ waitingNetwork: true });
-        update(job.id, { status: 'downloaded', retryAt: undefined });
-        return;
-      }
-      if (plan.action === 'retry') {
-        update(job.id, { status: 'downloaded', attempts: plan.attempts, retryAt: plan.retryAt });
-        return;
-      }
+  /** A save failed: wait for internet, try again later, keep it on the phone, or give up. */
+  function handleSaveFailure(job: DownloadJob, home: HomeKind, err: unknown) {
+    const ctx = { home, online: navigator.onLine, now: Date.now() };
+    const plan = planSaveFailure(job, err, ctx);
+    if (plan.action === 'wait-network') {
+      saveBlocked = true;
+      set({ waitingNetwork: true });
+      update(job.id, { status: 'downloaded', retryAt: undefined });
+    } else if (plan.action === 'retry') {
+      update(job.id, { status: 'downloaded', ...plan.patch });
+    } else if (plan.action === 'to-phone') {
+      update(job.id, { status: 'downloaded', target: 'device-only', retryAt: undefined });
+    } else {
+      const raw = job.target === 'device-only' ? localErrorText(err) : saveErrorText(err);
+      update(job.id, endedPatch(plan.canceled, raw));
+      void Downloader.ack({ jobId: job.id }).catch(() => undefined);
+      if (job.sendId) void reportSend(job.sendId);
     }
-    const canceled = kind === 'canceled';
-    update(job.id, endedPatch(canceled, saveErrorText(err)));
-    void Downloader.ack({ jobId: job.id }).catch(() => undefined);
-    if (job.sendId) void reportSend(job.sendId);
   }
 
-  async function saveJob(job: DownloadJob, home: HomeKind) {
+  async function runSave(job: DownloadJob, home: HomeKind, signal: AbortSignal) {
+    if (!job.file) throw new Error('The downloaded file is missing');
+    return job.target === 'device-only'
+      ? saveDeviceOnly(job, job.file, signal)
+      : saveDownloaded(job, job.file, home, signal);
+  }
+
+  /** Tells why a file stayed on the phone: too big for the cloud, or its upload kept failing. */
+  function savedLocalText({ title, file }: DownloadJob): string {
+    const bytes = file?.bytes ?? 0;
+    if (bytes <= LIMITS.audioMaxBytes) return t('dl.toast.savedLocalFailed', { title });
+    return t('dl.toast.savedLocal', { title, size: formatBytes(bytes) });
+  }
+
+  async function completeSave(job: DownloadJob, outcome: SaveOutcome) {
+    const saved = outcome.kind === 'saved';
+    update(job.id, {
+      status: saved ? 'done' : 'skipped',
+      trackId: saved ? outcome.track.id : outcome.trackId,
+      timings: saved ? { ...job.timings, ...outcome.timings } : job.timings,
+      finishedAt: Date.now(),
+    });
+    void Downloader.ack({ jobId: job.id }).catch(() => undefined);
+    if (saved && job.target === 'device-only') toast(savedLocalText(job));
+    scheduleImportSync(job.videoId);
+    if (job.sendId) await reportSend(job.sendId);
+  }
+
+  async function saveJob(queued: DownloadJob, home: HomeKind) {
     hadWork = true;
-    set({ saving: [...get().saving, job.id] });
-    update(job.id, { status: 'saving', error: undefined });
+    const job: DownloadJob = { ...queued, target: targetFor(queued, home) };
+    const control = controls.start(job.id);
+    const { target } = job;
+    update(job.id, { status: 'saving', error: undefined, target, savingSince: Date.now() });
     void notify();
     try {
-      if (!job.file) throw new Error('The downloaded file is missing');
-      const outcome = await saveDownloaded(job, job.file, home);
-      const saved = outcome.kind === 'saved';
-      update(job.id, {
-        status: saved ? 'done' : 'skipped',
-        trackId: saved ? outcome.track.id : outcome.trackId,
-        timings: saved ? { ...job.timings, ...outcome.timings } : job.timings,
-        finishedAt: Date.now(),
-      });
-      void Downloader.ack({ jobId: job.id }).catch(() => undefined);
-      scheduleImportSync(job.videoId);
-      if (job.sendId) await reportSend(job.sendId);
+      const outcome = await runSave(job, home, control.signal);
+      if (control.signal.aborted) await discardSaved(outcome);
+      else await completeSave(job, outcome);
     } catch (err) {
-      handleSaveFailure(job, err);
+      // A stopped save already has its final state: the error is just the abort.
+      if (!control.signal.aborted) handleSaveFailure(job, home, err);
     } finally {
-      set({ saving: get().saving.filter((id) => id !== job.id) });
-      void notify();
-      pump();
+      if (controls.release(job.id, control)) {
+        void notify();
+        pump();
+      }
     }
   }
 
@@ -316,7 +328,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       clearDoneOnOpen();
       const pending = await Downloader.pending().catch(() => null);
       const native = pending ?? { queued: [], current: null, results: [], waitingNetwork: false };
-      const { jobs, finished, orphans } = reconcile(saved, native);
+      const { jobs, finished, orphans } = reconcile(saved, native, homeKind());
       set({ jobs, waitingNetwork: native.waitingNetwork });
       nativeWaiting = native.waitingNetwork;
       pruneImports(jobs);
@@ -382,12 +394,17 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     },
 
     async cancel(jobId) {
-      await cancelOne(jobId);
+      if (await controls.cancel(jobId)) pump();
+      void notify();
       await settleAndReport();
     },
 
     async cancelAll() {
-      for (const job of get().jobs.filter(isActive)) await cancelOne(job.id);
+      // All at once, so no freed lane starts a job that is about to be canceled.
+      const active = get().jobs.filter(isActive);
+      const freed = await Promise.all(active.map((j) => controls.cancel(j.id)));
+      if (freed.some(Boolean)) pump();
+      void notify();
       await settleAndReport();
     },
 
@@ -403,6 +420,17 @@ export const useDownloads = create<DownloadsState>((set, get) => {
         update(j.id, requeuePatch(batchId));
       }
       void get().resume();
+    },
+
+    async remove(jobId) {
+      const job = get().jobs.find((j) => j.id === jobId);
+      if (!job || isActive(job)) return;
+      const jobs = get().jobs.filter((j) => j.id !== jobId);
+      set({ jobs });
+      persist(jobs);
+      // Acknowledging is what makes the phone delete the file.
+      await Downloader.ack({ jobId }).catch(() => undefined);
+      await settleAndReport();
     },
 
     async clearFinished() {

@@ -7,15 +7,21 @@ import {
   Heart,
   ListEnd,
   LoaderCircle,
+  Users,
 } from 'lucide-react';
+import { addTracksToJam, jamIsActive } from '../hub/jamFromLibrary';
 import { useT } from '../i18n';
 import { formatDuration } from '../lib/format';
+import { isOnlyOnDevice } from '../storage/localExtras';
 import type { LocalTrack as Track } from '../storage/types';
+import { useJam } from '../stores/jam';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { useCurrentTrackId, usePlayer } from '../stores/player';
+import { useSetup } from '../stores/setup';
 import { useUi } from '../stores/ui';
 import { Cover } from './Cover';
+import { OnlyHereBadge } from './OnlyHereBadge';
 
 interface ListProps {
   tracks: Track[];
@@ -87,7 +93,10 @@ const TrackRow = memo(function TrackRow({
   const unavailable = !online && !offline;
   const liked = track.likedAt !== null;
 
-  // Swipe right → add to queue. Long press → start selecting.
+  const home = useSetup((s) => s.config?.home);
+  const toJam = useJam(() => jamIsActive());
+
+  // Swipe right → add to the queue (or to the Jam). Long press → start selecting.
   const [dx, setDx] = useState(0);
   const gesture = useRef<{
     x: number;
@@ -141,7 +150,8 @@ const TrackRow = memo(function TrackRow({
       suppressClick.current = true;
       if (dx >= SWIPE_TRIGGER) {
         navigator.vibrate?.(15);
-        usePlayer.getState().addToQueue([track.id]);
+        if (jamIsActive()) addTracksToJam([track.id]);
+        else usePlayer.getState().addToQueue([track.id]);
       }
       setDx(0);
     }
@@ -162,7 +172,8 @@ const TrackRow = memo(function TrackRow({
       role="listitem"
     >
       <div className="swipe-hint" style={{ opacity: Math.min(1, dx / SWIPE_TRIGGER) }} aria-hidden>
-        <ListEnd size={18} /> {t('swipe.queue')}
+        {toJam ? <Users size={18} /> : <ListEnd size={18} />}{' '}
+        {toJam ? t('swipe.jam') : t('swipe.queue')}
       </div>
       <div
         className="track-inner"
@@ -188,8 +199,12 @@ const TrackRow = memo(function TrackRow({
           <div className="track-text">
             <div className="track-title">{track.title}</div>
             <div className="track-sub">
-              {(offline === 'saved' || offline === 'device') && (
-                <ArrowDownToLine size={14} className="badge-offline" aria-label="offline" />
+              {isOnlyOnDevice(track, home) ? (
+                <OnlyHereBadge />
+              ) : (
+                (offline === 'saved' || offline === 'device') && (
+                  <ArrowDownToLine size={14} className="badge-offline" aria-label="offline" />
+                )
               )}
               {offline === 'downloading' && (
                 <LoaderCircle size={14} className="spin badge-offline" />

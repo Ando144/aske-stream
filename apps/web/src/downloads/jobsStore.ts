@@ -38,6 +38,8 @@ export interface DownloadsState {
   cancelAll: () => Promise<void>;
   retry: (jobId: string) => void;
   retryFailed: () => void;
+  /** Forgets a failed or canceled job, and its file on the phone. */
+  remove: (jobId: string) => Promise<void>;
   clearFinished: () => Promise<void>;
   setKeepOffline: (keep: boolean) => void;
   updateEngine: (manual?: boolean) => Promise<void>;
@@ -72,6 +74,9 @@ export const requeuePatch = (batchId: string): Partial<DownloadJob> => ({
   finishedAt: undefined,
   attempts: 0,
   retryAt: undefined,
+  serverFailures: undefined,
+  savingSince: undefined,
+  target: undefined,
   batchId,
 });
 

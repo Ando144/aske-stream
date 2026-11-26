@@ -4,6 +4,7 @@ import type { NativeResult } from '../src/downloads/types';
 const h = vi.hoisted(() => ({
   listeners: {} as Record<string, (arg: never) => void>,
   home: 'device',
+  saved: [] as unknown[],
 }));
 
 const Downloader = {
@@ -27,10 +28,13 @@ const Downloader = {
   requestNotifications: vi.fn(async () => ({ granted: true })),
 };
 const saveDownloaded = vi.fn();
+const saveDeviceOnly = vi.fn();
+const deleteTrack = vi.fn(async () => undefined);
 
 vi.mock('../src/native/downloader', () => ({ Downloader, listPlaylistOnPhone: vi.fn() }));
 vi.mock('../src/native/platform', () => ({ isNative: true }));
-vi.mock('../src/downloads/save', () => ({ saveDownloaded }));
+vi.mock('../src/downloads/save', () => ({ saveDownloaded, saveDeviceOnly }));
+vi.mock('../src/stores/library', () => ({ useLibrary: { getState: () => ({ deleteTrack }) } }));
 vi.mock('../src/downloads/imports', () => ({
   findInLibrary: () => undefined,
   resolvePlaylist: vi.fn(),
@@ -48,7 +52,8 @@ vi.mock('../src/stores/ui', () => ({ toast: vi.fn() }));
 vi.mock('../src/api/client', () => ({ api: { sendUpdate: vi.fn(async () => undefined) } }));
 vi.mock('../src/storage/drive/auth', () => ({ DriveAuthRequired: class extends Error {} }));
 vi.mock('../src/lib/storage', () => ({
-  loadValue: (_key: string, fallback: unknown) => fallback,
+  loadValue: (key: string, fallback: unknown) =>
+    key === 'downloads-v1' && h.saved.length ? h.saved : fallback,
   savePref: () => undefined,
 }));
 
@@ -57,12 +62,12 @@ const { useDownloads } = await import('../src/stores/downloads');
 const ITEMS = ['a', 'b', 'c'].map((videoId) => ({ videoId, title: videoId, author: '' }));
 const saved = { kind: 'saved', track: { id: 'tr' }, timings: {} };
 
-function finish(jobId: string) {
+function finish(jobId: string, bytes = 10) {
   const result: NativeResult = {
     jobId,
     ok: true,
     path: '/x/a.webm',
-    bytes: 10,
+    bytes,
     ext: 'webm',
     info: { id: 'a', title: 'a' },
     elapsedMs: 5,
@@ -87,6 +92,7 @@ beforeEach(async () => {
   });
   vi.stubGlobal('navigator', { onLine: true });
   h.home = 'device';
+  h.saved = [];
   useDownloads.setState({ jobs: [], saving: [], waitingNetwork: false });
   await useDownloads.getState().init();
 });
@@ -260,5 +266,179 @@ describe('downloads store', () => {
     vi.stubGlobal('navigator', { onLine: false });
     await useDownloads.getState().resume();
     expect(useDownloads.getState().waitingNetwork).toBe(false);
+  });
+});
+
+const MB = 1024 * 1024;
+const never = () => new Promise(() => undefined);
+
+describe('stuck and long saves', () => {
+  async function startSave() {
+    await queueSongs(1);
+    finish(job(0).id);
+    await vi.waitFor(() => expect(status(0)).toBe('saving'));
+  }
+  const signalOfSave = () => saveDownloaded.mock.calls[0]![3] as AbortSignal;
+
+  it('cancels a job that is being saved, without planning a retry', async () => {
+    saveDownloaded.mockImplementation(
+      (_job, _file, _home, signal: AbortSignal) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason));
+        }),
+    );
+    await startSave();
+    await useDownloads.getState().cancel(job(0).id);
+    expect(signalOfSave().aborted).toBe(true);
+    expect(status(0)).toBe('canceled');
+    expect(job(0).retryAt).toBeUndefined();
+    expect(useDownloads.getState().saving).toEqual([]);
+    expect(Downloader.ack).toHaveBeenCalledWith({ jobId: job(0).id });
+    const { toast } = await import('../src/stores/ui');
+    const { t } = await import('../src/i18n');
+    expect(toast).toHaveBeenCalledWith(t('dl.toast.canceledSaving'));
+  });
+
+  it('deletes the song when the save ends after being canceled', async () => {
+    let end: () => void = () => undefined;
+    saveDownloaded.mockImplementation(() => new Promise((resolve) => (end = () => resolve(saved))));
+    await startSave();
+    await useDownloads.getState().cancel(job(0).id);
+    end();
+    await vi.waitFor(() => expect(deleteTrack).toHaveBeenCalledWith('tr'));
+    expect(status(0)).toBe('canceled');
+  });
+
+  it('keeps audio over 95 MB only on the phone in Cloudflare', async () => {
+    h.home = 'cloudflare';
+    saveDeviceOnly.mockResolvedValue(saved);
+    await queueSongs(1);
+    finish(job(0).id, 96 * MB);
+    await vi.waitFor(() => expect(status(0)).toBe('done'));
+    expect(job(0).target).toBe('device-only');
+    expect(saveDownloaded).not.toHaveBeenCalled();
+    const { toast } = await import('../src/stores/ui');
+    const { t } = await import('../src/i18n');
+    const { formatBytes } = await import('../src/lib/format');
+    expect(toast).toHaveBeenCalledWith(
+      t('dl.toast.savedLocal', { title: 'a', size: formatBytes(96 * MB) }),
+    );
+  });
+
+  it('saves a small song while two big podcasts are still saving', async () => {
+    h.home = 'cloudflare';
+    saveDownloaded.mockImplementation(never);
+    saveDeviceOnly.mockImplementation(never);
+    await queueSongs(3);
+    const [a, b, c] = useDownloads.getState().jobs;
+    finish(a!.id, 100 * MB);
+    finish(b!.id, 40 * MB);
+    finish(c!.id, MB);
+    await vi.waitFor(() => expect(status(2)).toBe('saving'));
+    expect([status(0), status(1)]).toEqual(['saving', 'saving']);
+  });
+
+  it('moves a persisted oversized save to the phone on start', async () => {
+    h.home = 'cloudflare';
+    h.saved = [
+      {
+        id: 'old',
+        videoId: 'a',
+        title: 'a',
+        status: 'saving',
+        createdAt: 1,
+        file: { path: '/x', bytes: 100 * MB, ext: 'webm', info: { id: 'a' } },
+      },
+    ];
+    saveDeviceOnly.mockResolvedValue(saved);
+    await useDownloads.getState().init();
+    await vi.waitFor(() => expect(status(0)).toBe('done'));
+    expect(saveDeviceOnly).toHaveBeenCalledOnce();
+    expect(saveDownloaded).not.toHaveBeenCalled();
+  });
+
+  it('keeps a 40 MB audio on the phone after two server errors', async () => {
+    vi.useFakeTimers();
+    h.home = 'cloudflare';
+    saveDownloaded.mockRejectedValue(Object.assign(new Error('x'), { status: 502 }));
+    saveDeviceOnly.mockResolvedValue(saved);
+    await queueSongs(1);
+    finish(job(0).id, 40 * MB);
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(saveDownloaded).toHaveBeenCalledTimes(2);
+    expect(saveDeviceOnly).toHaveBeenCalledOnce();
+    expect(status(0)).toBe('done');
+    const { toast } = await import('../src/stores/ui');
+    const { t } = await import('../src/i18n');
+    expect(toast).toHaveBeenCalledWith(t('dl.toast.savedLocalFailed', { title: 'a' }));
+  });
+
+  it('waits for the network with a big audio while offline', async () => {
+    h.home = 'cloudflare';
+    vi.stubGlobal('navigator', { onLine: false });
+    saveDownloaded.mockRejectedValue(Object.assign(new Error('x'), { status: 0 }));
+    await queueSongs(1);
+    finish(job(0).id, 40 * MB);
+    await vi.waitFor(() => expect(useDownloads.getState().waitingNetwork).toBe(true));
+    expect(status(0)).toBe('downloaded');
+    expect(saveDeviceOnly).not.toHaveBeenCalled();
+    saveDownloaded.mockResolvedValue(saved);
+    vi.stubGlobal('navigator', { onLine: true });
+    await useDownloads.getState().resume();
+    await vi.waitFor(() => expect(status(0)).toBe('done'));
+  });
+
+  it('keeps saving phone-only audio while the cloud waits for the network', async () => {
+    h.home = 'cloudflare';
+    vi.stubGlobal('navigator', { onLine: false });
+    saveDownloaded.mockRejectedValue(Object.assign(new Error('x'), { status: 0 }));
+    saveDeviceOnly.mockResolvedValue(saved);
+    await queueSongs(2);
+    const [small, big] = useDownloads.getState().jobs;
+    finish(small!.id);
+    await vi.waitFor(() => expect(useDownloads.getState().waitingNetwork).toBe(true));
+    finish(big!.id, 100 * MB);
+    await vi.waitFor(() => expect(status(1)).toBe('done'));
+    expect(status(0)).toBe('downloaded');
+    expect(saveDownloaded).toHaveBeenCalledTimes(1);
+    saveDownloaded.mockResolvedValue(saved);
+    vi.stubGlobal('navigator', { onLine: true });
+    await useDownloads.getState().resume();
+    await vi.waitFor(() => expect(status(0)).toBe('done'));
+  });
+
+  it('fails a save that outlives its time limit', async () => {
+    vi.useFakeTimers();
+    saveDownloaded.mockImplementation(never);
+    await queueSongs(1);
+    finish(job(0).id);
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    const { t } = await import('../src/i18n');
+    expect(status(0)).toBe('error');
+    expect(job(0).error).toBe(t('dl.err.saveTooSlow'));
+    expect(signalOfSave().aborted).toBe(true);
+    expect(useDownloads.getState().saving).toEqual([]);
+  });
+
+  it('explains a failed phone-only save', async () => {
+    h.home = 'cloudflare';
+    saveDeviceOnly.mockRejectedValue(new TypeError('Failed to fetch'));
+    await queueSongs(1);
+    finish(job(0).id, 100 * MB);
+    await vi.waitFor(() => expect(status(0)).toBe('error'));
+    const { t } = await import('../src/i18n');
+    expect(job(0).error).toBe(t('dl.err.localFailed'));
+  });
+
+  it('removes a failed job and its file from the list', async () => {
+    saveDownloaded.mockRejectedValue(Object.assign(new Error('bad'), { status: 400 }));
+    await queueSongs(1);
+    const id = job(0).id;
+    finish(id);
+    await vi.waitFor(() => expect(status(0)).toBe('error'));
+    Downloader.ack.mockClear();
+    await useDownloads.getState().remove(id);
+    expect(useDownloads.getState().jobs).toEqual([]);
+    expect(Downloader.ack).toHaveBeenCalledWith({ jobId: id });
   });
 });

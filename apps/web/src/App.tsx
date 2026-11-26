@@ -8,6 +8,7 @@ import { MiniPlayer, PlayerBar } from './components/player/MiniPlayer';
 import { NowPlaying } from './components/player/NowPlaying';
 import { Toasts } from './components/Toasts';
 import { TrackMenu } from './components/TrackMenu';
+import { ShowPickSheet } from './components/podcasts/ShowPickSheet';
 import { ServerUpdateBanner } from './components/ServerUpdateBanner';
 import { useCloudflareSetup } from './stores/cloudflareSetup';
 import { useServerUpdate } from './stores/serverUpdate';
@@ -374,6 +375,7 @@ function Shell() {
       <TabBar />
       <NowPlaying />
       <TrackMenu />
+      <ShowPickSheet />
       <AddToPlaylistSheet />
       <Dialogs />
       <SelectionBar />

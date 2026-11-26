@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ArrowDownToLine,
   CircleMinus,
@@ -10,16 +11,23 @@ import {
   CircleCheck,
   Mic,
   Music,
+  Pencil,
   Send,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { hubAvailable } from '../hub/client';
+import { addTracksToJam, jamIsActive } from '../hub/jamFromLibrary';
 import { useT } from '../i18n';
+import { isOnlyOnDevice } from '../storage/localExtras';
+import type { LocalTrack } from '../storage/types';
+import { useJam } from '../stores/jam';
 import { useParcel } from '../stores/parcel';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { usePodcasts } from '../stores/podcasts';
 import { usePlayer } from '../stores/player';
+import { useSetup } from '../stores/setup';
 import { confirmDialog, useUi } from '../stores/ui';
 import { Cover } from './Cover';
 import { Sheet } from './Sheet';
@@ -32,7 +40,7 @@ export function TrackMenu() {
   const playlist = useLibrary((s) =>
     menu?.playlistId ? s.playlists.find((p) => p.id === menu.playlistId) : undefined,
   );
-  const offlineMode = useOffline((s) => (menu ? s.entries[menu.trackId]?.mode : undefined));
+  const toJam = useJam(() => jamIsActive());
   const t = useT();
   const finished = usePodcasts((s) => (menu ? !!s.progress[menu.trackId]?.finished : false));
 
@@ -84,23 +92,10 @@ export function TrackMenu() {
           <ListX size={20} /> {t('track.removeFromPlaylist')}
         </button>
       )}
-      {track.locations.device ? (
-        <div className="menu-item" style={{ cursor: 'default' }}>
-          <Smartphone size={20} /> {t('track.onDevice')}
-        </div>
-      ) : offlineMode ? (
-        <button
-          className="menu-item"
-          onClick={run(() => void useOffline.getState().unpin(track.id))}
-        >
-          <CircleMinus size={20} /> {t('track.removeDownload')}
-        </button>
-      ) : (
-        <button
-          className="menu-item"
-          onClick={run(() => void useOffline.getState().pin([track.id]))}
-        >
-          <ArrowDownToLine size={20} /> {t('track.download')}
+      <StorageItem track={track} />
+      {toJam && track.kind !== 'podcast' && (
+        <button className="menu-item" onClick={run(() => addTracksToJam([track.id]))}>
+          <Users size={20} /> {t('jamSend.action')}
         </button>
       )}
       {hubAvailable() && track.kind !== 'podcast' && (
@@ -109,6 +104,14 @@ export function TrackMenu() {
           onClick={run(() => void useParcel.getState().sendTracks([track.id]))}
         >
           <Send size={20} /> {t('parcel.sendSelected')}
+        </button>
+      )}
+      {track.kind === 'podcast' && (
+        <button
+          className="menu-item"
+          onClick={run(() => useUi.getState().openShowPicker([track.id]))}
+        >
+          <Pencil size={20} /> {t('podcasts.changeShow')}
         </button>
       )}
       {track.kind === 'podcast' && (
@@ -148,5 +151,47 @@ export function TrackMenu() {
         <Trash2 size={20} /> {t('track.delete')}
       </button>
     </Sheet>
+  );
+}
+
+/** Where the song is: only on this phone, on this device, or downloadable for offline use. */
+function StorageItem({ track }: { track: LocalTrack }) {
+  const t = useT();
+  const home = useSetup((s) => s.config?.home);
+  const offlineMode = useOffline((s) => s.entries[track.id]?.mode);
+  const close = useUi((s) => s.closeTrackMenu);
+  const [explaining, setExplaining] = useState(false);
+
+  if (isOnlyOnDevice(track, home)) {
+    return (
+      <>
+        <button
+          className="menu-item"
+          onClick={() => setExplaining(!explaining)}
+          aria-expanded={explaining}
+        >
+          <Smartphone size={20} /> {t('local.badge')}
+        </button>
+        {explaining && <p className="menu-explain muted small">{t('local.explain')}</p>}
+      </>
+    );
+  }
+  if (track.locations.device) {
+    return (
+      <div className="menu-item" style={{ cursor: 'default' }}>
+        <Smartphone size={20} /> {t('track.onDevice')}
+      </div>
+    );
+  }
+  const toggle = () => {
+    close();
+    const offline = useOffline.getState();
+    void (offlineMode ? offline.unpin(track.id) : offline.pin([track.id]));
+  };
+  return (
+    <button className="menu-item" onClick={toggle}>
+      {offlineMode ? <CircleMinus size={20} /> : <ArrowDownToLine size={20} />}{' '}
+      {offlineMode ? t('track.removeDownload') : t('track.download')}
+    </button>
   );
 }

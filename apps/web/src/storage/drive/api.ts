@@ -72,6 +72,27 @@ async function call(url: string, init: RequestInit = {}, retried = false): Promi
   return res;
 }
 
+export interface UploadOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
+/** Second half of a resumable upload: the bytes themselves. */
+async function sendBytes(url: string, blob: Blob, opts: UploadOptions): Promise<DriveFile> {
+  const timeout = AbortSignal.timeout(opts.timeoutMs ?? 600_000);
+  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+  let res: Response;
+  try {
+    res = await fetch(url, { method: 'PUT', body: blob, signal });
+  } catch (err) {
+    if (opts.signal?.aborted) throw err;
+    if (timeout.aborted) throw new DriveError(408, 'upload_timeout', 'The upload timed out');
+    throw new DriveError(0, 'network_error', 'The upload was interrupted');
+  }
+  if (!res.ok) throw new DriveError(res.status, 'upload_failed', `Upload failed (${res.status})`);
+  return (await res.json()) as DriveFile;
+}
+
 const q = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
 async function findOne(query: string): Promise<DriveFile | null> {
@@ -122,9 +143,11 @@ export const driveApi = {
   async upload(
     meta: { name: string; mimeType: string; parentId: string },
     blob: Blob,
+    opts: UploadOptions = {},
   ): Promise<DriveFile> {
     const start = await call(`${UPLOAD}/files?uploadType=resumable&fields=id,name,size,version`, {
       method: 'POST',
+      signal: opts.signal,
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
         'X-Upload-Content-Type': meta.mimeType,
@@ -135,18 +158,7 @@ export const driveApi = {
     const location = start.headers.get('Location');
     if (!location)
       throw new DriveError(0, 'upload_failed', 'Google did not give an upload address');
-    let res: Response;
-    try {
-      res = await fetch(location, {
-        method: 'PUT',
-        body: blob,
-        signal: AbortSignal.timeout(600_000),
-      });
-    } catch {
-      throw new DriveError(0, 'network_error', 'The upload was interrupted');
-    }
-    if (!res.ok) throw new DriveError(res.status, 'upload_failed', `Upload failed (${res.status})`);
-    return (await res.json()) as DriveFile;
+    return sendBytes(location, blob, opts);
   },
 
   /** Replaces a file's content (the library file). */

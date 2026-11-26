@@ -7,13 +7,21 @@ import {
   sortFolders,
   type Folder,
   type Playlist,
+  type TrackKind,
 } from '@aske/shared';
 import { ApiError } from '../api/client';
 import { t } from '../i18n';
 import { squareJpeg } from '../lib/cover';
 import { kvGet, kvSet, type CachedLibrary } from '../offline/db';
+import { mergeExtras } from '../storage/libraryMerge';
+import {
+  deleteLocalExtra,
+  isOnlyOnDevice,
+  listLocalExtras,
+  updateLocalExtra,
+} from '../storage/localExtras';
 import { applyFolderDelete, applyMove, planMerge } from '../storage/playlistOps';
-import type { LibrarySnapshot, LocalTrack } from '../storage/types';
+import type { LibraryHome, LibrarySnapshot, LocalTrack, TrackPatch } from '../storage/types';
 import { isTimeout, withTimeout } from '../lib/timeout';
 import { useConnectivity } from './connectivity';
 import { useServerUpdate } from './serverUpdate';
@@ -38,7 +46,10 @@ interface LibraryState {
   upsertTracks: (tracks: LocalTrack[]) => void;
   toggleLike: (trackId: string) => Promise<void>;
   likeMany: (trackIds: string[]) => Promise<void>;
-  setKind: (trackId: string, kind: 'music' | 'podcast') => Promise<void>;
+  setKind: (trackId: string, kind: TrackKind) => Promise<void>;
+  setKindMany: (trackIds: string[], kind: TrackKind) => Promise<void>;
+  /** Moves episodes to a show (the show is stored in `album`). */
+  setAlbumMany: (trackIds: string[], album: string) => Promise<void>;
   reorderPlaylist: (id: string, trackIds: string[]) => Promise<void>;
   deleteTrack: (trackId: string) => Promise<void>;
   createPlaylist: (name: string, trackIds?: string[]) => Promise<Playlist | null>;
@@ -74,10 +85,36 @@ function fromSnapshot(s: Omit<LibrarySnapshot, 'etag'>) {
   };
 }
 
+const homeKind = () => useSetup.getState().config?.home;
+
+const extrasStore: Pick<LibraryHome, 'updateTrack' | 'deleteTrack'> = {
+  updateTrack: updateLocalExtra,
+  deleteTrack: deleteLocalExtra,
+};
+
+/** A broken local store must not hide the cloud library. */
+async function readExtras(): Promise<LocalTrack[]> {
+  if (homeKind() === 'device') return [];
+  try {
+    return await listLocalExtras();
+  } catch (err) {
+    console.error('Could not read the songs kept only on this phone', err);
+    toast(t('toast.error'), 'error');
+    return [];
+  }
+}
+
+async function fromSnapshotWithExtras(s: Omit<LibrarySnapshot, 'etag'>) {
+  return fromSnapshot({ ...s, tracks: mergeExtras(s.tracks, await readExtras()) });
+}
+
 /** Saves the in-memory state locally (with an empty ETag, so the next load revalidates). */
 async function persist(state: LibraryState, etag = '') {
   const library = {
-    tracks: state.order.map((id) => state.tracks[id]!).filter(Boolean),
+    // Extras have their own store: caching them here would bring deleted ones back.
+    tracks: state.order
+      .map((id) => state.tracks[id]!)
+      .filter((tr) => tr && !isOnlyOnDevice(tr, homeKind())),
     playlists: state.playlists,
     folders: state.folders,
   };
@@ -138,6 +175,38 @@ export const useLibrary = create<LibraryState>((set, get) => {
   const replacePlaylist = (pl: Playlist) =>
     set({ playlists: get().playlists.map((p) => (p.id === pl.id ? pl : p)) });
 
+  const isExtra = (id: string) => {
+    const track = get().tracks[id];
+    return !!track && isOnlyOnDevice(track, homeKind());
+  };
+
+  /** Where the changes of one song are written. */
+  const storeFor = (id: string) => (isExtra(id) ? extrasStore : getHome());
+
+  /** Applies the same change to several songs; all of them roll back if one write fails. */
+  const updateMany = (ids: string[], changes: Partial<LocalTrack>, patch: TrackPatch) =>
+    mutate(
+      (s) => ({
+        tracks: Object.fromEntries(
+          Object.entries(s.tracks).map(([id, tr]) => [
+            id,
+            ids.includes(id) ? { ...tr, ...changes } : tr,
+          ]),
+        ),
+      }),
+      async () => {
+        for (const id of ids) await storeFor(id).updateTrack(id, patch);
+      },
+    );
+
+  /** Cloud playlists cannot hold songs that exist only on this phone. */
+  function forPlaylist(trackIds: string[], silent = false) {
+    const allowed = trackIds.filter((id) => !isExtra(id));
+    const dropped = new Set(trackIds.filter(isExtra)).size;
+    if (dropped && !silent) toast(t('local.notInPlaylists', { count: dropped }));
+    return { allowed, nothingLeft: dropped > 0 && allowed.length === 0 };
+  }
+
   return {
     loaded: false,
     loading: false,
@@ -152,12 +221,14 @@ export const useLibrary = create<LibraryState>((set, get) => {
       if (get().loading) return;
       set({ loading: true, error: null });
       const cached = await kvGet<CachedLibrary>(cacheKey());
-      if (cached && !get().loaded) set({ ...fromSnapshot(cached.library), loaded: true });
+      if (cached && !get().loaded) {
+        set({ ...(await fromSnapshotWithExtras(cached.library)), loaded: true });
+      }
       try {
         const fresh = await withTimeout(getHome().load(cached?.etag || undefined), LOAD_TIMEOUT_MS);
         if (fresh) {
           const { etag, ...library } = fresh;
-          set({ ...fromSnapshot(library), loaded: true });
+          set({ ...(await fromSnapshotWithExtras(library)), loaded: true });
           await kvSet(cacheKey(), { etag, library, savedAt: Date.now() } satisfies CachedLibrary);
         }
         set({ loading: false, loaded: true });
@@ -190,26 +261,13 @@ export const useLibrary = create<LibraryState>((set, get) => {
         (s) => ({
           tracks: { ...s.tracks, [trackId]: { ...track, likedAt: liked ? Date.now() : null } },
         }),
-        () => getHome().updateTrack(trackId, { liked }),
+        () => storeFor(trackId).updateTrack(trackId, { liked }),
       ).catch(() => undefined);
     },
 
     async likeMany(trackIds) {
-      const now = Date.now();
       const todo = trackIds.filter((id) => get().tracks[id]?.likedAt === null);
-      await mutate(
-        (s) => ({
-          tracks: Object.fromEntries(
-            Object.entries(s.tracks).map(([id, tr]) => [
-              id,
-              todo.includes(id) ? { ...tr, likedAt: now } : tr,
-            ]),
-          ),
-        }),
-        async () => {
-          for (const id of todo) await getHome().updateTrack(id, { liked: true });
-        },
-      )
+      await updateMany(todo, { likedAt: Date.now() }, { liked: true })
         .then(() => toast(t('toast.likedMany', { count: trackIds.length })))
         .catch(() => undefined);
     },
@@ -219,7 +277,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
       if (!track) return;
       await mutate(
         (s) => ({ tracks: { ...s.tracks, [trackId]: { ...track, kind } } }),
-        () => getHome().updateTrack(trackId, { kind }),
+        () => storeFor(trackId).updateTrack(trackId, { kind }),
       )
         .then(() =>
           toast(kind === 'podcast' ? t('toast.movedToPodcasts') : t('toast.movedToMusic')),
@@ -227,7 +285,31 @@ export const useLibrary = create<LibraryState>((set, get) => {
         .catch(() => undefined);
     },
 
-    async reorderPlaylist(id, trackIds) {
+    async setKindMany(trackIds, kind) {
+      const known = trackIds.filter((id) => get().tracks[id]);
+      const todo = known.filter((id) => get().tracks[id]!.kind !== kind);
+      await updateMany(todo, { kind }, { kind })
+        .then(() =>
+          toast(
+            kind === 'podcast'
+              ? t('toast.movedToPodcastsMany', { count: known.length })
+              : t('toast.movedToMusic'),
+          ),
+        )
+        .catch(() => undefined);
+    },
+
+    async setAlbumMany(trackIds, album) {
+      const known = trackIds.filter((id) => get().tracks[id]);
+      const todo = known.filter((id) => get().tracks[id]!.album !== album);
+      await updateMany(todo, { album }, { album })
+        .then(() => toast(t('podcasts.toast.showChanged', { count: known.length, name: album })))
+        .catch(() => undefined);
+    },
+
+    async reorderPlaylist(id, requested) {
+      // An import may list songs that only exist on this phone.
+      const { allowed: trackIds } = forPlaylist(requested, true);
       await mutate(
         (s) => ({ playlists: s.playlists.map((p) => (p.id === id ? { ...p, trackIds } : p)) }),
         () => getHome().reorderPlaylist(id, trackIds),
@@ -236,7 +318,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
 
     async deleteTrack(trackId) {
       try {
-        await getHome().deleteTrack(trackId);
+        await storeFor(trackId).deleteTrack(trackId);
       } catch (err) {
         reportError(err);
         return;
@@ -254,7 +336,9 @@ export const useLibrary = create<LibraryState>((set, get) => {
       toast(t('toast.deleted'));
     },
 
-    async createPlaylist(name, trackIds = []) {
+    async createPlaylist(name, requested = []) {
+      const { allowed: trackIds, nothingLeft } = forPlaylist(requested);
+      if (nothingLeft) return null;
       if (new Set(trackIds).size > LIMITS.playlistMaxTracks) {
         toast(t('toast.playlistTooBig', { max: LIMITS.playlistMaxTracks }));
         return null;
@@ -291,7 +375,9 @@ export const useLibrary = create<LibraryState>((set, get) => {
       ).catch(() => undefined);
     },
 
-    async addToPlaylist(id, trackIds, silent = false) {
+    async addToPlaylist(id, requested, silent = false) {
+      const { allowed: trackIds, nothingLeft } = forPlaylist(requested, silent);
+      if (nothingLeft) return;
       const current = get().playlists.find((p) => p.id === id);
       if (current) {
         const total = new Set([...current.trackIds, ...trackIds]).size;

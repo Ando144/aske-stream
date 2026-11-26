@@ -59,13 +59,19 @@ export interface PlayerState {
   togglePlay: () => void;
   pause: () => void;
   next: () => void;
-  previous: () => void;
+  /** The bare overload lets it be wired straight to a button's onClick. */
+  previous: {
+    (): void;
+    (opts?: { skipRestart?: boolean }): void;
+  };
   seek: (seconds: number) => void;
   seekBy: (delta: number) => void;
   setVolume: (volume: number) => void;
   toggleMute: () => void;
   setRate: (rate: number) => void;
   toggleShuffle: () => void;
+  /** New order for every shuffle round; what was already heard stays at the end. */
+  reshuffle: () => void;
   cycleRepeat: () => void;
   playNext: (ids: string[]) => void;
   addToQueue: (ids: string[]) => void;

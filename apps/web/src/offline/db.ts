@@ -22,6 +22,8 @@ interface AskeDB extends DBSchema {
   playlists: { key: string; value: Playlist };
   stations: { key: string; value: Station };
   folders: { key: string; value: Folder };
+  /** Songs only on this phone while the home is a cloud one (v6). */
+  'local-extras': { key: string; value: LocalTrack };
   /** Local listening history (opt-in) for the Recap. */
   plays: { key: string; value: PlayRecord; indexes: { 'by-startedAt': number } };
   /** Study-mode sessions (opt-in with the same consent as the history). */
@@ -31,7 +33,7 @@ interface AskeDB extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<AskeDB>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<AskeDB>> {
-  dbPromise ??= openDB<AskeDB>('aske', 5, {
+  dbPromise ??= openDB<AskeDB>('aske', 6, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         db.createObjectStore('kv');
@@ -51,6 +53,9 @@ export function getDb(): Promise<IDBPDatabase<AskeDB>> {
       }
       if (oldVersion < 5) {
         db.createObjectStore('study', { keyPath: 'id' }).createIndex('by-startedAt', 'startedAt');
+      }
+      if (oldVersion < 6) {
+        db.createObjectStore('local-extras', { keyPath: 'id' });
       }
     },
     blocked() {

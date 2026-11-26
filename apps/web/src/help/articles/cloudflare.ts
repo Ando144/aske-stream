@@ -153,4 +153,48 @@ Betetzen bada, deskargek huts egiten dute «Zure Cloudflare beteta dago» mezuar
 Zer egiten duen dakienak muga alda dezake zerbitzariko STORAGE_LIMIT_GB aldagaiarekin, jakinda 10 GBetik gora Cloudflarek kobratzen duela.`,
     },
   },
+  {
+    id: 'cloudflare-big',
+    section: 'cloudflare',
+    title: {
+      es: 'Audios de más de 95 MB: «Solo en este móvil»',
+      en: 'Audio over 95 MB: “Only on this phone”',
+      eu: '95 MB baino gehiagoko audioak: «Mugikor honetan bakarrik»',
+    },
+    body: {
+      es: `Tu Cloudflare no admite archivos de más de **95 MB** (más o menos 1 hora y 40 minutos de audio). Cuando descargas uno más grande, la app lo guarda **solo en este móvil** y te avisa. Lo mismo hace si un audio de más de 30 MB falla dos veces al subir por un problema del servidor o porque tarda demasiado. Si lo que falta es internet, espera a que vuelva.
+
+Verás la marca **Solo en este móvil** en las listas y en Podcasts. En el menú **⋮**, tócala para ver la explicación.
+
+- **Se escucha aquí**, también sin conexión.
+- Puedes darle «Me gusta», moverlo a Podcasts, cambiarlo de serie y borrarlo.
+- **No aparece** en la web ni en tus otros aparatos, y no se sube más tarde.
+- **No se puede poner** en playlists de la nube y **no entra** en «Copiar tu música».
+- **Se pierde** si desinstalas la app o borras sus datos.
+
+Para descargar y cancelar, mira [[download-youtube|descargar de YouTube]].`,
+      en: `Your Cloudflare does not accept files over **95 MB** (about 1 hour and 40 minutes of audio). When you download a larger one, the app saves it **only on this phone** and tells you. It does the same if audio over 30 MB fails to upload twice because of a server problem or because it takes too long. If what is missing is internet, it waits for it to come back.
+
+You will see the **Only on this phone** mark in lists and in Podcasts. In the **⋮** menu, tap it to read the explanation.
+
+- **It plays here**, also offline.
+- You can like it, move it to Podcasts, change its show and delete it.
+- It **does not appear** on the web or on your other devices, and it is not uploaded later.
+- It **cannot be added** to cloud playlists and **is not included** in “Copy your music”.
+- It **is lost** if you uninstall the app or clear its data.
+
+To download and cancel, see [[download-youtube|downloading from YouTube]].`,
+      eu: `Zure Cloudflarek ez ditu **95 MB** baino gehiagoko fitxategiak onartzen (ordubete eta 40 minutuko audioa, gutxi gorabehera). Handiago bat deskargatzen duzunean, aplikazioak **mugikor honetan bakarrik** gordetzen du eta abisatzen dizu. Gauza bera egiten du 30 MB baino gehiagoko audio baten igoerak bi aldiz huts egiten badu zerbitzariaren arazo batengatik edo gehiegi irauten duelako. Falta dena Internet bada, itzuli arte itxaroten du.
+
+**Mugikor honetan bakarrik** marka ikusiko duzu zerrendetan eta Podcastetan. **⋮** menuan, ukitu azalpena irakurtzeko.
+
+- **Hemen entzuten da**, baita konexiorik gabe ere.
+- «Gogokoetara» gehitu, Podcastetara eraman, saila aldatu eta ezabatu dezakezu.
+- **Ez da agertzen** webean ez zure beste gailuetan, eta ez da geroago igotzen.
+- **Ezin da jarri** hodeiko zerrendetan eta **ez da sartzen** «Kopiatu zure musika» atalean.
+- **Galdu egiten da** aplikazioa desinstalatzen baduzu edo haren datuak ezabatzen badituzu.
+
+Deskargatzeko eta uzteko, ikusi [[download-youtube|YouTubetik deskargatu]].`,
+    },
+  },
 ];

@@ -20,6 +20,10 @@ Puedes cerrar la app mientras descarga: las canciones seguirán bajando y verás
 
 La primera descarga tarda un poco más porque la app prepara el descargador.
 
+**Cancelar o quitar:** la **X** cancela una descarga en cualquier momento, también mientras se está guardando; en ese caso no queda en tu biblioteca. Las que han fallado o has cancelado tienen dos botones: **Reintentar** y **Quitar de la lista** (la papelera).
+
+**Audios largos:** un audio de una hora o más ocupa mucho y guardarlo en la nube puede tardar varios minutos; depende de tu conexión. Mientras tanto, las canciones normales se siguen guardando. Si la subida va demasiado lenta, la app la para: prueba con wifi y pulsa **Reintentar**. Con Cloudflare, los muy grandes se quedan solo en el móvil: mira [[cloudflare-big|audios de más de 95 MB]].
+
 Las canciones que ya tienes aparecen como «Ya la tienes» y no se descargan dos veces.
 
 Si pegas el enlace de una playlist en el móvil, puedes quitar canciones antes de descargar.`,
@@ -33,6 +37,10 @@ You can close the app while it downloads: the songs keep coming and progress sho
 
 The first download takes a bit longer because the app gets the downloader ready.
 
+**Cancel or remove:** the **X** cancels a download at any moment, also while it is being saved; in that case it does not stay in your library. Failed or cancelled ones have two buttons: **Retry** and **Remove from the list** (the bin).
+
+**Long audio:** audio lasting an hour or more is large, and saving it to the cloud can take several minutes; it depends on your connection. Meanwhile, normal songs keep being saved. If the upload is too slow, the app stops it: try on Wi-Fi and tap **Retry**. With Cloudflare, very large ones stay only on the phone: see [[cloudflare-big|audio over 95 MB]].
+
 Songs you already have show “In library” and are never downloaded twice.
 
 If you paste a playlist link on the phone, you can untick songs before downloading.`,
@@ -45,6 +53,10 @@ If you paste a playlist link on the phone, you can untick songs before downloadi
 Deskargatzen ari den bitartean aplikazioa itxi dezakezu: abestiak jaisten jarraituko dute eta aurrerapena jakinarazpenetan ikusiko duzu. Estaldurarik gabe geratzen bazara, deskargak pausatu egiten dira eta bere kabuz jarraitzen dute estaldura itzultzean; ez duzu ezer egin beharrik. Aplikazioa itxita ordu askotan jarraian deskargatzen baduzu, Androidek pausatu ditzake; abisu bat ikusiko duzu eta bere kabuz jarraituko dute Aske Stream irekitzean. Aplikazioa itxita deskargatutakoa zure liburutegian gordetzen da berriro irekitzean.
 
 Lehen deskargak pixka bat gehiago irauten du, aplikazioak deskargatzailea prestatzen duelako.
+
+**Utzi edo kendu:** **X** botoiak deskarga bat edozein unetan uzten du, baita gordetzen ari den bitartean ere; orduan ez da zure liburutegian geratzen. Huts egin dutenek edo utzi dituzunek bi botoi dituzte: **Saiatu berriro** eta **Kendu zerrendatik** (zakarrontzia).
+
+**Audio luzeak:** ordubeteko edo gehiagoko audio batek leku handia hartzen du, eta hodeian gordetzeak hainbat minutu behar ditzake; zure konexioaren araberakoa da. Bitartean, abesti arruntak gordetzen jarraitzen dute. Igoera motelegia bada, aplikazioak gelditu egiten du: saiatu wifiarekin eta sakatu **Saiatu berriro**. Cloudflarerekin, oso handiak mugikorrean bakarrik geratzen dira: ikusi [[cloudflare-big|95 MB baino gehiagoko audioak]].
 
 Dagoeneko dituzun abestiek «Baduzu» jartzen dute eta ez dira bi aldiz deskargatzen.
 

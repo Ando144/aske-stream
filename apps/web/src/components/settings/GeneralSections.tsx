@@ -1,5 +1,15 @@
-import { ChevronRight, Globe, Moon, Smartphone, Sun, SunMoon, WifiOff } from 'lucide-react';
+import {
+  ChevronRight,
+  Globe,
+  Moon,
+  Shuffle,
+  Smartphone,
+  Sun,
+  SunMoon,
+  WifiOff,
+} from 'lucide-react';
 import { Link } from 'wouter';
+import { usePlayer } from '../../stores/player';
 import { usePrefs } from '../../stores/prefs';
 import { LANGUAGES, useI18n, useT, type Language } from '../../i18n';
 
@@ -86,6 +96,19 @@ export function PlaybackSection() {
           </div>
           <ChevronRight size={20} className="faint" />
         </Link>
+        <div className="setting">
+          <Shuffle size={20} className="muted" />
+          <div className="grow faint small" id="reshuffle-hint">
+            {t('settings.reshuffleHint')}
+          </div>
+          <button
+            className="btn small"
+            aria-describedby="reshuffle-hint"
+            onClick={() => usePlayer.getState().reshuffle()}
+          >
+            {t('settings.reshuffle')}
+          </button>
+        </div>
         <div className="setting">
           <label className="grow" htmlFor="data-saver">
             <div>{t('settings.dataSaver')}</div>

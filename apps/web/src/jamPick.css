@@ -1,0 +1,27 @@
+/* Jam: song picker (library and YouTube) and thumbnails in the queue. */
+
+/* Doubled classes: these must win over styles.css whatever the load order. */
+.sheet-body.jam-pick {
+  align-items: stretch;
+  padding-inline: 10px;
+}
+
+.jam-pick-section h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.jam-item.jam-pick-item {
+  gap: 12px;
+}
+
+.jam-pick-item .grow,
+.jam-now.jam-now-art .grow {
+  min-width: 0;
+}
+
+.jam-now.jam-now-art {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

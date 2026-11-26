@@ -19,9 +19,18 @@ Arrastra el asa **⠿** para cambiar el orden y pulsa la **X** para quitar una c
 
 **Reproducir a continuación** (en el menú ⋮) pone la canción la primera de la cola.
 
-**Aleatorio**: no repite ninguna canción hasta que han sonado todas las de esa lista. Cada lista (tu biblioteca, cada playlist…) recuerda por dónde ibas. Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta, la primera nunca es la última que sonó. Es un interruptor junto al botón de reproducir (y el mismo en el reproductor): en ámbar está activado y la app se acuerda aunque la cierres. Con él activado, **Reproducir** empieza por una canción al azar; desactivado, empieza por la primera de la lista. Cambiarlo mientras suena una lista mezcla o ordena lo que queda sin cortar la canción actual. En la biblioteca, el botón **Ordenar** cambia el orden de la lista (recientes, título o artista).
+**Aleatorio**: mezcla la lista una vez y **mantiene ese orden** hasta que han sonado todas. Si paras, escuchas otra cosa (por ejemplo un podcast) y vuelves a pulsar **Reproducir**, sigue por las que aún no has oído; las ya oídas quedan al final. Si tocas una canción concreta, suena esa y después continúa el mismo orden.
 
-**Repetir** (el botón de la derecha): cada pulsación cambia de modo. Sin repetir: al acabar la lista, la música para. Repetir lista: al acabar, vuelve a empezar. Repetir canción (el icono lleva un «1»): suena la misma una y otra vez.`,
+- Toda tu biblioteca es una sola vuelta, aunque busques o filtres. Cada playlist recuerda la suya.
+- Las canciones nuevas que añadas entran en el aleatorio. Al empezar otra vuelta se mezcla de nuevo, y la primera nunca es la última que sonó.
+- Es un interruptor junto al botón de reproducir (y el mismo en el reproductor): en ámbar está activado y la app se acuerda aunque la cierres. Apagarlo y encenderlo **no vuelve a mezclar**. Apagado, la lista suena en su orden normal.
+- ¿Quieres un orden nuevo? Ve a **Ajustes → Reproducción** y pulsa **Barajar de nuevo**. Lo que ya has oído sigue esperando al final.
+
+En la biblioteca, el botón **Ordenar** cambia el orden de la lista (recientes, título o artista).
+
+**Repetir** (el botón de la derecha): cada pulsación cambia de modo. Sin repetir: al acabar la lista, la música para. Repetir lista: al acabar, vuelve a empezar. Repetir canción (el icono lleva un «1»): suena la misma una y otra vez.
+
+**Cambiar de canción con el dedo** (en el móvil): sobre la barra pequeña del reproductor, desliza a la **izquierda** para pasar a la siguiente y a la **derecha** para volver a la anterior. Si la tocas sin deslizar, se abre el reproductor grande. Si organizas una [[jam|Jam]] y está sonando una de sus canciones, deslizar a la izquierda la salta y a la derecha no hace nada.`,
       en: `Open the player full screen and scroll down: you see two lists.
 
 - **Queue**: songs you add with “Add to queue” or by swiping a song to the right. They always play first.
@@ -31,9 +40,18 @@ Drag the **⠿** handle to reorder and tap **X** to remove a song.
 
 **Play next** (in the ⋮ menu) puts the song first in the queue.
 
-**Shuffle**: it does not repeat any song until all the songs in that list have played. Each list (your library, each playlist…) remembers where you were. New songs you add join the shuffle. When a new round starts, the first song is never the last one that played. It is a switch next to the play button (and the same one in the player): amber means on, and the app remembers it even if you close it. With it on, **Play** starts with a random song; off, it starts with the first one in the list. Changing it while a list is playing mixes or sorts what is left without cutting the current song. In the library, the **Sort** button changes the order of the list (recent, title or artist).
+**Shuffle**: it mixes the list once and **keeps that order** until every song has played. If you stop, listen to something else (a podcast, for example) and tap **Play** again, it carries on with the ones you have not heard; the ones already heard stay at the end. If you tap a specific song, that one plays and then the same order continues.
 
-**Repeat** (the button on the right): each tap changes the mode. No repeat: music stops at the end of the list. Repeat list: it starts again when it ends. Repeat song (the icon has a “1”): the same song plays again and again.`,
+- Your whole library is a single round, even if you search or filter. Each playlist remembers its own.
+- New songs you add join the shuffle. When a new round starts it is mixed again, and the first song is never the last one that played.
+- It is a switch next to the play button (and the same one in the player): amber means on, and the app remembers it even if you close it. Turning it off and on **does not mix again**. When off, the list plays in its normal order.
+- Want a new order? Go to **Settings → Playback** and tap **Shuffle again**. What you have already heard still waits at the end.
+
+In the library, the **Sort** button changes the order of the list (recent, title or artist).
+
+**Repeat** (the button on the right): each tap changes the mode. No repeat: music stops at the end of the list. Repeat list: it starts again when it ends. Repeat song (the icon has a “1”): the same song plays again and again.
+
+**Change song with your finger** (on a phone): on the small player bar, swipe **left** to go to the next one and **right** to go back to the previous one. Tapping it without swiping opens the full player. If you are hosting a [[jam|Jam]] and one of its songs is playing, swiping left skips it and swiping right does nothing.`,
       eu: `Ireki erreproduzitzailea handian eta jaitsi: bi zerrenda ikusiko dituzu.
 
 - **Ilara**: zuk «Gehitu ilarara» erabiliz edo abesti bat eskuinera irristatuz gehitzen dituzunak. Beti lehenik entzuten dira.
@@ -43,9 +61,18 @@ Arrastatu **⠿** heldulekua ordena aldatzeko eta sakatu **X** abesti bat kentze
 
 **Erreproduzitu hurrengoa** (⋮ menuan) abestia ilarako lehena jartzen du.
 
-**Ausazkoa**: ez du abesti bat ere errepikatzen zerrenda horretako guztiak entzun arte. Zerrenda bakoitzak (zure liburutegia, zerrenda bakoitza…) gogoratzen du non gelditu zinen. Gehitzen dituzun abesti berriak ausazkoan sartzen dira. Itzuli berri bat hasten denean, lehena ez da inoiz entzundako azkena. Erreproduzitzeko botoiaren ondoko etengailua da (eta erreproduzigailuan bera): anbarra aktibo dagoela esan nahi du, eta aplikazioak gogoratzen du itxi arren. Aktibo dagoenean, **Erreproduzitu** ausazko abesti batekin hasten da; desaktibatuta, zerrendako lehenengoarekin. Zerrenda bat entzuten ari zarela aldatzen baduzu, geratzen dena nahastu edo ordenatzen da, uneko abestia eten gabe. Liburutegian, **Ordenatu** botoiak zerrendaren ordena aldatzen du (berrienak, izenburua edo artista).
+**Ausazkoa**: zerrenda behin nahasten du eta **ordena horri eusten dio** abesti guztiak entzun arte. Gelditu, beste zerbait entzun (podcast bat, adibidez) eta **Erreproduzitu** berriro sakatzen baduzu, entzun gabekoekin jarraitzen du; entzundakoak amaieran geratzen dira. Abesti zehatz bat ukitzen baduzu, hori entzuten da eta gero ordena berak jarraitzen du.
 
-**Errepikatu** (eskuineko botoia): sakatzen duzun bakoitzean modua aldatzen da. Errepikatu gabe: zerrenda bukatzean, musika gelditu egiten da. Errepikatu zerrenda: bukatzean, berriro hasten da. Errepikatu abestia (ikonoak «1» bat du): abesti bera behin eta berriz entzuten da.`,
+- Zure liburutegi osoa itzuli bakarra da, bilatu edo iragazi arren. Zerrenda bakoitzak berea gogoratzen du.
+- Gehitzen dituzun abesti berriak ausazkoan sartzen dira. Itzuli berri bat hastean berriro nahasten da, eta lehena ez da inoiz entzundako azkena.
+- Erreproduzitzeko botoiaren ondoko etengailua da (eta erreproduzigailuan bera): anbarra aktibo dagoela esan nahi du, eta aplikazioak gogoratzen du itxi arren. Itzali eta piztu arren, **ez da berriro nahasten**. Itzalita, zerrenda bere ohiko ordenan entzuten da.
+- Ordena berri bat nahi duzu? Joan **Ezarpenak → Erreprodukzioa** atalera eta sakatu **Nahastu berriro**. Entzun dituzunak amaieran zain jarraituko dute.
+
+Liburutegian, **Ordenatu** botoiak zerrendaren ordena aldatzen du (berrienak, izenburua edo artista).
+
+**Errepikatu** (eskuineko botoia): sakatzen duzun bakoitzean modua aldatzen da. Errepikatu gabe: zerrenda bukatzean, musika gelditu egiten da. Errepikatu zerrenda: bukatzean, berriro hasten da. Errepikatu abestia (ikonoak «1» bat du): abesti bera behin eta berriz entzuten da.
+
+**Abestia hatzarekin aldatu** (mugikorrean): erreproduzitzailearen barra txikiaren gainean, irristatu **ezkerrera** hurrengora pasatzeko eta **eskuinera** aurrekora itzultzeko. Irristatu gabe ukituz gero, erreproduzitzaile handia irekitzen da. [[jam|Jam]] bat antolatzen ari bazara eta bertako abesti bat entzuten ari bada, ezkerrera irristatzeak saltatu egiten du eta eskuinera irristatzeak ez du ezer egiten.`,
     },
   },
   {
@@ -205,17 +232,29 @@ Azken 20 segundoetan musika apurka-apurka jaisten da eta gelditu egiten da. Ilar
     body: {
       es: `Las charlas, entrevistas o vídeos largos van aparte, en **Podcasts**, para que no se mezclen con tu música.
 
-- Para mover algo allí: menú **⋮** → «Mover a Podcasts» (y al revés, «Mover a Música»).
+- Para mover algo allí: menú **⋮** → «Mover a Podcasts» (y al revés, «Mover a Música»). Para mover varios a la vez, mantén pulsado uno, toca los demás y pulsa **Mover a podcasts** abajo.
+- Los episodios salen agrupados por **serie**, y las series de la A a la Z. Las descargas nuevas usan el nombre del canal de YouTube si el audio no trae álbum.
+- Dentro de cada serie, los que llevan número en el título («Episodio 3») van del menor al mayor; después, los que no lo llevan, del descargado hace más tiempo al más reciente.
+- **Cambiar de serie** un episodio: su menú **⋮** → «Cambiar de serie». Elige una serie que ya tengas o escribe un nombre nuevo.
+- **Renombrar serie**: pulsa los **⋮** junto al nombre de la serie y escribe el nombre nuevo. Si ya tienes una serie con ese nombre, se juntan. Así puedes ordenar también los episodios antiguos.
 - La app recuerda por dónde ibas en cada episodio.
 - En el reproductor puedes cambiar la velocidad y saltar 15 segundos atrás o 30 adelante.`,
       en: `Talks, interviews or long videos go apart, in **Podcasts**, so they do not mix with your music.
 
-- To move something there: **⋮** menu → “Move to Podcasts” (and back with “Move to Music”).
+- To move something there: **⋮** menu → “Move to Podcasts” (and back with “Move to Music”). To move several at once, press and hold one, tap the others and tap **Move to podcasts** at the bottom.
+- Episodes are grouped by **show**, and shows go from A to Z. New downloads use the YouTube channel name if the audio has no album.
+- Inside each show, episodes with a number in the title (“Episode 3”) go from lowest to highest; then the ones without a number, from the oldest download to the newest.
+- **Change the show** of an episode: its **⋮** menu → “Change show”. Pick a show you already have or type a new name.
+- **Rename show**: tap the **⋮** next to the show name and type the new name. If you already have a show with that name, they are joined. This is also how you tidy up older episodes.
 - The app remembers where you were in each episode.
 - In the player you can change the speed and jump 15 seconds back or 30 forward.`,
       eu: `Hitzaldiak, elkarrizketak edo bideo luzeak bereiz doaz, **Podcastak** atalean, zure musikarekin nahas ez daitezen.
 
-- Zerbait hara eramateko: **⋮** menua → «Eraman Podcastetara» (eta alderantziz, «Eraman Musikara»).
+- Zerbait hara eramateko: **⋮** menua → «Eraman Podcastetara» (eta alderantziz, «Eraman Musikara»). Hainbat batera eramateko, eutsi sakatuta bati, ukitu besteak eta sakatu behean **Eraman podcastetara**.
+- Atalak **sailka** agertzen dira, eta sailak A-tik Z-ra. Deskarga berriek YouTubeko kanalaren izena erabiltzen dute audioak albumik ez badakar.
+- Sail bakoitzaren barruan, izenburuan zenbakia dutenak («3. atala») txikienetik handienera doaz; gero zenbakirik gabekoak, aspaldien deskargatutakotik berrienera.
+- Atal baten **saila aldatu**: bere **⋮** menua → «Aldatu saila». Aukeratu daukazun sail bat edo idatzi izen berri bat.
+- **Sailaren izena aldatu**: sakatu sailaren izenaren ondoko **⋮** eta idatzi izen berria. Izen hori duen sail bat badaukazu, elkartu egiten dira. Horrela atal zaharrak ere txukun ditzakezu.
 - Aplikazioak gogoratzen du atal bakoitzean non zinen.
 - Erreproduzitzailean abiadura alda dezakezu eta 15 segundo atzera edo 30 aurrera salto egin.`,
     },

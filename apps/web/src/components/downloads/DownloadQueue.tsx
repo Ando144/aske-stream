@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Check, CircleAlert, RotateCcw, Trash2, X } from 'lucide-react';
+import { BIG_AUDIO_BYTES } from '../../downloads/pipeline';
 import { useT } from '../../i18n';
+import { formatBytes } from '../../lib/format';
 import { useDownloads, type DownloadJob } from '../../stores/downloads';
 import { BatteryHint } from './BatteryHint';
 import { NetworkBanner } from './NetworkBanner';
@@ -14,7 +16,9 @@ export function statusText(
   now = Date.now(),
 ): string {
   if (j.status === 'downloaded' && j.retryAt && j.retryAt > now) return t('dl.st.retrying');
-  if (waitingNetwork && ACTIVE.includes(j.status) && j.status !== 'saving') {
+  const onPhone = j.target === 'device-only';
+  const bytes = j.file?.bytes ?? 0;
+  if (waitingNetwork && ACTIVE.includes(j.status) && j.status !== 'saving' && !onPhone) {
     return t('dl.st.waitingNetwork');
   }
   switch (j.status) {
@@ -23,11 +27,13 @@ export function statusText(
     case 'downloading':
       return t('dl.st.downloading', { percent: Math.round(j.progress) });
     case 'saving':
+      if (onPhone) return t('dl.st.savingLocal', { size: formatBytes(bytes) });
+      if (bytes > BIG_AUDIO_BYTES) return t('dl.st.savingBig', { size: formatBytes(bytes) });
       return t('dl.st.saving');
     case 'downloaded':
       return t('dl.st.downloaded');
     case 'done':
-      return t('dl.st.done');
+      return onPhone ? t('dl.st.savedLocal') : t('dl.st.done');
     case 'skipped':
       return t('dl.st.skipped');
     case 'canceled':
@@ -106,6 +112,19 @@ export function Queue() {
   );
 }
 
+/** `canceling` is true while the phone answers the cancel request. */
+function useCancel(jobId: string) {
+  const [canceling, setCanceling] = useState(false);
+  const cancel = () => {
+    setCanceling(true);
+    void useDownloads
+      .getState()
+      .cancel(jobId)
+      .finally(() => setCanceling(false));
+  };
+  return { canceling, cancel };
+}
+
 export function JobRow({ job }: { job: DownloadJob }) {
   const t = useT();
   const waitingNetwork = useDownloads((s) => s.waitingNetwork);
@@ -115,7 +134,14 @@ export function JobRow({ job }: { job: DownloadJob }) {
       (s.engine.status === 'starting' || s.engine.status === 'updating') &&
       s.jobs.find((j) => j.status === 'queued')?.id === job.id,
   );
+  const { canceling, cancel } = useCancel(job.id);
   const active = ACTIVE.includes(job.status);
+  // Errors and the explanation of a long save must be readable in full.
+  const wraps = job.status === 'error' || job.status === 'saving';
+  const status = () => {
+    if (canceling && active) return t('dl.st.canceling');
+    return preparing ? t('dl.st.preparing') : statusText(t, job, waitingNetwork);
+  };
   return (
     <div className={`card-row dl-job ${job.status}`}>
       <img
@@ -127,9 +153,10 @@ export function JobRow({ job }: { job: DownloadJob }) {
       />
       <div className="grow" style={{ minWidth: 0 }}>
         <div className="card-title ellipsis">{job.title}</div>
-        <div className={`small ${job.status === 'error' ? 'error-text' : 'muted ellipsis'}`}>
-          {job.status === 'error' && <CircleAlert size={12} />}{' '}
-          {preparing ? t('dl.st.preparing') : statusText(t, job, waitingNetwork)}
+        <div
+          className={`small ${job.status === 'error' ? 'error-text' : 'muted'}${wraps ? '' : ' ellipsis'}`}
+        >
+          {job.status === 'error' && <CircleAlert size={12} />} {status()}
         </div>
         {job.status === 'downloading' && (
           <div className="meter dl-meter" aria-hidden>
@@ -137,25 +164,41 @@ export function JobRow({ job }: { job: DownloadJob }) {
           </div>
         )}
       </div>
-      {active ? (
-        <button
-          className="icon-btn"
-          aria-label={t('common.cancel')}
-          onClick={() => void useDownloads.getState().cancel(job.id)}
-        >
-          <X size={20} />
-        </button>
-      ) : job.status === 'error' || job.status === 'canceled' ? (
-        <button
-          className="icon-btn"
-          aria-label={t('dl.retry')}
-          onClick={() => useDownloads.getState().retry(job.id)}
-        >
-          <RotateCcw size={20} />
-        </button>
-      ) : (
-        <Check size={20} color="var(--accent)" />
-      )}
+      <JobActions job={job} active={active} onCancel={cancel} />
     </div>
+  );
+}
+
+function JobActions(props: { job: DownloadJob; active: boolean; onCancel: () => void }) {
+  const t = useT();
+  const { job, active, onCancel } = props;
+  if (active) {
+    return (
+      <button className="icon-btn" aria-label={t('common.cancel')} onClick={onCancel}>
+        <X size={20} />
+      </button>
+    );
+  }
+  if (job.status !== 'error' && job.status !== 'canceled') {
+    return <Check size={20} color="var(--accent)" />;
+  }
+  return (
+    <>
+      <button
+        className="icon-btn"
+        aria-label={t('dl.retry')}
+        onClick={() => useDownloads.getState().retry(job.id)}
+      >
+        <RotateCcw size={20} />
+      </button>
+      <button
+        className="icon-btn"
+        aria-label={t('dl.remove')}
+        title={t('dl.remove')}
+        onClick={() => void useDownloads.getState().remove(job.id)}
+      >
+        <Trash2 size={20} />
+      </button>
+    </>
   );
 }

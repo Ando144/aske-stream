@@ -13,7 +13,7 @@ import {
 import { kvGet, kvSet } from '../../offline/db';
 import { newLocalId } from '../homes';
 import type { LibraryHome, LocalTrack, StationInput, TrackPatch } from '../types';
-import { driveApi, DriveError } from './api';
+import { driveApi, DriveError, type UploadOptions } from './api';
 import {
   docFingerprint,
   emptyDoc,
@@ -259,6 +259,7 @@ export const driveHome: LibraryHome & {
     audio: Blob,
     cover: Blob | null,
     keep?: { likedAt: number | null; createdAt: number },
+    upload?: UploadOptions,
   ) => Promise<LocalTrack>;
   findBySource: (source: string, ref: string) => Promise<LocalTrack | undefined>;
   /** Re-reads Drive now, even if nothing seems to have changed. */
@@ -284,7 +285,7 @@ export const driveHome: LibraryHome & {
     await sync(true);
   },
 
-  async addTrack(meta, audio, cover, keep) {
+  async addTrack(meta, audio, cover, keep, upload) {
     const st = await getState();
     // Folders already known: do not queue behind a pending library.json sync.
     if (!(st.rootId && st.audioId && st.coversId)) await serialized(() => ensureFolders(st));
@@ -294,6 +295,7 @@ export const driveHome: LibraryHome & {
     const audioFile = await driveApi.upload(
       { name: `${base}.${ext}`, mimeType: meta.mime, parentId: st.audioId! },
       audio,
+      upload,
     );
     let coverFileId: string | null = null;
     if (cover) {
@@ -302,11 +304,17 @@ export const driveHome: LibraryHome & {
           await driveApi.upload(
             { name: `${id}.jpg`, mimeType: 'image/jpeg', parentId: st.coversId! },
             cover,
+            upload,
           )
         ).id;
       } catch {
         // A song without its cover is better than no song.
       }
+    }
+    if (upload?.signal?.aborted) {
+      trashFile(audioFile.id);
+      trashFile(coverFileId);
+      upload.signal.throwIfAborted();
     }
     const now = Date.now();
     const track: DocTrack = {

@@ -80,24 +80,29 @@ describe('offline db', () => {
       'folders',
       'plays',
       'study',
+      'local-extras',
     ]);
     expect(createIndex).toHaveBeenCalledWith('by-startedAt', 'startedAt');
   });
 
-  it('only creates plays and study when upgrading from version 3', async () => {
+  it('only creates plays, study and local-extras when upgrading from version 3', async () => {
     const { getDb } = await loadModule();
     await getDb();
     const { db, createIndex } = fakeDb();
     (state.options as OpenOptions).upgrade(db, 3);
-    expect(db.createObjectStore.mock.calls.map((c) => c[0])).toEqual(['plays', 'study']);
+    expect(db.createObjectStore.mock.calls.map((c) => c[0])).toEqual([
+      'plays',
+      'study',
+      'local-extras',
+    ]);
     expect(createIndex).toHaveBeenCalledWith('by-startedAt', 'startedAt');
   });
 
-  it('only creates study when upgrading from version 4', async () => {
+  it('only creates study and local-extras when upgrading from version 4', async () => {
     const { getDb } = await loadModule();
     await getDb();
     const { db } = fakeDb();
     (state.options as OpenOptions).upgrade(db, 4);
-    expect(db.createObjectStore.mock.calls.map((c) => c[0])).toEqual(['study']);
+    expect(db.createObjectStore.mock.calls.map((c) => c[0])).toEqual(['study', 'local-extras']);
   });
 });

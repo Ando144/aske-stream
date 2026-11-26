@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ChevronLeft, LoaderCircle } from 'lucide-react';
 import { useLocation } from 'wouter';
 import type { SharedList } from '@aske/shared/hub';
+import { SongRows } from '../components/send/ParcelSheet';
 import { songCount, useI18n, useT } from '../i18n';
 import { getSharedList } from '../hub/client';
 import { hubErrorText } from '../hub/errors';
@@ -73,14 +74,9 @@ function ListDetails({ list, readOnly }: { list: SharedList; readOnly: boolean }
       <div className="faint small">
         {t('shared.expires', { date: new Date(list.expiresAt).toLocaleDateString(language) })}
       </div>
-      <ul className="small" style={{ margin: '12px 0' }}>
-        {list.songs.map((song) => (
-          <li key={song.videoId}>
-            {song.title}
-            {song.artist ? <span className="muted"> · {song.artist}</span> : null}
-          </li>
-        ))}
-      </ul>
+      <div className="social-shared">
+        <SongRows songs={list.songs} />
+      </div>
     </>
   );
 }

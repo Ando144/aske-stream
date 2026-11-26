@@ -7,6 +7,9 @@ import { jamEn } from './jam';
 import { statsEn } from './stats';
 import { studyEn } from './study';
 import { groupsEn } from './groups';
+import { podcastsEn } from './podcasts';
+import { playbackEn } from './playback';
+import { downloadsEn } from './downloads';
 /** English is the source of truth: the other languages must define every key. */
 export const en = {
   'app.name': 'Aske Stream',
@@ -708,6 +711,9 @@ export const en = {
   ...statsEn,
   ...studyEn,
   ...groupsEn,
+  ...podcastsEn,
+  ...playbackEn,
+  ...downloadsEn,
   ...cloudflareSetupEn,
 } as const;
 

@@ -20,6 +20,9 @@ import { toast } from './ui';
 export type ParcelPhase = 'waiting' | 'received' | 'expired';
 export interface ActiveParcel extends CreatedParcel {
   phase: ParcelPhase;
+  /** What is inside, kept only here so the sender can check it next to the QR. */
+  songs: HubSong[];
+  name?: string;
 }
 export type ReceiveOutcome = 'ok' | 'invalid' | 'error';
 interface PlaylistMeta {
@@ -121,7 +124,7 @@ export const useParcel = create<ParcelState>((set, get) => {
     set({ busy: true });
     try {
       const created = await (meta ? createParcel(songs, meta) : createParcel(songs));
-      set({ current: { ...created, phase: 'waiting' } });
+      set({ current: { ...created, phase: 'waiting', songs, name: meta?.name } });
       return true;
     } catch (err) {
       toast(parcelErrorText(err), 'error');

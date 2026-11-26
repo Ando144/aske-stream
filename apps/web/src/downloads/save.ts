@@ -7,21 +7,19 @@ import { Downloader } from '../native/downloader';
 import { deleteDeviceFile, saveDeviceFile } from '../storage/deviceFiles';
 import { driveHome } from '../storage/drive/home';
 import { deviceHome, fromRemote, newLocalId } from '../storage/homes';
+import { putLocalExtra } from '../storage/localExtras';
 import type { LocalTrack } from '../storage/types';
 import { useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { findInLibrary } from './imports';
-import type { HomeKind } from './pipeline';
+import { uploadTimeoutMs, type HomeKind } from './pipeline';
 import type { DownloadedFile, DownloadJob, JobTimings } from './types';
 
 export type SaveOutcome =
   | { kind: 'saved'; track: LocalTrack; timings: JobTimings }
   | { kind: 'duplicate'; trackId: string | undefined };
 
-/** Assumes at least 16 KB/s of upload speed, and never less than two minutes. */
-export function uploadTimeoutMs(bytes: number): number {
-  return Math.max(120_000, (bytes / 16_384) * 1000);
-}
+export { uploadTimeoutMs };
 
 function mimeFor(ext: string): string {
   if (ext === 'webm' || ext === 'weba') return 'audio/webm';
@@ -29,8 +27,8 @@ function mimeFor(ext: string): string {
   return 'audio/ogg';
 }
 
-async function readNativeFile(path: string): Promise<Blob> {
-  const res = await fetch(Capacitor.convertFileSrc(path));
+async function readNativeFile(path: string, signal?: AbortSignal): Promise<Blob> {
+  const res = await fetch(Capacitor.convertFileSrc(path), { signal });
   if (!res.ok) throw new Error(`Could not read the downloaded file (${res.status})`);
   return res.blob();
 }
@@ -69,18 +67,30 @@ interface Prepared {
   bitrateKbps: number | null;
   meta: ReturnType<typeof metadataFromYoutube>;
   timings: JobTimings;
+  signal?: AbortSignal;
 }
 
-async function prepare(job: DownloadJob, file: DownloadedFile): Promise<Prepared> {
-  const meta = metadataFromYoutube({ ...file.info, id: job.videoId });
+/** The channel stands in for a missing album: it is what groups podcast episodes into shows. */
+function metadataFor(job: DownloadJob, { info }: DownloadedFile) {
+  const meta = metadataFromYoutube({ ...info, id: job.videoId });
+  return { ...meta, album: meta.album || info.channel || info.uploader || job.author || '' };
+}
+
+async function prepare(
+  job: DownloadJob,
+  file: DownloadedFile,
+  signal?: AbortSignal,
+): Promise<Prepared> {
+  signal?.throwIfAborted();
+  const meta = metadataFor(job, file);
   const durationMs = Math.round((file.info.duration ?? 0) * 1000);
   if (durationMs <= 0) throw new Error('Unknown duration');
   const mime = mimeFor(file.ext);
   const [read, cover] = await Promise.all([
-    timed(
-      async () =>
-        new File([await readNativeFile(file.path)], `${job.videoId}.${file.ext}`, { type: mime }),
-    ),
+    timed(async () => {
+      const data = await readNativeFile(file.path, signal);
+      return new File([data], `${job.videoId}.${file.ext}`, { type: mime });
+    }),
     timed(() => fetchCover(job)),
   ]);
   const audio = read.value;
@@ -96,6 +106,7 @@ async function prepare(job: DownloadJob, file: DownloadedFile): Promise<Prepared
     bitrateKbps,
     meta,
     timings: { readMs: read.ms, coverMs: cover.ms },
+    signal,
   };
 }
 
@@ -112,17 +123,14 @@ async function finish(
 ): Promise<SaveOutcome> {
   const library = await timed(async () => {
     useLibrary.getState().upsertTracks([track]);
-    if (keepCopy && p.job.keepOffline) {
+    if (keepCopy && p.job.keepOffline && !p.signal?.aborted) {
       await useOffline.getState().adopt(track.id, p.audio, p.durationMs);
     }
   });
   return { kind: 'saved', track, timings: { ...p.timings, uploadMs, libraryMs: library.ms } };
 }
 
-async function saveToCloudflare(p: Prepared): Promise<SaveOutcome> {
-  if (p.mime === 'audio/mp4') throw new Error('Only Opus audio can be stored in Cloudflare');
-  if (!navigator.onLine) throw new ApiError(0, 'network_error', 'No connection');
-  const { job, meta } = p;
+function uploadForm({ job, meta, ...p }: Prepared): FormData {
   const form = new FormData();
   form.append(
     'meta',
@@ -139,12 +147,23 @@ async function saveToCloudflare(p: Prepared): Promise<SaveOutcome> {
   );
   form.append('audio', p.audio);
   if (p.cover) form.append('cover', new File([p.cover], 'cover.jpg', { type: 'image/jpeg' }));
+  return form;
+}
+
+async function saveToCloudflare(p: Prepared): Promise<SaveOutcome> {
+  if (p.mime === 'audio/mp4') throw new Error('Only Opus audio can be stored in Cloudflare');
+  if (!navigator.onLine) throw new ApiError(0, 'network_error', 'No connection');
+  const { job } = p;
+  const form = uploadForm(p);
+  const timeout = AbortSignal.timeout(uploadTimeoutMs(p.audio.size));
+  const signal = p.signal ? AbortSignal.any([p.signal, timeout]) : timeout;
   try {
-    const upload = await timed(() =>
-      api.uploadTrack(form, AbortSignal.timeout(uploadTimeoutMs(p.audio.size))),
-    );
+    const upload = await timed(() => api.uploadTrack(form, signal));
     return finish(p, fromRemote(upload.value), upload.ms, true);
   } catch (err) {
+    if (timeout.aborted && !p.signal?.aborted) {
+      throw new ApiError(408, 'upload_timeout', 'The upload timed out');
+    }
     if (err instanceof ApiError && err.status === 409) {
       await useLibrary.getState().load();
       return { kind: 'duplicate', trackId: findInLibrary(job.videoId)?.id };
@@ -173,35 +192,46 @@ async function saveToDrive(p: Prepared): Promise<SaveOutcome> {
       },
       p.audio,
       p.cover,
+      undefined,
+      { signal: p.signal, timeoutMs: uploadTimeoutMs(p.audio.size) },
     ),
   );
   return finish(p, upload.value, upload.ms, true);
 }
 
-async function saveToDevice(p: Prepared): Promise<SaveOutcome> {
+function phoneTrack(p: Prepared, id: string): LocalTrack {
   const { job, meta } = p;
+  return {
+    id,
+    title: meta.title || job.title,
+    artist: meta.artist,
+    album: meta.album,
+    durationMs: p.durationMs,
+    sizeBytes: p.audio.size,
+    bitrateKbps: p.bitrateKbps,
+    hasCover: !!p.cover,
+    kind: 'music',
+    source: 'youtube',
+    sourceRef: job.videoId,
+    likedAt: null,
+    createdAt: Date.now(),
+    locations: { device: true },
+    mime: p.mime,
+  };
+}
+
+/** Writes audio and cover on this phone, then registers the song; leaves nothing behind. */
+async function writeToPhone(
+  p: Prepared,
+  register: (track: LocalTrack) => Promise<LocalTrack>,
+): Promise<SaveOutcome> {
   const id = newLocalId();
   try {
     const write = await timed(async () => {
       await saveDeviceFile('audio', id, p.audio);
       if (p.cover) await saveDeviceFile('covers', id, p.cover);
-      return deviceHome.addTrack({
-        id,
-        title: meta.title || job.title,
-        artist: meta.artist,
-        album: meta.album,
-        durationMs: p.durationMs,
-        sizeBytes: p.audio.size,
-        bitrateKbps: p.bitrateKbps,
-        hasCover: !!p.cover,
-        kind: 'music',
-        source: 'youtube',
-        sourceRef: job.videoId,
-        likedAt: null,
-        createdAt: Date.now(),
-        locations: { device: true },
-        mime: p.mime,
-      });
+      p.signal?.throwIfAborted();
+      return register(phoneTrack(p, id));
     });
     return await finish(p, write.value, write.ms, false);
   } catch (err) {
@@ -214,19 +244,44 @@ async function saveToDevice(p: Prepared): Promise<SaveOutcome> {
 const SAVERS: Record<HomeKind, (p: Prepared) => Promise<SaveOutcome>> = {
   cloudflare: saveToCloudflare,
   drive: saveToDrive,
-  device: saveToDevice,
+  device: (p) => writeToPhone(p, (track) => deviceHome.addTrack(track)),
 };
 
-/** Saves a downloaded file into the library's home. Throws on failure; keeps the native file. */
-export async function saveDownloaded(
+async function withPrepared(
   job: DownloadJob,
   file: DownloadedFile,
-  home: HomeKind,
+  signal: AbortSignal | undefined,
+  save: (p: Prepared) => Promise<SaveOutcome>,
 ): Promise<SaveOutcome> {
-  const prepared = await prepare(job, file);
+  const prepared = await prepare(job, file, signal);
   try {
-    return await SAVERS[home](prepared);
+    signal?.throwIfAborted();
+    return await save(prepared);
   } finally {
     await deleteCoverFiles(prepared.coverPaths);
   }
+}
+
+/** Saves a downloaded file into the library's home. Throws on failure; keeps the native file. */
+export function saveDownloaded(
+  job: DownloadJob,
+  file: DownloadedFile,
+  home: HomeKind,
+  signal?: AbortSignal,
+): Promise<SaveOutcome> {
+  return withPrepared(job, file, signal, SAVERS[home]);
+}
+
+/** Keeps a file only on this phone while the library stays in the cloud. */
+export function saveDeviceOnly(
+  job: DownloadJob,
+  file: DownloadedFile,
+  signal?: AbortSignal,
+): Promise<SaveOutcome> {
+  return withPrepared(job, file, signal, (p) =>
+    writeToPhone(p, async (track) => {
+      await putLocalExtra(track);
+      return track;
+    }),
+  );
 }

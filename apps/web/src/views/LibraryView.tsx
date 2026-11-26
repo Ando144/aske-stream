@@ -5,6 +5,7 @@ import { isNative } from '../native/platform';
 import { songCount, useT } from '../i18n';
 import { formatBytes, formatLongDuration, normalizeText } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
+import { LIBRARY_CYCLE_KEY } from '../player/shuffleCycle';
 import { useAllTracks, useLibrary } from '../stores/library';
 import { useOffline } from '../stores/offline';
 import { usePlayer } from '../stores/player';
@@ -73,7 +74,7 @@ export function LibraryView() {
     label: t('nav.library'),
     path: '/',
     ...(filter === 'all' && !normalizedQuery ? { live: 'library' as const } : {}),
-    cycleKey: `library:${filter}:${normalizedQuery}`,
+    cycleKey: LIBRARY_CYCLE_KEY,
   };
   const play = (startId: string | null) =>
     usePlayer.getState().playTracks(ids, startId, { context });

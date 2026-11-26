@@ -8,6 +8,9 @@ import { jamEs } from './jam';
 import { statsEs } from './stats';
 import { studyEs } from './study';
 import { groupsEs } from './groups';
+import { podcastsEs } from './podcasts';
+import { playbackEs } from './playback';
+import { downloadsEs } from './downloads';
 
 export const es: Messages = {
   'app.name': 'Aske Stream',
@@ -723,5 +726,8 @@ export const es: Messages = {
   ...statsEs,
   ...studyEs,
   ...groupsEs,
+  ...podcastsEs,
+  ...playbackEs,
+  ...downloadsEs,
   ...cloudflareSetupEs,
 };

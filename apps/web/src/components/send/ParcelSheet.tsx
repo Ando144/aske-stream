@@ -1,14 +1,64 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LoaderCircle } from 'lucide-react';
-import { formatJamCode, hubSendLink } from '@aske/shared/hub';
+import { formatJamCode, hubSendLink, type HubSong } from '@aske/shared/hub';
 import { HUB_URL } from '../../config';
-import { useI18n, useT } from '../../i18n';
-import { useParcel, type ParcelPhase } from '../../stores/parcel';
+import { songCount, useI18n, useT } from '../../i18n';
+import { useParcel, type ActiveParcel, type ParcelPhase } from '../../stores/parcel';
 import { QrCode } from '../QrCode';
 import { Sheet } from '../Sheet';
+import { SongThumb } from '../SongThumb';
+import '../../socialCovers.css';
 
 const POLL_MS = 4000;
+const COLLAPSED_SONGS = 4;
+const EXPANDED_SONGS = 30;
+
+/** Songs that may not be in this library, each with its YouTube thumbnail. */
+export function SongRows({ songs, size }: { songs: readonly HubSong[]; size?: number }) {
+  return (
+    <ul className="social-songs">
+      {songs.map((song) => (
+        <li key={song.videoId} className="social-song">
+          <SongThumb videoId={song.videoId} size={size} />
+          <div className="grow">
+            <div className="ellipsis">{song.title}</div>
+            {song.artist && <div className="muted small ellipsis">{song.artist}</div>}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ParcelContents({ songs, name }: Pick<ActiveParcel, 'songs' | 'name'>) {
+  const t = useT();
+  const [expanded, setExpanded] = useState(false);
+  const shown = songs.slice(0, expanded ? EXPANDED_SONGS : COLLAPSED_SONGS);
+  const hidden = songs.length - shown.length;
+  return (
+    <section className="social-parcel">
+      <h3>{t('parcel.contents')}</h3>
+      <div className="muted small">
+        {name ? `${name} · ` : ''}
+        {songCount(t, songs.length)}
+      </div>
+      <SongRows songs={shown} size={40} />
+      {expanded && hidden > 0 && (
+        <div className="faint small">{t('parcel.more', { count: hidden })}</div>
+      )}
+      {songs.length > COLLAPSED_SONGS && (
+        <button
+          className="btn small"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {t(expanded ? 'parcel.showLess' : 'parcel.showAll')}
+        </button>
+      )}
+    </section>
+  );
+}
 
 /** Asks the Hub whether the phone already took the parcel, only while the page is visible. */
 function useParcelPolling(code: string | undefined, waiting: boolean) {
@@ -64,6 +114,7 @@ export function ParcelSheet() {
           <code style={{ fontSize: 28, letterSpacing: 3 }}>{formatJamCode(current.code)}</code>
           <div className="faint small">{t('parcel.expires', { time })}</div>
         </div>
+        <ParcelContents key={current.code} songs={current.songs} name={current.name} />
         <PhaseLine phase={current.phase} />
         <p className="faint small">{t('parcel.privacy')}</p>
         <div className="row" style={{ gap: 8 }}>

@@ -1,0 +1,23 @@
+/* Show headers and the "change show" sheet. Selectors are specific enough to win over
+   styles.css whatever the load order. */
+.podcast-show > .podcast-show-header {
+  gap: 12px;
+}
+
+.podcast-show .podcast-show-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.show-pick-form {
+  padding: 0 10px 8px;
+}
+
+.show-pick-title {
+  margin: 8px 14px 4px;
+}
