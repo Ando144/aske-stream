@@ -1,6 +1,6 @@
 # Aske Stream: Privacy Policy / Política de privacidad
 
-Last updated / Última actualización: 2026-11-18
+Last updated / Última actualización: 2026-11-26
 
 Aske Stream is a free, open-source (MIT) music app. Source code:
 <https://github.com/Ando144/aske-stream>
@@ -67,10 +67,27 @@ If you create or join a group, the Hub stores the group name, your nickname and 
 key generated on your device. It does not store your email, your name, your IP in the clear or any
 music. Other members of the group can see your nickname.
 
+**Group photo and name.** Any member can change them, and the Hub does not record or show who did.
+The photo is optional: you pick an image, the app crops it to the centre and shrinks it on your
+device, and only that small copy (JPEG, 256 px, at most 100 KB) is uploaded and stored on the Hub.
+Do not upload photos of other people without their permission.
+
+- **Who can see it:** the members of the group and anyone who has an invitation code that still
+  works. Before joining, that code shows the group name, how many people are in it and the photo.
+  Without a code or membership nobody can see it. After the code is renewed, the old one stops
+  working.
+- **How long it is kept:** until a member removes or replaces it, the group is deleted (also when
+  its last member leaves) or the group has no activity for about 180 days. Leaving a group, or
+  **Delete all my group data**, does not delete the photo of a group that still has other members.
+
 If you also turn on **Share my listening with my groups** (off by default), the app sends, for each
 month, your minutes, plays and your top songs and artists. Only the people in your groups can see
 them. Skipped songs, radio and podcasts are never sent. Turning this on also turns on your Recap on
 that device.
+
+The list of groups shows, for each group, its minutes this month and its top listener. Both are
+worked out only from the people who share their listening; people who do not share add nothing and
+are never named as top listener. (The initials of some members are shown whether they share or not.)
 
 - **Legal basis:** your explicit consent (GDPR art. 6.1.a). You can withdraw it at any time.
 - **Retention:** listening data for the last 12 months; older months are deleted automatically. A
@@ -140,6 +157,19 @@ que reciban tu información, no tiene anuncios ni rastreo, y no vende nada.**
   interruptor (borra tus escuchas del Hub y sigues en tus grupos), sal del grupo, o pulsa «Borrar
   todos mis datos de grupos» (sales de todos y se borran tus escuchas). A quien expulsa el creador
   se le guarda un veto (hash de la clave) hasta que se borra el grupo.
+- **Foto y nombre del grupo:** cualquier miembro puede cambiarlos y el Hub no guarda ni enseña
+  quién lo ha hecho. La foto es opcional: la app la recorta por el centro y la reduce en tu
+  dispositivo, y solo esa copia pequeña (JPEG de 256 px, 100 KB como mucho) se sube y se guarda en
+  el Hub. No subas fotos de otras personas sin su permiso. **Quién la ve:** los miembros del grupo
+  y quien tenga un código de invitación que siga valiendo (antes de entrar, ese código enseña el
+  nombre del grupo, cuántas personas hay y la foto); sin código ni ser miembro no la ve nadie, y al
+  renovar el código el anterior deja de servir. **Cuánto dura:** hasta que un miembro la quita o la
+  cambia, se borra el grupo (también cuando sale su último miembro) o pasan unos 180 días sin
+  actividad. Salir de un grupo, o «Borrar todos mis datos de grupos», no borra la foto de un grupo
+  en el que sigue habiendo gente.
+- **Resumen en la lista de grupos:** los minutos del mes y «quién más escucha» salen solo de quienes
+  comparten sus escuchas; quien no comparte no suma nada ni aparece como quien más escucha. (Las
+  iniciales de algunos miembros se ven compartan o no.)
 - **Estadísticas:** no se envían estadísticas de uso a nadie, salvo las escuchas que decidas
   compartir con tus grupos. Si algún día se envían otras, será solo con tu permiso explícito y
   estarán desactivadas por defecto.

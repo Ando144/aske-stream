@@ -114,7 +114,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 8b  | Friend groups through the Hub                                                                               | ✅     |
 | 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end                           | ✅     |
 | 9.1 | v0.9.3 daily use: unstuck downloads, phone-only big audio, podcast shows, fixed shuffle, gestures, Jam      | ✅     |
-| 9.2 | v0.9.4: Jam as a remote control for everyone, group name and photo                                          |        |
+| 9.2 | v0.9.4: Jam as a remote control for everyone, group name and photo                                          | ✅     |
 | 9.3 | v0.9.5: "Share → Aske Stream" and "Load more" in YouTube search                                             |        |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
@@ -188,3 +188,13 @@ kept only on that phone, in the IndexedDB store `local-extras`, merged into the 
 uploaded. A podcast show is the track's `album` (new downloads fall back to the channel name).
 Shuffle keeps one seeded order per round, and the whole library is a single round. The Hub did not
 change. Pending: a test of the APK on a real phone.
+
+Phase 9.2 notes: anyone in a Jam can skip the song. A guest sends `skip`, the Hub only records
+`skipRequested` (once every 2 s per person) and the host's phone performs the skip, so the audio
+still comes from that phone alone; a silent guest sees a Jam bar in place of the player. Groups
+were redesigned (list cards and detail), any member can change the name and the photo (a small JPEG
+in the Hub's D1, visible to members and holders of a valid invite code, with a preview before
+joining) and card figures count only the people who share their listening. Also: a cloud song left
+by a canceled save is removed, "Select" works inside folders and the Sort menu works with the
+keyboard. Pending: `hub:migrate:remote` (0005), `deploy:hub`, `deploy`, the tag and a test on two
+phones.
