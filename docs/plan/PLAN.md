@@ -1,10 +1,11 @@
 # PLAN: v0.9.3 — Arreglos de uso diario: descargas atascadas, audios grandes solo en el móvil, podcasts por serie, aleatorio de orden fijo, Jam desde la biblioteca, gestos y portadas
 
-Fecha: 2026-11-26 · Estado: EN CURSO · Decisiones: DEFINITIVAS (todas las dudas respondidas por Andoni)
+Fecha: 2026-11-26 · Estado: v0.9.3 COMPLETADA (fases 2 y 3 en borrador) · Decisiones: DEFINITIVAS (todas las dudas respondidas por Andoni)
 
 ## Objetivo
 
 Publicar todo junto en **v0.9.3** (sin versión rápida aparte):
+
 - las descargas atascadas en «Guardando» se pueden quitar y no bloquean la cola;
 - los audios de más de 95 MB con Cloudflare se guardan **solo en este móvil**, con una explicación clara;
 - el QR sale centrado y «Seleccionar» tiene aire;
@@ -17,31 +18,32 @@ Después: **v0.9.4** con la Jam como mando a distancia y Grupos (bocetos primero
 
 ## Decisiones de Andoni (definitivas)
 
-| Tema | Decisión |
-|---|---|
-| Cancelar con la subida ya en la nube | Se borra la canción (1A) |
-| Serie del podcast | Canal guardado en `album`; las antiguas se arreglan a mano (2A) |
-| Orden de las series | A-Z (3A) |
-| Orden de los episodios | Por número del título, de menor a mayor; los que no tienen número, por fecha de descarga (4A) |
-| Aleatorio | Orden fijo hasta acabar la ronda + «Barajar de nuevo» en Ajustes (5C). El interruptor **no** baraja |
-| Memoria del aleatorio | Una sola para toda la biblioteca (6A) |
-| Mini reproductor | Izquierda = siguiente, derecha = anterior (7B). Deslizar a la derecha una canción de la biblioteca sigue añadiéndola a la cola (o a la de la Jam) |
-| Jam | Mando a distancia para todos en **v0.9.4** (8, N1A). En v0.9.3 solo salta quien la creó |
-| Canción que no es de YouTube en la Jam | Se avisa y no se hace nada (9A) |
-| Portadas | En los menús sociales **y** en «Enviar» (10B) |
-| Grupos | Cualquier miembro cambia nombre y foto (11B). Foto recortada al centro automáticamente (12A). 2 bocetos antes de programar (13C). No se muestra quién lo cambió (N5B) |
-| YouTube | «Compartir → Aske Stream» + «Cargar más» (14A) |
-| Versiones | Tres: v0.9.3, v0.9.4 y v0.9.5 (15A) |
-| «Barajar de nuevo» | Orden nuevo, con lo oído al final (N2A) |
-| Más de 95 MB con Cloudflare | Se guarda solo en este móvil (N3B) |
-| Tiempo límite de subida | Se suponen 64 KB/s, con tope de 30 min (N4A) |
-| Saltos en la Jam | Sin aviso cuando alguien salta (N6B) |
+| Tema                                   | Decisión                                                                                                                                                              |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cancelar con la subida ya en la nube   | Se borra la canción (1A)                                                                                                                                              |
+| Serie del podcast                      | Canal guardado en `album`; las antiguas se arreglan a mano (2A)                                                                                                       |
+| Orden de las series                    | A-Z (3A)                                                                                                                                                              |
+| Orden de los episodios                 | Por número del título, de menor a mayor; los que no tienen número, por fecha de descarga (4A)                                                                         |
+| Aleatorio                              | Orden fijo hasta acabar la ronda + «Barajar de nuevo» en Ajustes (5C). El interruptor **no** baraja                                                                   |
+| Memoria del aleatorio                  | Una sola para toda la biblioteca (6A)                                                                                                                                 |
+| Mini reproductor                       | Izquierda = siguiente, derecha = anterior (7B). Deslizar a la derecha una canción de la biblioteca sigue añadiéndola a la cola (o a la de la Jam)                     |
+| Jam                                    | Mando a distancia para todos en **v0.9.4** (8, N1A). En v0.9.3 solo salta quien la creó                                                                               |
+| Canción que no es de YouTube en la Jam | Se avisa y no se hace nada (9A)                                                                                                                                       |
+| Portadas                               | En los menús sociales **y** en «Enviar» (10B)                                                                                                                         |
+| Grupos                                 | Cualquier miembro cambia nombre y foto (11B). Foto recortada al centro automáticamente (12A). 2 bocetos antes de programar (13C). No se muestra quién lo cambió (N5B) |
+| YouTube                                | «Compartir → Aske Stream» + «Cargar más» (14A)                                                                                                                        |
+| Versiones                              | Tres: v0.9.3, v0.9.4 y v0.9.5 (15A)                                                                                                                                   |
+| «Barajar de nuevo»                     | Orden nuevo, con lo oído al final (N2A)                                                                                                                               |
+| Más de 95 MB con Cloudflare            | Se guarda solo en este móvil (N3B)                                                                                                                                    |
+| Tiempo límite de subida                | Se suponen 64 KB/s, con tope de 30 min (N4A)                                                                                                                          |
+| Saltos en la Jam                       | Sin aviso cuando alguien salta (N6B)                                                                                                                                  |
 
 ## Diagnóstico (con archivo y línea)
 
 ### 1. Descargas atascadas en «Guardando» en Cloudflare (podcasts de más de 1 h)
 
 CONFIRMADO:
+
 - **La X no hace nada en `saving`:** `cancelOne` sale sin hacer nada (`apps/web/src/stores/downloads.ts:167`), aunque la cola dibuja la X (`components/downloads/DownloadQueue.tsx:8`, `:118`, `:140-147`).
 - **No hay forma de abortar:** `saveJob` no pasa ningún `AbortSignal` (`downloads.ts:234-259`, `downloads/save.ts:221`).
 - **Bloquean la cola:** Cloudflare guarda 2 a la vez (`downloads/pipeline.ts:6`) y `pump` solo empieza otra si hay hueco (`downloads.ts:202`). Dos podcasts atascados la bloquean.
@@ -148,7 +150,7 @@ reshuffle(): void;
 export function listLocalExtras(): Promise<LocalTrack[]>;
 export function putLocalExtra(track: LocalTrack): Promise<void>;
 export function updateLocalExtra(id: string, patch: TrackPatch): Promise<LocalTrack>; // same rules as deviceHome.updateTrack
-export function deleteLocalExtra(id: string): Promise<void>;                          // also deletes OPFS audio + cover
+export function deleteLocalExtra(id: string): Promise<void>; // also deletes OPFS audio + cover
 export function isOnlyOnDevice(track: LocalTrack, home: HomeKind | undefined): boolean;
 // apps/web/src/components/OnlyHereBadge.tsx
 export function OnlyHereBadge(props: { size?: number }): JSX.Element; // Smartphone icon + aria-label local.badge
@@ -204,11 +206,15 @@ upload(meta, blob, opts?: { signal?: AbortSignal; timeoutMs?: number }): Promise
 ```ts
 // apps/web/src/hub/jamFromLibrary.ts
 export function toHubSong(track: LocalTrack): HubSong | null;
-export interface JamSendPlan { songs: HubSong[]; notYoutube: number; overLimit: number }
+export interface JamSendPlan {
+  songs: HubSong[];
+  notYoutube: number;
+  overLimit: number;
+}
 export function planJamSend(tracks: LocalTrack[], room: number): JamSendPlan;
 export function jamRoom(): number;
-export function jamIsActive(): boolean;     // session !== null && connection === 'open'
-export function jamSongPlaying(): boolean;  // host and the player is on the Jam's current song
+export function jamIsActive(): boolean; // session !== null && connection === 'open'
+export function jamSongPlaying(): boolean; // host and the player is on the Jam's current song
 export function addTracksToJam(trackIds: string[]): void;
 export function filterLibrarySongs(tracks: LocalTrack[], query: string, max: number): LocalTrack[];
 ```
@@ -228,6 +234,7 @@ songs: HubSong[]; name?: string;
 ### Claves i18n nuevas (T1 las escribe en es, en y eu; aquí el texto en español)
 
 `i18n/podcasts.ts` (`podcastsEn/Es/Eu`):
+
 - `select.toPodcasts` «Mover a podcasts»
 - `toast.movedToPodcastsMany` «{count} episodios movidos a Podcasts» · `.one` «1 episodio movido a Podcasts»
 - `podcasts.changeShow` «Cambiar de serie» · `podcasts.renameShow` «Renombrar serie» · `podcasts.showMenu` «Opciones de la serie»
@@ -237,6 +244,7 @@ songs: HubSong[]; name?: string;
 - `podcasts.toast.showChanged` «{count} episodios están ahora en «{name}»» · `.one` «El episodio está ahora en «{name}»»
 
 `i18n/playback.ts` (`playbackEn/Es/Eu`):
+
 - `swipe.jam` «Añadir a la Jam» · `jamSend.action` «Enviar a la Jam»
 - `jamSend.done` «{count} canciones enviadas a la Jam» · `.one` «Canción enviada a la Jam»
 - `jamSend.notYoutube` «{count} canciones no se han enviado: en una Jam solo pueden sonar canciones que vienen de YouTube.» · `.one` «Esta canción no se puede enviar: en una Jam solo pueden sonar canciones que vienen de YouTube.»
@@ -249,6 +257,7 @@ songs: HubSong[]; name?: string;
 - `toast.reshuffled` «Listo: el aleatorio tiene un orden nuevo»
 
 `i18n/downloads.ts` (`downloadsEn/Es/Eu`):
+
 - `dl.st.canceling` «Cancelando…»
 - `dl.toast.canceledSaving` «Cancelado. Esa descarga no se ha guardado en tu biblioteca.»
 - `dl.st.savingBig` «Guardando {size} en tu biblioteca. Los audios largos tardan varios minutos; puedes seguir usando la app.»
@@ -264,7 +273,8 @@ songs: HubSong[]; name?: string;
 
 ## Fase 1A (v0.9.3)
 
-### T1 · Base: textos, piezas comunes, almacén «solo en este móvil» y CSS · Grupo A · Estado: PENDIENTE
+### T1 · Base: textos, piezas comunes, almacén «solo en este móvil» y CSS · Grupo A · Estado: HECHA
+
 - Archivos (exclusivos): `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/eu.ts`, `apps/web/src/i18n/podcasts.ts` (nuevo), `apps/web/src/i18n/playback.ts` (nuevo), `apps/web/src/i18n/downloads.ts` (nuevo), `apps/web/src/stores/ui.ts`, `apps/web/src/components/SongThumb.tsx` (nuevo), `apps/web/src/components/OnlyHereBadge.tsx` (nuevo), `apps/web/src/offline/db.ts`, `apps/web/src/storage/localExtras.ts` (nuevo), `apps/web/test/localExtras.test.ts` (nuevo), `apps/web/src/groups.css`, `apps/web/src/playlistSelect.css`, `apps/web/src/views/PlaylistsView.tsx`
 - Leer como contexto: `apps/web/src/i18n/groups.ts`, `apps/web/src/storage/homes.ts:211-245` (`deviceHome` addTrack/updateTrack/deleteTrack), `apps/web/src/storage/deviceFiles.ts`, `apps/web/test/offlineDb.test.ts`
 - Qué hacer:
@@ -280,7 +290,8 @@ songs: HubSong[]; name?: string;
   - [ ] Paridad i18n; QR centrado; «Seleccionar» separado.
 - Verificación: `npx vitest run test/localExtras.test.ts test/offlineDb.test.ts test/i18n.test.ts --root apps/web` y `npm run check`
 
-### T2 · Aleatorio de orden fijo y «Barajar de nuevo» en Ajustes · Grupo A · Estado: PENDIENTE
+### T2 · Aleatorio de orden fijo y «Barajar de nuevo» en Ajustes · Grupo A · Estado: HECHA
+
 - Archivos (exclusivos): `apps/web/src/player/shuffleCycle.ts`, `apps/web/src/stores/player.ts`, `apps/web/src/player/types.ts`, `apps/web/src/views/LibraryView.tsx`, `apps/web/src/components/settings/GeneralSections.tsx`, `apps/web/test/shuffleCycle.test.ts`, `apps/web/test/playerShuffle.test.ts`, `apps/web/test/shufflePreference.test.ts`
 - Leer como contexto: `apps/web/src/player/queue.ts`, `docs/ESTADO.md`
 - Qué hacer:
@@ -302,7 +313,8 @@ songs: HubSong[]; name?: string;
 
 > Nota de integración: T2 usa claves de T1. Si se ejecutan a la vez sobre la misma copia, `npm run check` de T2 se repite después de terminar T1.
 
-### T3 · Biblioteca: acciones en bloque y canciones «solo en este móvil» · Grupo B · Estado: PENDIENTE
+### T3 · Biblioteca: acciones en bloque y canciones «solo en este móvil» · Grupo B · Estado: HECHA
+
 - Depende de: T1
 - Archivos (exclusivos): `apps/web/src/stores/library.ts`, `apps/web/test/libraryBulk.test.ts` (nuevo), `apps/web/test/libraryLocalExtras.test.ts` (nuevo)
 - Leer como contexto: `apps/web/src/storage/localExtras.ts`, `apps/web/src/stores/setup.ts` (`getHome`), `apps/web/test/storage.test.ts`
@@ -321,7 +333,8 @@ songs: HubSong[]; name?: string;
   - [ ] `setKindMany` y `setAlbumMany` cambian todo y revierten todo si falla.
 - Verificación: `npx vitest run test/libraryBulk.test.ts test/libraryLocalExtras.test.ts --root apps/web` y `npm run check`
 
-### T4 · Descargas: quitar las atascadas, carriles, solo en el móvil si pasa de 95 MB · Grupo B · Estado: PENDIENTE
+### T4 · Descargas: quitar las atascadas, carriles, solo en el móvil si pasa de 95 MB · Grupo B · Estado: HECHA
+
 - Depende de: T1 (`localExtras`, claves)
 - Archivos (exclusivos): `apps/web/src/stores/downloads.ts`, `apps/web/src/downloads/save.ts`, `apps/web/src/downloads/pipeline.ts`, `apps/web/src/downloads/retry.ts`, `apps/web/src/downloads/types.ts`, `apps/web/src/downloads/errors.ts`, `apps/web/src/downloads/jobsStore.ts`, `apps/web/src/downloads/cancel.ts` (nuevo si hace falta), `apps/web/src/storage/drive/api.ts`, `apps/web/src/storage/drive/home.ts`, `apps/web/src/components/downloads/DownloadQueue.tsx`, `apps/web/test/downloadsStore.test.ts`, `apps/web/test/downloadSave.test.ts`, `apps/web/test/downloadPipeline.test.ts`, `apps/web/test/downloadRetry.test.ts`, `apps/web/test/downloadErrors.test.ts`
 - Leer como contexto: `apps/web/src/api/client.ts` (`uploadTrack`), `apps/api/src/routes/ingest.ts:51-82`, `apps/web/src/storage/localExtras.ts`, `apps/web/src/storage/deviceFiles.ts`
@@ -366,7 +379,8 @@ songs: HubSong[]; name?: string;
   - un podcast de más de 2 h se guarda en el móvil con su aviso, suena sin conexión y las demás descargas siguen;
   - instalar encima de la v0.9.2 con los podcasts atascados → se resuelven solos o se quitan con la X.
 
-### T5 · Portadas en menús sociales y en «Enviar» · Grupo B · Estado: PENDIENTE
+### T5 · Portadas en menús sociales y en «Enviar» · Grupo B · Estado: HECHA
+
 - Depende de: T1 (`SongThumb`)
 - Archivos (exclusivos): `apps/web/src/components/groups/GroupShares.tsx`, `apps/web/src/views/SharedListView.tsx`, `apps/web/src/components/send/ParcelSheet.tsx`, `apps/web/src/components/send/Outbox.tsx`, `apps/web/src/stores/parcel.ts`, `apps/web/src/i18n/parcel.ts`, `apps/web/src/socialCovers.css` (nuevo), `apps/web/test/parcelStore.test.ts`
 - Leer como contexto: `apps/web/src/components/PlaylistArt.tsx`, `apps/web/src/components/SongThumb.tsx`
@@ -386,7 +400,8 @@ songs: HubSong[]; name?: string;
 
 ## Fase 1B (v0.9.3, después de 1A)
 
-### T6 · Podcasts agrupados por serie y ordenados · Grupo C · Estado: PENDIENTE
+### T6 · Podcasts agrupados por serie y ordenados · Grupo C · Estado: HECHA
+
 - Depende de: T1, T3
 - Archivos (exclusivos): `apps/web/src/podcasts/shows.ts` (nuevo), `apps/web/test/podcastShows.test.ts` (nuevo), `apps/web/src/views/PodcastsView.tsx`, `apps/web/src/components/podcasts/ShowPickSheet.tsx` (nuevo), `apps/web/src/podcasts.css` (nuevo), `apps/web/src/App.tsx`
 - Leer como contexto: `apps/web/src/lib/format.ts` (`normalizeText`), `apps/web/src/components/Sheet.tsx`, `apps/web/src/components/AddToPlaylistSheet.tsx`, `apps/web/src/storage/localExtras.ts`
@@ -408,7 +423,8 @@ songs: HubSong[]; name?: string;
   - [ ] Renombrar una serie con el nombre de otra las junta; un episodio solo en el móvil muestra el aviso.
 - Verificación: `npx vitest run test/podcastShows.test.ts --root apps/web` y `npm run check`
 
-### T7 · Jam: buscador único con portadas y envío desde la biblioteca · Grupo C · Estado: PENDIENTE
+### T7 · Jam: buscador único con portadas y envío desde la biblioteca · Grupo C · Estado: HECHA
+
 - Depende de: T1
 - Archivos (exclusivos): `apps/web/src/hub/jamFromLibrary.ts` (nuevo), `apps/web/test/jamFromLibrary.test.ts` (nuevo), `apps/web/src/components/jam/JamAddSheet.tsx`, `apps/web/src/components/jam/JamQueue.tsx`, `apps/web/src/i18n/jam.ts`, `apps/web/src/jamPick.css` (nuevo)
 - Leer como contexto: `apps/web/src/stores/jam.ts`, `packages/shared/src/hub.ts`, `apps/web/test/jamStore.test.ts`
@@ -429,7 +445,8 @@ songs: HubSong[]; name?: string;
   - [ ] Sin pestañas y con portadas.
 - Verificación: `npx vitest run test/jamFromLibrary.test.ts --root apps/web` y `npm run check`
 
-### T8 · Gestos y menús · Grupo D · Estado: PENDIENTE
+### T8 · Gestos y menús · Grupo D · Estado: HECHA
+
 - Depende de: T1, T2, T3, T6, T7
 - Archivos (exclusivos): `apps/web/src/components/player/MiniPlayer.tsx`, `apps/web/src/components/TrackList.tsx`, `apps/web/src/components/SelectionBar.tsx`, `apps/web/src/components/TrackMenu.tsx`, `apps/web/src/lib/swipe.ts` (nuevo), `apps/web/test/swipe.test.ts` (nuevo), `apps/web/src/gestures.css` (nuevo)
 - Leer como contexto: `apps/web/src/hub/jamFromLibrary.ts`, `apps/web/src/stores/jam.ts`, `apps/web/src/stores/player.ts`, `apps/web/src/storage/localExtras.ts`
@@ -460,7 +477,8 @@ songs: HubSong[]; name?: string;
   - [ ] Móvil: izquierda = siguiente, derecha = anterior, tocar abre; con Jam, deslizar en la biblioteca añade a la Jam; «Mover a podcasts» en bloque; el ⋮ de un audio solo en el móvil lo explica.
 - Verificación: `npx vitest run test/swipe.test.ts --root apps/web`, `npm run check` y prueba en el móvil (o `--mode fakenative`)
 
-### T9 · Ayuda, documentación y notas de versión · Grupo E · Estado: PENDIENTE
+### T9 · Ayuda, documentación y notas de versión · Grupo E · Estado: HECHA
+
 - Depende de: T1-T8
 - Archivos (exclusivos): `apps/web/src/help/articles/listen.ts`, `apps/web/src/help/articles/friends.ts`, `apps/web/src/help/articles/music.ts`, `apps/web/src/help/articles/cloudflare.ts`, `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/releases/v0.9.3.md` (nuevo)
 - Leer como contexto: `apps/web/test/help.test.ts`, `docs/releases/v0.9.2.md`, este plan

@@ -113,6 +113,9 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 8   | Telemetry (opt-in) and admin dashboard                                                                      |        |
 | 8b  | Friend groups through the Hub                                                                               | ✅     |
 | 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end                           | ✅     |
+| 9.1 | v0.9.3 daily use: unstuck downloads, phone-only big audio, podcast shows, fixed shuffle, gestures, Jam      | ✅     |
+| 9.2 | v0.9.4: Jam as a remote control for everyone, group name and photo                                          |        |
+| 9.3 | v0.9.5: "Share → Aske Stream" and "Load more" in YouTube search                                             |        |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
 two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,
@@ -177,3 +180,11 @@ Recap; turning it off deletes your stats from the Hub but keeps you in your grou
 12 months per device, the creator can remove people (a veto, they cannot rejoin) and groups with
 no activity for 180 days are deleted. Pending: `hub:migrate:remote`, `deploy:hub`, `deploy` and a
 test on two phones.
+
+Phase 9.1 notes: every active download can be cancelled, also while saving, and a watchdog stops
+stuck saves. Saving has two independent lanes (cloud, with at most one file over 30 MB, and
+phone). With Cloudflare, audio over 95 MB (or over 30 MB after two server or timeout failures) is
+kept only on that phone, in the IndexedDB store `local-extras`, merged into the library and never
+uploaded. A podcast show is the track's `album` (new downloads fall back to the channel name).
+Shuffle keeps one seeded order per round, and the whole library is a single round. The Hub did not
+change. Pending: a test of the APK on a real phone.
