@@ -1,5 +1,6 @@
 import type { GroupStats, MemberMonthStats } from '@aske/shared/groups';
 import { useT } from '../../i18n';
+import { StatTrackArt } from '../art/StatTrackArt';
 
 function MemberCard({ member, isYou }: { member: MemberMonthStats; isYou: boolean }) {
   const t = useT();
@@ -17,8 +18,13 @@ function MemberCard({ member, isYou }: { member: MemberMonthStats; isYou: boolea
       <h3 className="small muted">{t('groups.people.tracks')}</h3>
       <ol>
         {member.topTracks.map((x) => (
-          <li key={`${x.title}|${x.artist}`} className="ellipsis">
-            {x.title} <span className="faint small">· {x.artist || unknown}</span>
+          <li key={`${x.title}|${x.artist}`}>
+            <div className="row groups-top-song">
+              <StatTrackArt title={x.title} artist={x.artist} size={36} />
+              <span className="grow ellipsis">
+                {x.title} <span className="faint small">· {x.artist || unknown}</span>
+              </span>
+            </div>
           </li>
         ))}
       </ol>

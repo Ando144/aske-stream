@@ -1,7 +1,8 @@
-import { Check, ListMusic, Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import { songCount, useT } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { promptDialog, useUi } from '../stores/ui';
+import { PlaylistArt } from './PlaylistArt';
 import { Sheet } from './Sheet';
 
 /**
@@ -12,6 +13,7 @@ export function AddToPlaylistSheet() {
   const trackIds = useUi((s) => s.playlistSheet);
   const close = useUi((s) => s.closePlaylistSheet);
   const playlists = useLibrary((s) => s.playlists);
+  const tracks = useLibrary((s) => s.tracks);
   const t = useT();
 
   if (!trackIds) return null;
@@ -50,7 +52,7 @@ export function AddToPlaylistSheet() {
             onClick={() => void toggle()}
             aria-pressed={contains}
           >
-            <ListMusic size={20} />
+            <PlaylistArt playlist={pl} tracks={tracks} size={40} />
             <span className="grow">
               <span className="ellipsis" style={{ display: 'block' }}>
                 {pl.name}

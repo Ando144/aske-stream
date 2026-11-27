@@ -130,7 +130,7 @@ function YoutubeResults({ code, query, onAdd }: { code: string; query: string; o
           <SongRow
             key={song.videoId}
             song={song}
-            art={<SongThumb videoId={song.videoId} />}
+            art={<SongThumb videoId={song.videoId} title={song.title} artist={song.artist} />}
             onAdd={onAdd}
           />
         ))}

@@ -5,6 +5,7 @@ import { formatJamCode, hubSendLink, type HubSong } from '@aske/shared/hub';
 import { HUB_URL } from '../../config';
 import { songCount, useI18n, useT } from '../../i18n';
 import { useParcel, type ActiveParcel, type ParcelPhase } from '../../stores/parcel';
+import { SongMosaic } from '../art/SongMosaic';
 import { QrCode } from '../QrCode';
 import { Sheet } from '../Sheet';
 import { SongThumb } from '../SongThumb';
@@ -20,7 +21,7 @@ export function SongRows({ songs, size }: { songs: readonly HubSong[]; size?: nu
     <ul className="social-songs">
       {songs.map((song) => (
         <li key={song.videoId} className="social-song">
-          <SongThumb videoId={song.videoId} size={size} />
+          <SongThumb videoId={song.videoId} title={song.title} artist={song.artist} size={size} />
           <div className="grow">
             <div className="ellipsis">{song.title}</div>
             {song.artist && <div className="muted small ellipsis">{song.artist}</div>}
@@ -39,9 +40,12 @@ function ParcelContents({ songs, name }: Pick<ActiveParcel, 'songs' | 'name'>) {
   return (
     <section className="social-parcel">
       <h3>{t('parcel.contents')}</h3>
-      <div className="muted small">
-        {name ? `${name} · ` : ''}
-        {songCount(t, songs.length)}
+      <div className="row">
+        <SongMosaic songs={songs} seed={name ?? ''} size={48} />
+        <div className="muted small">
+          {name ? `${name} · ` : ''}
+          {songCount(t, songs.length)}
+        </div>
       </div>
       <SongRows songs={shown} size={40} />
       {expanded && hidden > 0 && (

@@ -95,6 +95,7 @@ function EpisodeRow({ episode, onPlay }: { episode: LocalTrack; onPlay: () => vo
         <span className="episode-play" aria-hidden>
           {p?.finished ? <CircleCheck size={20} /> : <Play size={18} fill="currentColor" />}
         </span>
+        <Cover trackId={episode.id} hasCover={episode.hasCover} size={40} />
         <span className="grow">
           <span className="track-title" style={{ display: 'block' }}>
             {episode.title}

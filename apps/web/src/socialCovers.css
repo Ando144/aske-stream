@@ -22,6 +22,17 @@
   margin: 12px 0;
 }
 
+.page-header.social-shared-header {
+  justify-content: flex-start;
+  gap: 16px;
+}
+
+/* Next to the mosaic there is little room on phones: wrap the name instead of cutting it. */
+.page-header.social-shared-header h1 {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .social-playlist .grow {
   display: flex;
   flex-direction: column;

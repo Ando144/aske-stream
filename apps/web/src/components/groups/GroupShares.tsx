@@ -8,6 +8,7 @@ import { songCount, useT } from '../../i18n';
 import { useJam } from '../../stores/jam';
 import { useLibrary } from '../../stores/library';
 import { toast } from '../../stores/ui';
+import { GeneratedArt } from '../art/GeneratedArt';
 import { PlaylistArt } from '../PlaylistArt';
 import { Sheet } from '../Sheet';
 import '../../socialCovers.css';
@@ -60,11 +61,14 @@ function ShareRow({
   const isJam = share.kind === 'jam';
   return (
     <li className="row groups-share">
-      <div className="grow ellipsis">
-        <div className="ellipsis">{share.title}</div>
-        <div className="faint small ellipsis">
-          {t(isJam ? 'groups.shares.jam' : 'groups.shares.list')} ·{' '}
-          {t('groups.shares.by', { alias: share.alias })}
+      <div className="row groups-share-name">
+        <GeneratedArt seed={share.title} kind="playlist" size={44} />
+        <div className="grow">
+          <div className="ellipsis">{share.title}</div>
+          <div className="faint small ellipsis">
+            {t(isJam ? 'groups.shares.jam' : 'groups.shares.list')} ·{' '}
+            {t('groups.shares.by', { alias: share.alias })}
+          </div>
         </div>
       </div>
       <button className="btn small primary" onClick={onOpen}>

@@ -1,17 +1,58 @@
+import { Check } from 'lucide-react';
 import { useT } from '../../i18n';
 import { useLibrary } from '../../stores/library';
 import type { StudySource } from '../../study/session';
+import { PlaylistArt } from '../PlaylistArt';
 
 interface Props {
   value: StudySource;
   onChange: (source: StudySource) => void;
 }
 
+/** Radio list instead of a <select>, which cannot show pictures. */
+function PlaylistOptions({
+  selectedId,
+  onPick,
+}: {
+  selectedId: string;
+  onPick: (id: string) => void;
+}) {
+  const t = useT();
+  const playlists = useLibrary((s) => s.playlists);
+  const tracks = useLibrary((s) => s.tracks);
+  if (playlists.length === 0) return null;
+  const label = t('study.source.playlist');
+  return (
+    <>
+      <span className="small muted" aria-hidden>
+        {label}
+      </span>
+      <div className="study-playlists" role="radiogroup" aria-label={label}>
+        {playlists.map((pl) => {
+          const checked = pl.id === selectedId;
+          return (
+            <button
+              key={pl.id}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              className="menu-item study-playlist"
+              onClick={() => onPick(pl.id)}
+            >
+              <PlaylistArt playlist={pl} tracks={tracks} size={32} />
+              <span className="grow ellipsis">{pl.name}</span>
+              {checked && <Check size={20} aria-hidden />}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 /** Library, calm mix or one playlist: shared by the setup screen and the "Change" sheet. */
 export function SourcePicker({ value, onChange }: Props) {
   const t = useT();
-  const playlists = useLibrary((s) => s.playlists);
-  const playlistId = value.kind === 'playlist' ? value.id : '';
   return (
     <div className="study-section">
       <div className="chips">
@@ -31,21 +72,10 @@ export function SourcePicker({ value, onChange }: Props) {
         </button>
       </div>
       {value.kind === 'calm' && <p className="small muted">{t('study.source.calmHint')}</p>}
-      {playlists.length > 0 && (
-        <select
-          className="input"
-          value={playlistId}
-          aria-label={t('study.source.playlist')}
-          onChange={(e) => e.target.value && onChange({ kind: 'playlist', id: e.target.value })}
-        >
-          <option value="">{t('study.source.playlist')}</option>
-          {playlists.map((pl) => (
-            <option key={pl.id} value={pl.id}>
-              {pl.name}
-            </option>
-          ))}
-        </select>
-      )}
+      <PlaylistOptions
+        selectedId={value.kind === 'playlist' ? value.id : ''}
+        onPick={(id) => onChange({ kind: 'playlist', id })}
+      />
     </div>
   );
 }

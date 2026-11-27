@@ -1,6 +1,7 @@
 import { LoaderCircle, Send, Trash2, X } from 'lucide-react';
 import { useT } from '../../i18n';
 import { useParcel } from '../../stores/parcel';
+import { SongThumb } from '../SongThumb';
 
 /** Computer: songs picked so far and the button that turns them into a code. */
 export function ParcelPanel() {
@@ -15,6 +16,7 @@ export function ParcelPanel() {
       <div className="card-list">
         {basket.map((song) => (
           <div key={song.videoId} className="card-row">
+            <SongThumb videoId={song.videoId} title={song.title} artist={song.artist} size={40} />
             <div className="grow" style={{ minWidth: 0 }}>
               <div className="card-title ellipsis">{song.title}</div>
               <div className="muted small ellipsis">{song.artist}</div>

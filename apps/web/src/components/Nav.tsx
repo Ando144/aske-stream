@@ -18,6 +18,7 @@ import { useT, type MessageKey } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { AUTHOR } from '../config';
 import { isNative } from '../native/platform';
+import { PlaylistArt } from './PlaylistArt';
 
 const ITEMS: { to: string; key: MessageKey; Icon: typeof Library }[] = [
   { to: '/', key: 'nav.library', Icon: Library },
@@ -74,6 +75,7 @@ export function Sidebar() {
   const t = useT();
   const [location] = useLocation();
   const playlists = useLibrary((s) => s.playlists);
+  const tracks = useLibrary((s) => s.tracks);
   return (
     <aside className="sidebar" aria-label="Main">
       <div className="brand">
@@ -96,9 +98,10 @@ export function Sidebar() {
         <Link
           key={pl.id}
           href={`/playlist/${pl.id}`}
-          className={`side-playlist ellipsis${location === `/playlist/${pl.id}` ? ' active' : ''}`}
+          className={`side-playlist with-art${location === `/playlist/${pl.id}` ? ' active' : ''}`}
         >
-          {pl.name}
+          <PlaylistArt playlist={pl} tracks={tracks} size={24} />
+          <span className="grow ellipsis">{pl.name}</span>
         </Link>
       ))}
       <a className="side-credit" href={AUTHOR.website} target="_blank" rel="noreferrer">

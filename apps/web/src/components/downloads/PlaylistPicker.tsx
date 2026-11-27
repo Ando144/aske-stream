@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, ListMusic, LoaderCircle, Send } from 'lucide-react';
+import { Download, LoaderCircle, Send } from 'lucide-react';
 import { LIMITS } from '@aske/shared';
 import type { HubSong } from '@aske/shared/hub';
 import type { SearchResult } from '@aske/shared/youtube';
@@ -23,6 +23,7 @@ import { useLibrary } from '../../stores/library';
 import { parcelErrorText, useParcel } from '../../stores/parcel';
 import { useSend } from '../../stores/send';
 import { toast } from '../../stores/ui';
+import { GeneratedArt } from '../art/GeneratedArt';
 import { PickList } from './PickList';
 
 type Via = 'cloudflare' | 'hub' | null;
@@ -39,17 +40,11 @@ const emptyListing = (): PlaylistListing => ({
   unavailable: 0,
 });
 
-/** Cover of a playlist; falls back to an icon when the picture is missing or broken. */
-function PlaylistCover({ src }: { src: string }) {
+/** Cover of a playlist; falls back to the amber drawing when the picture is missing or broken. */
+function PlaylistCover({ src, title }: { src: string; title: string }) {
   const [broken, setBroken] = useState(!src);
   useEffect(() => setBroken(!src), [src]);
-  if (broken) {
-    return (
-      <div className="dl-thumb dl-thumb-empty">
-        <ListMusic size={22} />
-      </div>
-    );
-  }
+  if (broken) return <GeneratedArt seed={title} kind="playlist" className="dl-thumb" />;
   return (
     <img
       className="dl-thumb"
@@ -198,7 +193,7 @@ function PickerHeader({
 }) {
   return (
     <div className="row">
-      <PlaylistCover src={cover} />
+      <PlaylistCover src={cover} title={title} />
       <div className="grow" style={{ minWidth: 0 }}>
         <div className="card-title">{title}</div>
         <div className="muted small">{subtitle}</div>

@@ -1,10 +1,13 @@
+import type { ReactNode } from 'react';
 import type { GroupStats } from '@aske/shared/groups';
 import { useT } from '../../i18n';
+import { StatTrackArt } from '../art/StatTrackArt';
 
 interface Row {
   key: string;
   name: string;
   sub?: string;
+  art?: ReactNode;
   plays: number;
   listeners: number;
 }
@@ -18,6 +21,7 @@ function RankList({ title, rows }: { title: string; rows: Row[] }) {
       <ol>
         {rows.map((row) => (
           <li key={row.key}>
+            {row.art}
             <div className="grow ellipsis">
               <div className="ellipsis">{row.name}</div>
               {row.sub && <div className="faint small ellipsis">{row.sub}</div>}
@@ -49,6 +53,7 @@ export function GroupRanking({ stats }: { stats: GroupStats }) {
           key: `${x.title}|${x.artist}`,
           name: x.title,
           sub: x.artist || unknown,
+          art: <StatTrackArt title={x.title} artist={x.artist} />,
           plays: x.plays,
           listeners: x.listeners,
         }))}

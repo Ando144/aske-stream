@@ -1,11 +1,12 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Check, Mic } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { LIMITS } from '@aske/shared';
 import { useT } from '../../i18n';
 import { normalizeText } from '../../lib/format';
 import { groupShows, type Show } from '../../podcasts/shows';
 import { useAllTracks, useLibrary } from '../../stores/library';
 import { useUi } from '../../stores/ui';
+import { Cover } from '../Cover';
 import { Sheet } from '../Sheet';
 import '../../podcasts.css';
 
@@ -96,7 +97,7 @@ function ExistingShows({ shows, selected, onPick }: ExistingShowsProps) {
           aria-pressed={show.key === selected}
           onClick={() => onPick(show.name)}
         >
-          <Mic size={20} />
+          <Cover trackId={show.episodes[0]!.id} hasCover={show.episodes[0]!.hasCover} size={40} />
           <span className="grow ellipsis">{show.name}</span>
           {show.key === selected && <Check size={20} aria-hidden />}
         </button>

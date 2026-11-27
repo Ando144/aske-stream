@@ -1,33 +1,50 @@
 import { useState } from 'react';
-import { Music } from 'lucide-react';
+import type { ArtKind } from '../lib/generatedArt';
+import { GeneratedArt } from './art/GeneratedArt';
 
 export function youtubeThumb(videoId: string): string {
   return `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/mqdefault.jpg`;
 }
 
-/** Public YouTube thumbnail for songs that are not in this library (Jams, shared lists). */
-export function SongThumb({ videoId, size = 48 }: { videoId: string; size?: number }) {
-  // Remembering which video failed lets a reused row try again with the next one.
-  const [failedId, setFailedId] = useState<string | null>(null);
-  const style = { width: size, height: size };
+interface Props {
+  videoId?: string | null;
+  src?: string;
+  title?: string;
+  artist?: string;
+  kind?: ArtKind;
+  size?: number;
+  className?: string;
+}
 
-  if (failedId === videoId) {
-    return (
-      <div className="cover" style={style} aria-hidden>
-        <Music size={Math.round(size * 0.42)} />
-      </div>
-    );
+/** Picture for songs that are not in this library (Jams, shared lists, downloads). */
+export function SongThumb({
+  videoId,
+  src,
+  title,
+  artist = '',
+  kind = 'song',
+  size = 48,
+  className = 'cover',
+}: Props) {
+  // Remembering which pictures failed lets a reused row try again with the next song.
+  const [failed, setFailed] = useState<readonly string[]>([]);
+  const candidates = [src, videoId ? youtubeThumb(videoId) : undefined];
+  const url = candidates.find((c): c is string => !!c && !failed.includes(c));
+
+  if (!url) {
+    const seed = title ? `${title}|${artist}` : (videoId ?? src ?? '');
+    return <GeneratedArt seed={seed} kind={kind} size={size} className={className} />;
   }
   return (
     <img
-      className="cover"
-      style={style}
-      src={youtubeThumb(videoId)}
+      className={className}
+      style={size ? { width: size, height: size } : undefined}
+      src={url}
       alt=""
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      onError={() => setFailedId(videoId)}
+      onError={() => setFailed((previous) => [...previous, url])}
     />
   );
 }

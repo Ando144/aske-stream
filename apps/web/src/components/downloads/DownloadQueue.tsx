@@ -4,6 +4,7 @@ import { BIG_AUDIO_BYTES } from '../../downloads/pipeline';
 import { useT } from '../../i18n';
 import { formatBytes } from '../../lib/format';
 import { useDownloads, type DownloadJob } from '../../stores/downloads';
+import { SongThumb } from '../SongThumb';
 import { BatteryHint } from './BatteryHint';
 import { NetworkBanner } from './NetworkBanner';
 
@@ -144,12 +145,13 @@ export function JobRow({ job }: { job: DownloadJob }) {
   };
   return (
     <div className={`card-row dl-job ${job.status}`}>
-      <img
-        className="dl-thumb"
+      <SongThumb
         src={job.thumbnail}
-        alt=""
-        loading="lazy"
-        referrerPolicy="no-referrer"
+        videoId={job.videoId}
+        title={job.title}
+        artist={job.author}
+        size={0}
+        className="dl-thumb"
       />
       <div className="grow" style={{ minWidth: 0 }}>
         <div className="card-title ellipsis">{job.title}</div>

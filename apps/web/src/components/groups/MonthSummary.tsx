@@ -12,6 +12,7 @@ import { monthSummary, type MonthSummaryData } from '../../groups/summary';
 import { getGroupStats } from '../../hub/groupsClient';
 import { useI18n, useT } from '../../i18n';
 import { currentPeriod } from '../../stats/recap';
+import { StatTrackArt } from '../art/StatTrackArt';
 import { Sheet } from '../Sheet';
 import { GroupRanking } from './GroupRanking';
 import { MemberTops } from './MemberTops';
@@ -132,6 +133,7 @@ function TopSongs({ tracks }: { tracks: MonthSummaryData['topTracks'] }) {
             <span className="group-song-number" aria-hidden="true">
               {index + 1}
             </span>
+            <StatTrackArt title={track.title} artist={track.artist} />
             <div className="grow">
               <div className="ellipsis">
                 <strong>{track.title}</strong>

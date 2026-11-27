@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Music } from 'lucide-react';
 import { resolveCoverUrl } from '../storage/media';
 import { useLibrary } from '../stores/library';
+import { GeneratedArt } from './art/GeneratedArt';
 
 interface Props {
   trackId: string | null | undefined;
@@ -10,7 +10,7 @@ interface Props {
   className?: string;
 }
 
-/** Cover art from wherever the song is stored (device or cloud), with a placeholder. */
+/** Cover art from wherever the song is stored (device or cloud), with an amber drawing as fallback. */
 export function Cover({ trackId, hasCover, size = 48, className = 'cover' }: Props) {
   const track = useLibrary((s) => (trackId ? s.tracks[trackId] : undefined));
   const [src, setSrc] = useState<string | null>(null);
@@ -37,9 +37,12 @@ export function Cover({ trackId, hasCover, size = 48, className = 'cover' }: Pro
   const style = size ? { width: size, height: size } : undefined;
   if (!src || failed) {
     return (
-      <div className={className} style={style} aria-hidden>
-        <Music size={size ? Math.round(size * 0.42) : 64} />
-      </div>
+      <GeneratedArt
+        seed={track ? `${track.title}|${track.artist}` : (trackId ?? '')}
+        kind={track?.kind === 'podcast' ? 'podcast' : 'song'}
+        size={size}
+        className={className}
+      />
     );
   }
   return (

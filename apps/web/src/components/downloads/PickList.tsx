@@ -3,6 +3,7 @@ import type { PlaylistEntry } from '@aske/shared/youtube';
 import { useT } from '../../i18n';
 import { toggleSelection } from '../../downloads/pickSelection';
 import { toast } from '../../stores/ui';
+import { SongThumb } from '../SongThumb';
 
 /** Playlist songs with a checkbox each, plus "select all / none" and a counter. */
 export function PickList({
@@ -46,6 +47,7 @@ export function PickList({
         {entries.map((e, i) => (
           <label key={e.id} className="row small dl-pick-row">
             <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggle(e.id)} />
+            <SongThumb videoId={e.id} title={e.title} artist={e.author} size={32} />
             <span className="ellipsis">
               <span className="faint">{i + 1}.</span> {e.title}
               {e.author ? <span className="muted"> · {e.author}</span> : null}

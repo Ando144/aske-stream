@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ListMusic } from 'lucide-react';
 import type { Playlist, Track } from '@aske/shared';
+import { mosaicTrackIds } from '../lib/playlistMosaic';
 import { resolvePlaylistCoverUrl } from '../storage/media';
+import { GeneratedArt } from './art/GeneratedArt';
 import { Cover } from './Cover';
 
-/** Custom photo when the playlist has one; otherwise a 2×2 mosaic of the first covers. */
+/** Custom photo when the playlist has one; otherwise its song covers or the amber drawing. */
 export function PlaylistArt({
   playlist,
   tracks,
@@ -37,23 +38,22 @@ export function PlaylistArt({
     );
   }
 
-  const withCover = playlist.trackIds.filter((id) => tracks[id]?.hasCover).slice(0, 4);
-  if (withCover.length < 4) {
-    return (
-      <div className="collection-art single" style={style}>
-        {withCover[0] ? (
-          <Cover trackId={withCover[0]} hasCover size={0} className="" />
-        ) : (
-          <ListMusic size={size ? size * 0.42 : 56} />
-        )}
-      </div>
-    );
-  }
+  const ids = mosaicTrackIds(playlist.trackIds, tracks);
   return (
-    <div className="collection-art" style={style}>
-      {withCover.map((id) => (
-        <Cover key={id} trackId={id} hasCover size={0} className="" />
-      ))}
+    <div className={ids.length > 1 ? 'collection-art' : 'collection-art single'} style={style}>
+      {ids.length === 0 ? (
+        <GeneratedArt seed={playlist.name} kind="playlist" />
+      ) : (
+        ids.map((id) => (
+          <Cover
+            key={id}
+            trackId={id}
+            hasCover={tracks[id]?.hasCover ?? false}
+            size={0}
+            className=""
+          />
+        ))
+      )}
     </div>
   );
 }

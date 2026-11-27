@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Download, ListMusic, Trash2 } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Trash2 } from 'lucide-react';
 import type { SendItem } from '@aske/shared';
 import { youtubeVideoId } from '@aske/shared/youtube';
 import { useT } from '../../i18n';
@@ -14,24 +14,18 @@ function sendStatus(t: ReturnType<typeof useT>, item: SendItem): string {
 }
 
 function ItemThumb({ item }: { item: SendItem }) {
-  const [broken, setBroken] = useState(false);
   const videoId = item.kind === 'video' ? youtubeVideoId(item.url) : null;
-  if (videoId) return <SongThumb videoId={videoId} />;
-  if (item.thumbnail && !broken) {
-    return (
-      <img
-        className="dl-thumb"
-        src={item.thumbnail}
-        alt=""
-        referrerPolicy="no-referrer"
-        onError={() => setBroken(true)}
-      />
-    );
-  }
+  const title = item.title || item.url;
+  if (videoId) return <SongThumb videoId={videoId} title={title} artist={item.author} />;
   return (
-    <div className="dl-thumb station-logo">
-      {item.kind === 'playlist' ? <ListMusic size={20} /> : <Download size={20} />}
-    </div>
+    <SongThumb
+      src={item.thumbnail}
+      title={title}
+      artist={item.author}
+      kind={item.kind === 'playlist' ? 'playlist' : 'song'}
+      size={0}
+      className="dl-thumb"
+    />
   );
 }
 

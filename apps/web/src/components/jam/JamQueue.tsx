@@ -18,7 +18,7 @@ function QueueItem({ item, isHost }: { item: JamItemView; isHost: boolean }) {
   const votes = item.votes === 1 ? t('jam.votes.one') : t('jam.votes', { count: item.votes });
   return (
     <li className="jam-item">
-      <SongThumb videoId={item.song.videoId} />
+      <SongThumb videoId={item.song.videoId} title={item.song.title} artist={item.song.artist} />
       <div className="grow">
         <div className="card-title ellipsis">{item.song.title}</div>
         <div className="muted small ellipsis">
@@ -77,7 +77,12 @@ export function JamQueue({
       <h2>{t('jam.nowPlaying')}</h2>
       {nowPlaying ? (
         <div className="jam-now jam-now-art">
-          <SongThumb videoId={nowPlaying.song.videoId} size={64} />
+          <SongThumb
+            videoId={nowPlaying.song.videoId}
+            title={nowPlaying.song.title}
+            artist={nowPlaying.song.artist}
+            size={64}
+          />
           <div className="grow">
             <div className="card-title ellipsis">{nowPlaying.song.title}</div>
             <div className="muted small ellipsis">

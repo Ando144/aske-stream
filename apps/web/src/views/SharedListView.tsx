@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDownToLine, ChevronLeft, LoaderCircle } from 'lucide-react';
 import { useLocation } from 'wouter';
 import type { SharedList } from '@aske/shared/hub';
+import { SongMosaic } from '../components/art/SongMosaic';
 import { SongRows } from '../components/send/ParcelSheet';
 import { songCount, useI18n, useT } from '../i18n';
 import { getSharedList } from '../hub/client';
@@ -64,7 +65,8 @@ function ListDetails({ list, readOnly }: { list: SharedList; readOnly: boolean }
   return (
     <>
       <div className="muted small">{t('shared.title')}</div>
-      <header className="page-header">
+      <header className="page-header social-shared-header">
+        <SongMosaic songs={list.songs} seed={list.name} size={120} />
         <h1>{list.name}</h1>
       </header>
       <div className="muted small">{songCount(t, list.songs.length)}</div>

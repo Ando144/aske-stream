@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { useT } from '../../i18n';
 import type { RecapSummary } from '../../stats/recap';
+import { StatTrackArt } from '../art/StatTrackArt';
 
 function Card({ label, value, quiet }: { label: string; value: string | number; quiet?: boolean }) {
   return (
@@ -15,7 +17,14 @@ function TopList({
   rows,
 }: {
   title: string;
-  rows: { key: string; name: string; sub?: string; plays: number; minutes: number }[];
+  rows: {
+    key: string;
+    name: string;
+    sub?: string;
+    art?: ReactNode;
+    plays: number;
+    minutes: number;
+  }[];
 }) {
   const t = useT();
   if (rows.length === 0) return null;
@@ -25,6 +34,7 @@ function TopList({
       <ol>
         {rows.map((row) => (
           <li key={row.key}>
+            {row.art}
             <div className="grow ellipsis">
               <div className="ellipsis">{row.name}</div>
               {row.sub && <div className="faint small ellipsis">{row.sub}</div>}
@@ -63,6 +73,7 @@ export function RecapCards({ summary }: { summary: RecapSummary }) {
           key: `${x.title}|${x.artist}`,
           name: x.title,
           sub: x.artist || unknown,
+          art: <StatTrackArt title={x.title} artist={x.artist} />,
           plays: x.plays,
           minutes: x.minutes,
         }))}
