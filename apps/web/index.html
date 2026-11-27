@@ -15,7 +15,33 @@
   </head>
   <body>
     <div id="root">
-      <div class="boot-splash"></div>
+      <!-- Static copy of BootSplash, shown until the JavaScript loads. -->
+      <div class="boot-splash">
+        <style>
+          .boot-splash {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #14110f;
+          }
+
+          .boot-splash svg {
+            width: 96px;
+            height: 96px;
+          }
+        </style>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <rect width="64" height="64" rx="14" fill="#14110f" />
+          <g fill="#f2a93b">
+            <rect x="13" y="26" width="6" height="12" rx="3" />
+            <rect x="23" y="18" width="6" height="28" rx="3" />
+            <rect x="33" y="12" width="6" height="40" rx="3" />
+            <rect x="43" y="22" width="6" height="20" rx="3" />
+          </g>
+        </svg>
+      </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

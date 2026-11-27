@@ -1,16 +1,23 @@
 import type { ConnectionStatus } from '../stores/connectivity';
 
-// The logo finishes drawing at 1.2 s; the extra 0.6 s lets people see it complete.
-export const BOOT_MIN_SPLASH_MS = 1800;
-export const SPLASH_EXIT_MS = 500;
+// Long enough that the logo does not just flicker on screen.
+export const BOOT_MIN_SPLASH_MS = 400;
+export const SPLASH_EXIT_MS = 300;
 export const BOOT_MAX_WAIT_MS = 5000;
-export const BOOT_CONNECTING_HINT_MS = 1500;
+export const BOOT_PULSE_AFTER_MS = 1000;
+const REDUCED_MOTION_EXIT_MS = 150;
 
-/** Splash durations; with reduced motion the logo is static, so it is short and fade-only. */
+/** Splash durations; reduced motion only shortens the fade. */
 export function splashTimings(reducedMotion: boolean): { minMs: number; exitMs: number } {
-  return reducedMotion
-    ? { minMs: 600, exitMs: 200 }
-    : { minMs: BOOT_MIN_SPLASH_MS, exitMs: SPLASH_EXIT_MS };
+  return {
+    minMs: BOOT_MIN_SPLASH_MS,
+    exitMs: reducedMotion ? REDUCED_MOTION_EXIT_MS : SPLASH_EXIT_MS,
+  };
+}
+
+/** True when opening is taking long enough that the logo should show it is still working. */
+export function shouldPulse(elapsedMs: number, reducedMotion: boolean): boolean {
+  return !reducedMotion && elapsedMs >= BOOT_PULSE_AFTER_MS;
 }
 
 /** True when the splash screen can go away. */

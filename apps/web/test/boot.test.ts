@@ -1,13 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { BOOT_MAX_WAIT_MS, BOOT_MIN_SPLASH_MS, bootReady, splashTimings } from '../src/lib/boot';
+import {
+  BOOT_MAX_WAIT_MS,
+  BOOT_MIN_SPLASH_MS,
+  BOOT_PULSE_AFTER_MS,
+  SPLASH_EXIT_MS,
+  bootReady,
+  shouldPulse,
+  splashTimings,
+} from '../src/lib/boot';
 
 describe('splashTimings', () => {
-  it('holds the finished logo and fades out gently', () => {
-    expect(splashTimings(false)).toEqual({ minMs: 1800, exitMs: 500 });
+  it('shows the logo briefly and fades out gently', () => {
+    expect(splashTimings(false)).toEqual({ minMs: 400, exitMs: 300 });
+    expect(splashTimings(false)).toEqual({ minMs: BOOT_MIN_SPLASH_MS, exitMs: SPLASH_EXIT_MS });
   });
 
-  it('is short and fade-only with reduced motion', () => {
-    expect(splashTimings(true)).toEqual({ minMs: 600, exitMs: 200 });
+  it('fades out faster with reduced motion', () => {
+    expect(splashTimings(true)).toEqual({ minMs: 400, exitMs: 150 });
+  });
+});
+
+describe('shouldPulse', () => {
+  it('stays still while the app opens quickly', () => {
+    expect(shouldPulse(0, false)).toBe(false);
+    expect(shouldPulse(999, false)).toBe(false);
+  });
+
+  it('pulses once opening takes a second or more', () => {
+    expect(BOOT_PULSE_AFTER_MS).toBe(1000);
+    expect(shouldPulse(1000, false)).toBe(true);
+    expect(shouldPulse(4000, false)).toBe(true);
+  });
+
+  it('never pulses with reduced motion', () => {
+    expect(shouldPulse(1000, true)).toBe(false);
+    expect(shouldPulse(BOOT_MAX_WAIT_MS, true)).toBe(false);
   });
 });
 

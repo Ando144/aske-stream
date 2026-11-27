@@ -1,22 +1,19 @@
-/* Opening screen: trace the logo, fill it, flash across it, then pulse until the app is ready. */
+/* Opening screen: only the logo; it pulses if starting takes long, then fades out. */
 
+/* Fixed colours: the background is always dark and must match index.html and the Android splash. */
 .boot-splash {
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
   background: #14110f;
-  color: #b6a99b;
 }
 
 .boot-pulse {
   width: 96px;
   height: 96px;
-  animation: boot-pulse 1.6s ease-in-out 1.8s infinite;
 }
 
 .boot-logo {
@@ -26,83 +23,22 @@
 }
 
 .boot-bar {
-  fill: var(--accent, #f2a93b);
-  stroke: var(--accent, #f2a93b);
-  stroke-width: 1.2;
-  stroke-dasharray: 1;
-  fill-opacity: 0;
-  animation:
-    boot-trace 0.6s ease-out both,
-    boot-fill 0.3s ease-out 0.6s both;
+  fill: #f2a93b;
 }
 
-.boot-bar:nth-child(2) {
-  animation-delay: 0.08s, 0.6s;
-}
-.boot-bar:nth-child(3) {
-  animation-delay: 0.16s, 0.6s;
-}
-.boot-bar:nth-child(4) {
-  animation-delay: 0.24s, 0.6s;
-}
-
-.boot-flash {
-  opacity: 0;
-  animation: boot-flash 0.3s ease-in-out 0.9s both;
-}
-
-.boot-flash-start {
-  stop-color: transparent;
-}
-
-.boot-flash-mid {
-  stop-color: color-mix(in srgb, var(--accent, #f2a93b) 40%, white);
-  stop-opacity: 0.75;
-}
-
-.boot-hint {
-  min-height: 1.4em;
-  margin: 0;
-}
-
-@keyframes boot-trace {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes boot-fill {
-  from {
-    fill-opacity: 0;
-  }
-  to {
-    fill-opacity: 1;
-  }
-}
-
-@keyframes boot-flash {
-  from {
-    opacity: 1;
-    transform: translateX(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(70px);
-  }
+.boot-splash.pulsing .boot-pulse {
+  animation: boot-pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes boot-pulse {
   0%,
   100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent, #f2a93b) 30%, transparent));
+    filter: drop-shadow(0 0 0 transparent);
   }
   50% {
-    transform: scale(1.08);
-    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent, #f2a93b) 70%, transparent));
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 16px rgba(242, 169, 59, 0.6));
   }
 }
 
@@ -112,53 +48,18 @@
   }
 }
 
-@keyframes boot-logo-exit {
-  to {
-    transform: scale(1.15);
-  }
-}
-
-/* Leaving: the logo is already complete; fade out with a soft zoom. Keep 500ms = SPLASH_EXIT_MS. */
+/* Keep 300ms = SPLASH_EXIT_MS. */
 .boot-splash.leaving {
   pointer-events: none;
-  animation: boot-exit 500ms ease-in-out forwards;
-}
-
-.leaving .boot-pulse {
-  animation: boot-logo-exit 500ms ease-in-out forwards;
-}
-
-.leaving .boot-bar {
-  animation: none;
-  fill-opacity: 1;
-  stroke-dashoffset: 0;
-}
-
-.leaving .boot-flash {
-  display: none;
+  animation: boot-exit 300ms ease-in-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .boot-pulse,
-  .boot-bar,
-  .boot-flash {
+  .boot-splash.pulsing .boot-pulse {
     animation: none;
-  }
-
-  .boot-bar {
-    fill-opacity: 1;
-    stroke-dashoffset: 0;
-  }
-
-  .boot-flash {
-    display: none;
   }
 
   .boot-splash.leaving {
-    animation-duration: 200ms; /* = reduced-motion exitMs in splashTimings */
-  }
-
-  .leaving .boot-pulse {
-    animation: none;
+    animation-duration: 150ms; /* = reduced-motion exitMs in splashTimings */
   }
 }
