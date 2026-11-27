@@ -39,6 +39,9 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
 - APK: `npm run android:apk` (necesita ANDROID_HOME y `.secrets/keystore.properties`).
   En Windows necesita JDK 21 (p. ej. `JAVA_HOME` = `C:\Program Files\Android\Android Studio\jbr`, no el Java 8 global) y `ANDROID_HOME` = `%LOCALAPPDATA%\Android\Sdk`. Si `gradle.mjs` falla con «gradlew.bat no se reconoce», ejecuta `.\gradlew.bat assembleRelease` en `apps/mobile/android`. La primera vez tarda ~5 min; después ~1,5 min.
 - Publicar web: `npm run deploy`. Migraciones en producción: `npm run db:migrate:remote`.
+  Si cambió el hub, antes que la web: `npm run hub:migrate:remote` y `npm run deploy:hub`.
+  La versión se cambia con `node`, no con `sed`. En Windows `test:e2e` sale con código 1 por el
+  EPERM de `smoke.mjs`: vale si dice que pasan todas las comprobaciones.
 - Release Android: subir la versión en los 7 `package.json` y en `package-lock.json`, añadir
   `docs/releases/vX.Y.Z.md`, hacer `git push` y después el tag `vX.Y.Z`. CI construye y publica los APK.
 
