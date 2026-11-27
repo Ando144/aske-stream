@@ -1,488 +1,436 @@
-# PLAN: v0.9.4 — Jam como mando a distancia, Grupos con nombre y foto (boceto A) y arreglos pendientes
+# PLAN: v0.9.5 (fase 9.3): portadas en todas partes, deslizar más bonito, carga solo con logo, «Compartir → Aske Stream» y «Cargar más»
 
-Fecha: 2026-11-26 · Estado: v0.9.4 COMPLETADO (Fase 3 = v0.9.5 en borrador) · Decisiones: DEFINITIVAS
+Fecha: 2026-11-27 · Estado: COMPLETADO · Decisiones: DEFINITIVAS (salvo «Dudas abiertas»)
 
-## v0.9.3 (COMPLETADA y publicada: `ff1905d`, tag, web y APK)
+## Historial (resumen)
 
-Resumen: descargas cancelables que no bloquean la cola (carriles «nube» y «móvil», vigilante,
-64 KB/s con tope de 30 min); audios de más de 95 MB con Cloudflare solo en este móvil
-(`local-extras`); podcasts por serie (`album`) y ordenados; aleatorio de orden fijo por semilla con
-«Barajar de nuevo»; Jam desde la biblioteca; portadas en menús sociales y «Enviar»; gestos del mini
-reproductor; arreglos del QR y de «Seleccionar». El hub no cambió. Detalle en `docs/ESTADO.md` y
-`docs/releases/v0.9.3.md`. Si aparecen fallos del APK v0.9.3, se añaden como tareas nuevas aquí.
+- **v0.9.3** (`ff1905d`): descargas cancelables por carriles, `local-extras`, podcasts por serie, aleatorio de orden fijo, gestos del mini reproductor.
+- **v0.9.4** (`7f879b5`, hub con migración 0005): Jam como mando a distancia y barra de la Jam, Grupos (boceto A) con «Nombre y foto», arreglos (huérfanos al cancelar, Ordenar con teclado, «Seleccionar» en carpetas, «zerrenda»). Detalle en `docs/releases/v0.9.4.md`.
+- El borrador antiguo de la «Fase 3» queda sustituido por este plan.
 
 ## Objetivo
 
-Publicar **v0.9.4** con:
-
-- **Jam como mando a distancia:** cualquiera de la Jam salta la canción (1 salto cada 2 s por
-  persona, sin confirmación y sin aviso); el sonido sigue saliendo solo del móvil de quien la creó.
-  El invitado ve una **barra de la Jam** cuando su móvil no suena.
-- **Grupos (boceto A):** lista con tarjetas, detalle con foto grande, «Nombre y foto» (cualquier
-  miembro), hojas de crear y unirse con el mismo estilo, y vista previa (nombre, personas y foto)
-  para quien tenga un código de invitación válido.
-- **Pendientes de `ESTADO.md`:** cancelar cuando la nube ya recibió el audio, «Seleccionar» dentro
-  de las carpetas, eu solo con «zerrenda», menú Ordenar con teclado y selección de playlists que se
-  limpia al cambiar de pantalla.
+Publicar **v0.9.5** con: (1) portada o dibujo al lado de **cada** nombre de canción o playlist en listas, menús, hojas, cola, descargas, búsqueda, grupos y reproductores; (2) deslizar con estilo «A en reproductores (carrusel), B en listas (círculo)» según `docs/plan/bocetos/deslizar.html`; (3) pantalla de carga solo con el logo, que palpita si tarda más de 1 s; (4) «Compartir → Aske Stream» en Android y (5) «Cargar más» en la búsqueda de YouTube.
 
 ## Decisiones de Andoni (vigentes)
 
-| Tema                  | Decisión                                                                                                                                                                                             |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Jam                   | Mando a distancia para todos (N1A). Sin aviso cuando alguien salta (N6B)                                                                                                                             |
-| Quién salta           | Todos; quien crea la Jam **no** puede impedirlo. Límite: 1 salto cada 2 s por persona                                                                                                                |
-| Botón Saltar          | Sin confirmación; se bloquea 2 s contra dobles toques                                                                                                                                                |
-| Invitado              | Barra de la Jam si su móvil no suena (portada, título, «Suena en el móvil de X», Saltar, deslizar a la izquierda salta). Si escucha su música, ve su reproductor y salta desde la pantalla de la Jam |
-| Grupos: permisos      | Cualquier miembro cambia nombre y foto (11B); no se guarda ni se muestra quién (N5B)                                                                                                                 |
-| Foto                  | Recortada al centro automáticamente (12A); desde el selector de archivos o galería, sin permiso de cámara                                                                                            |
-| Ver la foto           | Miembros y quien tenga un código de invitación válido; nunca pública sin código                                                                                                                      |
-| Error al guardar      | Aviso en lenguaje sencillo; se conserva lo escrito y la foto para reintentar; gana el último cambio                                                                                                  |
-| Rediseño              | Fiel al boceto A (`docs/plan/bocetos/grupos.html`), **también la lista**: cada tarjeta con iniciales de los miembros, minutos del mes, quién más escucha o «todavía nadie ha compartido»             |
-| Datos de las tarjetas | Solo cuentan quienes comparten sus escuchas (RGPD); compatible con clientes y hub antiguos                                                                                                           |
-| Euskera               | «zerrenda» en todas partes (confirmado por Andoni)                                                                                                                                                   |
-| TDD                   | Por tarea: sí en lógica importante, no en interfaz simple                                                                                                                                            |
-| Publicar              | Tras aprobar la revisión, publicar directamente sin volver a preguntar                                                                                                                               |
+| Tema                      | Decisión                                                                                                                                                                                                  |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sin portada real          | Dibujo ámbar propio, sin conexión: tonos ámbar + icono (nota = canción, lista = playlist, micrófono = podcast); varía según el nombre                                                                     |
+| Playlist sin foto elegida | Mosaico de 4 portadas de sus canciones; una sola si tiene menos de 4. La foto elegida manda                                                                                                               |
+| Canciones que no tienes   | Miniatura pública de YouTube si hay id; si no, dibujo ámbar. No se suben portadas al Hub                                                                                                                  |
+| Deslizar                  | A (carrusel) en mini reproductor, pantalla grande y barra de la Jam; B (círculo ámbar con icono) en filas de listas. Mismo gesto y misma acción que hoy. Desaparece el botón/texto «Siguiente»/«Anterior» |
+| Carga                     | Solo el logo, sin letras ni botones; palpita suave si tarda más de 1 s; misma lógica de sin conexión que hoy                                                                                              |
+| Compartir                 | Vídeos y playlists de YouTube / YouTube Music; otros textos → aviso claro. Ficha con portada, título y «Descargar». App cerrada y abierta                                                                 |
+| Cargar más                | Botón al final de los resultados (continuación de InnerTube); si falla, mensaje claro                                                                                                                     |
+| TDD                       | Por tarea (sí en lógica, no en interfaz simple)                                                                                                                                                           |
+| Publicar                  | Tras aprobar la revisión, todo sin volver a preguntar                                                                                                                                                     |
 
 ## Diagnóstico (con archivo y línea)
 
-- **Saltar hoy:** solo el anfitrión (`apps/web/src/stores/jam.ts:301-314`, `components/jam/JamRoom.tsx:62-66`). El servidor rechaza `start`/`finish` de invitados (`apps/hub/src/jam/state.ts:141-144`). `hello` no anuncia capacidades (`apps/hub/src/jam/protocol.ts:15-19`).
-- **Anfitrión antiguo:** el servidor sabe qué socket es el anfitrión (`room.ts:153-156`); el adjunto del socket puede guardar más campos (`room.ts:156`), pero `you` se envía tal cual (`room.ts:179`): hay que quitar los campos internos.
-- **Grupos:** la lista solo recibe `id`, `name`, `members`, `isOwner` (`packages/shared/src/groups.ts:29-34`, `apps/hub/src/groups/service.ts:34-42`), así que el hub tiene que enviar más para las tarjetas del boceto A. Las escuchas solo existen en `device_stats` de quien dio permiso (se borran al quitarlo: `stores/groups.ts:77-89`), y `statsForGroup` ya une miembros con escuchas (`repo.ts:296-308`). El detalle ya trae los miembros y las estadísticas del mes (`GroupStats`, `groups.ts:79-84`): hay datos para el podio, «Canciones del mes» y las iniciales. No hay vista previa antes de unirse (`apps/hub/src/groups/routes.ts:66-80`).
-- **Límite por IP:** `enforceRateLimit` usa la IP (`apps/hub/src/lib/rateLimit.ts:31-35`); para «20 cambios por hora y grupo» se usa `checkRateLimit` con la clave `group_edit:<groupId>`.
-- **Subidas binarias:** `hubFetch` solo envía JSON y lee JSON (`apps/web/src/hub/client.ts:47-68`).
-- **Cancelar con la nube ya servida:** `cancel` aborta la petición (`downloads/cancel.ts:69-85`), pero si el Worker ya guardó el audio la respuesta se pierde y la canción queda en la nube; `discardSaved` solo cubre el caso en que el cliente sí recibió la respuesta (`cancel.ts:21-23`).
-- **«Seleccionar» en carpetas:** solo aparece si hay playlists sueltas (`views/PlaylistsView.tsx:91-97`); `FolderView.tsx` no tiene botón (solo pulsación larga).
-- **Selección de playlists:** se limpia en `App.tsx:310-316` al cambiar `location`, pero el botón Atrás de Android no la cierra (`native/shell.ts:38`) y la barra no comprueba en qué pantalla empezó (`components/PlaylistSelectionBar.tsx:14-16`). SUPUESTO (VERIFICAR al reproducir): la barra queda viva en algún paso entre pantallas.
-- **Ordenar sin teclado:** `SortMenu.tsx:56-73` no mueve el foco al abrir, no responde a flechas ni devuelve el foco al botón.
-- **Euskera:** textos con «playlist» en `i18n/eu.ts:671-672` y en módulos y artículos de ayuda; la mayoría usa «zerrenda».
-- **`stores/library.ts` (557 líneas):** ninguna tarea de v0.9.4 necesita tocarlo, así que no se parte ahora (queda en riesgos).
+- **Portadas hoy:** `Cover.tsx:38-44` y `SongThumb.tsx:14-19` caen a un icono gris de nota; `PlaylistArt.tsx:40-51` solo hace mosaico si hay 4 canciones **con** portada y, si no, un icono `ListMusic`. `PlaylistPicker.tsx:43-62` (icono), `DownloadQueue.tsx:147-153` y `DownloadView.tsx:332-338` (`<img>` sin plan B).
+- **Sitios con nombre y SIN imagen (inventario):** `AddToPlaylistSheet.tsx:53-56` (icono `ListMusic`), `Nav.tsx:95-102` (playlists del menú lateral), `study/SourcePicker.tsx:35-47` (`<select>`, no admite imágenes), `downloads/PickList.tsx:47-52` (canciones de una playlist de YouTube), `send/ParcelPanel.tsx:17-20` (cesta de «Enviar»), `send/ParcelSheet.tsx:43` (nombre del paquete), `SharedListView.tsx:68` (cabecera de lista compartida), `groups/GroupShares.tsx:62-69` (playlists y Jams compartidas), `groups/GroupRanking.tsx:22`, `groups/MemberTops.tsx:20-21`, `groups/MonthSummary.tsx:131-137`, `stats/RecapCards.tsx:27-31`, `PodcastsView.tsx:93-101` (episodios), `podcasts/ShowPickSheet.tsx:100` (series).
+- **Sitios que ya tienen imagen (heredan el dibujo ámbar al cambiar `Cover`/`SongThumb`/`PlaylistArt`):** `TrackList`, `TrackMenu`, `QueuePanel`, `OfflineView`, `PlaylistView` (cabecera y filas), `PlaylistsView`, `PlaylistMenu`, `PlaylistMenuParts:133`, `GroupShares` (selector), `JamAddSheet`, `JamQueue`, `JamBar`, `Outbox`, `ParcelSheet` (`SongRows`), `MiniPlayer`, `PlayerBar`, `NowPlaying`, `PodcastsView` (cabecera de serie).
+- **Fuera del alcance (supuesto):** carpetas (`FolderView`, `FolderMenu`, `PlaylistMenuParts:103`) porque no son playlists (siguen con su icono); nombres dentro de frases (avisos, confirmaciones, ayuda) y `<title>` de hojas (`aria-label`).
+- **Qué ids transmite el Hub:** Jam (`JamItemView.song.videoId`), listas compartidas (`SharedList.songs[].videoId`) y «Enviar» (`HubSong.videoId`) **sí**. **No:** estadísticas de grupos (`MonthTopTrack`, `RankedTrack` en `packages/shared/src/groups.ts:77-105`, solo título y artista) ni `GroupShare` (`groups.ts:118-128`, solo `title` y `ref`). Para ellas: portada de **tu** biblioteca si coincide título + artista; si no, dibujo ámbar (ver Dudas).
+- **Recap local:** `stats/recap.ts:18-23` (`TopTrack`) no guarda `trackId`; se usa la misma búsqueda por título + artista.
+- **Deslizar hoy:** `useSwipe` y `SwipeHint` viven en `components/jam/JamBar.tsx:17-89` y los usan `MiniPlayer.tsx:32-35,60` y `JamBar.tsx:98-140`; la etiqueta «Siguiente/Anterior» es `.mini-swipe-hint` (`gestures.css:11-34`). Filas: `TrackList.tsx:99-177` (texto «Añadir a la cola» en `.swipe-hint`). La pantalla grande (`NowPlaying.tsx`) **no** tiene gesto; la barra de progreso (`SeekBar`) está fuera de la portada, así que el gesto va solo en portada + título.
+- **Vecina para el carrusel:** el orden está en `stores/player.ts` (`step` 242-258, `previous` 395-411) con `nextIndex`/`previousIndex` de `player/queue.ts`; la radio usa `stationAt` (`player/radioEngine.ts:21`); la Jam, `snapshot.queue[0]`.
+- **Carga:** `BootSplash.tsx:70-72` muestra «Buscando conexión…» a los 1,5 s; el logo se dibuja y palpita desde 1,8 s (`boot.css:16-20`). `index.html:18` tiene un `div.boot-splash` vacío sin estilos hasta que carga el JS. **No hay ningún botón de escape** en la carga: tras `BOOT_MAX_WAIT_MS` (5 s) entra igualmente en modo sin conexión (`lib/boot.ts:17-27`), así que quitar textos no deja a nadie atascado. El splash nativo de Android 12+ ya es solo el logo (`styles.xml:20-25`, `ic_launcher_foreground.png`, sin letras).
+- **Compartir:** el manifiesto solo tiene `MAIN/LAUNCHER` (`AndroidManifest.xml:21-24`); `@capacitor/app` no entrega `ACTION_SEND`, así que hace falta un plugin propio. `MainActivity` es `singleTask` (llega `onNewIntent` con la app abierta).
+- **Buscar:** tres caminos: móvil (`native/downloader.ts:80-115`, InnerTube directo con plan B yt-dlp), Hub (`hub/client.ts:157-165` → `apps/hub/src/routes/search.ts` → `lib/search.ts`) y Cloudflare del amigo (`api/client.ts:208` → `apps/api/src/routes/youtube.ts:71-84`). Ninguno devuelve token de continuación. `parsePlaylistPage` ya sabe leer tokens (`youtube.ts:438-483`).
+- **Archivos grandes:** `DownloadView.tsx` (545 líneas) → «Cargar más» saca la búsqueda a archivos propios.
 
 ## Decisiones de arquitectura
 
-- **Salto remoto sin quitar el control al anfitrión:** el invitado envía `{ type: 'skip', itemId }`; el servidor solo apunta `skipRequested = itemId` y lo difunde. Quien ejecuta el salto es el móvil del anfitrión con su `skip()` de siempre (que envía `start` o `finish`), así la descarga y el reproductor siguen en un solo sitio. `start` y `finish` borran `skipRequested`.
-- **Dos pulsan a la vez:** si `itemId` no es lo que suena o ya está pedido, se ignora sin error ni difusión; el anfitrión recuerda el último `itemId` atendido y nunca salta dos veces la misma.
-- **Límite 1 cada 2 s por persona** en el servidor (`lastSkipAt` en el adjunto del socket; si se pasa, se ignora en silencio) y en el cliente (botón bloqueado 2 s).
-- **Compatibilidad:** `hello.features = ['remoteSkip']` (opcional). La instantánea gana `canSkip` (hay un anfitrión conectado que lo anunció) y `skipRequested`. Anfitrión v0.9.3 → error `host_outdated`; sin anfitrión conectado → `host_away`. Hub viejo → `canSkip` llega `undefined` = no se puede. Invitados v0.9.3 no cambian.
-- **Barra de la Jam:** se dibuja en el hueco del mini reproductor (y de la barra de escritorio) cuando eres invitado, la Jam está abierta, suena algo en ella y tu reproductor no está sonando.
-- **Fotos en D1:** tabla `group_photos` (BLOB ≤ 100 KB, JPEG 256 px) y `groups.photo_at` como versión; cambio = sobrescribir (gana el último). Sin R2: el hub no guarda música ni ficheros grandes.
-- **Acceso a la foto:** `GET /groups/:id/photo` solo miembros (cabecera `X-Device-Key`); vista previa con código por **POST** (`/groups/peek` y `/groups/peek/photo`, el código va en el cuerpo, nunca en la URL ni en registros). Código renovado = el viejo deja de servir. Expulsados → `kicked`.
-- **Validación en el servidor:** nombre con `sanitizeGroupName`; foto con `Content-Type: image/jpeg`, tamaño ≤ 100 KB (mirando `Content-Length` antes de leer y el tamaño real después) y firma JPEG (`FF D8 FF` al principio y `FF D9` al final).
-- **Tarjetas de la lista:** `GET /groups?month=YYYY-MM` (mes local del móvil; un hub viejo ignora el parámetro) añade a cada `GroupSummary` dos campos **opcionales**: `people` (alias de los 4 miembros más antiguos) y `month` (minutos, cuántos comparten y quién más escucha). Se calculan con `statsForGroup`, así que solo cuentan quienes comparten sus escuchas, igual que en el detalle; no se expone nada que un miembro no vea ya dentro del grupo. Mes inválido o fuera de rango → mes UTC actual. Clientes viejos ignoran los campos nuevos; un cliente nuevo con hub viejo recibe `undefined` y la tarjeta se dibuja sin pila ni resumen.
-- **Texto del mes en la tarjeta:** «Este mes» en lugar del nombre del mes, porque en euskera «azaroan» necesita declinación y `Intl` no la da.
-- **Rutas nuevas en su propio archivo** (`groups/lookRoutes.ts`), montadas antes de `/:id` en `routes.ts`.
-- **Cliente:** caché en memoria de URLs `blob:` por `groupId` + `photoAt` (la CSP ya permite `blob:` en `img-src`, `apps/web/public/_headers:2`). Borradores de «Nombre y foto» en un store propio para reintentar.
-- **Textos:** módulos i18n nuevos `jamRemote.ts`, `groupList.ts` y `groupLook.ts`, creados y registrados en T1; después cada uno lo amplía solo su tarea dueña. CSS en archivos propios.
-- **Huérfanos al cancelar:** tras cancelar un `saving` en Cloudflare o Drive, se recarga la biblioteca a los 5 s y a los 60 s y se borra la canción nueva de ese `videoId` que no estaba antes (sin depender de relojes).
-- **Dos fases** (2A con 6 tareas, 2B con 3) para no pasar de 7 por fase. Se publica todo junto.
-- **Despliegue:** migración D1 del hub `0005`; la API de cada amigo (`apps/api`) no cambia.
+- **Un único componente de dibujo** `GeneratedArt` (SVG/CSS, sin red) con colores deterministas por semilla dentro de la gama ámbar (no es un tema nuevo). `Cover`, `SongThumb` y `PlaylistArt` lo usan como plan B, así casi todo hereda el cambio sin tocar cada pantalla.
+- **Estadísticas y Recap sin id:** `StatTrackArt` busca en la biblioteca propia por título + artista normalizados (índice cacheado por objeto `tracks`) — sin cambiar el Hub ni compartir más datos.
+- **Miniaturas de YouTube** siempre con `referrerPolicy="no-referrer"`, `loading="lazy"` y caída al dibujo si fallan o no hay red. Se documenta en `PRIVACY.md`.
+- **Deslizar:** la lógica pura (umbral, progreso, desplazamiento de la vecina) va en `lib/swipe.ts`; el gancho `useSwipe` se mueve a `components/gestures/useSwipe.ts` y gana fase de «confirmar» (la tarjeta sale y entra la vecina, 200 ms; 0 ms con reduced-motion) y flechas del teclado. `SwipeTrack` dibuja la actual y la vecina; `SwipeRing` el círculo de las listas.
+- **Vecina pura** en `player/neighbours.ts`, que imita `step(true)` y `previous({ skipRestart: true })`; si no se puede saber (fin de lista con aleatorio que se rebaraja) devuelve `null` y el gesto se permite igual, sin vecina dibujada.
+- **Carga:** sin animación de trazo; el mismo logo estático en `index.html` (CSS en línea, permitido por la CSP), en `BootSplash` y en el splash nativo, para que no haya saltos. Clase `pulsing` a partir de 1 s.
+- **Compartir:** plugin nuevo `ShareTarget` (Java) que guarda el texto pendiente (app cerrada) y lo emite con `notifyListeners(..., true)` (app abierta). El análisis del texto es puro (`share/sharedLink.ts`). La ficha se monta en `Shell` (`App.tsx`), así que si la app aún no está configurada el enlace espera. El título del vídeo se pide al oEmbed público de YouTube con `CapacitorHttp`; si falla, se descarga igual. Las playlists reutilizan `PlaylistPicker`.
+- **Cargar más:** `buildSearchRequest(..., continuation?)` y `parseSearchPage` en `packages/shared`; el Hub y la API devuelven `{ results, continuation }`. Servidores viejos no mandan `continuation` → no se ve el botón (compatible). El plan B yt-dlp no tiene continuación.
+- **Textos:** un módulo i18n nuevo `i18n/youtubeMore.ts` (T1). Las claves que dejan de usarse se borran al final (T13) para no romper tareas en paralelo.
+- **Despliegue:** cambia el Hub (búsqueda) → `npm run deploy:hub` sin migración. Cambia `apps/api` (búsqueda) → cada amigo actualiza su servidor con el aviso de siempre; sin migraciones D1.
 
 ## Contratos (interfaces compartidas)
 
-### Hub: Jam (T2 escribe; T4 usa)
+### Portadas (T2 escribe; T4, T5, T6, T10, T11 usan)
 
 ```ts
-// packages/shared/src/hub.ts
-HUB_LIMITS.jamSkipEveryMs = 2000;
-export const JAM_FEATURES = ['remoteSkip'] as const;
-export type JamFeature = (typeof JAM_FEATURES)[number];
-// JamClientMessage
-| { type: 'hello'; memberId: string; nickname: string; hostKey?: string; features?: JamFeature[] }
-| { type: 'skip'; itemId: string } // anyone: asks the host's phone to skip that song
-// JamSnapshot (both optional: an old hub does not send them)
-canSkip?: boolean;            // a connected host announced 'remoteSkip'
-skipRequested?: string | null; // itemId waiting for the host to skip
-// HubErrorCode += 'host_outdated' | 'host_away'
+// apps/web/src/lib/generatedArt.ts (pure)
+export type ArtKind = 'song' | 'playlist' | 'podcast';
+export function hashSeed(seed: string): number; // stable 32-bit, same input → same number
+export function artColors(seed: string): { from: string; to: string; angle: number; ink: string };
+  // hsl() strings; hue always 24-44 (amber), lightness varies; ink readable on both stops
+// apps/web/src/components/art/GeneratedArt.tsx
+export function GeneratedArt(props: { seed: string; kind: ArtKind; size?: number; className?: string }): JSX.Element;
+  // aria-hidden; icon Music | ListMusic | Mic at 42 % of size; size 0/undefined = fills parent
+// apps/web/src/lib/playlistMosaic.ts (pure)
+export function mosaicTrackIds(trackIds: readonly string[], tracks: Record<string, Track>): string[];
+  // 0 songs → []; 1-3 → [first with cover ?? first]; ≥4 → 4 ids: those with cover first (in order), then the rest
+// apps/web/src/lib/trackLookup.ts (pure)
+export function findTrackByTitle(tracks: Record<string, LocalTrack>, title: string, artist: string): LocalTrack | null;
+  // normalizeText on both; exact title+artist first, then title only if unique; index cached in a WeakMap per `tracks`
+// Changed components (props stay backwards compatible)
+Cover({ trackId, hasCover, size?, className? }) // fallback = GeneratedArt(seed `${title}|${artist}`, kind podcast if track.kind === 'podcast')
+SongThumb({ videoId?: string | null; src?: string; title?: string; artist?: string; kind?: ArtKind; size?: number; className?: string })
+  // tries src, then youtubeThumb(videoId), then GeneratedArt(seed title|artist or videoId)
+PlaylistArt({ playlist, tracks, size? }) // photo > mosaicTrackIds (1 or 4 Covers) > GeneratedArt(seed playlist.name, 'playlist')
+// apps/web/src/components/art/StatTrackArt.tsx
+export function StatTrackArt(props: { title: string; artist: string; size?: number }): JSX.Element; // own cover if found, else GeneratedArt
+// apps/web/src/components/art/SongMosaic.tsx
+export function SongMosaic(props: { songs: readonly HubSong[]; seed: string; size?: number }): JSX.Element;
+  // ≥4 songs → 2×2 SongThumb; 1-3 → one SongThumb; 0 → GeneratedArt('playlist')
+// CSS: apps/web/src/art.css (classes .gen-art, .song-mosaic)
 ```
+
+### Deslizar (T3 escribe; T6 usa)
 
 ```ts
-// apps/hub/src/jam/protocol.ts: hello.features = z.array(z.string().max(32)).max(8).optional()
-//   (unknown names are dropped), new message 'skip' with itemId.
-// apps/hub/src/jam/state.ts
-JamData.skipRequested?: string | null;          // cleared by 'start' and 'finish'
-export type HostReadiness = 'ready' | 'outdated' | 'away';
-export type SkipResult = { data: JamData } | { error: HubErrorCode } | { ignored: true };
-export function requestSkip(data: JamData, itemId: string,
-  ctx: { now: number; lastSkipAt?: number; host: HostReadiness }): SkipResult;
-  // host 'outdated' → error host_outdated; 'away' → error host_away;
-  // now - lastSkipAt < jamSkipEveryMs → ignored; nowPlaying?.id !== itemId → ignored;
-  // skipRequested === itemId → ignored; otherwise data with skipRequested = itemId.
-export function toSnapshot(data: JamData, members: JamMember[], viewerId: string,
-  canSkip: boolean): JamSnapshot;
-// apps/hub/src/jam/room.ts: attachment = JamMember & { features?: JamFeature[]; lastSkipAt?: number };
-//   `you` and `members` only expose { memberId, nickname, isHost } / { nickname, isHost }.
-```
-
-### Web: Jam (T4)
-
-```ts
-// apps/web/src/hub/jamRemote.ts (pure + one hook)
-export type SkipAvailability = 'ok' | 'outdated' | 'away' | 'nothing';
-export function skipAvailability(snapshot: JamSnapshot | null): SkipAvailability;
-  // nothing: no nowPlaying; ok: canSkip === true; outdated: a host is in members; else away
-export function hostSkipTarget(snapshot: JamSnapshot, lastHandled: string | null): string | null;
-  // skipRequested && skipRequested === nowPlaying?.id && !== lastHandled
-export function jamBarVisible(s: { role?: 'host' | 'guest'; connection: JamConnection;
-  snapshot: JamSnapshot | null; playerPlaying: boolean }): boolean;
-  // guest && connection === 'open' && snapshot?.nowPlaying && !playerPlaying
-export function useJamBarVisible(): boolean;
-// apps/web/src/stores/jam.ts → JamState
-skipLocked: boolean;          // true for jamSkipEveryMs after a skip request
-requestSkip(): void;          // host → skip(); guest with availability 'ok' → send skip
-// hello always carries features: ['remoteSkip']; on 'state', if host and hostSkipTarget(...)
-// returns an id, remember it and call skip().
-// apps/web/src/components/jam/JamBar.tsx
-export function JamBar(props: { variant: 'mini' | 'desktop' }): JSX.Element | null;
-```
-
-### Hub: Grupos (T3 escribe; T5 usa)
-
-```sql
--- apps/hub/migrations/0005_group_photos.sql
-ALTER TABLE groups ADD COLUMN photo_at INTEGER;
-CREATE TABLE group_photos (group_id TEXT PRIMARY KEY, data BLOB NOT NULL, updated_at INTEGER NOT NULL);
-```
-
-```ts
-// packages/shared/src/groups.ts
-GROUP_LIMITS.photoMaxBytes = 100 * 1024; GROUP_LIMITS.photoSide = 256;
-GROUP_LIMITS.editsPerHour = 20; GROUP_LIMITS.peekPer10Min = 30;
-GroupSummary.photoAt: number | null;  GroupDetail.photoAt: number | null;
-GROUP_LIMITS.cardPeople = 4;
-export interface GroupCardMonth {
-  month: string;          // 'YYYY-MM' actually used
-  minutes: number;        // sum of the sharing members (rounded)
-  sharing: number;        // members with stats that month
-  topAlias: string | null; // most minutes (> 0); tie → who joined first; null if nobody
+// apps/web/src/lib/swipe.ts (adds, swipeDecision unchanged)
+export function swipeThreshold(width: number): number; // min(LONG_PX, width * LONG_WIDTH_SHARE)
+export function swipeProgress(dx: number, width: number): number; // 0..1 = |dx| / threshold, capped
+export function neighbourOffset(dx: number, width: number): number; // dx < 0 ? dx + width : dx - width
+// apps/web/src/player/neighbours.ts (pure)
+export interface QueueView {
+  currentId: string | null;
+  queue: readonly string[];
+  context: readonly string[];
+  index: number;
+  fromQueue: boolean;
+  repeat: RepeatMode;
+  contextShuffled: boolean;
 }
-// GroupSummary (optional: an old hub does not send them)
-people?: string[];        // aliases, oldest member first, at most cardPeople
-month?: GroupCardMonth;
-// apps/hub/src/groups/service.ts
-export function cardMonth(rows: Array<{ memberId: string; alias: string; statsJson: string }>,
-  month: string): GroupCardMonth; // pure; invalid statsJson rows are skipped (sanitizeMonthStats)
-export function listSummaries(repo: GroupRepo, deviceHash: string, month: string): Promise<GroupSummary[]>;
-export interface GroupPreview { name: string; members: number; photoAt: number | null }
-export function isJpeg(bytes: Uint8Array): boolean; // FF D8 FF ... FF D9
-// apps/hub/src/groups/repo.ts → GroupRow.photoAt: number | null; GroupRepo +=
-renameGroup(groupId: string, name: string, now: number): Promise<void>; // also last_active_at
-putPhoto(groupId: string, data: Uint8Array, now: number): Promise<void>; // upsert + photo_at = now
-getPhoto(groupId: string): Promise<Uint8Array | null>; // normalise: new Uint8Array(row.data)
-deletePhoto(groupId: string, now: number): Promise<void>; // photo_at = NULL
-// deleteGroup and cleanupGroups also delete group_photos.
+export function nextTrackId(s: QueueView): string | null; // = what step(true) would pick; null if nothing or unknown (reshuffle)
+export function previousTrackId(s: QueueView): string | null; // = previous({ skipRestart: true }); null if it would stay on the same song
+// apps/web/src/components/gestures/useSwipe.ts
+export type SwipePhase = 'idle' | 'drag' | 'commit' | 'return';
+export function useSwipe(opts: {
+  onSwipe(d: SwipeDirection): void;
+  allows(d: SwipeDirection): boolean;
+  maxDrag?: number; /* px, default = element width */
+}): {
+  dx: number;
+  phase: SwipePhase;
+  width: number;
+  handlers: { onPointerDown; onPointerMove; onPointerUp; onPointerCancel; onKeyDown }; // ArrowLeft/Right = swipe
+  consumeSwipe(): boolean;
+};
+// touch only for dragging; commit = animate to ±width (200 ms, 0 with prefers-reduced-motion), then onSwipe, then dx 0 without transition
+// apps/web/src/components/gestures/SwipeTrack.tsx
+export function SwipeTrack(props: {
+  dx: number;
+  phase: SwipePhase;
+  width: number;
+  neighbour: (d: SwipeDirection) => ReactNode | null;
+  children: ReactNode;
+}): JSX.Element;
+// current content translateX(dx) and opacity 1 - progress*0.5; neighbour (aria-hidden) at neighbourOffset
+// apps/web/src/components/gestures/SwipeRing.tsx
+export function SwipeRing(props: { progress: number; icon: 'queue' | 'jam' }): JSX.Element | null;
+// null at 0; conic-gradient amber; .full when progress >= 1 (accent fill, ink icon); aria-hidden
+// CSS: apps/web/src/swipe.css
 ```
 
-| Método y ruta (`/hub/v1/groups`) | Quién                 | Cuerpo / respuesta                                                         | Límite                        |
-| -------------------------------- | --------------------- | -------------------------------------------------------------------------- | ----------------------------- |
-| `GET /?month=YYYY-MM`            | el propio dispositivo | `{ groups: GroupSummary[] }` con `photoAt`, `people` y `month`             | `group_read` (sin cambios)    |
-| `PUT /:id/name`                  | miembro               | `{ name }` → `GroupDetail`                                                 | `group_edit:<id>` 20/h        |
-| `PUT /:id/photo`                 | miembro               | `image/jpeg` ≤ 100 KB → `{ photoAt }`; 413 si es grande, 400 si no es JPEG | `group_edit:<id>` 20/h        |
-| `DELETE /:id/photo`              | miembro               | → 204                                                                      | `group_edit:<id>` 20/h        |
-| `GET /:id/photo`                 | miembro               | `image/jpeg`, `Cache-Control: private, max-age=86400`; 404 `not_found`     | `group_read`                  |
-| `POST /peek`                     | cualquiera con código | `{ code }` → `GroupPreview`; 404 `group_not_found`; 403 `kicked`           | `group_peek` 30/10 min por IP |
-| `POST /peek/photo`               | cualquiera con código | `{ code }` → `image/jpeg`; 404 `not_found` si no hay foto                  | `group_peek` 30/10 min por IP |
-
-Todas exigen `X-Device-Key` válida. Ninguna devuelve quién cambió algo.
-
-### Web: Grupos (T5 escribe; T7 y T8 usan)
+### Compartir (T9 escribe; T11 usa)
 
 ```ts
-// apps/web/src/hub/client.ts
-interface HubRequest { method?: string; json?: unknown; headers?: Record<string, string>; body?: Blob }
-export function hubFetchBlob(path: string, opts?: HubRequest): Promise<Blob | null>; // 404 → null
-// apps/web/src/hub/groupsClient.ts
-listMyGroups(month?: string): Promise<GroupSummary[]>; // adds ?month= when given
-renameGroup(id: string, name: string): Promise<GroupDetail>;
-uploadGroupPhoto(id: string, jpeg: Blob): Promise<{ photoAt: number }>;
-deleteGroupPhoto(id: string): Promise<void>;
-fetchGroupPhoto(id: string): Promise<Blob | null>;
-peekGroup(code: string): Promise<GroupPreview>;
-fetchInvitePhoto(code: string): Promise<Blob | null>;
-// apps/web/src/groups/look.ts (pure)
-export function groupInitials(name: string): string; // 'Cuadrilla del pueblo' → 'CP', 'Viajes' → 'VI'
-export function personInitials(alias: string): string; // 'leire' → 'Le' (2 first letters, emoji-safe)
-export function cardMoreCount(members: number, shown: number): number; // '+N' bubble, 0 = none
-export function preparePhoto(file: Blob): Promise<Blob | null>; // squareJpeg(file, 256); null if > photoMaxBytes
-export function isOfflineError(err: unknown): boolean; // !navigator.onLine or HubError 'network'
-// apps/web/src/groups/photoCache.ts
-export function useGroupPhotoUrl(src: { groupId?: string; inviteCode?: string; photoAt: number | null }): string | null;
-export function forgetGroupPhoto(groupId: string): void; // revokes the blob: URL
-// apps/web/src/components/groups/GroupPhoto.tsx
-export function GroupPhoto(props: { name: string; photoAt: number | null; groupId?: string;
-  inviteCode?: string; size: number }): JSX.Element; // <img> or initials; alt groups.photo.alt
-// apps/web/src/stores/groupEdit.ts
-export interface LookDraft { name: string; photo?: Blob | 'remove' } // undefined = unchanged
-export type SaveLookResult = { ok: true; name: string; photoAt: number | null } | { ok: false; message: string };
-interface GroupEditState {
-  drafts: Record<string, LookDraft>; saving: string | null;
-  save(groupId: string, draft: LookDraft, current: { name: string; photoAt: number | null }): Promise<SaveLookResult>;
-  discard(groupId: string): void;
-}
-// apps/web/src/stores/groups.ts
-patchSummary(id: string, patch: Partial<Pick<GroupSummary, 'name' | 'photoAt'>>): void;
-// refresh() asks for the phone's current local month: monthKeyOfPeriod(currentPeriod('month', now))
+// apps/web/src/share/sharedLink.ts (pure)
+export type SharedLink =
+  | { kind: 'video'; videoId: string; url: string }
+  | { kind: 'playlist'; playlistId: string; url: string }
+  | { kind: 'blocked'; reason: 'mix' | 'personal' }
+  | { kind: 'invalid' };
+export function parseSharedText(text: string): SharedLink;
+// first http(s) URL in the text that isYoutubeUrl (youtube.com, m., music., youtu.be, shorts);
+// video id wins over list; list only → classifyPlaylistLink (mix/personal → blocked); else invalid. Max 2000 chars read.
+// apps/web/src/native/shareTarget.ts (+ apps/web/test/fake-native/shareTarget.ts, alias in vite.config.ts)
+export function takeSharedText(): Promise<string | null>; // pending text from a cold start; clears it
+export function onSharedText(cb: (text: string) => void): Promise<() => void>; // app already open
+export function fetchVideoInfo(videoId: string): Promise<{ title: string; author: string } | null>;
+// GET https://www.youtube.com/oembed?format=json&url=<watch url> with CapacitorHttp, 8 s; null on any error
+// Fake: window.__askeFakeShare(text) triggers the listener; takeSharedText reads ?share= once.
 ```
 
-`save`: primero el nombre (si cambió) y después la foto (subir o quitar). Si algo falla, en
-`drafts[groupId]` queda solo lo que falta por guardar y el mensaje es `groups.look.offline` (sin
-conexión) o el de `hubErrorText` (si no, `groups.look.failed`). Si va bien: borra el borrador,
-`forgetGroupPhoto`, `patchSummary` y devuelve los datos nuevos.
+```java
+// ShareTargetPlugin.java  @CapacitorPlugin(name = "ShareTarget")
+// load(): read getActivity().getIntent(); if ACTION_SEND + text/plain → pending = EXTRA_TEXT (≤ 2000 chars), then intent.setAction(ACTION_MAIN) so a recreate does not repeat it.
+// handleOnNewIntent(Intent): same reading, then notifyListeners("shared", { text }, true).
+// @PluginMethod takePending(call): resolve { text: pending | null } and clear it.
+```
 
-### Claves i18n nuevas (T1 las escribe en es, en y eu; aquí en español)
+### Cargar más (T8 escribe; T10 usa)
 
-`i18n/jamRemote.ts` (`jamRemoteEn/Es/Eu`; después dueño T4):
+```ts
+// packages/shared/src/youtube.ts
+export interface SearchPage {
+  results: SearchResult[];
+  continuation: string | null;
+}
+export const SEARCH_CONTINUATION_MAX = 4096;
+export function buildSearchRequest(
+  query: string,
+  kind: SearchKind,
+  lang?: string,
+  continuation?: string,
+): InnerTubeRequest;
+// with continuation: body { context, continuation } (no query/params). VERIFICAR music: if body-only fails, add ?ctoken=&continuation=&type=next
+export function parseSearchPage(json: unknown): SearchPage; // first and next pages; token from continuationItemRenderer / nextContinuationData
+export function isContinuationToken(s: string): boolean; // 1..SEARCH_CONTINUATION_MAX, /^[A-Za-z0-9_\-%=]+$/
+// parseSearchResponse stays (= parseSearchPage(json).results)
+```
 
-- `jam.bar.playingOn` «Suena en el móvil de {name}» · `jam.bar.open` «Abrir la Jam»
-- `jam.bar.label` «Canción de la Jam. Desliza a la izquierda para saltarla o toca para abrir la Jam»
-- `jam.skip.label` «Saltar esta canción» (el botón usa la clave existente `jam.next`)
-- `jam.skip.guestHint` «Cualquiera de la Jam puede saltar la canción que suena. Solo se oye en el móvil de {name}.»
-- `jam.skip.outdated` y `hub.err.host_outdated` «Quien creó la Jam tiene que actualizar la app para que podáis saltar canciones.»
-- `jam.skip.away` y `hub.err.host_away` «Quien creó la Jam no está conectado ahora mismo. Cuando vuelva, podréis saltar canciones.»
+| Endpoint                                                       | Cambio                                                                                                                           |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| API amigo `GET /api/youtube/search?q&kind&lang[&continuation]` | → `{ results, continuation: string \| null }`; token inválido → 400 `validation_error`; YouTube falla → 502 `search_unavailable` |
+| Hub `GET /hub/v1/search?q&kind&lang[&continuation]`            | igual; `searchYoutube` devuelve `SearchPage`; `jam/routes.ts:62` sigue enviando solo `results`                                   |
 
-`i18n/groupList.ts` (`groupListEn/Es/Eu`; después dueño T7):
+```ts
+// web
+api.youtubeSearch(q, kind, lang, continuation?): Promise<{ results: SearchResult[]; continuation?: string | null }>
+searchViaHub(q, kind, lang, continuation?): Promise<SearchPage> // missing continuation → null
+searchOnPhone(q, kind, lang, continuation?): Promise<SearchPage> // yt-dlp fallback → continuation null
+// apps/web/src/downloads/searchPages.ts (pure)
+export function appendResults(prev: readonly SearchResult[], next: readonly SearchResult[]): SearchResult[]; // dedupe kind+id, keep order
+```
 
-- `groups.tiles.create` «Crear un grupo» · `groups.tiles.createHint` «E invita a tus amigos»
-- `groups.tiles.join` «Entrar con un código» · `groups.tiles.joinHintScan` «O escanea el código QR» · `groups.tiles.joinHint` «Escribe el código que te ha pasado tu amigo»
-- `groups.photo.alt` «Foto del grupo «{name}»»
-- `groups.join.checking` «Buscando el grupo…» · `groups.join.preview` «Vas a entrar en este grupo:»
-- `groups.join.notFound` «No hay ningún grupo con ese código. Revisa que esté bien escrito o pide a tu amigo uno nuevo.»
-- `groups.create.photoHint` «Cuando lo hayas creado podrás ponerle una foto en «Nombre y foto».»
-- `groups.card.month` «Este mes:» · `groups.card.minutes` «{count} minutos» · `.one` «1 minuto»
-- `groups.card.top` «Quien más escucha: {name}»
-- `groups.card.nobody` «Este mes todavía nadie ha compartido lo que escucha.»
-- `groups.card.more` «+{count}» · `groups.card.peopleLabel` «Personas del grupo: {names}»
+### Claves i18n nuevas (T1 en es, en y eu; aquí en español) — `i18n/youtubeMore.ts` (`youtubeMoreEn/Es/Eu`)
 
-`i18n/groupLook.ts` (`groupLookEn/Es/Eu`; después dueño T8):
+- `dl.loadMore` «Cargar más» · `dl.loadingMore` «Cargando más resultados…» · `dl.noMore` «No hay más resultados.»
+- `dl.loadMoreFailed` «YouTube no ha dado más resultados ahora mismo. Prueba otra vez en un momento o cambia la búsqueda.»
+- `shareIn.title` «Desde YouTube» · `shareIn.loading` «Buscando el título…» · `shareIn.unknownTitle` «Canción de YouTube»
+- `shareIn.download` «Descargar» · `shareIn.added` «Añadida a las descargas. La verás en Descargar.»
+- `shareIn.infoFailed` «No hemos podido ver el título, pero puedes descargarla igual.»
+- `shareIn.notYoutube` «Esto no es un enlace de YouTube ni de YouTube Music. Para descargar, abre la canción en YouTube y pulsa Compartir → Aske Stream.»
+- `shareIn.ok` «Entendido»
 
-- `groups.look.button` / `groups.look.title` «Nombre y foto» · `groups.look.text` «Cualquier persona del grupo puede cambiarlos.»
-- `groups.look.pick` «Elegir otra foto» · `groups.look.pickFirst` «Elegir una foto» · `groups.look.remove` «Quitar la foto»
-- `groups.look.note` «La foto se recorta sola por el centro. No subas fotos de otras personas sin su permiso.»
-- `groups.look.name` «Nombre del grupo» · `groups.look.nameRequired` «Escribe un nombre para el grupo.»
-- `groups.look.save` «Guardar cambios» · `groups.look.saving` «Guardando…» · `groups.look.saved` «Cambios guardados»
-- `groups.look.offline` «No hay conexión. Lo que has escrito y la foto siguen aquí: pulsa «Guardar cambios» cuando vuelvas a tener internet.»
-- `groups.look.failed` «No se han podido guardar los cambios. Lo que has escrito y la foto siguen aquí: prueba otra vez en un momento.»
-- `groups.look.badPhoto` «No hemos podido usar esa imagen. Prueba con otra foto.»
-- `groups.look.draftRestored` «Hemos recuperado los cambios que no se pudieron guardar.»
-- `groups.summary.title` «Resumen del mes» · `groups.summary.minutes` «minutos entre todos»
-- `groups.summary.sharing` «{count} de {total}» · `groups.summary.sharingLabel` «comparten lo que escuchan»
-- `groups.summary.place` «{n}º» (en «#{n}», eu «{n}.») · `groups.summary.you` «{name} (tú)» · `groups.summary.min` «{count} min»
-- `groups.summary.songs` «Canciones del mes» · `groups.summary.times` «{count} veces» · `.one` «1 vez»
-- `groups.summary.empty` «Este mes todavía nadie ha compartido lo que escucha.»
-- `groups.summary.fullRanking` «Ver todo el ranking» · `groups.summary.eachPerson` «Ver cada persona»
-- `groups.section.shared` «Compartido» · `groups.section.people` «Personas»
+## Fase 1 (portadas y deslizar)
 
-## Fase 2A (v0.9.4)
+### T1 · Textos nuevos (es/en/eu) · Grupo A · Estado: HECHA
 
-### T1 · Textos nuevos y euskera con «zerrenda» · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): todos los `apps/web/src/i18n/*.ts` (incluidos `jamRemote.ts`, `groupList.ts` y `groupLook.ts`, nuevos), y los textos en euskera que haya fuera de `i18n` y no sean ayuda (comprobar con Grep, p. ej. `apps/web/src/downloads/batch.ts`, `apps/web/src/stores/parcel.ts`)
-- Leer como contexto: `apps/web/src/i18n/podcasts.ts` (patrón de módulo), `apps/web/test/i18n.test.ts`
-- Qué hacer:
-  1. Antes, comprobar con Grep que ninguna clave de «Contratos» existe ya. Crear los 3 módulos con todas las claves en en, es y eu (euskera natural y sencillo) y registrarlos en `en.ts`, `es.ts` y `eu.ts`.
-  2. Euskera: cambiar «playlist» por «zerrenda» (con su declinación correcta: zerrenda, zerrendak, zerrendan, zerrendara…) en todos los valores en euskera de `i18n/*.ts`. Las claves (`playlist.*`) no se tocan. La ayuda (`help/articles`) la hace T9.
+- Archivos (exclusivos): `apps/web/src/i18n/youtubeMore.ts` (nuevo), `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/eu.ts`
+- Leer como contexto: `apps/web/src/i18n/jamRemote.ts` (patrón de módulo), `apps/web/test/i18n.test.ts`
+- Qué hacer: comprobar con Grep que ninguna clave de «Claves i18n nuevas» existe; crear el módulo con las claves en los 3 idiomas (euskera natural, «zerrenda» para playlist) y registrarlo en `en.ts`, `es.ts` y `eu.ts`. **No borrar** ninguna clave (lo hace T13).
 - TDD: no (lo cubre el test de paridad)
 - Criterios de aceptación:
-  - [ ] Paridad i18n en verde; las claves de «Contratos» existen en los 3 idiomas.
-  - [ ] `Grep -i "playlist"` en los bloques eu de `i18n/*.ts` solo encuentra claves, no textos.
+  - [ ] Paridad i18n en verde; las claves existen en los 3 idiomas.
 - Verificación: `npx vitest run test/i18n.test.ts --root apps/web` y `npm run check`
 
-### T2 · Hub: salto remoto en la Jam · Grupo A · Estado: HECHA
+### T2 · Portadas: dibujo ámbar, mosaico y planes B · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `packages/shared/src/hub.ts`, `apps/hub/src/jam/protocol.ts`, `apps/hub/src/jam/state.ts`, `apps/hub/src/jam/room.ts`, `apps/hub/test/jamProtocol.test.ts`, `apps/hub/test/jamState.test.ts`, `apps/hub/test/jamRoom.test.ts`, `apps/hub/test/fakeRoom.ts`
-- Leer como contexto: `apps/web/src/stores/jam.ts:301-314`, `apps/hub/test/jamRoutes.test.ts`
-- Qué hacer:
-  1. Tipos y límites de «Hub: Jam» en `hub.ts`.
-  2. `protocol.ts`: `features` opcional (filtrar a `JAM_FEATURES`) y el mensaje `skip`.
-  3. `state.ts`: `requestSkip` exacto según «Contratos»; `startItem` y `finish` dejan `skipRequested = null`; `toSnapshot` con `canSkip` y `skipRequested`.
-  4. `room.ts`: guardar `features` en el adjunto en `hello`; en `skip`, calcular `HostReadiness` con los sockets (anfitrión con `remoteSkip` → `ready`; anfitrión sin él → `outdated`; ninguno → `away`), pasar `lastSkipAt` del adjunto y, si se acepta, actualizarlo, guardar y difundir. `ignored` → nada. `you` y `members` sin campos internos.
-- TDD: sí
+- Archivos (exclusivos): `apps/web/src/lib/generatedArt.ts` (nuevo), `apps/web/src/lib/playlistMosaic.ts` (nuevo), `apps/web/src/lib/trackLookup.ts` (nuevo), `apps/web/src/components/art/GeneratedArt.tsx` (nuevo), `apps/web/src/components/art/StatTrackArt.tsx` (nuevo), `apps/web/src/components/art/SongMosaic.tsx` (nuevo), `apps/web/src/art.css` (nuevo), `apps/web/src/components/Cover.tsx`, `apps/web/src/components/SongThumb.tsx`, `apps/web/src/components/PlaylistArt.tsx`, `apps/web/test/generatedArt.test.ts` (nuevo), `apps/web/test/playlistMosaic.test.ts` (nuevo), `apps/web/test/trackLookup.test.ts` (nuevo)
+- Leer como contexto: `apps/web/src/lib/format.ts` (`normalizeText`), `apps/web/src/storage/types.ts` (`LocalTrack`), `apps/web/src/styles.css` (clases `.cover`, `.collection-art`), `packages/shared/src/hub.ts` (`HubSong`)
+- Qué hacer: todo lo de «Portadas» en Contratos. `GeneratedArt`: degradado lineal con `artColors`, icono lucide centrado, esquinas iguales que `.cover`; respeta `className` para encajar donde hoy va `.cover` o dentro de `.collection-art`. `SongThumb`: recordar qué `src`/`videoId` falló (como hoy) para pasar al siguiente plan. `PlaylistArt`: mosaico de 4 aunque alguna no tenga portada (esa casilla muestra su dibujo). Importar `art.css` desde `GeneratedArt.tsx`.
+- TDD: sí (`generatedArt`, `playlistMosaic`, `trackLookup`)
 - Criterios de aceptación (tests):
-  - [ ] Un invitado pide saltar lo que suena → `skipRequested` = ese id y se difunde.
-  - [ ] Dos peticiones con el mismo `itemId` → la segunda se ignora; un `itemId` que no suena se ignora.
-  - [ ] Dos peticiones de la misma persona en menos de 2 s → la segunda se ignora; otra persona sí puede.
-  - [ ] Anfitrión sin `remoteSkip` → `host_outdated`; sin anfitrión conectado → `host_away`.
-  - [ ] `start` y `finish` borran `skipRequested`; `you` no incluye `features` ni `lastSkipAt`.
-  - [ ] Un `hello` sin `features` (v0.9.3) sigue funcionando.
-- Verificación: `npx vitest run test/jamProtocol.test.ts test/jamState.test.ts test/jamRoom.test.ts --root apps/hub` y `npm run check`
+  - [ ] `artColors`: misma semilla → mismos colores; tono siempre entre 24 y 44; 50 semillas distintas dan al menos 10 combinaciones diferentes.
+  - [ ] `mosaicTrackIds`: 0 → `[]`; 2 canciones sin portada → 1 id; 5 canciones con 2 portadas → 4 ids empezando por las 2 con portada.
+  - [ ] `findTrackByTitle`: acentos y mayúsculas iguales; artista distinto con título único → la encuentra; dos con el mismo título y artista distinto → `null`.
+- Verificación: `npx vitest run test/generatedArt.test.ts test/playlistMosaic.test.ts test/trackLookup.test.ts --root apps/web` y `npm run check`
 
-### T3 · Hub: nombre, foto, vista previa y datos de las tarjetas de grupos · Grupo A · Estado: HECHA
+### T3 · Deslizar: lógica, gancho, carrusel y círculo · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/hub/migrations/0005_group_photos.sql` (nuevo), `packages/shared/src/groups.ts`, `apps/hub/src/groups/repo.ts`, `apps/hub/src/groups/service.ts`, `apps/hub/src/groups/routes.ts`, `apps/hub/src/groups/lookRoutes.ts` (nuevo), `apps/hub/src/groups/cleanup.ts`, `apps/hub/test/memoryGroupRepo.ts`, `apps/hub/test/groupLook.test.ts` (nuevo), `apps/hub/test/d1GroupRepo.test.ts`, `apps/hub/test/groups.test.ts`
-- Leer como contexto: `apps/hub/src/groups/auth.ts`, `apps/hub/src/lib/rateLimit.ts`, `apps/hub/src/groups/shareRoutes.ts` (patrón de subrutas), `apps/hub/test/sqliteD1.ts`
-- Qué hacer:
-  1. Migración, tipos y repo según «Hub: Grupos». `toGroup` mapea `photo_at`; `listSummaries` y `toDetail` devuelven `photoAt`. `deleteGroup` y `cleanupGroups` borran `group_photos`.
-  2. `lookRoutes.ts` (`createLookRoutes(repoFor)`) con las 6 rutas de la tabla, montada en `routes.ts` **antes** de `app.get('/:id')`.
-     - Límite por grupo: `checkRateLimit(c.env.DB, 'group_edit:' + id, 20, HOUR_MS)` → 429 `rate_limited`.
-     - Foto: rechazar `Content-Length` > 100 KB sin leer el cuerpo (413); leer con `arrayBuffer()`, volver a medir y comprobar `isJpeg` (400 `invalid_request`).
-     - `peek`: `normalizeInviteCode`; código mal escrito o inexistente → 404 `group_not_found`; dispositivo expulsado → 403 `kicked`. Cuerpo JSON ≤ 2 KB (`readJsonBody`).
-     - Respuesta de foto: `Content-Type: image/jpeg` y `Cache-Control: private, max-age=86400`.
-  3. Renombrar y cambiar foto tocan `last_active_at`. No se guarda quién lo hizo.
-  4. **Tarjetas de la lista:** `GET /` lee `?month=` (si falta o no pasa `isAcceptableMonth`, `utcMonthKey(now)`). `listSummaries(repo, deviceHash, month)` añade a cada grupo `people` (de `listMembers`, como mucho `cardPeople`) y `month` (con `cardMonth` sobre `statsForGroup(group.id, month)`). Como mucho son 10 grupos por dispositivo (`maxGroupsPerDevice`), así que basta con un bucle. Solo entran las escuchas de quien las comparte (las filas de `device_stats`); nunca se cuentan ni se nombran otros.
-- TDD: sí
+- Archivos (exclusivos): `apps/web/src/lib/swipe.ts`, `apps/web/test/swipe.test.ts`, `apps/web/src/player/neighbours.ts` (nuevo), `apps/web/test/neighbours.test.ts` (nuevo), `apps/web/src/components/gestures/useSwipe.ts` (nuevo), `apps/web/src/components/gestures/SwipeTrack.tsx` (nuevo), `apps/web/src/components/gestures/SwipeRing.tsx` (nuevo), `apps/web/src/swipe.css` (nuevo)
+- Leer como contexto: `docs/plan/bocetos/deslizar.html` (estilos A y B), `apps/web/src/components/jam/JamBar.tsx:12-89` (gancho actual), `apps/web/src/stores/player.ts:238-258` y `395-411`, `apps/web/src/player/queue.ts`
+- Qué hacer: todo lo de «Deslizar» en Contratos. `useSwipe` parte del actual (umbral de arranque 12 px, eje horizontal, borde de 24 px vía `swipeDecision`, `setPointerCapture`) pero sin tope de 120 px por defecto, con fases y teclado (flecha = deslizar medio ancho y confirmar). Lee `prefers-reduced-motion` una vez. `SwipeTrack` y `SwipeRing` según el boceto (A: la vecina entra pegada al dedo; B: círculo de 46 px que crece de 0,6 a 1 y se rellena al superar el umbral). `SwipeRing` usa los iconos `ListEnd` / `Users` de lucide. CSS en `swipe.css`, con `@media (prefers-reduced-motion: reduce)` sin transiciones.
+- TDD: sí (`swipe.ts`, `neighbours.ts`); los componentes, no
 - Criterios de aceptación (tests):
-  - [ ] `cardMonth`: sin filas → `minutes 0`, `sharing 0`, `topAlias null`; empate → el que entró antes; una fila con JSON roto se salta.
-  - [ ] `GET /?month=…` devuelve `people` (4 como mucho, del más antiguo al más nuevo) y `month`; un miembro que no comparte aparece en `people` pero no suma minutos ni puede ser `topAlias`; sin `month` en la URL usa el mes UTC actual; un mes inválido no da error.
-  - [ ] Un miembro cambia el nombre y la foto; un no miembro recibe 403 `not_member`; el último cambio gana.
-  - [ ] Foto de 101 KB → 413; un PNG o datos sin firma JPEG → 400; sin foto → `GET` 404.
-  - [ ] `peek` con código válido → `GroupPreview` y foto; con código viejo tras renovar → 404; expulsado → 403.
-  - [ ] Borrar el grupo (o la limpieza por inactividad) borra su foto (test con `sqliteD1`).
-  - [ ] La 21.ª edición en una hora en el mismo grupo → 429.
-- Verificación: `npx vitest run test/groupLook.test.ts test/d1GroupRepo.test.ts test/groups.test.ts --root apps/hub`, `npm run hub:migrate:local` y `npm run check`
+  - [ ] `swipeProgress` 0 en 0, 1 en el umbral y más allá; `neighbourOffset` correcto a ambos lados.
+  - [ ] `nextTrackId`: con cola → `queue[0]`; fin de lista con repetir apagado → `null`; repetir todo → vuelve a la primera; aleatorio que se rebaraja → `null`.
+  - [ ] `previousTrackId`: desde una canción de la cola → `context[index]`; primera canción sin repetir → `null`.
+  - [ ] Los tests existentes de `swipeDecision` siguen pasando.
+- Verificación: `npx vitest run test/swipe.test.ts test/neighbours.test.ts test/queue.test.ts --root apps/web` y `npm run check`
 
-### T6 · Arreglos pendientes: huérfanos al cancelar, Ordenar con teclado y selección de playlists · Grupo A · Estado: HECHA
+### T4 · Portadas en pantallas de la biblioteca, estudio, podcasts, grupos y Recap · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/downloads/cancel.ts`, `apps/web/src/downloads/orphans.ts` (nuevo), `apps/web/test/downloadOrphans.test.ts` (nuevo), `apps/web/src/components/SortMenu.tsx`, `apps/web/src/lib/menuKeys.ts` (nuevo), `apps/web/test/menuKeys.test.ts` (nuevo), `apps/web/src/views/FolderView.tsx`, `apps/web/src/stores/ui.ts`, `apps/web/src/components/PlaylistSelectionBar.tsx`, `apps/web/src/native/shell.ts`, `apps/web/test/uiSelection.test.ts`
-- Leer como contexto: `apps/web/src/downloads/save.ts:153-199`, `apps/web/src/stores/library.ts` (`load`, `deleteTrack`), `apps/web/src/stores/setup.ts`, `apps/web/src/views/PlaylistsView.tsx:91-97`, `apps/web/src/App.tsx:310-316`
+- Depende de: T2
+- Archivos (exclusivos): `apps/web/src/components/AddToPlaylistSheet.tsx`, `apps/web/src/components/Nav.tsx`, `apps/web/src/components/study/SourcePicker.tsx`, `apps/web/src/views/PodcastsView.tsx`, `apps/web/src/components/podcasts/ShowPickSheet.tsx`, `apps/web/src/components/stats/RecapCards.tsx`, `apps/web/src/components/groups/GroupRanking.tsx`, `apps/web/src/components/groups/MemberTops.tsx`, `apps/web/src/components/groups/MonthSummary.tsx`, `apps/web/src/components/groups/GroupShares.tsx`, `apps/web/src/components/SharePlaylistSheet.tsx`, `apps/web/src/art.css`
+- Leer como contexto: los componentes de `apps/web/src/components/art/`, `apps/web/src/components/PlaylistArt.tsx`, `apps/web/src/components/Cover.tsx`
 - Qué hacer:
-  1. **Huérfanos** (`orphans.ts`):
-     - `idsForVideo(tracks, videoId): string[]` y `findOrphans(tracks, videoId, knownIds): LocalTrack[]` (puras);
-     - `sweepAfterCancel(job, knownIds)`: solo si el hogar es `cloudflare` o `drive`; a los 5 s y a los 60 s recarga la biblioteca y borra con `deleteTrack` las canciones nuevas de ese `videoId`. No hace nada si en ese momento hay otro trabajo activo del mismo `videoId`. Errores: `console.error` y seguir (sin aviso al usuario).
-     - En `cancel.ts`, cuando se cancela un `saving`, guardar `knownIds` **antes** de abortar y lanzar `sweepAfterCancel`.
-  2. **Ordenar con teclado** (`menuKeys.ts`: `nextMenuIndex(key, index, count): number | 'close' | null` para ArrowDown/ArrowUp con vuelta, Home, End, Escape y Tab): al abrir, foco en la opción marcada; flechas mueven el foco; Enter/Espacio eligen (botones); Escape o Tab cierran y devuelven el foco al botón; `tabIndex` -1 en las opciones salvo la activa.
-  3. **«Seleccionar» en carpetas:** botón igual que `PlaylistsView.tsx:91-97` (clase `playlists-select-row`) en `FolderView` cuando la carpeta tiene playlists.
-  4. **Selección de playlists ligada a su pantalla:**
-     - `ui.ts`: `playlistSelectionPath: string | null`, que se guarda en `startPlaylistSelection` (`location.pathname`); `setPlaylistVisibleIds` quita de la selección lo que ya no se ve.
-     - `PlaylistSelectionBar`: si la ruta actual no es `playlistSelectionPath`, llama a `endPlaylistSelection` y no se dibuja.
-     - `shell.ts`: Atrás cierra la selección de playlists antes de navegar.
-     - Reproducir primero el fallo y anotar la causa real en el informe.
-- TDD: sí (`orphans`, `menuKeys`, selección en `ui.ts`); `FolderView` manual
-- Criterios de aceptación:
-  - [ ] Tests: cancelar en `saving` con Cloudflare y la canción apareciendo después en la nube → se borra; si ya estaba antes (mismo `videoId`), no se borra; con hogar `device`, no se recarga nada.
-  - [ ] Tests de `nextMenuIndex` (vuelta arriba y abajo, Home, End, Escape, Tab).
-  - [ ] Test: empezar la selección en `/playlists` y cambiar la ruta → la selección termina; `setPlaylistVisibleIds` recorta la selección.
-  - [ ] Manual: «Seleccionar» dentro de una carpeta; Ordenar se usa solo con teclado.
-- Verificación: `npx vitest run test/downloadOrphans.test.ts test/menuKeys.test.ts test/uiSelection.test.ts test/downloadsStore.test.ts --root apps/web` y `npm run check`
-
-### T4 · Web: Jam como mando a distancia y barra de la Jam · Grupo B · Estado: HECHA
-
-- Depende de: T1 (claves), T2 (tipos de `hub.ts`)
-- Archivos (exclusivos): `apps/web/src/hub/jamRemote.ts` (nuevo), `apps/web/test/jamRemote.test.ts` (nuevo), `apps/web/src/stores/jam.ts`, `apps/web/test/jamStore.test.ts`, `apps/web/src/components/jam/JamBar.tsx` (nuevo), `apps/web/src/components/jam/JamRoom.tsx`, `apps/web/src/components/player/MiniPlayer.tsx`, `apps/web/src/App.tsx`, `apps/web/src/jamRemote.css` (nuevo), `apps/web/src/i18n/jamRemote.ts`
-- Leer como contexto: `apps/web/src/hub/jamSocket.ts`, `apps/web/src/hub/jamFromLibrary.ts`, `apps/web/src/lib/swipe.ts`, `apps/web/src/components/SongThumb.tsx`, `apps/web/src/gestures.css`
-- Qué hacer:
-  1. `jamRemote.ts` según «Web: Jam».
-  2. `jam.ts`:
-     - `hello` con `features: ['remoteSkip']`;
-     - `requestSkip()`: si `skipLocked`, nada; anfitrión → `skip()`; invitado con `skipAvailability === 'ok'` → `socket.send({ type: 'skip', itemId: nowPlaying.id })`. En los dos casos, `skipLocked = true` durante `HUB_LIMITS.jamSkipEveryMs`;
-     - en cada `state`, si eres anfitrión y `hostSkipTarget(snapshot, lastHandledSkip)` da un id: guardarlo en `lastHandledSkip` y llamar a `skip()` (después de `set`, antes de `hostTick`);
-     - el error `host_outdated`/`host_away` se guarda en `error` como los demás.
-  3. `JamBar` (variante `mini` en el hueco del mini reproductor y `desktop` en el de `PlayerBar`): `SongThumb` 46 px, título, `jam.bar.playingOn` con `snapshot.hostName`, botón Saltar (`jam.next`, `aria-label` `jam.skip.label`, desactivado con `skipLocked` o si no está disponible). Tocar la barra abre `/jam`. Deslizar a la izquierda (`swipeDecision`) → `requestSkip()` y vibra 15 ms; a la derecha no hace nada.
-  4. `MiniPlayer.tsx`: `MiniPlayer` y `PlayerBar` devuelven `<JamBar …/>` cuando `useJamBarVisible()`. `App.tsx`: `hasPlayer` también es verdadero con la barra visible.
-  5. `JamRoom.tsx`: Saltar para todos con `requestSkip()`; si no está disponible, botón desactivado y debajo `jam.skip.outdated` o `jam.skip.away`; para invitados, `jam.skip.guestHint`. Sin confirmación y sin aviso al saltar.
-- TDD: sí (`jamRemote`, `requestSkip`, salto del anfitrión); la barra, manual
-- Criterios de aceptación:
-  - [ ] Tests: `skipAvailability` para `ok`, `outdated`, `away`, `nothing` y hub viejo (`canSkip` ausente).
-  - [ ] Test: el anfitrión recibe `skipRequested` = lo que suena → llama a `skip()` una sola vez aunque lleguen dos `state` iguales.
-  - [ ] Test: el invitado envía `skip` con el id que suena; un segundo `requestSkip` antes de 2 s no envía nada.
-  - [ ] Test: `jamBarVisible` falso para el anfitrión, sin Jam abierta, sin canción o con el reproductor sonando.
-  - [ ] Manual (dos móviles o `--mode fakenative` + navegador): el invitado salta desde la barra y desde la pantalla de la Jam; la canción cambia en el móvil del anfitrión.
-- Verificación: `npx vitest run test/jamRemote.test.ts test/jamStore.test.ts test/jamSocket.test.ts --root apps/web` y `npm run check`
-
-### T5 · Web: datos de grupos (cliente, foto, borradores) · Grupo B · Estado: HECHA
-
-- Depende de: T1, T3 (tipos de `groups.ts`)
-- Archivos (exclusivos): `apps/web/src/hub/client.ts`, `apps/web/src/hub/groupsClient.ts`, `apps/web/test/hubClient.test.ts`, `apps/web/src/groups/look.ts` (nuevo), `apps/web/src/groups/photoCache.ts` (nuevo), `apps/web/src/stores/groupEdit.ts` (nuevo), `apps/web/src/stores/groups.ts`, `apps/web/src/components/groups/GroupPhoto.tsx` (nuevo), `apps/web/test/groupLook.test.ts` (nuevo), `apps/web/test/groupEditStore.test.ts` (nuevo), `apps/web/test/groupsStore.test.ts`, `apps/web/test/groupsSync.test.ts` (añadir `photoAt` a los datos de prueba)
-- Leer como contexto: `apps/web/src/lib/cover.ts`, `apps/web/src/hub/errors.ts`, `apps/web/src/groups/deviceKey.ts`, `apps/web/src/groups/snapshot.ts` (`monthKeyOfPeriod`), `apps/web/src/stats/recap.ts` (`currentPeriod`)
-- Qué hacer:
-  1. `hubFetch` acepta `body: Blob` (pone `Content-Type` del blob) y `hubFetchBlob` (404 → `null`; otros errores como `hubFetch`).
-  2. Funciones de `groupsClient.ts`, `look.ts`, `photoCache.ts`, `GroupPhoto`, `groupEdit.ts` y `patchSummary` exactamente según «Web: Grupos».
-     - `photoCache`: una URL por `groupId` (o por código) y `photoAt`; si cambia `photoAt`, revoca la anterior; `photoAt === null` → `null` sin pedir nada.
-     - `GroupPhoto`: cuadrado redondeado, `object-fit: cover`, iniciales sobre fondo ámbar oscuro si no hay foto o falla la carga (estilos en línea mínimos o clase `group-photo` que T7 define en `groups.css`).
-  3. `listMyGroups(month)` y `refresh()` con el mes local actual. `personInitials` y `cardMoreCount` en `look.ts`.
-- TDD: sí
-- Criterios de aceptación (tests):
-  - [ ] `refresh()` pide `/groups?month=<mes local>`; con una respuesta sin `people` ni `month` (hub viejo), `groups` se guarda igual.
-  - [ ] `personInitials`: «leire» → «Le», emoji y alias de 1 letra; `cardMoreCount(5, 4)` → 1 y `cardMoreCount(3, 3)` → 0.
-  - [ ] `groupInitials`: dos palabras, una palabra, espacios de más, emoji.
-  - [ ] `save` con nombre y foto → llama a `renameGroup` y a `uploadGroupPhoto`; con `'remove'` → `deleteGroupPhoto`.
-  - [ ] Sin conexión → `ok: false`, `groups.look.offline` y el borrador conserva nombre y foto; si falla solo la foto, el borrador conserva solo la foto.
-  - [ ] Tras guardar, `useGroups.groups` tiene el nombre y `photoAt` nuevos.
-  - [ ] `hubFetchBlob` devuelve `null` con 404 y lanza `HubError` con 500.
-- Verificación: `npx vitest run test/groupLook.test.ts test/groupEditStore.test.ts test/groupsStore.test.ts test/hubClient.test.ts --root apps/web` y `npm run check`
-
-## Fase 2B (v0.9.4, después de 2A)
-
-### T7 · Grupos (boceto A): lista con tarjetas y hojas de crear y unirse · Grupo C · Estado: HECHA
-
-- Depende de: T1, T5
-- Archivos (exclusivos): `apps/web/src/views/GroupsView.tsx`, `apps/web/src/components/groups/CreateGroupSheet.tsx`, `apps/web/src/components/groups/JoinGroupSheet.tsx`, `apps/web/src/groups.css`, `apps/web/src/i18n/groupList.ts`
-- Leer como contexto: `docs/plan/bocetos/grupos.html` (opción A, «A · 1»; el archivo es enorme: leer a partir de `<body>`, líneas ~648-906, y los estilos `.tiles`, `.tile`, `.card`, `.avatar` con Grep), `apps/web/src/components/groups/GroupPhoto.tsx`, `apps/web/src/hub/groupsClient.ts`, `apps/web/src/components/groups/AliasField.tsx`
-- Qué hacer:
-  1. `GroupsView`: cabecera «Grupos de amigos» con ayuda; dos baldosas grandes (`groups.tiles.*`; en la web sin escáner, `joinHint`). Una tarjeta por grupo, como «A · 1»:
-     - línea principal: `GroupPhoto` 56 px, nombre, `groups.people` (+ ` · groups.owner`), la pila de iniciales (`personInitials` de `people`, burbuja `groups.card.more` con `cardMoreCount`, `aria-label` `groups.card.peopleLabel`) y la flecha;
-     - debajo, resumen: si `month.sharing > 0` y `month.minutes > 0`, «Este mes:» + minutos (`toLocaleString` del idioma) + «Quien más escucha: X»; si no, `groups.card.nobody`;
-     - sin `people` o sin `month` (hub viejo) no se dibuja esa parte. Se mantienen consejo, carga, vacío y nota de Ajustes.
-  2. `CreateGroupSheet` y `JoinGroupSheet` con el mismo estilo (título grande, texto de ayuda, campos anchos, botón principal ancho). Crear muestra `groups.create.photoHint`.
-  3. `JoinGroupSheet`: con un código válido (`parseGroupInput`), a los 400 ms `peekGroup` → tarjeta «Vas a entrar en este grupo:» con `GroupPhoto` (`inviteCode`), nombre y personas; `groups.join.checking` mientras busca; 404 → `groups.join.notFound`; otros errores con `hubErrorText`. Si la vista previa falla, se puede unir igualmente.
-  4. CSS en `groups.css` (paleta ámbar, sin temas nuevos), incluida la clase `group-photo`.
+  1. `AddToPlaylistSheet`: `PlaylistArt` 40 px en lugar del icono `ListMusic`.
+  2. `Nav` (escritorio): `PlaylistArt` 24 px delante de cada nombre (fila con `ellipsis` en el texto).
+  3. `SourcePicker`: cambiar el `<select>` por una lista de opciones tipo radio (`role="radiogroup"`, botones con `aria-checked`, `PlaylistArt` 32 px + nombre), con la misma etiqueta `study.source.playlist` y el mismo `onChange`; manejable con teclado (Tab/Enter/Espacio).
+  4. `PodcastsView` (episodios): `Cover` 40 px del episodio; `ShowPickSheet`: `Cover` del primer episodio de cada serie.
+  5. `RecapCards` (solo «Canciones»), `GroupRanking` (canciones), `MemberTops`, `MonthSummary`: `StatTrackArt` 36-40 px. Los artistas no llevan imagen.
+  6. `GroupShares` (`ShareRow`): `GeneratedArt` 44 px con semilla `share.title`, `kind 'playlist'` (lista y Jam).
+  7. `SharePlaylistSheet`: si la cabecera muestra el nombre de la playlist, añadir `PlaylistArt` 48 px.
+  8. Estilos que falten, en `art.css`.
 - TDD: no
 - Criterios de aceptación:
-  - [ ] Se parece a «A · 1» a 390 px: tarjetas con foto o iniciales, pila de personas y resumen del mes (o «todavía nadie ha compartido»); las baldosas abren las hojas.
-  - [ ] Con un hub sin los campos nuevos, la lista se ve sin la pila ni el resumen y sin errores.
-  - [ ] Con un código válido se ve la foto y el nombre antes de unirse; con uno inventado, el aviso claro.
-- Verificación: `npm run check` y prueba manual en `npm run dev` a 390 px
+  - [ ] En todos esos sitios hay imagen al lado del nombre (o dibujo ámbar); el modo estudio se elige igual que antes, también con teclado.
+  - [ ] `npm run check` en verde y los tests de estudio, estadísticas y grupos siguen pasando.
+- Verificación: `npm run check`
 
-### T8 · Grupos (boceto A): detalle, resumen del mes y «Nombre y foto» · Grupo C · Estado: HECHA
+### T5 · Portadas en YouTube, «Enviar», paquetes y listas compartidas · Grupo B · Estado: HECHA
 
-- Depende de: T1, T5
-- Archivos (exclusivos): `apps/web/src/views/GroupView.tsx`, `apps/web/src/components/groups/GroupHero.tsx` (nuevo), `apps/web/src/components/groups/MonthSummary.tsx` (nuevo), `apps/web/src/components/groups/GroupLookSheet.tsx` (nuevo), `apps/web/src/components/groups/GroupMembers.tsx`, `apps/web/src/components/groups/GroupShares.tsx`, `apps/web/src/groups/summary.ts` (nuevo), `apps/web/test/groupSummary.test.ts` (nuevo), `apps/web/src/groupDetail.css` (nuevo), `apps/web/src/i18n/groupLook.ts`
-- Leer como contexto: `docs/plan/bocetos/grupos.html` («A · 2» líneas ~907-1202 y la hoja «Nombre y foto» ~1290-1366), `apps/web/src/stores/groupEdit.ts`, `apps/web/src/groups/look.ts`, `apps/web/src/components/groups/GroupRanking.tsx`, `apps/web/src/components/groups/MemberTops.tsx`, `apps/web/src/components/groups/InviteSheet.tsx`
+- Depende de: T2
+- Archivos (exclusivos): `apps/web/src/components/downloads/PickList.tsx`, `apps/web/src/components/downloads/PlaylistPicker.tsx`, `apps/web/src/components/downloads/DownloadQueue.tsx`, `apps/web/src/components/send/Outbox.tsx`, `apps/web/src/components/send/ParcelPanel.tsx`, `apps/web/src/components/send/ParcelSheet.tsx`, `apps/web/src/views/SharedListView.tsx`, `apps/web/src/components/jam/JamQueue.tsx`, `apps/web/src/components/jam/JamAddSheet.tsx`, `apps/web/src/socialCovers.css`
+- Leer como contexto: `apps/web/src/components/SongThumb.tsx`, `apps/web/src/components/art/SongMosaic.tsx`, `apps/web/src/components/art/GeneratedArt.tsx`
 - Qué hacer:
-  1. `summary.ts` (pura): `monthSummary(stats, totalMembers, youId)` → `{ minutes, sharing, total, podium: [{ alias, minutes, place, isYou }] (hasta 3), topTracks (3) }`.
-  2. `GroupHero`: `GroupPhoto` grande (96 px), nombre, iniciales de los miembros (hasta 5 y «+N»), botones «Invitar» (abre `InviteSheet`) y «Nombre y foto».
-  3. `MonthSummary`: el selector de mes que ya existe, las dos cifras, el podio (2º-1º-3º) y «Canciones del mes»; «Ver todo el ranking» y «Ver cada persona» abren una hoja con `GroupRanking` o `MemberTops`. Mantener `SharingNotice` y los avisos de carga y error.
-  4. Orden de `GroupView`: cabecera con volver y ayuda → héroe → resumen → «Compartido» (`GroupShares`) → «Personas» (`GroupMembers`) → «Salir del grupo». En `GroupShares` y `GroupMembers` solo títulos de sección y clases; sin cambiar su lógica.
-  5. `GroupLookSheet`:
-     - foto grande, «Elegir otra foto» (`<input type="file" accept="image/*">`, sin `capture`) y «Quitar la foto»; nombre; «Guardar cambios» y «Cancelar»;
-     - la foto elegida pasa por `preparePhoto` y se ve al momento; si falla, `groups.look.badPhoto`;
-     - al guardar, `useGroupEdit.save`; con error, el mensaje se muestra en la hoja, que sigue abierta con todo lo escrito;
-     - si existe `drafts[groupId]` al abrir, se rellena con él y se avisa con `groups.look.draftRestored`;
-     - si va bien, `toast(groups.look.saved)`, se cierra y `GroupView` actualiza nombre y `photoAt`.
-- TDD: sí (`summary.ts`); el resto, manual
+  1. `PickList`: `SongThumb` 32 px (`videoId = e.id`, `title`, `artist = e.author`) en cada fila, sin romper el checkbox ni la etiqueta.
+  2. `PlaylistPicker`: `PlaylistCover` cae a `GeneratedArt` (`kind 'playlist'`, semilla el título) en lugar del icono.
+  3. `DownloadQueue`: la miniatura usa `SongThumb` (`src = job.thumbnail`, `videoId = job.videoId`, `title`).
+  4. `Outbox`: el plan B pasa a `SongThumb`/`GeneratedArt` (no el icono de radio).
+  5. `ParcelPanel` (cesta): `SongThumb` 40 px. `ParcelSheet`: `SongMosaic` 48 px al lado del nombre del paquete; pasar `title`/`artist` a los `SongThumb` de `SongRows`.
+  6. `SharedListView`: `SongMosaic` 120 px en la cabecera junto al nombre.
+  7. `JamQueue` y `JamAddSheet`: pasar `title`/`artist` a `SongThumb` (mejor semilla del dibujo).
+- TDD: no
 - Criterios de aceptación:
-  - [ ] Tests de `monthSummary`: sin datos, 1 persona, empate, «(tú)» marcado.
-  - [ ] Se parece a «A · 2» y a la hoja «Nombre y foto»; otro miembro (no el creador) cambia nombre y foto.
-  - [ ] En modo avión, guardar avisa y conserva todo; al volver la conexión, «Guardar cambios» funciona.
-- Verificación: `npx vitest run test/groupSummary.test.ts --root apps/web`, `npm run check` y prueba manual con dos dispositivos (o dos navegadores)
+  - [ ] Sin conexión, cada fila muestra dibujo ámbar en lugar de una imagen rota.
+  - [ ] `npm run check` en verde.
+- Verificación: `npm run check`
 
-### T9 · Ayuda, documentación, notas y versión 0.9.4 · Grupo D · Estado: HECHA
+### T6 · Deslizar en reproductores (carrusel) y listas (círculo) · Grupo B · Estado: HECHA
 
-- Depende de: T1-T8
-- Archivos (exclusivos): `apps/web/src/help/articles/*.ts`, `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/hub.md`, `docs/PRIVACY.md`, `docs/releases/v0.9.4.md` (nuevo), los 7 `package.json` (raíz, `apps/web`, `apps/api`, `apps/hub`, `apps/mobile`, `packages/shared`, `tools/ingest`) y `package-lock.json`
-- Leer como contexto: `apps/web/test/help.test.ts`, `docs/releases/v0.9.3.md`, este plan
+- Depende de: T3 (y T2 solo por el aspecto de `Cover`)
+- Archivos (exclusivos): `apps/web/src/components/player/MiniPlayer.tsx`, `apps/web/src/components/player/NowPlaying.tsx`, `apps/web/src/components/player/Neighbour.tsx` (nuevo), `apps/web/src/components/jam/JamBar.tsx`, `apps/web/src/components/TrackList.tsx`, `apps/web/src/gestures.css`, `apps/web/src/swipe.css`
+- Leer como contexto: `apps/web/src/components/gestures/*`, `apps/web/src/player/neighbours.ts`, `apps/web/src/hub/jamFromLibrary.ts` (`jamSongPlaying`), `apps/web/src/player/radioEngine.ts` (`stationAt`), `docs/plan/bocetos/deslizar.html`
+- Qué hacer:
+  1. `Neighbour.tsx`: `useNeighbour(direction)` → lo que hay que dibujar: canción de la biblioteca (`nextTrackId`/`previousTrackId` con el estado del reproductor), emisora (`stationAt` ±1), o en una Jam de este móvil la siguiente de `snapshot.queue[0]` (sin «anterior»). Componente `NeighbourCard({ direction, variant: 'mini' | 'big' })` con la misma maqueta que la tarjeta actual (portada + título + subtítulo), `aria-hidden`.
+  2. `MiniPlayer`: el área que abre la pantalla grande usa `useSwipe` + `SwipeTrack` con `NeighbourCard 'mini'`; `changeSong` igual que hoy (Jam: no hay derecha). Quitar `SwipeHint`. Al pulsar sin deslizar se abre la pantalla grande como siempre.
+  3. `NowPlaying`: el gesto envuelve **solo** portada + título/artista (el corazón va dentro pero con `onPointerDown` que no inicia el arrastre); `SeekBar`, controles, volumen y cola quedan fuera. Misma acción que el mini reproductor (exportar `changeSong` desde `MiniPlayer.tsx` o moverla a `Neighbour.tsx`). `touch-action: pan-y`.
+  4. `JamBar`: usar el nuevo `useSwipe`/`SwipeTrack` (izquierda = `requestSkip`, la vecina es `snapshot.queue[0]`); borrar el `useSwipe` y `SwipeHint` viejos de este archivo.
+  5. `TrackList`: sustituir el texto `.swipe-hint` por `SwipeRing` (`icon 'jam'` si `jamIsActive()`, si no `'queue'`), con `progress = dx / SWIPE_TRIGGER`; el gesto, el umbral y la acción no cambian.
+  6. `gestures.css`: borrar los estilos `.mini-swipe-hint`; en `swipe.css` lo que falte. Vibración de 15 ms como hoy.
+- TDD: no (la lógica la cubren T3 y sus tests)
+- Criterios de aceptación:
+  - [ ] Ya no existe ningún texto/botón «Siguiente»/«Anterior» al deslizar (Grep de `player.swipe.next|player.swipe.prev|mini-swipe-hint` sin usos en `src`).
+  - [ ] Mini reproductor y pantalla grande: la vecina entra pegada al dedo; al soltar pasado el umbral cambia de canción; si no, vuelve. La barra de progreso de la pantalla grande se arrastra sin cambiar de canción.
+  - [ ] Barra de la Jam: izquierda salta; derecha no se mueve. Filas: círculo que crece y se rellena; «Añadir a la cola» funciona igual.
+  - [ ] Con reduced-motion no hay animación de salida; las flechas del teclado cambian de canción en el mini reproductor.
+- Verificación: `npm run check` (tests de `swipe`, `neighbours`, `jamRemote`, `jamStore` en verde)
+
+## Fase 2 (carga, Compartir y Cargar más) — después de la Fase 1
+
+### T7 · Carga solo con el logo · Grupo C · Estado: HECHA
+
+- Archivos (exclusivos): `apps/web/src/components/BootSplash.tsx`, `apps/web/src/lib/boot.ts`, `apps/web/src/boot.css`, `apps/web/index.html`, `apps/web/test/boot.test.ts`, `apps/mobile/android/app/src/main/res/values/styles.xml` (solo si hiciera falta)
+- Leer como contexto: `apps/web/src/App.tsx:94-146` (no se toca: mantener exportadas `BOOT_MAX_WAIT_MS`, `bootReady`, `splashTimings`), `apps/web/public/_headers` (CSP)
+- Qué hacer:
+  1. `boot.ts`: `BOOT_MIN_SPLASH_MS = 400`, `SPLASH_EXIT_MS = 300`, nuevo `BOOT_PULSE_AFTER_MS = 1000` y `shouldPulse(elapsedMs, reducedMotion): boolean`; quitar `BOOT_CONNECTING_HINT_MS`. `splashTimings(true)` → `{ minMs: 400, exitMs: 150 }`. `bootReady` no cambia (sigue entrando a los 5 s en modo sin conexión).
+  2. `BootSplash`: solo el logo (barras rellenas, sin trazo ni destello), sin `<p>`; `role="status"` y `aria-label={t('boot.loading')}` (no visible). A los 1000 ms añade la clase `pulsing` (no con reduced-motion).
+  3. `boot.css`: borrar trazo, relleno, destello y `.boot-hint`; `.boot-splash.pulsing .boot-pulse` con latido suave (escala 1 → 1,04 y brillo ámbar, 2,4 s, `ease-in-out`, infinito); salida con fundido.
+  4. `index.html`: dentro de `div.boot-splash`, el mismo SVG estático y un `<style>` en línea mínimo (fondo `#14110f`, centrado, 96 px) para que no haya pantalla vacía antes del JS. Sin texto.
+  5. Android: comprobar que el splash nativo sigue siendo solo el logo (ya lo es); no añadir texto.
+- TDD: sí (`boot.ts`)
+- Criterios de aceptación:
+  - [ ] Tests: `shouldPulse` falso antes de 1 s y con reduced-motion; `bootReady` igual que antes (online, offline y 5 s).
+  - [ ] Grep: `BootSplash.tsx` e `index.html` no muestran ningún texto visible; no hay botones.
+- Verificación: `npx vitest run test/boot.test.ts --root apps/web` y `npm run check`
+
+### T8 · Búsqueda con continuación (shared, Hub y API) · Grupo C · Estado: HECHA
+
+- Archivos (exclusivos): `packages/shared/src/youtube.ts`, `packages/shared/test/youtube.test.ts`, `apps/hub/src/lib/search.ts`, `apps/hub/src/routes/search.ts`, `apps/hub/src/jam/routes.ts`, `apps/hub/test/search.test.ts`, `apps/api/src/routes/youtube.ts`, `apps/api/test/youtubeSearch.test.ts` (nuevo)
+- Leer como contexto: `packages/shared/src/youtube.ts:400-483` (tokens de playlists), `apps/hub/test/jamRoutes.test.ts`, un test existente de rutas de `apps/api/test/` (patrón con `fetch` simulado)
+- Qué hacer: todo lo de «Cargar más» en Contratos. `parseSearchPage` busca el token en `continuationItemRenderer.continuationEndpoint.continuationCommand.token` (web, también dentro de `appendContinuationItemsAction`) y en `nextContinuationData.continuation` / `continuations[].nextContinuationData` (YouTube Music); los resultados de páginas siguientes salen con el mismo `parseSearchResponse`. Validación de `continuation` con zod (`isContinuationToken`). Los errores de YouTube siguen siendo 502 `search_unavailable` y el detalle solo en el registro del servidor.
+- TDD: sí
+- Criterios de aceptación (tests):
+  - [ ] Primera página web y de Music con token → `continuation` correcto; sin token → `null`; página siguiente (formato `appendContinuationItemsAction` y `musicShelfContinuation`) → resultados y nuevo token.
+  - [ ] `buildSearchRequest` con token → cuerpo con `continuation` y sin `query`.
+  - [ ] Hub y API: `?continuation=` válido se reenvía; uno con caracteres raros o > 4096 → 400; respuesta con `{ results, continuation }`; la búsqueda de la Jam sigue devolviendo `{ results }`.
+- Verificación: `npx vitest run test/youtube.test.ts --root packages/shared`, `npx vitest run test/search.test.ts test/jamRoutes.test.ts --root apps/hub`, `npx vitest run test/youtubeSearch.test.ts --root apps/api` y `npm run check`
+
+### T9 · Compartir → Aske Stream: parte nativa y análisis del enlace · Grupo C · Estado: HECHA
+
+- Archivos (exclusivos): `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/ShareTargetPlugin.java` (nuevo), `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/MainActivity.java`, `apps/mobile/android/app/src/main/AndroidManifest.xml`, `apps/web/src/native/shareTarget.ts` (nuevo), `apps/web/test/fake-native/shareTarget.ts` (nuevo), `apps/web/vite.config.ts`, `apps/web/src/share/sharedLink.ts` (nuevo), `apps/web/test/sharedLink.test.ts` (nuevo)
+- Leer como contexto: `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/QrScannerPlugin.java` (plugin pequeño de patrón), `apps/web/src/native/askeNative.ts`, `apps/web/test/fake-native/qrScanner.ts`, `packages/shared/src/youtube.ts:91-138` (`youtubeVideoId`, `classifyPlaylistLink`, `isYoutubeUrl`)
+- Qué hacer: todo lo de «Compartir» en Contratos.
+  - Manifiesto: en `MainActivity`, nuevo `intent-filter` con `android.intent.action.SEND`, `android.intent.category.DEFAULT` y `<data android:mimeType="text/plain" />`, con un comentario de para qué sirve (como los permisos).
+  - `MainActivity`: `registerPlugin(ShareTargetPlugin.class)` antes de `super.onCreate`.
+  - `vite.config.ts`: alias `fakenative` de `native/shareTarget` a `test/fake-native/shareTarget.ts`.
+  - `native/shareTarget.ts`: con `isNative` falso, `takeSharedText` → `null` y `onSharedText` no hace nada.
+- TDD: sí (`sharedLink.ts`); Java y puente, no
+- Criterios de aceptación (tests):
+  - [ ] «Mira esto https://youtu.be/abc123def45?si=x» → vídeo; `music.youtube.com/watch?v=…&list=…` → vídeo; `youtube.com/playlist?list=PL…` → playlist; mix (`RD…`) → `blocked mix`; «hola», `https://example.com` y texto vacío → `invalid`; texto de 10 000 caracteres no se cuelga.
+  - [ ] `npm run check` en verde; el APK compila (`.\gradlew.bat assembleRelease` en `apps/mobile/android`, si hay JDK 21; si no, anotar «VERIFICAR en CI»).
+- Verificación: `npx vitest run test/sharedLink.test.ts --root apps/web` y `npm run check`
+
+### T10 · «Cargar más» en la pantalla de búsqueda · Grupo D · Estado: HECHA
+
+- Depende de: T1, T2, T8
+- Archivos (exclusivos): `apps/web/src/views/DownloadView.tsx`, `apps/web/src/components/downloads/SearchPanel.tsx` (nuevo), `apps/web/src/components/downloads/SearchResultRow.tsx` (nuevo), `apps/web/src/downloads/searchPages.ts` (nuevo), `apps/web/test/searchPages.test.ts` (nuevo), `apps/web/src/native/downloader.ts`, `apps/web/test/fake-native/downloader.ts`, `apps/web/src/hub/client.ts`, `apps/web/src/api/client.ts`
+- Leer como contexto: `packages/shared/src/youtube.ts` (`SearchPage`), `apps/web/src/components/SongThumb.tsx`, `apps/web/src/components/art/GeneratedArt.tsx`
+- Qué hacer:
+  1. Sacar `SearchPanel`, `searchFor` y `ResultRow` (con `useInLibrary`, `actionLabel`, `actionIcon`) de `DownloadView.tsx` a los dos archivos nuevos, sin cambiar su comportamiento; `DownloadView` baja de 400 líneas.
+  2. `searchFor` devuelve `SearchPage`; los tres clientes aceptan `continuation` según Contratos.
+  3. Estado de la búsqueda: `continuation`, `loadingMore`, `moreError`. Al final de la lista, si hay `continuation`: botón «Cargar más» (`dl.loadMore`; mientras carga, `dl.loadingMore` con spinner y botón desactivado). Al añadir, `appendResults`. Si una página llega vacía o sin token → `dl.noMore`. Error → `dl.loadMoreFailed` (los resultados ya vistos se quedan). Cambiar de búsqueda o de tipo invalida la carga en curso (como `searchSeq`).
+  4. `SearchResultRow`: miniatura con `SongThumb` (`src = result.thumbnail`, `videoId` si es vídeo, `title`, `artist`); en playlists, plan B `GeneratedArt 'playlist'`.
+- TDD: sí (`searchPages.ts`); la UI, no
+- Criterios de aceptación:
+  - [ ] Test: `appendResults` quita duplicados y mantiene el orden.
+  - [ ] Con un servidor viejo (sin `continuation`) no aparece el botón y nada falla.
+  - [ ] En `fakenative`, la falsa `searchOnPhone` devuelve un token en la primera página y ninguno en la segunda (para T12).
+- Verificación: `npx vitest run test/searchPages.test.ts --root apps/web` y `npm run check`
+
+### T11 · Ficha «Compartido desde YouTube» · Grupo D · Estado: HECHA
+
+- Depende de: T1, T2, T9
+- Archivos (exclusivos): `apps/web/src/stores/shareIn.ts` (nuevo), `apps/web/test/shareInStore.test.ts` (nuevo), `apps/web/src/components/share/ShareInSheet.tsx` (nuevo), `apps/web/src/shareIn.css` (nuevo), `apps/web/src/App.tsx`
+- Leer como contexto: `apps/web/src/share/sharedLink.ts`, `apps/web/src/native/shareTarget.ts`, `apps/web/src/components/downloads/PlaylistPicker.tsx` (props), `apps/web/src/stores/downloads.ts:345-395` (`enqueue`), `apps/web/src/components/Sheet.tsx`, `apps/web/src/views/DownloadView.tsx:277-281` (`useInLibrary`: escribir el mismo selector dentro de la hoja, no importarlo, porque T10 lo mueve en paralelo)
+- Qué hacer:
+  1. `stores/shareIn.ts`: `{ pending: SharedLink | null; receive(text: string): void; clear(): void }` y `startShareIn(): () => void` (llama a `takeSharedText` una vez y se suscribe a `onSharedText`; cada texto → `receive(parseSharedText(text))`; un enlace nuevo sustituye al anterior).
+  2. `App.tsx` (`Shell`): `useEffect(() => startShareIn(), [])` solo si `isNative`; montar `<ShareInSheet />` junto a las otras hojas.
+  3. `ShareInSheet`:
+     - vídeo: `SongThumb` grande (`videoId`), título de `fetchVideoInfo` (mientras, `shareIn.loading`; si `null`, `shareIn.unknownTitle` y debajo `shareIn.infoFailed`), autor; si ya está en la biblioteca, `dl.inLibrary` y sin botón; si no, «Descargar» (`shareIn.download`) → `useDownloads.getState().enqueue([{ videoId, title, author, thumbnail: youtubeThumb(videoId) }])`, `toast(shareIn.added)` y cerrar; y «Cancelar»;
+     - playlist: `<PlaylistPicker result={{ kind: 'playlist', id, title: '', author: '', thumbnail: '', url }} via={null} onClose={clear} />`;
+     - `blocked`: `pick.err.mix` / `pick.err.personal`; `invalid`: `shareIn.notYoutube`; las dos con botón `shareIn.ok`.
+  4. Errores de `enqueue`: `toast(t('dl.linkFailed'), 'error')` y `console.error` del detalle.
+- TDD: sí (`shareIn` store: recibe, sustituye, limpia, arranque en frío con texto pendiente); la hoja, no
+- Criterios de aceptación:
+  - [ ] Tests del store en verde (con `shareTarget` simulado).
+  - [ ] En `fakenative`, `window.__askeFakeShare('https://youtu.be/…')` abre la ficha con portada y «Descargar», y la descarga aparece en la cola.
+- Verificación: `npx vitest run test/shareInStore.test.ts --root apps/web` y `npm run check`
+
+### T12 · Tests de navegador de la v0.9.5 · Grupo E · Estado: HECHA
+
+- Depende de: T1-T11
+- Archivos (exclusivos): `apps/web/test/browser/v9_095.py` (nuevo), `apps/web/test/browser/README.md`
+- Leer como contexto: `apps/web/test/browser/v5_fakenative.py`, `apps/web/test/fake-native/shareTarget.ts`, `apps/web/test/fake-native/downloader.ts`
+- Qué hacer: un test Playwright (build `fakenative`, móvil 390 px con `has_touch`) que compruebe: la carga no muestra texto visible; en la lista de canciones cada fila tiene imagen (`img` o `.gen-art`); un deslizamiento táctil a la derecha en una fila dibuja el círculo y añade a la cola; un deslizamiento a la izquierda en el mini reproductor cambia de canción sin texto «Siguiente»; buscar → «Cargar más» añade resultados y después sale `dl.noMore`; `__askeFakeShare` con un vídeo abre la ficha y «Descargar» lo pone en la cola; con texto no válido sale el aviso. Añadir la fila a la tabla del README. Tras las pruebas, reconstruir el `dist` normal y cerrar wrangler/workerd.
+- TDD: no
+- Criterios de aceptación:
+  - [ ] `python apps/web/test/browser/v9_095.py` pasa contra `wrangler dev` con el build `fakenative`.
+- Verificación: el propio test (ver README) y `npm run check`
+
+### T13 · Ayuda, documentación, notas, limpieza de textos y versión 0.9.5 · Grupo E · Estado: HECHA
+
+- Depende de: T1-T11
+- Archivos (exclusivos): `apps/web/src/help/articles/*.ts`, `apps/web/src/i18n/*.ts` (solo borrar claves sin uso), `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/PRIVACY.md`, `docs/hub.md`, `docs/android.md`, `docs/releases/v0.9.5.md` (nuevo), los 7 `package.json` (raíz, `apps/web`, `apps/api`, `apps/hub`, `apps/mobile`, `packages/shared`, `tools/ingest`) y `package-lock.json`
+- Leer como contexto: `apps/web/test/help.test.ts`, `docs/releases/v0.9.4.md`, este plan
 - Qué hacer (eu/es/en, lenguaje sencillo):
-  1. `friends.ts` («jam»): todos pueden saltar, sin aviso, 1 cada 2 s; solo suena en el móvil de quien la creó; la barra de la Jam; qué hacer si sale «tiene que actualizar la app».
-  2. `groups.ts`: «Nombre y foto» (cualquiera del grupo, no se dice quién lo cambió), la foto se recorta sola, quién la ve (el grupo y quien tenga un código de invitación válido), dónde se guarda y cuánto dura (en el Hub, hasta que se quita, se borra el grupo o pasan 180 días sin actividad), «no subas fotos de otras personas sin su permiso» y la vista previa al unirse. Explicar también que la tarjeta de cada grupo muestra los minutos del mes y quién más escucha, contando **solo** a quien comparte sus escuchas, y cómo dejar de compartir (Ajustes → Grupos).
-  3. Euskera de la ayuda: «playlist» → «zerrenda» en todos los artículos.
-  4. `PRIVACY.md` (foto de grupo; los minutos del mes y «quien más escucha» en la lista salen solo de quien comparte) y `hub.md` (rutas nuevas, `?month=` en la lista, `skip`, `features`, migración 0005).
-  5. `ESTADO.md` y tabla de fases (v0.9.4), `docs/releases/v0.9.4.md`.
-  6. Versión 0.9.4 en los 7 `package.json` y en las 8 entradas de `package-lock.json` (con node, no con sed).
+  1. Ayuda: `listen.ts` (deslizar: la siguiente o la anterior entra con el dedo; en listas, el círculo = añadir a la cola), `music.ts` o el artículo de descargas (Compartir → Aske Stream desde YouTube / YouTube Music, qué enlaces vale, «Cargar más» y que puede fallar porque YouTube cambia), `privacy.ts` (miniaturas de YouTube). Consejo de pantalla si hace falta.
+  2. Borrar las claves que ya no se usan, comprobándolo con Grep en `src` y en la ayuda: `boot.connecting`, `player.swipe.next`, `player.swipe.prev`, `swipe.queue`, `swipe.jam` (si alguna sigue usándose, dejarla).
+  3. `PRIVACY.md` (en y es): las miniaturas de canciones que no están en tu biblioteca (Jam, listas compartidas, «Enviar», búsqueda, ficha de Compartir) se piden directamente a YouTube (`i.ytimg.com`) desde tu aparato, sin referer: YouTube/Google ve tu IP y qué vídeo se muestra, como al ver una miniatura en su web; el título al compartir se pide al oEmbed público de YouTube; las portadas de tu biblioteca y los dibujos ámbar no salen de tu aparato; las estadísticas de grupos no envían ids de YouTube.
+  4. `hub.md` (`?continuation=` en `/search`), `android.md` (intent `SEND` `text/plain` y para qué sirve), `ESTADO.md`, tabla de fases (v0.9.5 = fase 9.3) y `docs/releases/v0.9.5.md`.
+  5. Versión 0.9.5 en los 7 `package.json` y en las 8 entradas de `package-lock.json` (con `node`, no con `sed`).
 - TDD: no
 - Criterios de aceptación:
-  - [ ] `help.test.ts` pasa (enlaces válidos, 3 idiomas); `ESTADO.md` al día; versión 0.9.4 en todos los sitios.
+  - [ ] `help.test.ts` e `i18n.test.ts` pasan; `ESTADO.md` al día; versión 0.9.5 en todos los sitios.
 - Verificación: `npm run check` y después `npm run test:e2e` (cerrar wrangler/workerd colgados)
 
 ## Paso final del orquestador (tras aprobar la revisión, sin volver a preguntar)
 
-1. `npm run check` y `npm run test:e2e` en verde.
-2. `npm run hub:migrate:remote` (migración `0005_group_photos.sql`).
-3. `npm run deploy:hub` (antes que la web: así ningún cliente nuevo habla con un hub viejo).
-4. `npm run deploy` (la API de los amigos no tiene migraciones nuevas: no hace falta `db:migrate:remote`).
-5. Commits en Conventional Commits con el autor de Andoni y sin menciones a Claude; `git push`.
-6. Tag `v0.9.4` y `git push` del tag: CI construye y publica los APK.
-
-## Fase 3 (v0.9.5) · YouTube más cómodo (borrador; se detalla al empezar)
-
-- **«Compartir → Aske Stream»:** `intent-filter` `ACTION_SEND` `text/plain` (`AndroidManifest.xml:21-24`) más Java, y `useDownloads.enqueueUrl` (`stores/downloads.ts`). VERIFICAR si `@capacitor/app` entrega `ACTION_SEND`; si no, plugin propio en `AskeNative`.
-- **«Cargar más»** con la continuación de InnerTube (API no oficial; puede romperse).
-- **Términos de uso:** el riesgo es el mismo que ya tiene la descarga actual.
+1. `npm run check`, `npm run test:e2e` (en Windows vale si dice que pasan todas las comprobaciones) y `v9_095.py`; reconstruir el `dist` normal y cerrar wrangler/workerd.
+2. `npm run deploy:hub` (búsqueda con continuación; **sin** migración) — antes que la web.
+3. `npm run deploy` (web y API; sin `db:migrate:remote`: no hay migraciones). Los amigos con Cloudflare verán el aviso de actualizar su servidor; hasta entonces no ven «Cargar más» en el ordenador.
+4. Commits en Conventional Commits (uno por cambio lógico) con autor `Andoni Ortiz de Zarate Urruela <Ando144@users.noreply.github.com>` y sin ninguna mención a Claude; `git push`.
+5. Tag `v0.9.5` y `git push` del tag: CI construye y publica los APK.
 
 ## Riesgos / dudas abiertas
 
-- **Sin dudas abiertas para v0.9.4** (plan aprobado; «zerrenda» confirmado).
-- **Coste de la lista:** `GET /groups` hace ahora 2 consultas por grupo (como mucho 10 grupos, es decir 20 consultas D1). Es asumible en el plan gratuito; si se notara lento, se juntaría en una sola consulta con `IN (...)`.
-- **Mes local frente a UTC:** las escuchas se guardan por mes local del móvil y la tarjeta pide ese mes; en los primeros o últimos minutos del mes, dos amigos en husos distintos pueden ver meses diferentes (igual que hoy en el detalle).
-- **Cliente nuevo con hub viejo:** solo pasa si se publica la web antes que el hub; el orden del paso final lo evita, y aun así la lista se ve sin la pila ni el resumen.
-- **VERIFICAR:** cómo devuelve D1 una columna BLOB (`ArrayBuffer` o lista de números); `getPhoto` normaliza con `new Uint8Array(...)` y lo prueba con `sqliteD1`.
-- **VERIFICAR en dos móviles:** salto remoto con anfitrión con la pantalla apagada (el WebSocket puede dormirse); si el anfitrión no recibe el `state`, el salto se hace al reconectar porque `skipRequested` sigue guardado.
-- **Huérfanos:** si la subida tarda más de 60 s en completarse en el Worker después de cancelar, la canción puede quedarse; es raro y se puede borrar a mano.
-- `stores/library.ts` (557 líneas) sigue pendiente de partir; ninguna tarea de v0.9.4 lo toca.
-- Sigue en pie del APK v0.9.3: VERIFICAR memoria con audios de 120-200 MB (WebView) y subidas de 80-95 MB (Worker).
+- **Duda 1 — Portadas en las estadísticas de grupos** (el Hub solo tiene título y artista):
+  - **(Recomendada) A. Portada de tu biblioteca si tienes esa canción; si no, dibujo ámbar.** Sin tocar el Hub ni compartir más datos. Inconveniente: las canciones que tú no tienes salen con dibujo.
+  - **B. Subir también el id de YouTube en las estadísticas compartidas** (campo opcional nuevo en `MonthTopTrack`/`RankedTrack`). Se ve la miniatura real, pero cambia el Hub, la política de privacidad (RGPD: más datos por persona) y solo funciona con estadísticas nuevas.
+  - Recomiendo A: cumple «nunca sin imagen» sin ampliar lo que se comparte.
+- **Duda 2 — Elegir playlist en el modo estudio:** hoy es un desplegable del sistema, que no admite imágenes.
+  - **(Recomendada) A. Cambiarlo por una lista con portada y nombre** (tipo botones de opción). Coherente con «nunca sin portada»; ocupa algo más de pantalla.
+  - **B. Dejar el desplegable** como excepción. Cero cambios, pero rompe la regla.
+  - Recomiendo A (está así en T4).
+- **PWA en Android (Chrome):** la pantalla de arranque que dibuja el propio navegador al abrir la PWA instalada muestra el nombre de la app debajo del icono; no se puede quitar sin quitar el nombre del manifiesto. La app Android (APK) y la web sí quedan sin letras.
+- **Salto entre el splash nativo y el web:** tamaños distintos (el de Android 12 lo fija el sistema). Se aproxima; VERIFICAR en el APK.
+- **InnerTube (API no oficial):** el formato de continuación puede cambiar; YouTube Music puede exigir `ctoken` en la URL (VERIFICAR en T8 con una respuesta real si hay red). Si falla, mensaje claro y se conservan los resultados.
+- **oEmbed** no funciona con vídeos privados o con restricción de edad: la ficha dice «Canción de YouTube» y se descarga igual (yt-dlp decidirá).
+- **Rendimiento:** listas largas con `GeneratedArt` son SVG/CSS ligeros; `findTrackByTitle` usa índice cacheado. Las miniaturas de YouTube van con `loading="lazy"`.
+- **Pendientes que siguen:** `stores/library.ts` (557 líneas) sin partir; VERIFICAR memoria con audios de 120-200 MB y subidas de 80-95 MB; descargas atascadas y podcasts de más de 2 h sin conexión (de `ESTADO.md`).

@@ -51,6 +51,18 @@ nada. Para leer más páginas se repite la llamada con el `continuation` recibid
 - Si YouTube no responde, 502 `search_unavailable`. Si la primera página no trae canciones ni título
   (playlist privada o borrada), 404 `playlist_unavailable`.
 
+## Buscar en YouTube
+
+`GET /hub/v1/search?q=TEXTO&kind=songs|videos&lang=es|en|eu&continuation=TOKEN` busca en YouTube
+para quien no tiene Cloudflare y responde `{ results, continuation }`. No guarda nada.
+
+- Para la página siguiente se repite la llamada con el `continuation` recibido; `null` significa que
+  no hay más resultados.
+- Un `continuation` con caracteres no permitidos o de más de 4096 caracteres da 400
+  `invalid_request`.
+- Si YouTube no responde, 502 `search_unavailable`.
+- La búsqueda dentro de una Jam sigue respondiendo solo `{ results }`.
+
 ## Envíos con nombre de playlist
 
 `POST /hub/v1/parcels` acepta además `name` (nombre de la playlist, se limpia y se recorta a 120

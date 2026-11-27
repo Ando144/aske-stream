@@ -1,6 +1,6 @@
 # Aske Stream: Privacy Policy / Política de privacidad
 
-Last updated / Última actualización: 2026-11-26
+Last updated / Última actualización: 2026-11-27
 
 Aske Stream is a free, open-source (MIT) music app. Source code:
 <https://github.com/Ando144/aske-stream>
@@ -41,6 +41,17 @@ If you choose Google Drive, the app asks for a single permission:
 
 Only to do what you ask: YouTube (to search and download), the public radio catalogue, GitHub (to
 check for updates), and your own Google Drive or Cloudflare account.
+
+### YouTube thumbnails and titles
+
+- Pictures of songs that are **not in your library** (Jam, shared lists, "Send", search results and
+  the "Share → Aske Stream" card) are requested **directly from YouTube's image servers** (such as
+  `i.ytimg.com`) by your device, without a referrer. YouTube/Google sees your IP address and which
+  video is shown, as when you see a thumbnail on its website.
+- When you share a YouTube link with the app, the title is requested from YouTube's public oEmbed
+  service, which therefore sees your IP address and the video.
+- The covers of your library and the amber drawings shown when there is no picture **never leave
+  your device**. Friend group statistics do not send YouTube ids.
 
 ### Aske Hub (shared playlists and Jams)
 
@@ -135,6 +146,13 @@ que reciban tu información, no tiene anuncios ni rastreo, y no vende nada.**
   quitar el acceso cuando quieras en <https://myaccount.google.com/permissions>.
 - **Otros servicios:** YouTube (para buscar y descargar), el catálogo público de radios, GitHub
   (para buscar actualizaciones) y tu propio Drive o Cloudflare.
+- **Miniaturas y títulos de YouTube:** las imágenes de canciones que **no están en tu biblioteca**
+  (Jam, listas compartidas, «Enviar», resultados de búsqueda y la ficha de «Compartir → Aske
+  Stream») las pide tu aparato **directamente a los servidores de imágenes de YouTube** (como
+  `i.ytimg.com`), sin referer: YouTube/Google ve tu IP y qué vídeo se muestra, como al ver una
+  miniatura en su web. Al compartir un enlace de YouTube con la app, el título se pide al oEmbed
+  público de YouTube, que ve tu IP y el vídeo. Las portadas de tu biblioteca y los dibujos ámbar
+  **no salen de tu aparato**. Las estadísticas de grupos no envían ids de YouTube.
 - **Aske Hub (playlists compartidas y Jams):** solo si usas estas funciones opcionales. Es un
   servidor pequeño que **nunca guarda música**. El nombre de la playlist y las referencias de las
   canciones se guardan 90 días y luego se borran; los apodos y la cola de una Jam, solo mientras

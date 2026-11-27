@@ -6,12 +6,14 @@ Actualizado: 2026-11-27
 
 - **Hasta v0.9.3:** biblioteca en dispositivo, Cloudflare o Drive; Android; YouTube; ayuda eu/es/en; copia; QR; Hub (playlists compartidas, Jams, grupos, Enviar); estadísticas y Recap; modo estudio; audios grandes solo en el móvil; podcasts por serie; aleatorio de orden fijo; gestos.
 - **v0.9.4 (publicada: `7f879b5`, tag, hub con migración 0005, web y APK en Releases):** Jam como mando a distancia, Grupos según el boceto A con «Nombre y foto» y vista previa, y los fallos pendientes (canciones huérfanas al cancelar, Ordenar con teclado, «Seleccionar» en carpetas, selección de playlists, eu con «zerrenda»).
+- **v0.9.5 (publicada: tag, hub sin migración, web y APK por CI):** portadas o dibujo ámbar en todas partes, deslizar con vista de la canción que entra y círculo en las listas, arranque solo con el logo, «Compartir → Aske Stream» y «Cargar más»; ayuda, privacidad y notas al día.
 
 ## En curso / siguiente
 
+- **Comprobar que CI publica los APK de v0.9.5** en Releases.
+- **Andoni, probar v0.9.5 en el móvil:** Compartir desde YouTube y YouTube Music (con la app cerrada y abierta), «Cargar más» en Canciones, deslizar los dos reproductores y las filas, y el paso de la pantalla de arranque de Android a la de la web.
 - **Andoni, probar v0.9.4 (APK encima, sin desinstalar) en dos móviles:** salto remoto (también con el anfitrión con la pantalla apagada), barra de la Jam, deslizar el mini reproductor, «Nombre y foto» desde un miembro que no creó el grupo, guardar en modo avión, vista previa al unirse, «Seleccionar» en carpetas, Ordenar con teclado y modo estudio.
 - **Pendiente de la v0.9.3:** descargas atascadas y podcast de más de 2 h sin conexión; VERIFICAR memoria con audios de 120-200 MB (WebView) y subidas de 80-95 MB (Worker).
-- **v0.9.5** (borrador en `docs/plan/PLAN.md`, estimada en 30-60 min): «Compartir → Aske Stream» y «Cargar más». Antes, preguntas a Andoni.
 - **Prueba del corte de música:** 30-60 min con pantalla apagada y modo avión 1-2 min (debe volver en ≤ 10 s). Si falla, `adb logcat | findstr aske-stall`.
 
 ## Decisiones tomadas (y por qué)
@@ -25,6 +27,7 @@ Actualizado: 2026-11-27
 
 ## Problemas conocidos
 
+- MEDIO (v0.9.5): al compartir salen dos avisos (`ShareInSheet.tsx` y la cola); `SourcePicker.tsx` no se mueve con flechas; título de Biblioteca cortado a 390 px (ya pasaba); hay `.pyc` subidos en `test/browser/__pycache__`.
 - Windows: `smoke.mjs` da EPERM y deja wrangler/workerd colgados; `gradle.mjs` falla (usar `.\gradlew.bat assembleRelease`).
 - MEDIO: al cancelar, una canción del mismo vídeo añadida desde otro aparato en ese minuto puede borrarse (y sale «Canción borrada»); si la subida tarda más de 60 s, queda en la nube.
 - MEDIO: `hub/src/groups/lookRoutes.ts` lee entera una foto sin `Content-Length`; con hub viejo `photoCache.ts` pide fotos inexistentes.

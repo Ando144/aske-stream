@@ -57,9 +57,18 @@ searches through the Worker (`/api/youtube/search`) and stores picks in D1
 comes back to the foreground and every 5 minutes while open, downloads, and
 marks each item done (with a count) or failed (with the reason).
 
+"Share → Aske Stream": `MainActivity` declares an `ACTION_SEND` / `text/plain` intent filter, so
+Aske Stream appears in the share menu of YouTube and YouTube Music (which share links as plain
+text). `ShareTargetPlugin` (`ShareTarget`) hands that text (at most 2000 characters) to the web
+side, both on a cold start and with the app already open, and marks the intent as handled so it is
+not repeated. `share/sharedLink.ts` only accepts YouTube links; the app then offers to download the
+song or to pick songs from the playlist. The title comes from YouTube's public oEmbed service.
+It needs no extra permission.
+
 Browser tests of these flows run against fake native plugins:
-`vite build --mode fakenative` swaps `src/native/{platform,downloader,askeNative,googleDrive}`
-for `apps/web/test/fake-native/*`.
+`vite build --mode fakenative` swaps
+`src/native/{platform,downloader,askeNative,googleDrive,shareTarget}` (among others, see
+`vite.config.ts`) for `apps/web/test/fake-native/*`.
 
 ### Downloads in the background
 

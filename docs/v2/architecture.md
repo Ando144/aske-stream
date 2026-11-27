@@ -115,7 +115,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 9   | Study mode: pin the app + focus screen, soft bell and "Time's up" card at the end                           | ✅     |
 | 9.1 | v0.9.3 daily use: unstuck downloads, phone-only big audio, podcast shows, fixed shuffle, gestures, Jam      | ✅     |
 | 9.2 | v0.9.4: Jam as a remote control for everyone, group name and photo                                          | ✅     |
-| 9.3 | v0.9.5: "Share → Aske Stream" and "Load more" in YouTube search                                             |        |
+| 9.3 | v0.9.5: pictures everywhere, swipe preview, logo-only start, "Share → Aske Stream", "Load more"             | ✅     |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
 two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,
@@ -198,3 +198,10 @@ joining) and card figures count only the people who share their listening. Also:
 by a canceled save is removed, "Select" works inside folders and the Sort menu works with the
 keyboard. Published; pending: a test on two
 phones.
+
+Phase 9.3 notes: songs and playlists always show a picture (their cover, a YouTube thumbnail or a
+generated amber drawing). Swiping on both players slides the next or previous song in with the
+finger, and rows show a ring that fills when the song will be queued. The start screen is only the
+logo. The Android app accepts YouTube links from the share menu, and YouTube search can load more
+pages (the Hub and the Worker pass a continuation token; no migrations). Pending: publishing and a
+test of the APK on a real phone.
