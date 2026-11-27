@@ -18,6 +18,7 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
   - `GoogleDrive`: Play services Identity, permiso `drive.file`.
   - `StudyLock`: modo estudio (fijar pantalla y campanilla con alarma exacta). Los `.ogg` están en
     `.gitignore` salvo `apps/web/src/study/sounds/`.
+  - `ShareTarget`: recibe «Compartir → Aske Stream» (`ACTION_SEND` de texto).
 - `apps/hub`: Worker aparte (Hono, D1 y Durable Object) para playlists compartidas y Jams. Nunca
   guarda música. API en `/hub/v1/*`; se despliega con `npm run deploy:hub`; ver `docs/hub.md`.
 - `packages/shared`: tipos, límites (`LIMITS`) y parser de YouTube InnerTube.
@@ -36,6 +37,7 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
   (con `npx vite build … -w` Vite entiende `-w` como watch y se queda colgado); después reconstruye el dist normal.
   Tras `npm run test:e2e` en Windows pueden quedar wrangler/workerd colgados: ciérralos.
   Cambia `src/native/*` por `apps/web/test/fake-native/*`.
+  Si Python no tiene Playwright, instálalo en un venv temporal y usa `CHROME_PATH` (Chrome instalado).
 - APK: `npm run android:apk` (necesita ANDROID_HOME y `.secrets/keystore.properties`).
   En Windows necesita JDK 21 (p. ej. `JAVA_HOME` = `C:\Program Files\Android\Android Studio\jbr`, no el Java 8 global) y `ANDROID_HOME` = `%LOCALAPPDATA%\Android\Sdk`. Si `gradle.mjs` falla con «gradlew.bat no se reconoce», ejecuta `.\gradlew.bat assembleRelease` en `apps/mobile/android`. La primera vez tarda ~5 min; después ~1,5 min.
 - Publicar web: `npm run deploy`. Migraciones en producción: `npm run db:migrate:remote`.
@@ -72,6 +74,8 @@ docs/             architecture.md, android.md, google-drive.md, PRIVACY.md (pol�
 - Lógica pura con tests unitarios, por ejemplo `storage/drive/doc.ts`, `offline/planner.ts` o `shared/youtube.ts`.
 - Cambios optimistas en `stores/library.ts`, que revierte si falla.
 - Una sola paleta de color: ámbar. No añadir temas.
+- Ningún nombre de canción o playlist sin imagen al lado: portada, miniatura de YouTube o dibujo
+  ámbar (`components/art/`).
 
 ## Reglas acordadas (obligatorias)
 

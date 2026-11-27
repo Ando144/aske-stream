@@ -11,16 +11,13 @@ Actualizado: 2026-11-27
 
 - **Andoni, probar v0.9.5 (APK encima):** Compartir desde YouTube y YouTube Music (app cerrada y abierta), «Cargar más», deslizar reproductores y filas, y el paso del arranque de Android al de la web.
 - **Andoni, probar v0.9.4 en dos móviles:** salto remoto (también con el anfitrión con la pantalla apagada), barra de la Jam, «Nombre y foto» desde quien no creó el grupo, guardar en modo avión, vista previa al unirse, «Seleccionar» en carpetas, Ordenar con teclado y modo estudio.
-- **Pendiente de la v0.9.3:** descargas atascadas y podcast de más de 2 h sin conexión; VERIFICAR memoria con audios de 120-200 MB y subidas de 80-95 MB.
-- **Prueba del corte de música:** 30-60 min con pantalla apagada y modo avión 1-2 min (debe volver en ≤ 10 s). Si falla, `adb logcat | findstr aske-stall`.
+- **Pendiente de la v0.9.3:** descargas atascadas y podcast de más de 2 h sin conexión; VERIFICAR memoria con audios de 120-200 MB y subidas de 80-95 MB. Prueba del corte de música: 30-60 min con pantalla apagada y modo avión 1-2 min (debe volver en ≤ 10 s). Si falla, `adb logcat | findstr aske-stall`.
 
 ## Decisiones tomadas (y por qué)
 
 - Drive `drive.file`, yt-dlp en el móvil, Opus sin recodificar; Cloudflare tope 10 GB, playlists de 1000; estadísticas solo con permiso (RGPD).
-- Aleatorio: orden fijo por semilla; solo «Barajar de nuevo» lo cambia. Serie de podcast = `album` (evita migraciones).
-- Más de 95 MB (o 30-95 MB tras 2 fallos) van a `local-extras`; nada debe bloquear la cola.
-- Jam: saltan todos, sin confirmación, 1 cada 2 s; ejecuta el anfitrión — así lo eligió Andoni.
-- Grupos: cualquiera cambia nombre y foto; las tarjetas solo cuentan a quien comparte (RGPD).
+- Aleatorio: orden fijo por semilla; solo «Barajar de nuevo» lo cambia. Serie de podcast = `album` (evita migraciones). Más de 95 MB (o 30-95 MB tras 2 fallos) van a `local-extras`; nada debe bloquear la cola.
+- Jam: saltan todos, sin confirmación, 1 cada 2 s; ejecuta el anfitrión — así lo eligió Andoni. Grupos: cualquiera cambia nombre y foto; las tarjetas solo cuentan a quien comparte (RGPD).
 - Portadas que faltan: miniatura de YouTube si hay id; en estadísticas de grupos, la de tu biblioteca o dibujo ámbar (sin compartir más datos).
 
 ## Problemas conocidos
