@@ -86,6 +86,10 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
   const homeKind = (): HomeKind => useSetup.getState().config?.home ?? 'device';
 
+  /** The list in memory or, while it is empty (e.g. before `init`), the one saved on disk. */
+  const currentJobs = () =>
+    get().jobs.length ? get().jobs : loadValue<DownloadJob[]>(STORE_KEY, []);
+
   async function ensureEngine() {
     const { engine } = get();
     if (engine.status === 'ready' && Date.now() - engine.updatedAt < ENGINE_MAX_AGE) return;
@@ -322,13 +326,13 @@ export const useDownloads = create<DownloadsState>((set, get) => {
 
     async init() {
       if (!isNative) return;
-      const saved = loadValue<DownloadJob[]>(STORE_KEY, []);
       // Listen first so a `finished` event fired while `pending()` runs is not lost.
       listenToNative();
       clearDoneOnOpen();
       const pending = await Downloader.pending().catch(() => null);
       const native = pending ?? { queued: [], current: null, results: [], waitingNetwork: false };
-      const { jobs, finished, orphans } = reconcile(saved, native, homeKind());
+      // Read after the await: `enqueue` may have added songs meanwhile.
+      const { jobs, finished, orphans } = reconcile(currentJobs(), native, homeKind());
       set({ jobs, waitingNetwork: native.waitingNetwork });
       nativeWaiting = native.waitingNetwork;
       pruneImports(jobs);
@@ -349,13 +353,14 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       const playlistId = opts.playlistName
         ? await resolvePlaylist(opts.playlistName, opts.playlistMode ?? 'merge')
         : null;
+      const existing = currentJobs();
       const fresh = buildJobs(list, {
-        existing: get().jobs,
+        existing,
         playlistId,
         sendId: opts.sendId ?? null,
         keepOffline: get().keepOffline,
       });
-      const jobs = mergeJobs(get().jobs, fresh);
+      const jobs = mergeJobs(existing, fresh);
       set({ jobs });
       persist(jobs);
       if (playlistId) {

@@ -49,6 +49,8 @@ import { useSend } from './stores/send';
 import { SelectionBar } from './components/SelectionBar';
 import { PlaylistSelectionBar } from './components/PlaylistSelectionBar';
 import { ParcelSheet } from './components/send/ParcelSheet';
+import { ShareInSheet } from './components/share/ShareInSheet';
+import { startShareIn } from './stores/shareIn';
 import { useParcel } from './stores/parcel';
 import { isNative } from './native/platform';
 import { DriveReconnect } from './components/DriveReconnect';
@@ -263,6 +265,8 @@ function Shell() {
     withTimeout(useServerUpdate.getState().check(), BOOT_TIMEOUT_MS).catch(warn);
     withTimeout(useJam.getState().resume(), BOOT_TIMEOUT_MS).catch(warn);
   }, []);
+  // Android app: links shared from YouTube wait here until the app is set up.
+  useEffect(() => (isNative ? startShareIn() : undefined), []);
   const playerActive = usePlayer((s) => s.mode !== 'idle');
   const jamBarShown = useJamBarVisible();
   const hasPlayer = playerActive || jamBarShown;
@@ -384,6 +388,7 @@ function Shell() {
       <SelectionBar />
       <PlaylistSelectionBar />
       <ParcelSheet />
+      <ShareInSheet />
       <Toasts />
     </div>
   );

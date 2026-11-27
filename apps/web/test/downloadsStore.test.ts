@@ -269,6 +269,40 @@ describe('downloads store', () => {
   });
 });
 
+describe('enqueue before init (cold start)', () => {
+  const old = { id: 'old', videoId: 'z', title: 'z', status: 'queued', createdAt: 1 };
+  const ids = () => useDownloads.getState().jobs.map((j) => j.videoId);
+
+  beforeEach(() => {
+    useDownloads.setState({ jobs: [] });
+    h.saved = [old];
+  });
+
+  it('keeps the saved queue when adding a song', async () => {
+    await queueSongs(1);
+    expect(ids()).toEqual(['z', 'a']);
+  });
+
+  it('keeps the new song when init runs before it reaches storage', async () => {
+    await queueSongs(1);
+    await useDownloads.getState().init();
+    expect(ids()).toEqual(['z', 'a']);
+  });
+
+  it('keeps a song added while init is waiting for the phone', async () => {
+    let answer: () => void = () => undefined;
+    const empty = { queued: [], current: null, results: [], waitingNetwork: false };
+    Downloader.pending.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = () => resolve(empty))),
+    );
+    const starting = useDownloads.getState().init();
+    await queueSongs(1);
+    answer();
+    await starting;
+    expect(ids()).toEqual(['z', 'a']);
+  });
+});
+
 const MB = 1024 * 1024;
 const never = () => new Promise(() => undefined);
 

@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // App-specific native features: keep-awake, in-app updates, YouTube downloads, Google Drive.
+        registerPlugin(ShareTargetPlugin.class);
         registerPlugin(AskeNativePlugin.class);
         registerPlugin(DownloaderPlugin.class);
         registerPlugin(GoogleDrivePlugin.class);
