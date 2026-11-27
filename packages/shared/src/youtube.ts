@@ -160,6 +160,20 @@ export interface SearchResult {
   url: string;
 }
 
+export interface SearchPage {
+  results: SearchResult[];
+  /** Token for the next results, if there are more. */
+  continuation: string | null;
+}
+
+/** Longest continuation token we accept or forward to YouTube. */
+export const SEARCH_CONTINUATION_MAX = 4096;
+
+/** Shape check for tokens that arrive from clients (base64url, maybe percent-encoded). */
+export function isContinuationToken(s: string): boolean {
+  return s.length <= SEARCH_CONTINUATION_MAX && /^[A-Za-z0-9_\-%=]+$/.test(s);
+}
+
 export interface InnerTubeRequest {
   url: string;
   headers: Record<string, string>;
@@ -176,7 +190,13 @@ const PARAMS: Record<SearchKind, string> = {
   playlists: 'EgIQAw==',
 };
 
-export function buildSearchRequest(query: string, kind: SearchKind, lang = 'es'): InnerTubeRequest {
+/** First page of a search, or the next one when a `continuation` token is given. */
+export function buildSearchRequest(
+  query: string,
+  kind: SearchKind,
+  lang = 'es',
+  continuation?: string,
+): InnerTubeRequest {
   const music = kind === 'songs';
   const host = music ? 'https://music.youtube.com' : 'https://www.youtube.com';
   return {
@@ -189,8 +209,7 @@ export function buildSearchRequest(query: string, kind: SearchKind, lang = 'es')
     },
     body: JSON.stringify({
       context: { client: { ...(music ? MUSIC_CLIENT : WEB_CLIENT), hl: lang, gl: 'ES' } },
-      query,
-      params: PARAMS[kind],
+      ...(continuation ? { continuation } : { query, params: PARAMS[kind] }),
     }),
   };
 }
@@ -383,6 +402,24 @@ export function parseSearchResponse(json: unknown): SearchResult[] {
   }
 
   return results;
+}
+
+/**
+ * Only the tokens that load more results: youtube.com puts it in a `continuationItemRenderer`
+ * (the filter chips carry other commands) and YouTube Music in `nextContinuationData`.
+ */
+function searchContinuationToken(json: unknown): string | null {
+  const web = findAll(json, 'continuationItemRenderer').map((c) =>
+    get(c, 'continuationEndpoint', 'continuationCommand', 'token'),
+  );
+  const music = findAll(json, 'nextContinuationData').map((c) => c.continuation);
+  const usable = (t: unknown): t is string => typeof t === 'string' && isContinuationToken(t);
+  return [...web, ...music].find(usable) ?? null;
+}
+
+/** Results of a first or following search page, plus the token for the one after it. */
+export function parseSearchPage(json: unknown): SearchPage {
+  return { results: parseSearchResponse(json), continuation: searchContinuationToken(json) };
 }
 
 /* ------------------------------------------------------------------ */

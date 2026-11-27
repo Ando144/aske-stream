@@ -6,11 +6,14 @@ import {
   classifyPlaylistLink,
   countUnavailable,
   isPlaylistComplete,
+  isContinuationToken,
   isPlaylistId,
   pickLongerList,
   parsePlaylistPage,
   parseDuration,
+  parseSearchPage,
   parseSearchResponse,
+  SEARCH_CONTINUATION_MAX,
   youtubePlaylistId,
 } from '../src/youtube';
 
@@ -219,6 +222,108 @@ describe('search answer', () => {
   it('never throws on unexpected answers', () => {
     expect(parseSearchResponse(null)).toEqual([]);
     expect(parseSearchResponse({ weird: [1, 'a', { videoRenderer: {} }] })).toEqual([]);
+  });
+});
+
+describe('search continuation', () => {
+  const video = (id: string) => ({ videoRenderer: { videoId: id, title: { simpleText: id } } });
+  const song = (id: string) => ({
+    musicResponsiveListItemRenderer: {
+      playlistItemData: { videoId: id },
+      flexColumns: [
+        { musicResponsiveListItemFlexColumnRenderer: { text: { runs: [{ text: id }] } } },
+      ],
+    },
+  });
+  const webToken = (token: string) => ({
+    continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token } } },
+  });
+  const musicToken = (token: string) => [{ nextContinuationData: { continuation: token } }];
+  /** Filter chips carry their own commands: they are not the next page. */
+  const header = {
+    chips: [{ navigationEndpoint: { continuationCommand: { token: 'CHIP' } } }],
+  };
+  const ids = (json: unknown) => parseSearchPage(json).results.map((r) => r.id);
+
+  it('reads the token of a first youtube.com page, not the ones of the filter chips', () => {
+    const page = {
+      header,
+      contents: [{ itemSectionRenderer: { contents: [video('vid00000001')] } }, webToken('WEB%3D')],
+    };
+    expect(ids(page)).toEqual(['vid00000001']);
+    expect(parseSearchPage(page).continuation).toBe('WEB%3D');
+  });
+
+  it('reads a following youtube.com page and its new token', () => {
+    const page = {
+      header,
+      onResponseReceivedCommands: [
+        {
+          appendContinuationItemsAction: {
+            continuationItems: [
+              { itemSectionRenderer: { contents: [video('vid00000002')] } },
+              webToken('NEXT2'),
+            ],
+          },
+        },
+      ],
+    };
+    expect(ids(page)).toEqual(['vid00000002']);
+    expect(parseSearchPage(page).continuation).toBe('NEXT2');
+  });
+
+  it('reads the token of a first YouTube Music page', () => {
+    const page = {
+      contents: [
+        {
+          musicShelfRenderer: {
+            contents: [song('song0000001')],
+            continuations: musicToken('MUSIC%3D'),
+          },
+        },
+      ],
+    };
+    expect(ids(page)).toEqual(['song0000001']);
+    expect(parseSearchPage(page).continuation).toBe('MUSIC%3D');
+  });
+
+  it('reads a following YouTube Music page and its new token', () => {
+    const page = {
+      continuationContents: {
+        musicShelfContinuation: {
+          contents: [song('song0000002')],
+          continuations: musicToken('MUSIC2'),
+        },
+      },
+    };
+    expect(ids(page)).toEqual(['song0000002']);
+    expect(parseSearchPage(page).continuation).toBe('MUSIC2');
+  });
+
+  it('has no continuation without a usable token', () => {
+    expect(parseSearchPage({ contents: [video('vid00000001')] }).continuation).toBeNull();
+    expect(parseSearchPage({ header }).continuation).toBeNull();
+    expect(parseSearchPage({ contents: [webToken('not a token!')] }).continuation).toBeNull();
+    expect(parseSearchPage(null)).toEqual({ results: [], continuation: null });
+  });
+
+  it('accepts only plausible tokens', () => {
+    expect(isContinuationToken('Eq_-a%3D=9')).toBe(true);
+    expect(isContinuationToken('a'.repeat(SEARCH_CONTINUATION_MAX))).toBe(true);
+    expect(isContinuationToken('a'.repeat(SEARCH_CONTINUATION_MAX + 1))).toBe(false);
+    for (const bad of ['', 'a b', 'a&b=1', '<x>', 'á']) {
+      expect(isContinuationToken(bad)).toBe(false);
+    }
+  });
+
+  it('asks for the next page with the token and without the query', () => {
+    for (const kind of ['songs', 'videos'] as const) {
+      const body = JSON.parse(buildSearchRequest('itoiz', kind, 'eu', 'TOKEN').body);
+      expect(body).toEqual({
+        context: { client: expect.objectContaining({ hl: 'eu' }) },
+        continuation: 'TOKEN',
+      });
+    }
   });
 });
 

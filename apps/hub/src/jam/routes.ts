@@ -59,7 +59,8 @@ export const jamRoutes = new Hono<HubAppEnv>()
     const parsed = SearchQuery.safeParse(c.req.query());
     if (!parsed.success) throw new HubHttpError(400, 'invalid_request', 'Invalid search');
     await enforceRateLimit(c, c.env.DB, 'jam-search', 60, 10 * 60 * 1000);
-    return c.json({ results: await searchYoutube(parsed.data.q, 'songs', parsed.data.lang) });
+    const { results } = await searchYoutube(parsed.data.q, 'songs', parsed.data.lang);
+    return c.json({ results });
   })
   .get('/:code/ws', async (c) => {
     if (c.req.header('Upgrade') !== 'websocket') {

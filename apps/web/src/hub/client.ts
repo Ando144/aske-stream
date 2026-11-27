@@ -9,7 +9,7 @@ import type {
   JamInfo,
   SharedList,
 } from '@aske/shared/hub';
-import type { PlaylistPage, SearchResult } from '@aske/shared/youtube';
+import type { PlaylistPage, SearchPage, SearchResult } from '@aske/shared/youtube';
 import { HUB_URL } from '../config';
 import type { Language } from '../i18n';
 
@@ -158,10 +158,15 @@ export async function searchViaHub(
   q: string,
   kind: 'songs' | 'videos',
   lang: Language,
-): Promise<SearchResult[]> {
+  continuation?: string,
+): Promise<SearchPage> {
   const query = new URLSearchParams({ q, kind, lang });
-  const res = await hubFetch<{ results: SearchResult[] }>(`/search?${query}`);
-  return res.results;
+  if (continuation) query.set('continuation', continuation);
+  const res = await hubFetch<{ results: SearchResult[]; continuation?: string | null }>(
+    `/search?${query}`,
+  );
+  // A Hub that has not been updated yet sends no token.
+  return { results: res.results, continuation: res.continuation ?? null };
 }
 
 /** WebSocket address of a Jam: https becomes wss, http becomes ws. */

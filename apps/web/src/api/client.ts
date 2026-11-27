@@ -205,10 +205,13 @@ function createApi(
     fetchMedia: async (kind: 'audio' | 'cover', remoteId: string): Promise<Blob> =>
       (await call(`/media/${kind}/${remoteId}`)).blob(),
 
-    youtubeSearch: (q: string, kind: SearchKind, lang: string) =>
-      json<{ results: SearchResult[] }>(
-        `/api/youtube/search?${new URLSearchParams({ q, kind, lang })}`,
-      ),
+    youtubeSearch: (q: string, kind: SearchKind, lang: string, continuation?: string) => {
+      const params = new URLSearchParams({ q, kind, lang });
+      if (continuation) params.set('continuation', continuation);
+      return json<{ results: SearchResult[]; continuation?: string | null }>(
+        `/api/youtube/search?${params}`,
+      );
+    },
     sendList: () => json<SendItem[]>('/api/send'),
     sendCreate: (item: { url: string; title?: string; author?: string; thumbnail?: string }) =>
       json<SendItem>('/api/send', { method: 'POST', json: item }),

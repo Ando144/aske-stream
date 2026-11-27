@@ -3,10 +3,13 @@ import { z } from 'zod';
 import { LIMITS, type SendItem } from '@aske/shared';
 import {
   buildSearchRequest,
+  isContinuationToken,
   isYoutubeUrl,
-  parseSearchResponse,
+  parseSearchPage,
   youtubePlaylistId,
   youtubeVideoId,
+  type InnerTubeRequest,
+  type SearchPage,
 } from '@aske/shared/youtube';
 import type { AppEnv } from '../env';
 import { newId } from '../lib/ids';
@@ -22,6 +25,7 @@ const SearchQuery = z.object({
   q: z.string().trim().min(1).max(200),
   kind: z.enum(['songs', 'videos', 'playlists']).default('songs'),
   lang: z.enum(['es', 'en', 'eu']).default('es'),
+  continuation: z.string().refine(isContinuationToken).optional(),
 });
 
 const httpsUrl = z.string().trim().max(LIMITS.urlMax).default('');
@@ -68,19 +72,23 @@ const toItem = (r: SendRow): SendItem => ({
   updatedAt: r.updated_at,
 });
 
+async function fetchSearchPage(req: InnerTubeRequest): Promise<SearchPage> {
+  try {
+    const res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
+    if (res.ok) return parseSearchPage(await res.json());
+    console.error('YouTube search failed', res.status);
+  } catch (err) {
+    // The user only gets the generic 502 below; the detail stays in the server log.
+    console.error('YouTube search failed', err);
+  }
+  throw new HttpError(502, 'search_unavailable', 'YouTube search is not reachable');
+}
+
 export const youtubeRoutes = new Hono<AppEnv>().get('/search', async (c) => {
   const parsed = SearchQuery.safeParse(c.req.query());
   if (!parsed.success) throw new HttpError(400, 'validation_error', 'Invalid search');
-  const { q, kind, lang } = parsed.data;
-  const req = buildSearchRequest(q, kind, lang);
-  let res: Response;
-  try {
-    res = await fetch(req.url, { method: 'POST', headers: req.headers, body: req.body });
-  } catch {
-    throw new HttpError(502, 'search_unavailable', 'YouTube search is not reachable');
-  }
-  if (!res.ok) throw new HttpError(502, 'search_unavailable', `YouTube answered ${res.status}`);
-  return c.json({ results: parseSearchResponse(await res.json()) });
+  const { q, kind, lang, continuation } = parsed.data;
+  return c.json(await fetchSearchPage(buildSearchRequest(q, kind, lang, continuation)));
 });
 
 export const sendRoutes = new Hono<AppEnv>()

@@ -20,10 +20,10 @@ import {
   isPlaylistComplete,
   parsePlaylistPage,
   pickLongerList,
-  parseSearchResponse,
+  parseSearchPage,
   youtubePlaylistId,
   type SearchKind,
-  type SearchResult,
+  type SearchPage,
 } from '@aske/shared/youtube';
 
 /** apps/mobile/android/.../DownloaderPlugin.java (yt-dlp on the phone). */
@@ -72,36 +72,48 @@ export interface DownloaderPlugin {
 
 export const Downloader = registerPlugin<DownloaderPlugin>('Downloader');
 
+/** One page of results from YouTube's own search API. */
+async function searchViaInnerTube(
+  query: string,
+  kind: SearchKind,
+  lang: string,
+  continuation?: string,
+): Promise<SearchPage> {
+  const req = buildSearchRequest(query, kind, lang, continuation);
+  const res = await CapacitorHttp.post({
+    url: req.url,
+    headers: req.headers,
+    data: JSON.parse(req.body),
+    responseType: 'json',
+    connectTimeout: 10_000,
+    readTimeout: 15_000,
+  });
+  if (res.status !== 200) throw new Error(`YouTube search answered ${res.status}`);
+  return parseSearchPage(res.data);
+}
+
 /**
  * Search from the phone. Asks YouTube's own search API directly (fast, like
  * the YouTube app); if YouTube changes it and nothing comes back, falls back
  * to yt-dlp's search, which is slower but kept up to date by its maintainers.
+ * Following pages have no fallback: yt-dlp would only repeat the first results.
  */
 export async function searchOnPhone(
   query: string,
   kind: SearchKind,
   lang: string,
-): Promise<SearchResult[]> {
+  continuation?: string,
+): Promise<SearchPage> {
+  if (continuation) return searchViaInnerTube(query, kind, lang, continuation);
   try {
-    const req = buildSearchRequest(query, kind, lang);
-    const res = await CapacitorHttp.post({
-      url: req.url,
-      headers: req.headers,
-      data: JSON.parse(req.body),
-      responseType: 'json',
-      connectTimeout: 10_000,
-      readTimeout: 15_000,
-    });
-    if (res.status === 200) {
-      const results = parseSearchResponse(res.data);
-      if (results.length) return results;
-    }
-  } catch {
-    // fall back below
+    const page = await searchViaInnerTube(query, kind, lang);
+    if (page.results.length) return page;
+  } catch (err) {
+    console.warn(err); // fall back below
   }
-  if (kind === 'playlists') return [];
+  if (kind === 'playlists') return { results: [], continuation: null };
   const list = await Downloader.list({ url: `ytsearch20:${query}` });
-  return list.entries.map((e) => ({
+  const results = list.entries.map((e) => ({
     kind: 'video' as const,
     id: e.id,
     title: e.title,
@@ -110,6 +122,7 @@ export async function searchOnPhone(
     thumbnail: `https://i.ytimg.com/vi/${e.id}/hqdefault.jpg`,
     url: `https://www.youtube.com/watch?v=${e.id}`,
   }));
+  return { results, continuation: null };
 }
 
 export type { PlaylistListing } from '../downloads/playlistReader';

@@ -1,4 +1,4 @@
-import type { SearchKind, SearchResult } from '@aske/shared/youtube';
+import type { SearchKind, SearchPage, SearchResult } from '@aske/shared/youtube';
 import type { DownloaderPlugin, PlaylistListing } from '../../src/native/downloader';
 import type { NativeResult } from '../../src/downloads/types';
 
@@ -136,39 +136,51 @@ export const Downloader: DownloaderPlugin = {
   }) as DownloaderPlugin['addListener'],
 };
 
-export async function searchOnPhone(query: string, kind: SearchKind): Promise<SearchResult[]> {
-  log(`search ${kind} ${query}`);
-  if (kind === 'playlists') {
-    return [
-      {
-        kind: 'playlist',
-        id: 'PLtest0000001',
-        title: 'Test playlist',
-        author: 'Tester',
-        count: 3,
-        thumbnail: '/test-media/thumb.jpg',
-        url: 'https://www.youtube.com/playlist?list=PLtest0000001',
-      },
-      {
-        kind: 'playlist',
-        id: 'PLbig00000001',
-        title: 'Big playlist',
-        author: 'Tester',
-        count: 150,
-        thumbnail: '/test-media/thumb.jpg',
-        url: 'https://www.youtube.com/playlist?list=PLbig00000001',
-      },
-    ];
-  }
-  return ['song0000001', 'song0000002', 'fail0000001'].map((id, i) => ({
-    kind: 'video' as const,
+function fakePlaylist(id: string, title: string, count: number): SearchResult {
+  return {
+    kind: 'playlist',
     id,
-    title: `Result ${i + 1}`,
+    title,
+    author: 'Tester',
+    count,
+    thumbnail: '/test-media/thumb.jpg',
+    url: `https://www.youtube.com/playlist?list=${id}`,
+  };
+}
+
+function fakeVideo(id: string, n: number): SearchResult {
+  return {
+    kind: 'video',
+    id,
+    title: `Result ${n}`,
     author: 'Band',
-    duration: 200 + i,
+    duration: 199 + n,
     thumbnail: '/test-media/thumb.jpg',
     url: `https://www.youtube.com/watch?v=${id}`,
-  }));
+  };
+}
+
+/** Two pages; the second repeats one result of the first, like YouTube does. */
+export async function searchOnPhone(
+  query: string,
+  kind: SearchKind,
+  _lang?: string,
+  continuation?: string,
+): Promise<SearchPage> {
+  log(`search ${kind} ${query}${continuation ? ' more' : ''}`);
+  const first =
+    kind === 'playlists'
+      ? [
+          fakePlaylist('PLtest0000001', 'Test playlist', 3),
+          fakePlaylist('PLbig00000001', 'Big playlist', 150),
+        ]
+      : ['song0000001', 'song0000002', 'fail0000001'].map((id, i) => fakeVideo(id, i + 1));
+  if (!continuation) return { results: first, continuation: 'fake-page-2' };
+  const added =
+    kind === 'playlists'
+      ? fakePlaylist('PLmore0000001', 'More playlist', 3)
+      : fakeVideo('song0000004', 4);
+  return { results: [...first.slice(-1), added], continuation: null };
 }
 
 export async function listPlaylistOnPhone(
