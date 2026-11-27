@@ -4,31 +4,29 @@ Actualizado: 2026-11-27
 
 ## Hecho
 
-- **Hasta v0.9.3:** biblioteca en dispositivo, Cloudflare o Drive; Android; YouTube; ayuda eu/es/en; copia; QR; Hub (playlists compartidas, Jams, grupos, Enviar); estadísticas y Recap; modo estudio; audios grandes solo en el móvil; podcasts por serie; aleatorio de orden fijo; gestos.
-- **v0.9.4 (publicada: `7f879b5`, tag, hub con migración 0005, web y APK en Releases):** Jam como mando a distancia, Grupos según el boceto A con «Nombre y foto» y vista previa, y los fallos pendientes (canciones huérfanas al cancelar, Ordenar con teclado, «Seleccionar» en carpetas, selección de playlists, eu con «zerrenda»).
-- **v0.9.5 (publicada: tag, hub sin migración, web y APK por CI):** portadas o dibujo ámbar en todas partes, deslizar con vista de la canción que entra y círculo en las listas, arranque solo con el logo, «Compartir → Aske Stream» y «Cargar más»; ayuda, privacidad y notas al día.
+- **Hasta v0.9.4:** biblioteca en dispositivo, Cloudflare o Drive; Android; YouTube; ayuda eu/es/en; copia; QR; Hub (playlists compartidas, Jam como mando a distancia, grupos con nombre y foto, Enviar); estadísticas y Recap; modo estudio; podcasts; aleatorio fijo; gestos.
+- **v0.9.5 (publicada: `73c6e1a` + docs, tag, hub sin migración, web y 2 APK en Releases):** portadas o dibujo ámbar en todas partes, carrusel en los reproductores y círculo en las listas, arranque solo con el logo, «Compartir → Aske Stream» y «Cargar más».
 
 ## En curso / siguiente
 
-- **Comprobar que CI publica los APK de v0.9.5** en Releases.
-- **Andoni, probar v0.9.5 en el móvil:** Compartir desde YouTube y YouTube Music (con la app cerrada y abierta), «Cargar más» en Canciones, deslizar los dos reproductores y las filas, y el paso de la pantalla de arranque de Android a la de la web.
-- **Andoni, probar v0.9.4 (APK encima, sin desinstalar) en dos móviles:** salto remoto (también con el anfitrión con la pantalla apagada), barra de la Jam, deslizar el mini reproductor, «Nombre y foto» desde un miembro que no creó el grupo, guardar en modo avión, vista previa al unirse, «Seleccionar» en carpetas, Ordenar con teclado y modo estudio.
-- **Pendiente de la v0.9.3:** descargas atascadas y podcast de más de 2 h sin conexión; VERIFICAR memoria con audios de 120-200 MB (WebView) y subidas de 80-95 MB (Worker).
+- **Andoni, probar v0.9.5 (APK encima):** Compartir desde YouTube y YouTube Music (app cerrada y abierta), «Cargar más», deslizar reproductores y filas, y el paso del arranque de Android al de la web.
+- **Andoni, probar v0.9.4 en dos móviles:** salto remoto (también con el anfitrión con la pantalla apagada), barra de la Jam, «Nombre y foto» desde quien no creó el grupo, guardar en modo avión, vista previa al unirse, «Seleccionar» en carpetas, Ordenar con teclado y modo estudio.
+- **Pendiente de la v0.9.3:** descargas atascadas y podcast de más de 2 h sin conexión; VERIFICAR memoria con audios de 120-200 MB y subidas de 80-95 MB.
 - **Prueba del corte de música:** 30-60 min con pantalla apagada y modo avión 1-2 min (debe volver en ≤ 10 s). Si falla, `adb logcat | findstr aske-stall`.
 
 ## Decisiones tomadas (y por qué)
 
 - Drive `drive.file`, yt-dlp en el móvil, Opus sin recodificar; Cloudflare tope 10 GB, playlists de 1000; estadísticas solo con permiso (RGPD).
-- Aleatorio: orden fijo por semilla, la biblioteca es la ronda `library`; solo «Barajar de nuevo» cambia el orden — así lo eligió Andoni.
-- Serie de podcast = `album` — evita migrar el Worker de cada amigo, Drive y el dispositivo.
-- Más de 95 MB (o 30-95 MB tras 2 fallos) van a `local-extras`, sin subirse; carriles «nube» y «móvil» — Cloudflare no los admite y nada debe bloquear la cola.
-- Jam: saltan todos, sin confirmación ni aviso, 1 cada 2 s; el salto lo ejecuta el anfitrión — así lo eligió Andoni.
-- Grupos: cualquiera cambia nombre y foto; fotos en D1; las tarjetas solo cuentan a quien comparte y «No comparte» solo se ve para uno mismo (RGPD). La tarjeta dice «Este mes» (en euskera el mes habría que declinarlo).
+- Aleatorio: orden fijo por semilla; solo «Barajar de nuevo» lo cambia. Serie de podcast = `album` (evita migraciones).
+- Más de 95 MB (o 30-95 MB tras 2 fallos) van a `local-extras`; nada debe bloquear la cola.
+- Jam: saltan todos, sin confirmación, 1 cada 2 s; ejecuta el anfitrión — así lo eligió Andoni.
+- Grupos: cualquiera cambia nombre y foto; las tarjetas solo cuentan a quien comparte (RGPD).
+- Portadas que faltan: miniatura de YouTube si hay id; en estadísticas de grupos, la de tu biblioteca o dibujo ámbar (sin compartir más datos).
 
 ## Problemas conocidos
 
-- MEDIO (v0.9.5): al compartir salen dos avisos (`ShareInSheet.tsx` y la cola); `SourcePicker.tsx` no se mueve con flechas; título de Biblioteca cortado a 390 px (ya pasaba); hay `.pyc` subidos en `test/browser/__pycache__`.
 - Windows: `smoke.mjs` da EPERM y deja wrangler/workerd colgados; `gradle.mjs` falla (usar `.\gradlew.bat assembleRelease`).
-- MEDIO: al cancelar, una canción del mismo vídeo añadida desde otro aparato en ese minuto puede borrarse (y sale «Canción borrada»); si la subida tarda más de 60 s, queda en la nube.
+- MEDIO (v0.9.5): al compartir salen dos avisos (`ShareInSheet.tsx` y la cola); `SourcePicker.tsx` no se mueve con flechas; título de Biblioteca cortado a 390 px (ya pasaba); hay `.pyc` subidos en `test/browser/__pycache__`.
+- MEDIO: al cancelar, una canción del mismo vídeo añadida desde otro aparato puede borrarse; si la subida tarda más de 60 s, queda en la nube.
 - MEDIO: `hub/src/groups/lookRoutes.ts` lee entera una foto sin `Content-Length`; con hub viejo `photoCache.ts` pide fotos inexistentes.
-- MEDIO: `stores/library.ts` (557 líneas) conviene partirlo; quitar el import circular de `downloads/cancel.ts` y testear su suscripción.
+- MEDIO: partir `stores/library.ts` (557 líneas) y quitar el import circular de `downloads/cancel.ts`.
