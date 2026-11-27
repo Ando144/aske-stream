@@ -7,7 +7,6 @@ import {
   Heart,
   ListEnd,
   LoaderCircle,
-  Users,
 } from 'lucide-react';
 import { addTracksToJam, jamIsActive } from '../hub/jamFromLibrary';
 import { useT } from '../i18n';
@@ -21,6 +20,7 @@ import { useCurrentTrackId, usePlayer } from '../stores/player';
 import { useSetup } from '../stores/setup';
 import { useUi } from '../stores/ui';
 import { Cover } from './Cover';
+import { SwipeRing } from './gestures/SwipeRing';
 import { OnlyHereBadge } from './OnlyHereBadge';
 
 interface ListProps {
@@ -171,10 +171,7 @@ const TrackRow = memo(function TrackRow({
       className={`track${current ? ' current' : ''}${unavailable ? ' unavailable' : ''}${selected ? ' selected' : ''}`}
       role="listitem"
     >
-      <div className="swipe-hint" style={{ opacity: Math.min(1, dx / SWIPE_TRIGGER) }} aria-hidden>
-        {toJam ? <Users size={18} /> : <ListEnd size={18} />}{' '}
-        {toJam ? t('swipe.jam') : t('swipe.queue')}
-      </div>
+      <SwipeRing progress={dx / SWIPE_TRIGGER} icon={toJam ? 'jam' : 'queue'} />
       <div
         className="track-inner"
         style={{ transform: dx ? `translateX(${dx}px)` : undefined }}

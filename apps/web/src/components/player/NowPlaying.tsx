@@ -4,12 +4,15 @@ import { useT } from '../../i18n';
 import { usePlayer } from '../../stores/player';
 import { useSleepTimer } from '../../stores/sleepTimer';
 import { SleepTimerSheet } from '../SleepTimerSheet';
+import { SwipeTrack } from '../gestures/SwipeTrack';
+import { useSwipe } from '../gestures/useSwipe';
 import { useUi } from '../../stores/ui';
 import { Artwork } from './Artwork';
 import { SeekBar, TransportControls, VolumeControl } from './Controls';
 import { LikeButton } from './MiniPlayer';
+import { canChangeSong, changeSong, NeighbourCard } from './Neighbour';
 import { QueuePanel } from './QueuePanel';
-import { usePlayingInfo } from './usePlayingInfo';
+import { usePlayingInfo, type PlayingInfo } from './usePlayingInfo';
 
 export function NowPlaying() {
   const t = useT();
@@ -77,21 +80,7 @@ export function NowPlaying() {
           )}
         </div>
 
-        <Artwork
-          info={info}
-          size={0}
-          className={`np-art${info.kind === 'radio' ? ' radio' : ''}`}
-        />
-
-        <div className="row">
-          <div className="grow">
-            <div className="np-title ellipsis">{info.title}</div>
-            <div className="muted ellipsis">{info.subtitle}</div>
-          </div>
-          {info.kind === 'track' && (
-            <LikeButton trackId={info.trackId!} liked={info.liked} size={24} />
-          )}
-        </div>
+        <SwipeableSong info={info} />
 
         <SeekBar />
         <TransportControls big />
@@ -104,6 +93,46 @@ export function NowPlaying() {
           allowEndOfTrack={info.kind === 'track'}
         />
       )}
+    </div>
+  );
+}
+
+/** Cover and title: the only part of the full screen player that can be swiped. */
+function SwipeableSong({ info }: { info: PlayingInfo }) {
+  const t = useT();
+  const { dx, phase, width, handlers } = useSwipe({ onSwipe: changeSong, allows: canChangeSong });
+  return (
+    <div
+      className="np-swipe"
+      role="group"
+      aria-label={t('player.swipeLabel')}
+      tabIndex={0}
+      {...handlers}
+    >
+      <SwipeTrack
+        dx={dx}
+        phase={phase}
+        width={width}
+        neighbour={(direction) => <NeighbourCard direction={direction} variant="big" />}
+      >
+        <Artwork
+          info={info}
+          size={0}
+          className={`np-art${info.kind === 'radio' ? ' radio' : ''}`}
+        />
+        <div className="row">
+          <div className="grow">
+            <div className="np-title ellipsis">{info.title}</div>
+            <div className="muted ellipsis">{info.subtitle}</div>
+          </div>
+          {info.kind === 'track' && (
+            // Pressing the heart must not start a drag.
+            <span onPointerDown={(e) => e.stopPropagation()}>
+              <LikeButton trackId={info.trackId!} liked={info.liked} size={24} />
+            </span>
+          )}
+        </div>
+      </SwipeTrack>
     </div>
   );
 }

@@ -1,0 +1,109 @@
+/* A: carousel used by the players */
+.swipe-track {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: inherit;
+  align-items: inherit;
+  gap: inherit;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.swipe-current,
+.swipe-neighbour {
+  display: flex;
+  flex-direction: inherit;
+  align-items: inherit;
+  gap: inherit;
+  width: 100%;
+  min-width: 0;
+}
+
+.swipe-neighbour {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.swipe-track.commit > div,
+.swipe-track.return > div {
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+/*
+ * Full screen player: cover and title travel together. The area bleeds over the side padding
+ * of the player, so that it clips at the screen edge and not through the shadow of the cover.
+ * The bleed must never exceed the free room at each side, or the player would scroll sideways.
+ */
+.np-swipe {
+  /* 22px is the padding of the player; wider screens have free room beside the 460px column.
+     The 240px leave a margin for a vertical scrollbar. */
+  --np-bleed: clamp(22px, calc(50vw - 240px), 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 0 calc(-1 * var(--np-bleed));
+  padding: 0 var(--np-bleed);
+  overflow-x: clip;
+  touch-action: pan-y;
+}
+
+.np-swipe .swipe-track {
+  overflow: visible;
+}
+
+/* The ring goes around the content: around the bled area it would fall off the screen. */
+.np-swipe:focus-visible {
+  outline: none;
+}
+
+.np-swipe:focus-visible .swipe-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The incoming card has a fixed height: without this its drawing would fill all of it. */
+.np-swipe .np-art {
+  height: auto;
+  object-fit: cover;
+}
+
+/* B: ring used by list rows; the row must be positioned */
+.swipe-ring {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 2;
+  width: 46px;
+  height: 46px;
+  margin-top: -23px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.swipe-ring-core {
+  position: absolute;
+  inset: 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--accent);
+}
+
+.swipe-ring.full .swipe-ring-core {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe-track.commit > div,
+  .swipe-track.return > div {
+    transition: none;
+  }
+}

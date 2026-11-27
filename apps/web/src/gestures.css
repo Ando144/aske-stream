@@ -1,36 +1,6 @@
-/* Swiping the mini player. Selectors are doubled because styles.css loads after this file. */
+/* Swiping the mini player. Doubled selector because styles.css loads after this file. */
 .mini-player .open-area {
   touch-action: pan-y;
-  transition: transform 0.18s ease-out;
-}
-
-.mini-player .open-area.dragging {
-  transition: none;
-}
-
-.mini-player .mini-swipe-hint {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
-  font-size: 14px;
-  pointer-events: none;
-}
-
-.mini-player .mini-swipe-hint.next {
-  right: 8px;
-}
-
-.mini-player .mini-swipe-hint.prev {
-  left: 8px;
 }
 
 /* A third row of selection actions needs the toasts higher up. */
