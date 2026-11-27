@@ -1450,20 +1450,6 @@ h2,
   background: var(--accent-soft);
 }
 
-.swipe-hint {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 18px;
-  border-radius: 10px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
-  font-size: 14px;
-}
-
 .select-mark {
   color: var(--accent);
   display: inline-flex;
@@ -1923,12 +1909,6 @@ h2,
 
 .dl-entries > * {
   flex-shrink: 0;
-}
-
-.dl-thumb-empty {
-  display: grid;
-  place-items: center;
-  color: var(--text-muted);
 }
 
 .link-btn {

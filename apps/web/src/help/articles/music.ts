@@ -16,6 +16,10 @@ export const musicArticles: HelpArticle[] = [
 2. Elige qué buscar: **Canciones** (de YouTube Music, con mejores títulos y carátulas), **Vídeos** o **Playlists**.
 3. Pulsa el botón de descarga. La canción entra en la cola y, al terminar, aparece en tu Biblioteca con su título, artista y carátula.
 
+Al final de los resultados, **Cargar más** trae los siguientes. Si sale «No hay más resultados», ya los has visto todos. A veces puede fallar, porque YouTube cambia a menudo: lo que ya ves se queda en pantalla; prueba otra vez en un momento o cambia la búsqueda.
+
+**Desde YouTube:** también puedes empezar en la app de YouTube o de YouTube Music: mira [[share-to-aske|Compartir → Aske Stream]].
+
 Puedes cerrar la app mientras descarga: las canciones seguirán bajando y verás el progreso en las notificaciones. Si te quedas sin cobertura, las descargas se pausan y siguen solas cuando vuelva; no tienes que hacer nada. Si descargas durante muchas horas seguidas con la app cerrada, Android puede pausarlas; verás un aviso y seguirán solas al abrir Aske Stream. Lo que se baje con la app cerrada se guarda en tu biblioteca cuando la vuelvas a abrir.
 
 La primera descarga tarda un poco más porque la app prepara el descargador.
@@ -32,6 +36,10 @@ Si pegas el enlace de una playlist en el móvil, puedes quitar canciones antes d
 1. Type a song, an artist or a playlist. You can also **paste a link** from YouTube or YouTube Music.
 2. Choose what to search: **Songs** (from YouTube Music, with better titles and covers), **Videos** or **Playlists**.
 3. Tap the download button. The song joins the queue and, when it finishes, appears in your Library with its title, artist and cover.
+
+At the end of the results, **Load more** brings the next ones. When it says “There are no more results”, you have seen them all. It can sometimes fail, because YouTube changes often: what you already see stays on screen; try again in a moment or change your search.
+
+**From YouTube:** you can also start in the YouTube or YouTube Music app: see [[share-to-aske|Share → Aske Stream]].
 
 You can close the app while it downloads: the songs keep coming and progress shows in your notifications. If you lose signal, downloads pause and carry on by themselves when it comes back; you do not need to do anything. If you download for many hours in a row with the app closed, Android may pause them; you will see a notice and they will carry on by themselves when you open Aske Stream. Whatever downloads while the app is closed is saved to your library when you open it again.
 
@@ -50,6 +58,10 @@ If you paste a playlist link on the phone, you can untick songs before downloadi
 2. Aukeratu zer bilatu: **Abestiak** (YouTube Musicetik, izenburu eta azal hobeekin), **Bideoak** edo **Zerrendak**.
 3. Sakatu deskargatzeko botoia. Abestia ilarara sartzen da eta, amaitzean, zure Liburutegian agertzen da bere izenburu, artista eta azalarekin.
 
+Emaitzen amaieran, **Kargatu gehiago** botoiak hurrengoak ekartzen ditu. «Ez dago emaitza gehiago» agertzen bada, denak ikusi dituzu. Batzuetan huts egin dezake, YouTube maiz aldatzen delako: ikusten dituzunak pantailan geratzen dira; saiatu berriro une batean edo aldatu bilaketa.
+
+**YouTubetik:** YouTube edo YouTube Music aplikazioan ere has zaitezke: ikusi [[share-to-aske|Partekatu → Aske Stream]].
+
 Deskargatzen ari den bitartean aplikazioa itxi dezakezu: abestiak jaisten jarraituko dute eta aurrerapena jakinarazpenetan ikusiko duzu. Estaldurarik gabe geratzen bazara, deskargak pausatu egiten dira eta bere kabuz jarraitzen dute estaldura itzultzean; ez duzu ezer egin beharrik. Aplikazioa itxita ordu askotan jarraian deskargatzen baduzu, Androidek pausatu ditzake; abisu bat ikusiko duzu eta bere kabuz jarraituko dute Aske Stream irekitzean. Aplikazioa itxita deskargatutakoa zure liburutegian gordetzen da berriro irekitzean.
 
 Lehen deskargak pixka bat gehiago irauten du, aplikazioak deskargatzailea prestatzen duelako.
@@ -61,6 +73,44 @@ Lehen deskargak pixka bat gehiago irauten du, aplikazioak deskargatzailea presta
 Dagoeneko dituzun abestiek «Baduzu» jartzen dute eta ez dira bi aldiz deskargatzen.
 
 Mugikorrean zerrenda baten esteka itsatsiz gero, abesti batzuk kendu ditzakezu deskargatu aurretik.`,
+    },
+  },
+  {
+    id: 'share-to-aske',
+    section: 'music',
+    title: {
+      es: 'Compartir → Aske Stream desde YouTube',
+      en: 'Share → Aske Stream from YouTube',
+      eu: 'Partekatu → Aske Stream YouTubetik',
+    },
+    body: {
+      es: `En la **app de Android** puedes mandar una canción a Aske Stream sin copiar ningún enlace.
+
+1. En **YouTube** o **YouTube Music**, abre la canción, el vídeo o la playlist.
+2. Pulsa **Compartir** y elige **Aske Stream**. Si no la ves, búscala en «Más» al final de la lista de aplicaciones.
+3. Con una canción o un vídeo, pulsa **Descargar**. Con una playlist, quita las canciones que no quieras y descárgalas.
+
+Qué enlaces valen: vídeos, canciones, Shorts y playlists de YouTube y YouTube Music. Si el enlace es una canción dentro de una lista, solo se descarga esa canción. Los Mix de YouTube, «Me gusta» y «Ver más tarde» no se pueden descargar como lista. Los enlaces de otras webs no sirven.
+
+Si aparece «No hemos podido ver el título», puedes descargarla igual. Si la descarga falla, mira [[downloader-update|cómo actualizar el descargador]]. Para listas largas, mira [[download-playlist|descargar una playlist entera]].`,
+      en: `In the **Android app** you can send a song to Aske Stream without copying any link.
+
+1. In **YouTube** or **YouTube Music**, open the song, video or playlist.
+2. Tap **Share** and choose **Aske Stream**. If you do not see it, look under “More” at the end of the list of apps.
+3. For a song or video, tap **Download**. For a playlist, untick the songs you do not want and download them.
+
+Which links work: videos, songs, Shorts and playlists from YouTube and YouTube Music. If the link is a song inside a list, only that song is downloaded. YouTube Mixes, “Liked videos” and “Watch later” cannot be downloaded as a list. Links from other websites do not work.
+
+If you see “We could not see the title”, you can still download it. If the download fails, see [[downloader-update|how to update the downloader]]. For long lists, see [[download-playlist|downloading a whole playlist]].`,
+      eu: `**Android aplikazioan** abesti bat Aske Streamera bidal dezakezu estekarik kopiatu gabe.
+
+1. **YouTube** edo **YouTube Music** aplikazioan, ireki abestia, bideoa edo zerrenda.
+2. Sakatu **Partekatu** eta aukeratu **Aske Stream**. Ikusten ez baduzu, bilatu aplikazioen zerrendaren amaierako «Gehiago» aukeran.
+3. Abesti edo bideo batekin, sakatu **Deskargatu**. Zerrenda batekin, kendu nahi ez dituzun abestiak eta deskargatu.
+
+Zein estekak balio duten: YouTube eta YouTube Musiceko bideoak, abestiak, Shorts-ak eta zerrendak. Esteka zerrenda baten barruko abesti bat bada, abesti hori bakarrik deskargatzen da. YouTubeko Mixak, «Gustuko bideoak» eta «Ikusteko geroago» ezin dira zerrenda gisa deskargatu. Beste webgune batzuetako estekek ez dute balio.
+
+«Ezin izan dugu izenburua ikusi» agertzen bada, hala ere deskarga dezakezu. Deskargak huts egiten badu, ikusi [[downloader-update|nola eguneratu deskargatzailea]]. Zerrenda luzeetarako, ikusi [[download-playlist|zerrenda oso bat deskargatzea]].`,
     },
   },
   {

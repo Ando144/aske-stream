@@ -13,6 +13,7 @@ import { downloadsEn } from './downloads';
 import { jamRemoteEn } from './jamRemote';
 import { groupListEn } from './groupList';
 import { groupLookEn } from './groupLook';
+import { youtubeMoreEn } from './youtubeMore';
 /** English is the source of truth: the other languages must define every key. */
 export const en = {
   'app.name': 'Aske Stream',
@@ -39,7 +40,6 @@ export const en = {
   'common.offlineBanner': 'No good connection: showing your downloaded music',
   'common.offlineBannerHint': 'We will try again by ourselves; you do not need to do anything.',
   'boot.loading': 'Opening Aske Stream…',
-  'boot.connecting': 'Looking for a connection…',
 
   'pair.title': 'Connect to your Cloudflare',
   'pair.subtitle':
@@ -580,7 +580,6 @@ export const en = {
   'queue.remove': 'Remove',
   'queue.drag': 'Drag to reorder',
   'toast.addedManyToQueue': '{count} songs added to the queue',
-  'swipe.queue': 'Add to queue',
   'select.start': 'Select',
   'select.count': '{count} selected',
   'select.all': 'Select all',
@@ -721,6 +720,7 @@ export const en = {
   ...groupListEn,
   ...groupLookEn,
   ...cloudflareSetupEn,
+  ...youtubeMoreEn,
 } as const;
 
 export type MessageKey = keyof typeof en;

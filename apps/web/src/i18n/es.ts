@@ -14,6 +14,7 @@ import { downloadsEs } from './downloads';
 import { jamRemoteEs } from './jamRemote';
 import { groupListEs } from './groupList';
 import { groupLookEs } from './groupLook';
+import { youtubeMoreEs } from './youtubeMore';
 
 export const es: Messages = {
   'app.name': 'Aske Stream',
@@ -40,7 +41,6 @@ export const es: Messages = {
   'common.offlineBanner': 'Sin buena conexión: mostrando tu música descargada',
   'common.offlineBannerHint': 'Lo volveremos a intentar solos; no tienes que hacer nada.',
   'boot.loading': 'Abriendo Aske Stream…',
-  'boot.connecting': 'Buscando conexión…',
 
   'pair.title': 'Conectar con tu Cloudflare',
   'pair.subtitle':
@@ -591,7 +591,6 @@ export const es: Messages = {
   'queue.remove': 'Quitar',
   'queue.drag': 'Arrastra para reordenar',
   'toast.addedManyToQueue': '{count} canciones añadidas a la cola',
-  'swipe.queue': 'Añadir a la cola',
   'select.start': 'Seleccionar',
   'select.count': '{count} seleccionadas',
   'select.all': 'Seleccionar todas',
@@ -736,4 +735,5 @@ export const es: Messages = {
   ...groupListEs,
   ...groupLookEs,
   ...cloudflareSetupEs,
+  ...youtubeMoreEs,
 };

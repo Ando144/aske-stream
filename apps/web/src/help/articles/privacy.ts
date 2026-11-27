@@ -17,6 +17,8 @@ export const privacyArticles: HelpArticle[] = [
 
 Aske Stream no tiene anuncios, no vende datos y no envía tu música a nadie. La app solo habla con tu Google Drive o tu Cloudflare, con YouTube (para buscar y descargar), con el catálogo de radios y con GitHub (para buscar actualizaciones).
 
+**Miniaturas de YouTube:** las imágenes de canciones que no están en tu biblioteca (en una Jam, una lista compartida, «Enviar», la búsqueda o al compartir desde YouTube) las pide tu aparato directamente a YouTube/Google, así que ellos ven tu dirección de internet (IP) y qué vídeo se muestra, como al ver una miniatura en su web. Al compartir una canción con la app, el título también se pide a YouTube. Las portadas de tu biblioteca y los dibujos ámbar no salen de tu aparato.
+
 **Grupos de amigos:** si entras en un grupo, el Hub guarda tu apodo y, si alguien la pone, la foto del grupo (la ven el grupo y quien tenga un código de invitación que siga valiendo). Si además activas «Compartir mis escuchas con mis grupos», guarda tus minutos y tus tops de cada mes durante 12 meses, y solo los ve la gente de tus grupos. Nunca guarda música, email, canciones saltadas, radio ni podcasts. Puedes apagarlo o usar **Borrar todos mis datos de grupos** cuando quieras. Mira [[friend-groups|Grupos de amigos]].
 
 Si crees que alguien tiene tu clave, quien montó el servidor puede cambiarla: todos los dispositivos tendrán que conectarse otra vez.`,
@@ -27,6 +29,8 @@ Si crees que alguien tiene tu clave, quien montó el servidor puede cambiarla: t
 
 Aske Stream has no ads, sells no data and sends your music to nobody. The app only talks to your Google Drive or your Cloudflare, to YouTube (to search and download), to the radio catalogue and to GitHub (to check for updates).
 
+**YouTube thumbnails:** pictures of songs that are not in your library (in a Jam, a shared list, “Send”, search or when sharing from YouTube) are requested by your device straight from YouTube/Google, so they see your internet address (IP) and which video is shown, as when you see a thumbnail on their website. When you share a song with the app, its title is also requested from YouTube. Your library covers and the amber drawings never leave your device.
+
 **Friend groups:** if you join a group, the Hub keeps your nickname and, if someone adds one, the group photo (seen by the group and anyone with an invitation code that still works). If you also turn on “Share my listening with my groups”, it keeps your minutes and monthly tops for 12 months, and only the people in your groups see them. It never stores music, email, skipped songs, radio or podcasts. You can turn it off or use **Delete all my group data** whenever you want. See [[friend-groups|Friend groups]].
 
 If you think someone has your key, whoever set up the server can change it: every device will have to connect again.`,
@@ -36,6 +40,8 @@ If you think someone has your key, whoever set up the server can change it: ever
 - **Zure Cloudflaren**: zure kontu propioan dago, biltegi pribatu batean. Zure gakoa duten mugikor edo ordenagailuak bakarrik sartzen dira. Ezer ez da publikoa.
 
 Aske Streamek ez du iragarkirik, ez du daturik saltzen eta ez dio inori zure musika bidaltzen. Aplikazioak zure Google Drive edo Cloudflarerekin, YouTuberekin (bilatu eta deskargatzeko), irrati-katalogoarekin eta GitHubekin (eguneraketak bilatzeko) bakarrik hitz egiten du.
+
+**YouTubeko miniaturak:** zure liburutegian ez dauden abestien irudiak (Jam batean, partekatutako zerrenda batean, «Bidali» atalean, bilaketan edo YouTubetik partekatzean) zure gailuak zuzenean eskatzen dizkio YouTube/Googleri; beraz, haiek zure Interneteko helbidea (IP) eta zein bideo erakusten den ikusten dute, haien webgunean miniatura bat ikustean bezala. Abesti bat aplikazioarekin partekatzean, izenburua ere YouTuberi eskatzen zaio. Zure liburutegiko azalak eta anbar koloreko marrazkiak ez dira zure gailutik ateratzen.
 
 **Lagunen taldeak:** talde batean sartzen bazara, Hub-ak zure ezizena gordetzen du eta, norbaitek jartzen badu, taldearen argazkia (taldeak eta oraindik balio duen gonbidapen-kode bat duenak ikusten dute). Gainera «Partekatu nire entzunaldiak nire taldeekin» aktibatzen baduzu, hilabete bakoitzeko minutuak eta goiko zerrendak gordetzen ditu 12 hilabetez, eta zure taldeetako lagunek bakarrik ikusten dituzte. Ez ditu inoiz gordetzen musika, posta elektronikoa, saltatutako abestiak, irratia edo podcastak. Itzali dezakezu edo **Ezabatu nire taldeen datu guztiak** erabil dezakezu nahi duzunean. Ikusi [[friend-groups|Lagunen taldeak]].
 

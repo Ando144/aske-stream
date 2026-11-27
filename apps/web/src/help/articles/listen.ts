@@ -30,7 +30,9 @@ En la biblioteca, el botón **Ordenar** cambia el orden de la lista (recientes, 
 
 **Repetir** (el botón de la derecha): cada pulsación cambia de modo. Sin repetir: al acabar la lista, la música para. Repetir lista: al acabar, vuelve a empezar. Repetir canción (el icono lleva un «1»): suena la misma una y otra vez.
 
-**Cambiar de canción con el dedo** (en el móvil): sobre la barra pequeña del reproductor, desliza a la **izquierda** para pasar a la siguiente y a la **derecha** para volver a la anterior. Si la tocas sin deslizar, se abre el reproductor grande. Si organizas una [[jam|Jam]] y está sonando una de sus canciones, deslizar a la izquierda la salta y a la derecha no hace nada.`,
+**Cambiar de canción con el dedo** (en el móvil): sobre la barra pequeña del reproductor, o sobre la portada y el título del reproductor grande, desliza a la **izquierda** para pasar a la siguiente y a la **derecha** para volver a la anterior. La otra canción entra pegada a tu dedo, así ves cuál es: si sueltas antes de tiempo, se queda la que sonaba. Si tocas la barra pequeña sin deslizar, se abre el reproductor grande. Si organizas una [[jam|Jam]] y está sonando una de sus canciones, deslizar a la izquierda la salta y a la derecha no hace nada.
+
+**Añadir a la cola con el dedo**: en una lista, desliza una canción hacia la derecha. Aparece un círculo que va creciendo; cuando se rellena de color ámbar, suelta. Si estás conectado a una Jam, la canción va a la Jam.`,
       en: `Open the player full screen and scroll down: you see two lists.
 
 - **Queue**: songs you add with “Add to queue” or by swiping a song to the right. They always play first.
@@ -51,7 +53,9 @@ In the library, the **Sort** button changes the order of the list (recent, title
 
 **Repeat** (the button on the right): each tap changes the mode. No repeat: music stops at the end of the list. Repeat list: it starts again when it ends. Repeat song (the icon has a “1”): the same song plays again and again.
 
-**Change song with your finger** (on a phone): on the small player bar, swipe **left** to go to the next one and **right** to go back to the previous one. Tapping it without swiping opens the full player. If you are hosting a [[jam|Jam]] and one of its songs is playing, swiping left skips it and swiping right does nothing.`,
+**Change song with your finger** (on a phone): on the small player bar, or on the cover and title of the full player, swipe **left** to go to the next one and **right** to go back to the previous one. The other song slides in with your finger, so you see which one it is: if you let go too early, the current one stays. Tapping the small bar without swiping opens the full player. If you are hosting a [[jam|Jam]] and one of its songs is playing, swiping left skips it and swiping right does nothing.
+
+**Add to the queue with your finger**: in a list, swipe a song to the right. A circle appears and grows; when it fills with amber, let go. If you are connected to a Jam, the song goes to the Jam.`,
       eu: `Ireki erreproduzitzailea handian eta jaitsi: bi zerrenda ikusiko dituzu.
 
 - **Ilara**: zuk «Gehitu ilarara» erabiliz edo abesti bat eskuinera irristatuz gehitzen dituzunak. Beti lehenik entzuten dira.
@@ -72,7 +76,9 @@ Liburutegian, **Ordenatu** botoiak zerrendaren ordena aldatzen du (berrienak, iz
 
 **Errepikatu** (eskuineko botoia): sakatzen duzun bakoitzean modua aldatzen da. Errepikatu gabe: zerrenda bukatzean, musika gelditu egiten da. Errepikatu zerrenda: bukatzean, berriro hasten da. Errepikatu abestia (ikonoak «1» bat du): abesti bera behin eta berriz entzuten da.
 
-**Abestia hatzarekin aldatu** (mugikorrean): erreproduzitzailearen barra txikiaren gainean, irristatu **ezkerrera** hurrengora pasatzeko eta **eskuinera** aurrekora itzultzeko. Irristatu gabe ukituz gero, erreproduzitzaile handia irekitzen da. [[jam|Jam]] bat antolatzen ari bazara eta bertako abesti bat entzuten ari bada, ezkerrera irristatzeak saltatu egiten du eta eskuinera irristatzeak ez du ezer egiten.`,
+**Abestia hatzarekin aldatu** (mugikorrean): erreproduzitzailearen barra txikiaren gainean, edo erreproduzitzaile handiko azalaren eta izenburuaren gainean, irristatu **ezkerrera** hurrengora pasatzeko eta **eskuinera** aurrekora itzultzeko. Beste abestia hatzari itsatsita sartzen da, zein den ikus dezazun: goizegi askatzen baduzu, entzuten ari zinena geratzen da. Barra txikia irristatu gabe ukituz gero, erreproduzitzaile handia irekitzen da. [[jam|Jam]] bat antolatzen ari bazara eta bertako abesti bat entzuten ari bada, ezkerrera irristatzeak saltatu egiten du eta eskuinera irristatzeak ez du ezer egiten.
+
+**Hatzarekin ilarara gehitu**: zerrenda batean, irristatu abesti bat eskuinera. Hazten doan zirkulu bat agertzen da; anbar kolorez betetzen denean, askatu. Jam batera konektatuta bazaude, abestia Jam-era doa.`,
     },
   },
   {

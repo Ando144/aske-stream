@@ -14,6 +14,7 @@ import { downloadsEu } from './downloads';
 import { jamRemoteEu } from './jamRemote';
 import { groupListEu } from './groupList';
 import { groupLookEu } from './groupLook';
+import { youtubeMoreEu } from './youtubeMore';
 
 export const eu: Messages = {
   'app.name': 'Aske Stream',
@@ -40,7 +41,6 @@ export const eu: Messages = {
   'common.offlineBanner': 'Konexio onik ez: deskargatutako musika erakusten',
   'common.offlineBannerHint': 'Berriro saiatuko gara geure kabuz; ez duzu ezer egin behar.',
   'boot.loading': 'Aske Stream irekitzen…',
-  'boot.connecting': 'Konexioa bilatzen…',
 
   'pair.title': 'Konektatu zure Cloudflarera',
   'pair.subtitle':
@@ -591,7 +591,6 @@ export const eu: Messages = {
   'queue.remove': 'Kendu',
   'queue.drag': 'Arrastatu ordena aldatzeko',
   'toast.addedManyToQueue': '{count} abesti ilarara gehituta',
-  'swipe.queue': 'Gehitu ilarara',
   'select.start': 'Hautatu',
   'select.count': '{count} hautatuta',
   'select.all': 'Hautatu denak',
@@ -735,4 +734,5 @@ export const eu: Messages = {
   ...groupListEu,
   ...groupLookEu,
   ...cloudflareSetupEu,
+  ...youtubeMoreEu,
 };
