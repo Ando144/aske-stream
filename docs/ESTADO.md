@@ -21,6 +21,7 @@ Actualizado: 2026-11-28
 - Drive `drive.file`, yt-dlp en el móvil, Opus sin recodificar; Cloudflare tope 10 GB, playlists de 1000; estadísticas solo con permiso (RGPD). Aleatorio: orden fijo por semilla; solo «Barajar de nuevo» lo cambia. Serie de podcast = `album` (evita migraciones). Más de 95 MB (o 30-95 MB tras 2 fallos) van a `local-extras`; nada debe bloquear la cola.
 - Jam: saltan todos, sin confirmación, 1 cada 2 s; ejecuta el anfitrión — así lo eligió Andoni. Grupos: cualquiera cambia nombre y foto; las tarjetas solo cuentan a quien comparte (RGPD).
 - Cada subida a Cloudflare lleva un `uploadId` (se renueva al reintentar) y cancelar borra solo ese — nunca tocar música ajena. Con un Worker antiguo la cancelación queda pendiente y, al actualizarlo, lleva la pista `ref`/`since` (mismo vídeo de YouTube, sin `uploadId`, creado desde 10 min antes de empezar a guardar); se descarta si esa canción se vuelve a guardar o sale repetida — aprobado por Andoni.
+- Dependabot no propone versiones mayores de `@types/node` (deben seguir al Node mínimo, el 22) ni de `gradle-wrapper` (se actualiza a mano junto al plugin de Android y Capacitor). La CI de las PR no compila Android: antes de aceptar una de Gradle, compilar el APK.
 - La animación de arranque es igual aunque el móvil tenga «Reducir movimiento» — elegido por Andoni.
 
 ## Problemas conocidos

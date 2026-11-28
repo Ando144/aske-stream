@@ -8,6 +8,10 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore
+    ignore:
+      # Types must match the oldest Node the project supports (see "engines").
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       npm-minor-and-patch:
         patterns: ['*']
@@ -32,6 +36,10 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore
+    ignore:
+      # A new major Gradle has to be upgraded by hand, with the Android plugin and Capacitor.
+      - dependency-name: 'gradle-wrapper'
+        update-types: ['version-update:semver-major']
     groups:
       gradle-minor-and-patch:
         patterns: ['*']
