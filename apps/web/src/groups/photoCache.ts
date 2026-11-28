@@ -44,10 +44,15 @@ async function download(key: string, src: PhotoSource, entry: () => Entry | unde
   }
 }
 
+/** A hub that has not been updated yet does not send `photoAt` at all. */
+function knownVersion(photoAt: unknown): number | null {
+  return typeof photoAt === 'number' ? photoAt : null;
+}
+
 export function loadGroupPhoto(src: PhotoSource): Promise<string | null> {
   const key = cacheKey(src);
   if (!key) return Promise.resolve(null);
-  const { photoAt } = src;
+  const photoAt = knownVersion(src.photoAt);
   const cached = cache.get(key);
   if (cached && cached.photoAt === photoAt) return cached.loading;
   drop(key);
@@ -64,7 +69,9 @@ function cachedUrl(src: PhotoSource): string | null {
 }
 
 /** URL to show the photo, or null while it loads or when there is none. */
-export function useGroupPhotoUrl({ groupId, inviteCode, photoAt }: PhotoSource): string | null {
+export function useGroupPhotoUrl(src: PhotoSource): string | null {
+  const { groupId, inviteCode } = src;
+  const photoAt = knownVersion(src.photoAt);
   const version = `${groupId ?? ''}|${inviteCode ?? ''}|${photoAt ?? ''}`;
   const [loaded, setLoaded] = useState<{ version: string; url: string | null } | null>(null);
 
