@@ -79,9 +79,23 @@ async function startWorker() {
   throw new Error('Worker did not start');
 }
 
-function stop() {
-  if (child) child.kill();
-  if (persistDir) rmSync(persistDir, { recursive: true, force: true });
+async function stopWorker() {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((done) => child.once('exit', done));
+  // On Windows kill() only ends the cmd.exe shell and leaves wrangler and workerd running.
+  if (isWin) spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  else child.kill();
+  await Promise.race([exited, sleep(5000)]);
+}
+
+async function stop() {
+  await stopWorker();
+  if (!persistDir) return;
+  try {
+    rmSync(persistDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch (err) {
+    console.warn(`Could not delete the temporary folder ${persistDir}: ${err.message}`);
+  }
 }
 
 let cookie = '';
@@ -562,13 +576,18 @@ async function main() {
   return failed;
 }
 
+process.on('SIGINT', async () => {
+  await stop();
+  process.exit(130);
+});
+
 main()
-  .then((failed) => {
-    stop();
+  .then(async (failed) => {
+    await stop();
     process.exit(failed ? 1 : 0);
   })
-  .catch((err) => {
+  .catch(async (err) => {
     console.error(err);
-    stop();
+    await stop();
     process.exit(1);
   });
