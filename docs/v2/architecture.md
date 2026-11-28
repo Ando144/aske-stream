@@ -117,6 +117,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 9.2 | v0.9.4: Jam as a remote control for everyone, group name and photo                                          | ✅     |
 | 9.3 | v0.9.5: pictures everywhere, swipe preview, logo-only start, "Share → Aske Stream", "Load more"             | ✅     |
 | 9.4 | v0.9.6: known bugs fixed (safe download cancel, single share notice, narrow screens, library store split)   | ✅     |
+| 9.5 | v0.9.7: animated logo at start, pending cancel clean-ups, tolerant migrations                               | ✅     |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
 two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,
@@ -206,3 +207,8 @@ finger, and rows show a ring that fills when the song will be queued. The start 
 logo. The Android app accepts YouTube links from the share menu, and YouTube search can load more
 pages (the Hub and the Worker pass a continuation token; no migrations). Pending: publishing and a
 test of the APK on a real phone.
+
+Phase 9.5 notes: v0.9.7 draws the logo while the app loads (CSS in `index.html`, an equalizer if
+loading is slow) and hides the native Android icon. A cancel that cannot be completed (no network,
+old Worker, a Drive file that arrives late) is noted and retried, and a half-applied migration no
+longer blocks the server update. Published; pending: a test on a real phone.
