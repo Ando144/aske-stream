@@ -116,6 +116,7 @@ Average song ≈ 3.5 min ≈ **4 MB** (YouTube's Opus audio, stored without re-e
 | 9.1 | v0.9.3 daily use: unstuck downloads, phone-only big audio, podcast shows, fixed shuffle, gestures, Jam      | ✅     |
 | 9.2 | v0.9.4: Jam as a remote control for everyone, group name and photo                                          | ✅     |
 | 9.3 | v0.9.5: pictures everywhere, swipe preview, logo-only start, "Share → Aske Stream", "Load more"             | ✅     |
+| 9.4 | v0.9.6: known bugs fixed (safe download cancel, single share notice, narrow screens, library store split)   | ✅     |
 
 Done between phases 1 and 2 (owner feedback): bulk selection and "Add songs" picker, queue with
 two sections and drag & drop, swipe to queue, playlist reordering, Podcasts section (resume,

@@ -35,15 +35,13 @@ radio en directo, podcasts y caché sin conexión que se renueva sola.
 - Tests sueltos: `npx vitest run <archivo> --root apps/web`. Nunca `vitest -w` ni modo watch: deja procesos colgados.
 - Tests de navegador: ver `apps/web/test/browser/README.md`. Build como si fuera Android: `npm run build -w @aske/web -- --mode fakenative`
   (con `npx vite build … -w` Vite entiende `-w` como watch y se queda colgado); después reconstruye el dist normal.
-  Tras `npm run test:e2e` en Windows pueden quedar wrangler/workerd colgados: ciérralos.
   Cambia `src/native/*` por `apps/web/test/fake-native/*`.
   Si Python no tiene Playwright, instálalo en un venv temporal y usa `CHROME_PATH` (Chrome instalado).
 - APK: `npm run android:apk` (necesita ANDROID_HOME y `.secrets/keystore.properties`).
-  En Windows necesita JDK 21 (p. ej. `JAVA_HOME` = `C:\Program Files\Android\Android Studio\jbr`, no el Java 8 global) y `ANDROID_HOME` = `%LOCALAPPDATA%\Android\Sdk`. Si `gradle.mjs` falla con «gradlew.bat no se reconoce», ejecuta `.\gradlew.bat assembleRelease` en `apps/mobile/android`. La primera vez tarda ~5 min; después ~1,5 min.
+  En Windows necesita JDK 21 (p. ej. `JAVA_HOME` = `C:\Program Files\Android\Android Studio\jbr`, no el Java 8 global) y `ANDROID_HOME` = `%LOCALAPPDATA%\Android\Sdk`. La primera vez tarda ~5 min; después ~1,5 min.
 - Publicar web: `npm run deploy`. Migraciones en producción: `npm run db:migrate:remote`.
   Si cambió el hub, antes que la web: `npm run hub:migrate:remote` y `npm run deploy:hub`.
-  La versión se cambia con `node`, no con `sed`. En Windows `test:e2e` sale con código 1 por el
-  EPERM de `smoke.mjs`: vale si dice que pasan todas las comprobaciones.
+  La versión se cambia con `node`, no con `sed`.
 - Release Android: subir la versión en los 7 `package.json` y en `package-lock.json`, añadir
   `docs/releases/vX.Y.Z.md`, hacer `git push` y después el tag `vX.Y.Z`. CI construye y publica los APK.
 

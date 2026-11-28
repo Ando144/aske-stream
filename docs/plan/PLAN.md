@@ -1,436 +1,437 @@
-# PLAN: v0.9.5 (fase 9.3): portadas en todas partes, deslizar más bonito, carga solo con logo, «Compartir → Aske Stream» y «Cargar más»
+# PLAN: v0.9.6, arreglar todos los problemas conocidos
 
-Fecha: 2026-11-27 · Estado: COMPLETADO · Decisiones: DEFINITIVAS (salvo «Dudas abiertas»)
-
-## Historial (resumen)
-
-- **v0.9.3** (`ff1905d`): descargas cancelables por carriles, `local-extras`, podcasts por serie, aleatorio de orden fijo, gestos del mini reproductor.
-- **v0.9.4** (`7f879b5`, hub con migración 0005): Jam como mando a distancia y barra de la Jam, Grupos (boceto A) con «Nombre y foto», arreglos (huérfanos al cancelar, Ordenar con teclado, «Seleccionar» en carpetas, «zerrenda»). Detalle en `docs/releases/v0.9.4.md`.
-- El borrador antiguo de la «Fase 3» queda sustituido por este plan.
+Fecha: 2026-11-27 · Estado: COMPLETADO
 
 ## Objetivo
 
-Publicar **v0.9.5** con: (1) portada o dibujo al lado de **cada** nombre de canción o playlist en listas, menús, hojas, cola, descargas, búsqueda, grupos y reproductores; (2) deslizar con estilo «A en reproductores (carrusel), B en listas (círculo)» según `docs/plan/bocetos/deslizar.html`; (3) pantalla de carga solo con el logo, que palpita si tarda más de 1 s; (4) «Compartir → Aske Stream» en Android y (5) «Cargar más» en la búsqueda de YouTube.
-
-## Decisiones de Andoni (vigentes)
-
-| Tema                      | Decisión                                                                                                                                                                                                  |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sin portada real          | Dibujo ámbar propio, sin conexión: tonos ámbar + icono (nota = canción, lista = playlist, micrófono = podcast); varía según el nombre                                                                     |
-| Playlist sin foto elegida | Mosaico de 4 portadas de sus canciones; una sola si tiene menos de 4. La foto elegida manda                                                                                                               |
-| Canciones que no tienes   | Miniatura pública de YouTube si hay id; si no, dibujo ámbar. No se suben portadas al Hub                                                                                                                  |
-| Deslizar                  | A (carrusel) en mini reproductor, pantalla grande y barra de la Jam; B (círculo ámbar con icono) en filas de listas. Mismo gesto y misma acción que hoy. Desaparece el botón/texto «Siguiente»/«Anterior» |
-| Carga                     | Solo el logo, sin letras ni botones; palpita suave si tarda más de 1 s; misma lógica de sin conexión que hoy                                                                                              |
-| Compartir                 | Vídeos y playlists de YouTube / YouTube Music; otros textos → aviso claro. Ficha con portada, título y «Descargar». App cerrada y abierta                                                                 |
-| Cargar más                | Botón al final de los resultados (continuación de InnerTube); si falla, mensaje claro                                                                                                                     |
-| TDD                       | Por tarea (sí en lógica, no en interfaz simple)                                                                                                                                                           |
-| Publicar                  | Tras aprobar la revisión, todo sin volver a preguntar                                                                                                                                                     |
-
-## Diagnóstico (con archivo y línea)
-
-- **Portadas hoy:** `Cover.tsx:38-44` y `SongThumb.tsx:14-19` caen a un icono gris de nota; `PlaylistArt.tsx:40-51` solo hace mosaico si hay 4 canciones **con** portada y, si no, un icono `ListMusic`. `PlaylistPicker.tsx:43-62` (icono), `DownloadQueue.tsx:147-153` y `DownloadView.tsx:332-338` (`<img>` sin plan B).
-- **Sitios con nombre y SIN imagen (inventario):** `AddToPlaylistSheet.tsx:53-56` (icono `ListMusic`), `Nav.tsx:95-102` (playlists del menú lateral), `study/SourcePicker.tsx:35-47` (`<select>`, no admite imágenes), `downloads/PickList.tsx:47-52` (canciones de una playlist de YouTube), `send/ParcelPanel.tsx:17-20` (cesta de «Enviar»), `send/ParcelSheet.tsx:43` (nombre del paquete), `SharedListView.tsx:68` (cabecera de lista compartida), `groups/GroupShares.tsx:62-69` (playlists y Jams compartidas), `groups/GroupRanking.tsx:22`, `groups/MemberTops.tsx:20-21`, `groups/MonthSummary.tsx:131-137`, `stats/RecapCards.tsx:27-31`, `PodcastsView.tsx:93-101` (episodios), `podcasts/ShowPickSheet.tsx:100` (series).
-- **Sitios que ya tienen imagen (heredan el dibujo ámbar al cambiar `Cover`/`SongThumb`/`PlaylistArt`):** `TrackList`, `TrackMenu`, `QueuePanel`, `OfflineView`, `PlaylistView` (cabecera y filas), `PlaylistsView`, `PlaylistMenu`, `PlaylistMenuParts:133`, `GroupShares` (selector), `JamAddSheet`, `JamQueue`, `JamBar`, `Outbox`, `ParcelSheet` (`SongRows`), `MiniPlayer`, `PlayerBar`, `NowPlaying`, `PodcastsView` (cabecera de serie).
-- **Fuera del alcance (supuesto):** carpetas (`FolderView`, `FolderMenu`, `PlaylistMenuParts:103`) porque no son playlists (siguen con su icono); nombres dentro de frases (avisos, confirmaciones, ayuda) y `<title>` de hojas (`aria-label`).
-- **Qué ids transmite el Hub:** Jam (`JamItemView.song.videoId`), listas compartidas (`SharedList.songs[].videoId`) y «Enviar» (`HubSong.videoId`) **sí**. **No:** estadísticas de grupos (`MonthTopTrack`, `RankedTrack` en `packages/shared/src/groups.ts:77-105`, solo título y artista) ni `GroupShare` (`groups.ts:118-128`, solo `title` y `ref`). Para ellas: portada de **tu** biblioteca si coincide título + artista; si no, dibujo ámbar (ver Dudas).
-- **Recap local:** `stats/recap.ts:18-23` (`TopTrack`) no guarda `trackId`; se usa la misma búsqueda por título + artista.
-- **Deslizar hoy:** `useSwipe` y `SwipeHint` viven en `components/jam/JamBar.tsx:17-89` y los usan `MiniPlayer.tsx:32-35,60` y `JamBar.tsx:98-140`; la etiqueta «Siguiente/Anterior» es `.mini-swipe-hint` (`gestures.css:11-34`). Filas: `TrackList.tsx:99-177` (texto «Añadir a la cola» en `.swipe-hint`). La pantalla grande (`NowPlaying.tsx`) **no** tiene gesto; la barra de progreso (`SeekBar`) está fuera de la portada, así que el gesto va solo en portada + título.
-- **Vecina para el carrusel:** el orden está en `stores/player.ts` (`step` 242-258, `previous` 395-411) con `nextIndex`/`previousIndex` de `player/queue.ts`; la radio usa `stationAt` (`player/radioEngine.ts:21`); la Jam, `snapshot.queue[0]`.
-- **Carga:** `BootSplash.tsx:70-72` muestra «Buscando conexión…» a los 1,5 s; el logo se dibuja y palpita desde 1,8 s (`boot.css:16-20`). `index.html:18` tiene un `div.boot-splash` vacío sin estilos hasta que carga el JS. **No hay ningún botón de escape** en la carga: tras `BOOT_MAX_WAIT_MS` (5 s) entra igualmente en modo sin conexión (`lib/boot.ts:17-27`), así que quitar textos no deja a nadie atascado. El splash nativo de Android 12+ ya es solo el logo (`styles.xml:20-25`, `ic_launcher_foreground.png`, sin letras).
-- **Compartir:** el manifiesto solo tiene `MAIN/LAUNCHER` (`AndroidManifest.xml:21-24`); `@capacitor/app` no entrega `ACTION_SEND`, así que hace falta un plugin propio. `MainActivity` es `singleTask` (llega `onNewIntent` con la app abierta).
-- **Buscar:** tres caminos: móvil (`native/downloader.ts:80-115`, InnerTube directo con plan B yt-dlp), Hub (`hub/client.ts:157-165` → `apps/hub/src/routes/search.ts` → `lib/search.ts`) y Cloudflare del amigo (`api/client.ts:208` → `apps/api/src/routes/youtube.ts:71-84`). Ninguno devuelve token de continuación. `parsePlaylistPage` ya sabe leer tokens (`youtube.ts:438-483`).
-- **Archivos grandes:** `DownloadView.tsx` (545 líneas) → «Cargar más» saca la búsqueda a archivos propios.
+Arreglar los fallos de «Problemas conocidos» de `docs/ESTADO.md` y publicar la v0.9.6:
+3 visibles (dos avisos al compartir, flechas en `SourcePicker`, título de Biblioteca a 390 px),
+4 de datos (cancelar borra solo lo propio, también si la subida acaba tarde; foto sin
+`Content-Length` en el hub; fotos pedidas a un hub viejo) y limpieza (partir `stores/library.ts`,
+quitar el import circular, `.pyc`, `smoke.mjs` y `gradle.mjs` en Windows).
+Fuera de alcance: la verificación de memoria pendiente de la v0.9.3.
 
 ## Decisiones de arquitectura
 
-- **Un único componente de dibujo** `GeneratedArt` (SVG/CSS, sin red) con colores deterministas por semilla dentro de la gama ámbar (no es un tema nuevo). `Cover`, `SongThumb` y `PlaylistArt` lo usan como plan B, así casi todo hereda el cambio sin tocar cada pantalla.
-- **Estadísticas y Recap sin id:** `StatTrackArt` busca en la biblioteca propia por título + artista normalizados (índice cacheado por objeto `tracks`) — sin cambiar el Hub ni compartir más datos.
-- **Miniaturas de YouTube** siempre con `referrerPolicy="no-referrer"`, `loading="lazy"` y caída al dibujo si fallan o no hay red. Se documenta en `PRIVACY.md`.
-- **Deslizar:** la lógica pura (umbral, progreso, desplazamiento de la vecina) va en `lib/swipe.ts`; el gancho `useSwipe` se mueve a `components/gestures/useSwipe.ts` y gana fase de «confirmar» (la tarjeta sale y entra la vecina, 200 ms; 0 ms con reduced-motion) y flechas del teclado. `SwipeTrack` dibuja la actual y la vecina; `SwipeRing` el círculo de las listas.
-- **Vecina pura** en `player/neighbours.ts`, que imita `step(true)` y `previous({ skipRestart: true })`; si no se puede saber (fin de lista con aleatorio que se rebaraja) devuelve `null` y el gesto se permite igual, sin vecina dibujada.
-- **Carga:** sin animación de trazo; el mismo logo estático en `index.html` (CSS en línea, permitido por la CSP), en `BootSplash` y en el splash nativo, para que no haya saltos. Clase `pulsing` a partir de 1 s.
-- **Compartir:** plugin nuevo `ShareTarget` (Java) que guarda el texto pendiente (app cerrada) y lo emite con `notifyListeners(..., true)` (app abierta). El análisis del texto es puro (`share/sharedLink.ts`). La ficha se monta en `Shell` (`App.tsx`), así que si la app aún no está configurada el enlace espera. El título del vídeo se pide al oEmbed público de YouTube con `CapacitorHttp`; si falla, se descarga igual. Las playlists reutilizan `PlaylistPicker`.
-- **Cargar más:** `buildSearchRequest(..., continuation?)` y `parseSearchPage` en `packages/shared`; el Hub y la API devuelven `{ results, continuation }`. Servidores viejos no mandan `continuation` → no se ve el botón (compatible). El plan B yt-dlp no tiene continuación.
-- **Textos:** un módulo i18n nuevo `i18n/youtubeMore.ts` (T1). Las claves que dejan de usarse se borran al final (T13) para no romper tareas en paralelo.
-- **Despliegue:** cambia el Hub (búsqueda) → `npm run deploy:hub` sin migración. Cambia `apps/api` (búsqueda) → cada amigo actualiza su servidor con el aviso de siempre; sin migraciones D1.
+- Cloudflare: cada subida lleva un `uploadId` (= `job.id`) y el Worker guarda una «lápida» al
+  cancelar. Así se borra solo la canción creada por esa descarga y una subida que llega tarde se
+  descarta sola, sin barridos por vídeo — el barrido actual compara por `videoId` y puede borrar
+  lo de otro aparato (fallo A) y no ve lo que llega después de 60 s (fallo B).
+- La lápida y el `INSERT` van en `db.batch` (transacción de D1): o la canción se inserta antes y
+  la cancelación la borra, o la lápida llega antes y el `INSERT` no ocurre. Sin carreras.
+- Worker viejo (sin el endpoint): no se borra nada (nunca tocar lo ajeno) y se marca el servidor
+  como desactualizado (`useServerUpdate.markOutdated()`), que ya invita a actualizarlo. El Worker
+  viejo ignora el campo `uploadId` (zod quita las claves desconocidas): subir sigue funcionando.
+- Las cancelaciones que no llegan al Worker (sin internet) se guardan en `localStorage` y se
+  reintentan al abrir la app y al volver internet, durante 30 días.
+- Drive: se elimina el barrido. La ficha de la biblioteca la escribe el propio móvil y solo si
+  no se canceló; si se escribió, `discardSaved` borra exactamente esa id. Para el archivo de audio
+  que Google pudo completar tras cancelar, se cancela la sesión de subida (DELETE) y, si ya estaba
+  completa, se borra ese archivo concreto.
+- Al quitar el barrido, `downloads/cancel.ts` ya no necesita `stores/downloads` y desaparece el
+  import circular. Se borra `downloads/orphans.ts`.
+- `stores/library.ts` se parte en módulos con fábricas de acciones; la ruta pública
+  (`useLibrary`, `useAllTracks`) no cambia, para no tocar a los que la usan ni los `vi.mock`.
+- Al compartir un vídeo se queda solo el aviso de la hoja: `enqueue` gana la opción `quiet`.
+- Flechas en `SourcePicker`: patrón ARIA de radio (tabindex móvil, la flecha mueve el foco y
+  elige), con una función pura nueva en `lib/radioKeys.ts`.
+- Migración: SÍ, `apps/api/migrations/0008_upload_cancels.sql`. El hub cambia código pero no
+  tiene migración.
 
 ## Contratos (interfaces compartidas)
 
-### Portadas (T2 escribe; T4, T5, T6, T10, T11 usan)
+### Base de datos (API, migración 0008)
 
-```ts
-// apps/web/src/lib/generatedArt.ts (pure)
-export type ArtKind = 'song' | 'playlist' | 'podcast';
-export function hashSeed(seed: string): number; // stable 32-bit, same input → same number
-export function artColors(seed: string): { from: string; to: string; angle: number; ink: string };
-  // hsl() strings; hue always 24-44 (amber), lightness varies; ink readable on both stops
-// apps/web/src/components/art/GeneratedArt.tsx
-export function GeneratedArt(props: { seed: string; kind: ArtKind; size?: number; className?: string }): JSX.Element;
-  // aria-hidden; icon Music | ListMusic | Mic at 42 % of size; size 0/undefined = fills parent
-// apps/web/src/lib/playlistMosaic.ts (pure)
-export function mosaicTrackIds(trackIds: readonly string[], tracks: Record<string, Track>): string[];
-  // 0 songs → []; 1-3 → [first with cover ?? first]; ≥4 → 4 ids: those with cover first (in order), then the rest
-// apps/web/src/lib/trackLookup.ts (pure)
-export function findTrackByTitle(tracks: Record<string, LocalTrack>, title: string, artist: string): LocalTrack | null;
-  // normalizeText on both; exact title+artist first, then title only if unique; index cached in a WeakMap per `tracks`
-// Changed components (props stay backwards compatible)
-Cover({ trackId, hasCover, size?, className? }) // fallback = GeneratedArt(seed `${title}|${artist}`, kind podcast if track.kind === 'podcast')
-SongThumb({ videoId?: string | null; src?: string; title?: string; artist?: string; kind?: ArtKind; size?: number; className?: string })
-  // tries src, then youtubeThumb(videoId), then GeneratedArt(seed title|artist or videoId)
-PlaylistArt({ playlist, tracks, size? }) // photo > mosaicTrackIds (1 or 4 Covers) > GeneratedArt(seed playlist.name, 'playlist')
-// apps/web/src/components/art/StatTrackArt.tsx
-export function StatTrackArt(props: { title: string; artist: string; size?: number }): JSX.Element; // own cover if found, else GeneratedArt
-// apps/web/src/components/art/SongMosaic.tsx
-export function SongMosaic(props: { songs: readonly HubSong[]; seed: string; size?: number }): JSX.Element;
-  // ≥4 songs → 2×2 SongThumb; 1-3 → one SongThumb; 0 → GeneratedArt('playlist')
-// CSS: apps/web/src/art.css (classes .gen-art, .song-mosaic)
+```sql
+ALTER TABLE tracks ADD COLUMN upload_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_tracks_upload_id ON tracks(upload_id);
+CREATE TABLE IF NOT EXISTS canceled_uploads (
+  upload_id   TEXT PRIMARY KEY,
+  canceled_at INTEGER NOT NULL
+);
 ```
 
-### Deslizar (T3 escribe; T6 usa)
+### API (Worker `apps/api`)
 
-```ts
-// apps/web/src/lib/swipe.ts (adds, swipeDecision unchanged)
-export function swipeThreshold(width: number): number; // min(LONG_PX, width * LONG_WIDTH_SHARE)
-export function swipeProgress(dx: number, width: number): number; // 0..1 = |dx| / threshold, capped
-export function neighbourOffset(dx: number, width: number): number; // dx < 0 ? dx + width : dx - width
-// apps/web/src/player/neighbours.ts (pure)
-export interface QueueView {
-  currentId: string | null;
-  queue: readonly string[];
-  context: readonly string[];
-  index: number;
-  fromQueue: boolean;
-  repeat: RepeatMode;
-  contextShuffled: boolean;
-}
-export function nextTrackId(s: QueueView): string | null; // = what step(true) would pick; null if nothing or unknown (reshuffle)
-export function previousTrackId(s: QueueView): string | null; // = previous({ skipRestart: true }); null if it would stay on the same song
-// apps/web/src/components/gestures/useSwipe.ts
-export type SwipePhase = 'idle' | 'drag' | 'commit' | 'return';
-export function useSwipe(opts: {
-  onSwipe(d: SwipeDirection): void;
-  allows(d: SwipeDirection): boolean;
-  maxDrag?: number; /* px, default = element width */
-}): {
-  dx: number;
-  phase: SwipePhase;
-  width: number;
-  handlers: { onPointerDown; onPointerMove; onPointerUp; onPointerCancel; onKeyDown }; // ArrowLeft/Right = swipe
-  consumeSwipe(): boolean;
-};
-// touch only for dragging; commit = animate to ±width (200 ms, 0 with prefers-reduced-motion), then onSwipe, then dx 0 without transition
-// apps/web/src/components/gestures/SwipeTrack.tsx
-export function SwipeTrack(props: {
-  dx: number;
-  phase: SwipePhase;
-  width: number;
-  neighbour: (d: SwipeDirection) => ReactNode | null;
-  children: ReactNode;
-}): JSX.Element;
-// current content translateX(dx) and opacity 1 - progress*0.5; neighbour (aria-hidden) at neighbourOffset
-// apps/web/src/components/gestures/SwipeRing.tsx
-export function SwipeRing(props: { progress: number; icon: 'queue' | 'jam' }): JSX.Element | null;
-// null at 0; conic-gradient amber; .full when progress >= 1 (accent fill, ink icon); aria-hidden
-// CSS: apps/web/src/swipe.css
-```
+- `POST /api/ingest/tracks`: el JSON `meta` acepta `uploadId?: string`, validado con
+  `/^[A-Za-z0-9_-]{1,100}$/`, opcional (sin él = `null`, la CLI y la copia no cambian). Se guarda
+  en `tracks.upload_id`. No se devuelve en `Track`.
+  El `INSERT` pasa a `INSERT INTO tracks (...) SELECT ... WHERE NOT EXISTS (SELECT 1 FROM
+canceled_uploads WHERE upload_id = ?)` con `RETURNING *`. Si no vuelve ninguna fila: se borran
+  los objetos de R2 y se responde **410** `{ error: 'upload_canceled' }`.
+- `DELETE /api/ingest/uploads/:uploadId` (misma autenticación que el resto de `/api`). En un
+  `db.batch`:
+  1. `INSERT OR IGNORE INTO canceled_uploads VALUES (?, now)`;
+  2. `DELETE FROM tracks WHERE upload_id = ? RETURNING id`;
+  3. `DELETE FROM canceled_uploads WHERE canceled_at < now - 30 días`;
+  4. `bumpVersion`.
 
-### Compartir (T9 escribe; T11 usa)
+  Después borra de R2 el audio y la portada de cada id borrada. Responde **200**
+  `{ deletedIds: string[] }`. Un `uploadId` inválido da 400 `validation_error`.
 
-```ts
-// apps/web/src/share/sharedLink.ts (pure)
-export type SharedLink =
-  | { kind: 'video'; videoId: string; url: string }
-  | { kind: 'playlist'; playlistId: string; url: string }
-  | { kind: 'blocked'; reason: 'mix' | 'personal' }
-  | { kind: 'invalid' };
-export function parseSharedText(text: string): SharedLink;
-// first http(s) URL in the text that isYoutubeUrl (youtube.com, m., music., youtu.be, shorts);
-// video id wins over list; list only → classifyPlaylistLink (mix/personal → blocked); else invalid. Max 2000 chars read.
-// apps/web/src/native/shareTarget.ts (+ apps/web/test/fake-native/shareTarget.ts, alias in vite.config.ts)
-export function takeSharedText(): Promise<string | null>; // pending text from a cold start; clears it
-export function onSharedText(cb: (text: string) => void): Promise<() => void>; // app already open
-export function fetchVideoInfo(videoId: string): Promise<{ title: string; author: string } | null>;
-// GET https://www.youtube.com/oembed?format=json&url=<watch url> with CapacitorHttp, 8 s; null on any error
-// Fake: window.__askeFakeShare(text) triggers the listener; takeSharedText reads ?share= once.
-```
+- Worker viejo: responde 404 `{ error: 'not_found', message: 'Unknown endpoint' }`.
 
-```java
-// ShareTargetPlugin.java  @CapacitorPlugin(name = "ShareTarget")
-// load(): read getActivity().getIntent(); if ACTION_SEND + text/plain → pending = EXTRA_TEXT (≤ 2000 chars), then intent.setAction(ACTION_MAIN) so a recreate does not repeat it.
-// handleOnNewIntent(Intent): same reading, then notifyListeners("shared", { text }, true).
-// @PluginMethod takePending(call): resolve { text: pending | null } and clear it.
-```
+### Cliente web
 
-### Cargar más (T8 escribe; T10 usa)
+- `apps/web/src/api/client.ts`:
+  `cancelUpload(uploadId: string): Promise<{ deletedIds: string[] }>`, que hace
+  `DELETE /api/ingest/uploads/${encodeURIComponent(uploadId)}`.
+- `apps/web/src/downloads/uploadCancels.ts`:
+  - `cancelCloudUpload(uploadId: string): Promise<void>`: apunta la cancelación pendiente, la
+    intenta ya y, si falla, la reintenta a los 5 s y a los 60 s.
+  - `retryPendingCancels(): Promise<void>`: reintenta todas las pendientes.
+  - Clave de `localStorage`: `aske.uploadCancels.v1`, con `{ id: string; at: number }[]`.
+- `apps/web/src/downloads/jobsStore.ts`: las opciones de `enqueue` ganan `quiet?: boolean`
+  (sin el aviso `dl.queued`).
+- `apps/web/src/lib/radioKeys.ts`:
+  `nextRadioIndex(key: string, index: number, count: number): number | null`.
+  `ArrowDown` y `ArrowRight` suman 1, `ArrowUp` y `ArrowLeft` restan 1 (las dos dan la vuelta);
+  `Home` da 0 y `End` da `count - 1`. Cualquier otra tecla, o `count <= 0`, da `null`.
 
-```ts
-// packages/shared/src/youtube.ts
-export interface SearchPage {
-  results: SearchResult[];
-  continuation: string | null;
-}
-export const SEARCH_CONTINUATION_MAX = 4096;
-export function buildSearchRequest(
-  query: string,
-  kind: SearchKind,
-  lang?: string,
-  continuation?: string,
-): InnerTubeRequest;
-// with continuation: body { context, continuation } (no query/params). VERIFICAR music: if body-only fails, add ?ctoken=&continuation=&type=next
-export function parseSearchPage(json: unknown): SearchPage; // first and next pages; token from continuationItemRenderer / nextContinuationData
-export function isContinuationToken(s: string): boolean; // 1..SEARCH_CONTINUATION_MAX, /^[A-Za-z0-9_\-%=]+$/
-// parseSearchResponse stays (= parseSearchPage(json).results)
-```
+### Estado de la biblioteca (partición de `stores/library.ts`)
 
-| Endpoint                                                       | Cambio                                                                                                                           |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| API amigo `GET /api/youtube/search?q&kind&lang[&continuation]` | → `{ results, continuation: string \| null }`; token inválido → 400 `validation_error`; YouTube falla → 502 `search_unavailable` |
-| Hub `GET /hub/v1/search?q&kind&lang[&continuation]`            | igual; `searchYoutube` devuelve `SearchPage`; `jam/routes.ts:62` sigue enviando solo `results`                                   |
+- `stores/library.ts` sigue exportando `useLibrary`, `useAllTracks` y `type LibraryState`.
+- Módulos nuevos (todos en `apps/web/src/stores/`):
+  - `libraryState.ts`: `LibraryState` y `LibraryCtx`, que contiene
+    `{ get, set, mutate, replacePlaylist, isExtra, storeFor, forPlaylist, reload }`;
+  - `libraryCache.ts`: `cacheKey`, `homeKind`, `extrasStore`, `readExtras`,
+    `fromSnapshotWithExtras`, `persist`;
+  - `libraryErrors.ts`: `reportError(err, reload)`, `reportPinError` e `isStorageFull`;
+  - `libraryTrackActions.ts`: `createTrackActions(ctx)`, con `upsertTracks`, likes, kind, album,
+    `deleteTrack` y `reorderPlaylist`;
+  - `libraryPlaylistActions.ts`: `createPlaylistActions(ctx)`, con
+    create/rename/delete/add/remove, pin, order, merge y cover;
+  - `libraryFolderActions.ts`: `createFolderActions(ctx)`, con
+    create/rename/delete/move/reorder y `setFolderPinned`.
 
-```ts
-// web
-api.youtubeSearch(q, kind, lang, continuation?): Promise<{ results: SearchResult[]; continuation?: string | null }>
-searchViaHub(q, kind, lang, continuation?): Promise<SearchPage> // missing continuation → null
-searchOnPhone(q, kind, lang, continuation?): Promise<SearchPage> // yt-dlp fallback → continuation null
-// apps/web/src/downloads/searchPages.ts (pure)
-export function appendResults(prev: readonly SearchResult[], next: readonly SearchResult[]): SearchResult[]; // dedupe kind+id, keep order
-```
+## Tareas
 
-### Claves i18n nuevas (T1 en es, en y eu; aquí en español) — `i18n/youtubeMore.ts` (`youtubeMoreEn/Es/Eu`)
+Reglas para todas:
 
-- `dl.loadMore` «Cargar más» · `dl.loadingMore` «Cargando más resultados…» · `dl.noMore` «No hay más resultados.»
-- `dl.loadMoreFailed` «YouTube no ha dado más resultados ahora mismo. Prueba otra vez en un momento o cambia la búsqueda.»
-- `shareIn.title` «Desde YouTube» · `shareIn.loading` «Buscando el título…» · `shareIn.unknownTitle` «Canción de YouTube»
-- `shareIn.download` «Descargar» · `shareIn.added` «Añadida a las descargas. La verás en Descargar.»
-- `shareIn.infoFailed` «No hemos podido ver el título, pero puedes descargarla igual.»
-- `shareIn.notYoutube` «Esto no es un enlace de YouTube ni de YouTube Music. Para descargar, abre la canción en YouTube y pulsa Compartir → Aske Stream.»
-- `shareIn.ok` «Entendido»
+- Commits en español, Conventional Commits, autor
+  `Andoni Ortiz de Zarate Urruela <Ando144@users.noreply.github.com>`, sin ninguna mención a
+  Claude ni a la IA.
+- **Nunca `npm install`.** Nada de push, tag ni despliegues: eso lo hace el orquestador.
+- Tests sueltos con `npx vitest run <archivo> --root apps/<app>`, nunca en modo watch.
+- Textos nuevos en es, en y eu.
 
-## Fase 1 (portadas y deslizar)
+### T1 · API: cancelar una subida por `uploadId` · Grupo A · Estado: HECHA
 
-### T1 · Textos nuevos (es/en/eu) · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/i18n/youtubeMore.ts` (nuevo), `apps/web/src/i18n/en.ts`, `apps/web/src/i18n/es.ts`, `apps/web/src/i18n/eu.ts`
-- Leer como contexto: `apps/web/src/i18n/jamRemote.ts` (patrón de módulo), `apps/web/test/i18n.test.ts`
-- Qué hacer: comprobar con Grep que ninguna clave de «Claves i18n nuevas» existe; crear el módulo con las claves en los 3 idiomas (euskera natural, «zerrenda» para playlist) y registrarlo en `en.ts`, `es.ts` y `eu.ts`. **No borrar** ninguna clave (lo hace T13).
-- TDD: no (lo cubre el test de paridad)
-- Criterios de aceptación:
-  - [ ] Paridad i18n en verde; las claves existen en los 3 idiomas.
-- Verificación: `npx vitest run test/i18n.test.ts --root apps/web` y `npm run check`
-
-### T2 · Portadas: dibujo ámbar, mosaico y planes B · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/lib/generatedArt.ts` (nuevo), `apps/web/src/lib/playlistMosaic.ts` (nuevo), `apps/web/src/lib/trackLookup.ts` (nuevo), `apps/web/src/components/art/GeneratedArt.tsx` (nuevo), `apps/web/src/components/art/StatTrackArt.tsx` (nuevo), `apps/web/src/components/art/SongMosaic.tsx` (nuevo), `apps/web/src/art.css` (nuevo), `apps/web/src/components/Cover.tsx`, `apps/web/src/components/SongThumb.tsx`, `apps/web/src/components/PlaylistArt.tsx`, `apps/web/test/generatedArt.test.ts` (nuevo), `apps/web/test/playlistMosaic.test.ts` (nuevo), `apps/web/test/trackLookup.test.ts` (nuevo)
-- Leer como contexto: `apps/web/src/lib/format.ts` (`normalizeText`), `apps/web/src/storage/types.ts` (`LocalTrack`), `apps/web/src/styles.css` (clases `.cover`, `.collection-art`), `packages/shared/src/hub.ts` (`HubSong`)
-- Qué hacer: todo lo de «Portadas» en Contratos. `GeneratedArt`: degradado lineal con `artColors`, icono lucide centrado, esquinas iguales que `.cover`; respeta `className` para encajar donde hoy va `.cover` o dentro de `.collection-art`. `SongThumb`: recordar qué `src`/`videoId` falló (como hoy) para pasar al siguiente plan. `PlaylistArt`: mosaico de 4 aunque alguna no tenga portada (esa casilla muestra su dibujo). Importar `art.css` desde `GeneratedArt.tsx`.
-- TDD: sí (`generatedArt`, `playlistMosaic`, `trackLookup`)
-- Criterios de aceptación (tests):
-  - [ ] `artColors`: misma semilla → mismos colores; tono siempre entre 24 y 44; 50 semillas distintas dan al menos 10 combinaciones diferentes.
-  - [ ] `mosaicTrackIds`: 0 → `[]`; 2 canciones sin portada → 1 id; 5 canciones con 2 portadas → 4 ids empezando por las 2 con portada.
-  - [ ] `findTrackByTitle`: acentos y mayúsculas iguales; artista distinto con título único → la encuentra; dos con el mismo título y artista distinto → `null`.
-- Verificación: `npx vitest run test/generatedArt.test.ts test/playlistMosaic.test.ts test/trackLookup.test.ts --root apps/web` y `npm run check`
-
-### T3 · Deslizar: lógica, gancho, carrusel y círculo · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/lib/swipe.ts`, `apps/web/test/swipe.test.ts`, `apps/web/src/player/neighbours.ts` (nuevo), `apps/web/test/neighbours.test.ts` (nuevo), `apps/web/src/components/gestures/useSwipe.ts` (nuevo), `apps/web/src/components/gestures/SwipeTrack.tsx` (nuevo), `apps/web/src/components/gestures/SwipeRing.tsx` (nuevo), `apps/web/src/swipe.css` (nuevo)
-- Leer como contexto: `docs/plan/bocetos/deslizar.html` (estilos A y B), `apps/web/src/components/jam/JamBar.tsx:12-89` (gancho actual), `apps/web/src/stores/player.ts:238-258` y `395-411`, `apps/web/src/player/queue.ts`
-- Qué hacer: todo lo de «Deslizar» en Contratos. `useSwipe` parte del actual (umbral de arranque 12 px, eje horizontal, borde de 24 px vía `swipeDecision`, `setPointerCapture`) pero sin tope de 120 px por defecto, con fases y teclado (flecha = deslizar medio ancho y confirmar). Lee `prefers-reduced-motion` una vez. `SwipeTrack` y `SwipeRing` según el boceto (A: la vecina entra pegada al dedo; B: círculo de 46 px que crece de 0,6 a 1 y se rellena al superar el umbral). `SwipeRing` usa los iconos `ListEnd` / `Users` de lucide. CSS en `swipe.css`, con `@media (prefers-reduced-motion: reduce)` sin transiciones.
-- TDD: sí (`swipe.ts`, `neighbours.ts`); los componentes, no
-- Criterios de aceptación (tests):
-  - [ ] `swipeProgress` 0 en 0, 1 en el umbral y más allá; `neighbourOffset` correcto a ambos lados.
-  - [ ] `nextTrackId`: con cola → `queue[0]`; fin de lista con repetir apagado → `null`; repetir todo → vuelve a la primera; aleatorio que se rebaraja → `null`.
-  - [ ] `previousTrackId`: desde una canción de la cola → `context[index]`; primera canción sin repetir → `null`.
-  - [ ] Los tests existentes de `swipeDecision` siguen pasando.
-- Verificación: `npx vitest run test/swipe.test.ts test/neighbours.test.ts test/queue.test.ts --root apps/web` y `npm run check`
-
-### T4 · Portadas en pantallas de la biblioteca, estudio, podcasts, grupos y Recap · Grupo B · Estado: HECHA
-
-- Depende de: T2
-- Archivos (exclusivos): `apps/web/src/components/AddToPlaylistSheet.tsx`, `apps/web/src/components/Nav.tsx`, `apps/web/src/components/study/SourcePicker.tsx`, `apps/web/src/views/PodcastsView.tsx`, `apps/web/src/components/podcasts/ShowPickSheet.tsx`, `apps/web/src/components/stats/RecapCards.tsx`, `apps/web/src/components/groups/GroupRanking.tsx`, `apps/web/src/components/groups/MemberTops.tsx`, `apps/web/src/components/groups/MonthSummary.tsx`, `apps/web/src/components/groups/GroupShares.tsx`, `apps/web/src/components/SharePlaylistSheet.tsx`, `apps/web/src/art.css`
-- Leer como contexto: los componentes de `apps/web/src/components/art/`, `apps/web/src/components/PlaylistArt.tsx`, `apps/web/src/components/Cover.tsx`
+- Archivos (exclusivos): `apps/api/migrations/0008_upload_cancels.sql` (nuevo),
+  `apps/api/src/routes/ingest.ts`, `apps/api/src/lib/uploads.ts` (nuevo, si hace falta para que
+  `ingest.ts` no pase de 300 líneas), `apps/api/test/uploads.test.ts` (nuevo), `scripts/smoke.mjs`
+  (solo añadir un `step`).
+- Leer como contexto: `apps/api/src/routes/tracks.ts` (cómo se borra una canción y R2),
+  `apps/api/src/lib/db.ts`, `apps/api/src/lib/http.ts`.
 - Qué hacer:
-  1. `AddToPlaylistSheet`: `PlaylistArt` 40 px en lugar del icono `ListMusic`.
-  2. `Nav` (escritorio): `PlaylistArt` 24 px delante de cada nombre (fila con `ellipsis` en el texto).
-  3. `SourcePicker`: cambiar el `<select>` por una lista de opciones tipo radio (`role="radiogroup"`, botones con `aria-checked`, `PlaylistArt` 32 px + nombre), con la misma etiqueta `study.source.playlist` y el mismo `onChange`; manejable con teclado (Tab/Enter/Espacio).
-  4. `PodcastsView` (episodios): `Cover` 40 px del episodio; `ShowPickSheet`: `Cover` del primer episodio de cada serie.
-  5. `RecapCards` (solo «Canciones»), `GroupRanking` (canciones), `MemberTops`, `MonthSummary`: `StatTrackArt` 36-40 px. Los artistas no llevan imagen.
-  6. `GroupShares` (`ShareRow`): `GeneratedArt` 44 px con semilla `share.title`, `kind 'playlist'` (lista y Jam).
-  7. `SharePlaylistSheet`: si la cabecera muestra el nombre de la playlist, añadir `PlaylistArt` 48 px.
-  8. Estilos que falten, en `art.css`.
-- TDD: no
+  - escribir la migración y los dos cambios de «Contratos > API»;
+  - extraer el esquema `Metadata` y el validador de `uploadId` a algo exportable y probarlo con
+    tests unitarios (las pruebas de la API no tienen D1: lo que necesita base de datos se prueba
+    en el smoke);
+  - en `scripts/smoke.mjs`, añadir un `step` «canceled uploads: delete own track, block late
+    arrival» antes de «storage stats»:
+    - subir con `uploadId: 'smoke-up-1'` y comprobar 201;
+    - hacer `DELETE /api/ingest/uploads/smoke-up-1` y comprobar 200 con `deletedIds` = [esa id];
+    - comprobar que `/api/library` ya no la tiene;
+    - subir otra vez con el mismo `uploadId` y comprobar 410 `upload_canceled`;
+    - subir con `uploadId` distinto y el mismo `sourceRef` que otra canción existente: 409,
+      sin tocar la existente;
+    - cancelar un `uploadId` que no existe: 200 con `deletedIds: []`, y la otra canción sigue.
+
+    Cuidado con el límite de 2 MB del smoke: usar audios pequeños y borrar lo que sobre.
+- TDD: sí (validación de `meta`/`uploadId`; el comportamiento con D1, en el smoke).
 - Criterios de aceptación:
-  - [ ] En todos esos sitios hay imagen al lado del nombre (o dibujo ámbar); el modo estudio se elige igual que antes, también con teclado.
-  - [ ] `npm run check` en verde y los tests de estudio, estadísticas y grupos siguen pasando.
-- Verificación: `npm run check`
+  - [ ] `uploadId` válido o ausente se acepta; con espacios, `/` o más de 100 caracteres, 400;
+  - [ ] cancelar borra solo la canción con ese `upload_id` (y su R2) y nunca otra del mismo vídeo;
+  - [ ] una subida que llega después de cancelar responde 410 y no deja nada en D1 ni en R2;
+  - [ ] el smoke pasa entero.
+- Verificación:
+  - `npx vitest run test/uploads.test.ts --root apps/api`;
+  - `npm run db:migrate:local`;
+  - `npm run build -w @aske/web` y luego `npm run test:e2e`. En Windows sale con código 1 por el
+    EPERM conocido (lo arregla T6): vale si dice que pasan todas las comprobaciones. Al acabar,
+    cerrar wrangler/workerd.
+- Commit: `feat: permite cancelar una subida a Cloudflare sin tocar otras canciones`.
 
-### T5 · Portadas en YouTube, «Enviar», paquetes y listas compartidas · Grupo B · Estado: HECHA
+### T2 · Hub: foto sin `Content-Length` y fotos de un hub viejo · Grupo A · Estado: HECHA
 
-- Depende de: T2
-- Archivos (exclusivos): `apps/web/src/components/downloads/PickList.tsx`, `apps/web/src/components/downloads/PlaylistPicker.tsx`, `apps/web/src/components/downloads/DownloadQueue.tsx`, `apps/web/src/components/send/Outbox.tsx`, `apps/web/src/components/send/ParcelPanel.tsx`, `apps/web/src/components/send/ParcelSheet.tsx`, `apps/web/src/views/SharedListView.tsx`, `apps/web/src/components/jam/JamQueue.tsx`, `apps/web/src/components/jam/JamAddSheet.tsx`, `apps/web/src/socialCovers.css`
-- Leer como contexto: `apps/web/src/components/SongThumb.tsx`, `apps/web/src/components/art/SongMosaic.tsx`, `apps/web/src/components/art/GeneratedArt.tsx`
+- Archivos (exclusivos): `apps/hub/src/groups/lookRoutes.ts`, `apps/hub/test/groupLook.test.ts`,
+  `apps/web/src/groups/photoCache.ts`, `apps/web/test/photoCache.test.ts` (nuevo).
+- Leer como contexto: `packages/shared/src/groups*` (`GROUP_LIMITS.photoMaxBytes`),
+  `apps/web/src/hub/groupsClient.ts`.
 - Qué hacer:
-  1. `PickList`: `SongThumb` 32 px (`videoId = e.id`, `title`, `artist = e.author`) en cada fila, sin romper el checkbox ni la etiqueta.
-  2. `PlaylistPicker`: `PlaylistCover` cae a `GeneratedArt` (`kind 'playlist'`, semilla el título) en lugar del icono.
-  3. `DownloadQueue`: la miniatura usa `SongThumb` (`src = job.thumbnail`, `videoId = job.videoId`, `title`).
-  4. `Outbox`: el plan B pasa a `SongThumb`/`GeneratedArt` (no el icono de radio).
-  5. `ParcelPanel` (cesta): `SongThumb` 40 px. `ParcelSheet`: `SongMosaic` 48 px al lado del nombre del paquete; pasar `title`/`artist` a los `SongThumb` de `SongRows`.
-  6. `SharedListView`: `SongMosaic` 120 px en la cabecera junto al nombre.
-  7. `JamQueue` y `JamAddSheet`: pasar `title`/`artist` a `SongThumb` (mejor semilla del dibujo).
-- TDD: no
+  1. En `readPhoto`, leer `req.body` por trozos con un lector y sumar bytes. En cuanto pase de
+     `photoMaxBytes`: `reader.cancel()` y lanzar `photoTooBig()`. Sin cuerpo: `notJpeg()`. Se
+     mantiene la comprobación previa del `Content-Length` si viene. Nunca usar
+     `req.arrayBuffer()` sin límite.
+  2. En `photoCache.ts`, un `photoAt` que no sea número (un hub viejo no manda el campo, llega
+     `undefined`) cuenta como `null`: no se pide nada. Normalizarlo al principio de
+     `loadGroupPhoto` y de `useGroupPhotoUrl`.
+- TDD: sí.
 - Criterios de aceptación:
-  - [ ] Sin conexión, cada fila muestra dibujo ámbar en lugar de una imagen rota.
-  - [ ] `npm run check` en verde.
-- Verificación: `npm run check`
+  - [ ] hub: una foto de más de `photoMaxBytes` enviada como stream sin `Content-Length` da 413
+        sin leerla entera; una válida sin `Content-Length` se guarda;
+  - [ ] web: `loadGroupPhoto({ groupId: 'g', photoAt: undefined as never })` devuelve `null` sin
+        llamar a `fetchGroupPhoto` (mock);
+  - [ ] web: con `photoAt` numérico se descarga como antes.
+- Verificación:
+  - `npx vitest run test/groupLook.test.ts --root apps/hub`;
+  - `npx vitest run test/photoCache.test.ts --root apps/web`.
+- Commits:
+  - `fix: limita la foto del grupo aunque no traiga Content-Length`;
+  - `fix: no pide fotos de grupo a un hub antiguo`.
 
-### T6 · Deslizar en reproductores (carrusel) y listas (círculo) · Grupo B · Estado: HECHA
+### T3 · Partir `stores/library.ts` · Grupo A · Estado: HECHA
 
-- Depende de: T3 (y T2 solo por el aspecto de `Cover`)
-- Archivos (exclusivos): `apps/web/src/components/player/MiniPlayer.tsx`, `apps/web/src/components/player/NowPlaying.tsx`, `apps/web/src/components/player/Neighbour.tsx` (nuevo), `apps/web/src/components/jam/JamBar.tsx`, `apps/web/src/components/TrackList.tsx`, `apps/web/src/gestures.css`, `apps/web/src/swipe.css`
-- Leer como contexto: `apps/web/src/components/gestures/*`, `apps/web/src/player/neighbours.ts`, `apps/web/src/hub/jamFromLibrary.ts` (`jamSongPlaying`), `apps/web/src/player/radioEngine.ts` (`stationAt`), `docs/plan/bocetos/deslizar.html`
+- Archivos (exclusivos): `apps/web/src/stores/library.ts`, `apps/web/src/stores/libraryState.ts`,
+  `apps/web/src/stores/libraryCache.ts`, `apps/web/src/stores/libraryErrors.ts`,
+  `apps/web/src/stores/libraryTrackActions.ts`, `apps/web/src/stores/libraryPlaylistActions.ts`,
+  `apps/web/src/stores/libraryFolderActions.ts` (todos nuevos salvo el primero).
+- Leer como contexto: `apps/web/test/` (buscar con Grep `stores/library` para ver qué mockean los
+  tests y no romperlos).
 - Qué hacer:
-  1. `Neighbour.tsx`: `useNeighbour(direction)` → lo que hay que dibujar: canción de la biblioteca (`nextTrackId`/`previousTrackId` con el estado del reproductor), emisora (`stationAt` ±1), o en una Jam de este móvil la siguiente de `snapshot.queue[0]` (sin «anterior»). Componente `NeighbourCard({ direction, variant: 'mini' | 'big' })` con la misma maqueta que la tarjeta actual (portada + título + subtítulo), `aria-hidden`.
-  2. `MiniPlayer`: el área que abre la pantalla grande usa `useSwipe` + `SwipeTrack` con `NeighbourCard 'mini'`; `changeSong` igual que hoy (Jam: no hay derecha). Quitar `SwipeHint`. Al pulsar sin deslizar se abre la pantalla grande como siempre.
-  3. `NowPlaying`: el gesto envuelve **solo** portada + título/artista (el corazón va dentro pero con `onPointerDown` que no inicia el arrastre); `SeekBar`, controles, volumen y cola quedan fuera. Misma acción que el mini reproductor (exportar `changeSong` desde `MiniPlayer.tsx` o moverla a `Neighbour.tsx`). `touch-action: pan-y`.
-  4. `JamBar`: usar el nuevo `useSwipe`/`SwipeTrack` (izquierda = `requestSkip`, la vecina es `snapshot.queue[0]`); borrar el `useSwipe` y `SwipeHint` viejos de este archivo.
-  5. `TrackList`: sustituir el texto `.swipe-hint` por `SwipeRing` (`icon 'jam'` si `jamIsActive()`, si no `'queue'`), con `progress = dx / SWIPE_TRIGGER`; el gesto, el umbral y la acción no cambian.
-  6. `gestures.css`: borrar los estilos `.mini-swipe-hint`; en `swipe.css` lo que falte. Vibración de 15 ms como hoy.
-- TDD: no (la lógica la cubren T3 y sus tests)
+  - refactor sin cambiar comportamiento, según «Contratos > Estado de la biblioteca»;
+  - `create((set, get) => ({ ...base, ...createTrackActions(ctx), ...createPlaylistActions(ctx),
+...createFolderActions(ctx) }))`;
+  - `reportError` recibe `reload` en vez de llamar a `useLibrary`, para que no haya imports
+    circulares;
+  - de paso, mover el `import` de `./setup` que hoy está debajo de `LOAD_TIMEOUT_MS` al bloque de
+    imports.
+- TDD: no (refactor; lo cubren los tests que ya hay).
 - Criterios de aceptación:
-  - [ ] Ya no existe ningún texto/botón «Siguiente»/«Anterior» al deslizar (Grep de `player.swipe.next|player.swipe.prev|mini-swipe-hint` sin usos en `src`).
-  - [ ] Mini reproductor y pantalla grande: la vecina entra pegada al dedo; al soltar pasado el umbral cambia de canción; si no, vuelve. La barra de progreso de la pantalla grande se arrastra sin cambiar de canción.
-  - [ ] Barra de la Jam: izquierda salta; derecha no se mueve. Filas: círculo que crece y se rellena; «Añadir a la cola» funciona igual.
-  - [ ] Con reduced-motion no hay animación de salida; las flechas del teclado cambian de canción en el mini reproductor.
-- Verificación: `npm run check` (tests de `swipe`, `neighbours`, `jamRemote`, `jamStore` en verde)
+  - [ ] ningún archivo pasa de 300 líneas, ninguna función de 50 ni de 4 niveles de anidación;
+  - [ ] la API pública de `useLibrary` es idéntica (mismo `LibraryState`) y compila sin tocar a
+        los que la usan;
+  - [ ] ningún import circular entre los módulos nuevos;
+  - [ ] todos los tests de `apps/web` pasan sin cambiarlos.
+- Verificación: `npm run check`.
+- Commit: `refactor: parte el estado de la biblioteca en módulos más pequeños`.
 
-## Fase 2 (carga, Compartir y Cargar más) — después de la Fase 1
+### T4 · Fallos visibles: un solo aviso al compartir, flechas y título · Grupo A · Estado: HECHA
 
-### T7 · Carga solo con el logo · Grupo C · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/src/components/BootSplash.tsx`, `apps/web/src/lib/boot.ts`, `apps/web/src/boot.css`, `apps/web/index.html`, `apps/web/test/boot.test.ts`, `apps/mobile/android/app/src/main/res/values/styles.xml` (solo si hiciera falta)
-- Leer como contexto: `apps/web/src/App.tsx:94-146` (no se toca: mantener exportadas `BOOT_MAX_WAIT_MS`, `bootReady`, `splashTimings`), `apps/web/public/_headers` (CSP)
+- Archivos (exclusivos): `apps/web/src/components/share/ShareInSheet.tsx`,
+  `apps/web/src/stores/downloads.ts` (solo `enqueue`), `apps/web/src/downloads/jobsStore.ts`
+  (solo el tipo de las opciones), `apps/web/src/components/study/SourcePicker.tsx`,
+  `apps/web/src/lib/radioKeys.ts` (nuevo), `apps/web/test/radioKeys.test.ts` (nuevo),
+  `apps/web/src/views/LibraryView.tsx`, `apps/web/src/styles.css`,
+  `apps/web/test/browser/v10_096.py` (nuevo).
+- Leer como contexto: `apps/web/src/lib/menuKeys.ts` (estilo), `apps/web/test/browser/README.md`,
+  `apps/web/test/browser/v9_095.py` (cómo se escriben estas pruebas).
 - Qué hacer:
-  1. `boot.ts`: `BOOT_MIN_SPLASH_MS = 400`, `SPLASH_EXIT_MS = 300`, nuevo `BOOT_PULSE_AFTER_MS = 1000` y `shouldPulse(elapsedMs, reducedMotion): boolean`; quitar `BOOT_CONNECTING_HINT_MS`. `splashTimings(true)` → `{ minMs: 400, exitMs: 150 }`. `bootReady` no cambia (sigue entrando a los 5 s en modo sin conexión).
-  2. `BootSplash`: solo el logo (barras rellenas, sin trazo ni destello), sin `<p>`; `role="status"` y `aria-label={t('boot.loading')}` (no visible). A los 1000 ms añade la clase `pulsing` (no con reduced-motion).
-  3. `boot.css`: borrar trazo, relleno, destello y `.boot-hint`; `.boot-splash.pulsing .boot-pulse` con latido suave (escala 1 → 1,04 y brillo ámbar, 2,4 s, `ease-in-out`, infinito); salida con fundido.
-  4. `index.html`: dentro de `div.boot-splash`, el mismo SVG estático y un `<style>` en línea mínimo (fondo `#14110f`, centrado, 96 px) para que no haya pantalla vacía antes del JS. Sin texto.
-  5. Android: comprobar que el splash nativo sigue siendo solo el logo (ya lo es); no añadir texto.
-- TDD: sí (`boot.ts`)
+  1. **Compartir.**
+     - `enqueue(items, { quiet: true })` no muestra `dl.queued`.
+     - `ShareInSheet` llama con `quiet: true` y muestra `shareIn.added` solo si `enqueue`
+       devuelve más de 0. Si devuelve 0 (ya estaba en la biblioteca), muestra
+       `t('dl.alreadyHad', { count: 1 })`.
+     - El resto de llamadas a `enqueue` no cambian.
+  2. **`SourcePicker`.** En el `radiogroup` de playlists:
+     - tabindex móvil: `tabIndex={0}` en la marcada (o en la primera si no hay ninguna) y `-1` en
+       el resto;
+     - `onKeyDown` con `nextRadioIndex`: enfoca el botón nuevo (refs) y lo elige con `onPick`;
+       `preventDefault` solo si la función no da `null`.
+  3. **Título de Biblioteca a 390 px.** En la cabecera, a ≤ 480 px los botones (Estudio,
+     Importar, Ajustes) se quedan en solo icono: el texto va en `span.hide-narrow` y el botón
+     lleva `aria-label`. «Biblioteca», «Library» y «Liburutegia» se ven enteros, sin «…». Si
+     `ImportButton` está en otro archivo y hay que tocarlo, añadirlo a esta tarea (ninguna otra
+     tarea lo toca).
+  4. **Prueba de navegador** `v10_096.py` según el README:
+     - a 390 px, el `h1` no está cortado (`scrollWidth <= clientWidth`) en es, en y eu;
+     - en `/study`, las flechas cambian la playlist marcada y el foco;
+     - en modo fakenative, al compartir un vídeo sale un solo aviso.
+
+       Si el modo fakenative no permite simular «Compartir», cubrirlo con un test de Vitest de
+       `ShareInSheet` (con `enqueue` en mock: se llama con `quiet: true` y hay un solo `toast`) y
+       apuntarlo en el informe.
+- TDD: sí para `radioKeys` y el aviso único; no para CSS.
 - Criterios de aceptación:
-  - [ ] Tests: `shouldPulse` falso antes de 1 s y con reduced-motion; `bootReady` igual que antes (online, offline y 5 s).
-  - [ ] Grep: `BootSplash.tsx` e `index.html` no muestran ningún texto visible; no hay botones.
-- Verificación: `npx vitest run test/boot.test.ts --root apps/web` y `npm run check`
+  - [ ] `nextRadioIndex` cubre las 6 teclas, la vuelta en los extremos, una tecla desconocida y
+        `count` 0;
+  - [ ] al compartir un vídeo aparece un único aviso;
+  - [ ] Tab entra en el grupo una vez y las flechas recorren las playlists;
+  - [ ] título entero a 390 px en los 3 idiomas.
+- Verificación:
+  - `npx vitest run test/radioKeys.test.ts --root apps/web`;
+  - `npm run check`;
+  - la prueba de navegador del README (y después reconstruir el dist normal).
+- Commits:
+  - `fix: muestra un solo aviso al compartir desde YouTube`;
+  - `fix: permite elegir la playlist del modo estudio con las flechas`;
+  - `fix: muestra entero el título de Biblioteca en pantallas estrechas`;
+  - `test: añade las pruebas de navegador de la v0.9.6`.
 
-### T8 · Búsqueda con continuación (shared, Hub y API) · Grupo C · Estado: HECHA
+### T5 · Cancelar borra solo lo propio (Cloudflare y Drive) · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `packages/shared/src/youtube.ts`, `packages/shared/test/youtube.test.ts`, `apps/hub/src/lib/search.ts`, `apps/hub/src/routes/search.ts`, `apps/hub/src/jam/routes.ts`, `apps/hub/test/search.test.ts`, `apps/api/src/routes/youtube.ts`, `apps/api/test/youtubeSearch.test.ts` (nuevo)
-- Leer como contexto: `packages/shared/src/youtube.ts:400-483` (tokens de playlists), `apps/hub/test/jamRoutes.test.ts`, un test existente de rutas de `apps/api/test/` (patrón con `fetch` simulado)
-- Qué hacer: todo lo de «Cargar más» en Contratos. `parseSearchPage` busca el token en `continuationItemRenderer.continuationEndpoint.continuationCommand.token` (web, también dentro de `appendContinuationItemsAction`) y en `nextContinuationData.continuation` / `continuations[].nextContinuationData` (YouTube Music); los resultados de páginas siguientes salen con el mismo `parseSearchResponse`. Validación de `continuation` con zod (`isContinuationToken`). Los errores de YouTube siguen siendo 502 `search_unavailable` y el detalle solo en el registro del servidor.
-- TDD: sí
-- Criterios de aceptación (tests):
-  - [ ] Primera página web y de Music con token → `continuation` correcto; sin token → `null`; página siguiente (formato `appendContinuationItemsAction` y `musicShelfContinuation`) → resultados y nuevo token.
-  - [ ] `buildSearchRequest` con token → cuerpo con `continuation` y sin `query`.
-  - [ ] Hub y API: `?continuation=` válido se reenvía; uno con caracteres raros o > 4096 → 400; respuesta con `{ results, continuation }`; la búsqueda de la Jam sigue devolviendo `{ results }`.
-- Verificación: `npx vitest run test/youtube.test.ts --root packages/shared`, `npx vitest run test/search.test.ts test/jamRoutes.test.ts --root apps/hub`, `npx vitest run test/youtubeSearch.test.ts --root apps/api` y `npm run check`
-
-### T9 · Compartir → Aske Stream: parte nativa y análisis del enlace · Grupo C · Estado: HECHA
-
-- Archivos (exclusivos): `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/ShareTargetPlugin.java` (nuevo), `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/MainActivity.java`, `apps/mobile/android/app/src/main/AndroidManifest.xml`, `apps/web/src/native/shareTarget.ts` (nuevo), `apps/web/test/fake-native/shareTarget.ts` (nuevo), `apps/web/vite.config.ts`, `apps/web/src/share/sharedLink.ts` (nuevo), `apps/web/test/sharedLink.test.ts` (nuevo)
-- Leer como contexto: `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/QrScannerPlugin.java` (plugin pequeño de patrón), `apps/web/src/native/askeNative.ts`, `apps/web/test/fake-native/qrScanner.ts`, `packages/shared/src/youtube.ts:91-138` (`youtubeVideoId`, `classifyPlaylistLink`, `isYoutubeUrl`)
-- Qué hacer: todo lo de «Compartir» en Contratos.
-  - Manifiesto: en `MainActivity`, nuevo `intent-filter` con `android.intent.action.SEND`, `android.intent.category.DEFAULT` y `<data android:mimeType="text/plain" />`, con un comentario de para qué sirve (como los permisos).
-  - `MainActivity`: `registerPlugin(ShareTargetPlugin.class)` antes de `super.onCreate`.
-  - `vite.config.ts`: alias `fakenative` de `native/shareTarget` a `test/fake-native/shareTarget.ts`.
-  - `native/shareTarget.ts`: con `isNative` falso, `takeSharedText` → `null` y `onSharedText` no hace nada.
-- TDD: sí (`sharedLink.ts`); Java y puente, no
-- Criterios de aceptación (tests):
-  - [ ] «Mira esto https://youtu.be/abc123def45?si=x» → vídeo; `music.youtube.com/watch?v=…&list=…` → vídeo; `youtube.com/playlist?list=PL…` → playlist; mix (`RD…`) → `blocked mix`; «hola», `https://example.com` y texto vacío → `invalid`; texto de 10 000 caracteres no se cuelga.
-  - [ ] `npm run check` en verde; el APK compila (`.\gradlew.bat assembleRelease` en `apps/mobile/android`, si hay JDK 21; si no, anotar «VERIFICAR en CI»).
-- Verificación: `npx vitest run test/sharedLink.test.ts --root apps/web` y `npm run check`
-
-### T10 · «Cargar más» en la pantalla de búsqueda · Grupo D · Estado: HECHA
-
-- Depende de: T1, T2, T8
-- Archivos (exclusivos): `apps/web/src/views/DownloadView.tsx`, `apps/web/src/components/downloads/SearchPanel.tsx` (nuevo), `apps/web/src/components/downloads/SearchResultRow.tsx` (nuevo), `apps/web/src/downloads/searchPages.ts` (nuevo), `apps/web/test/searchPages.test.ts` (nuevo), `apps/web/src/native/downloader.ts`, `apps/web/test/fake-native/downloader.ts`, `apps/web/src/hub/client.ts`, `apps/web/src/api/client.ts`
-- Leer como contexto: `packages/shared/src/youtube.ts` (`SearchPage`), `apps/web/src/components/SongThumb.tsx`, `apps/web/src/components/art/GeneratedArt.tsx`
+- Depende de: T1 (contrato del Worker) y T4 (comparte `stores/downloads.ts`).
+- Archivos (exclusivos): `apps/web/src/downloads/cancel.ts`, `apps/web/src/downloads/orphans.ts`
+  (borrar), `apps/web/src/downloads/uploadCancels.ts` (nuevo), `apps/web/src/downloads/save.ts`,
+  `apps/web/src/api/client.ts`, `apps/web/src/stores/downloads.ts` (solo `init`),
+  `apps/web/src/storage/drive/api.ts`, `apps/web/test/downloadOrphans.test.ts` (borrar),
+  `apps/web/test/uploadCancels.test.ts` (nuevo), `apps/web/test/downloadCancel.test.ts` (nuevo),
+  `apps/web/test/driveUploadAbort.test.ts` (nuevo), `apps/web/test/downloadSave.test.ts`,
+  `apps/web/src/help/articles/music.ts`.
+- Leer como contexto: `apps/web/src/stores/serverUpdate.ts`, `apps/web/src/storage/homes.ts`
+  (`orOutdated`), `apps/web/src/storage/drive/home.ts` (`addTrack`, líneas 288-334),
+  `apps/web/test/downloadOrphans.test.ts` (los mocks que ya funcionan, antes de borrarlo).
 - Qué hacer:
-  1. Sacar `SearchPanel`, `searchFor` y `ResultRow` (con `useInLibrary`, `actionLabel`, `actionIcon`) de `DownloadView.tsx` a los dos archivos nuevos, sin cambiar su comportamiento; `DownloadView` baja de 400 líneas.
-  2. `searchFor` devuelve `SearchPage`; los tres clientes aceptan `continuation` según Contratos.
-  3. Estado de la búsqueda: `continuation`, `loadingMore`, `moreError`. Al final de la lista, si hay `continuation`: botón «Cargar más» (`dl.loadMore`; mientras carga, `dl.loadingMore` con spinner y botón desactivado). Al añadir, `appendResults`. Si una página llega vacía o sin token → `dl.noMore`. Error → `dl.loadMoreFailed` (los resultados ya vistos se quedan). Cambiar de búsqueda o de tipo invalida la carga en curso (como `searchSeq`).
-  4. `SearchResultRow`: miniatura con `SongThumb` (`src = result.thumbnail`, `videoId` si es vídeo, `title`, `artist`); en playlists, plan B `GeneratedArt 'playlist'`.
-- TDD: sí (`searchPages.ts`); la UI, no
+  1. `save.ts`: en `uploadForm`, añadir `uploadId: job.id` al JSON `meta`.
+  2. `client.ts`: `cancelUpload` según el contrato.
+  3. `uploadCancels.ts`:
+     - lista pendiente en `localStorage` según el contrato;
+     - cada intento: si sale bien, se quita de la lista y, si `deletedIds.length`, se llama a
+       `useLibrary.getState().load()`;
+     - si es un Worker viejo (`ApiError` 404, `not_found`, «Unknown endpoint»): se quita y se
+       llama a `useServerUpdate.getState().markOutdated()`;
+     - si es otro error: se queda en la lista y se hace `console.error` con el detalle;
+     - si la biblioteca ya no está en `cloudflare`, se descarta la pendiente;
+     - las de más de 30 días se descartan.
+  4. `cancel.ts`:
+     - quitar `snapshotKnownIds`, `sweepAfterCancel`, `watchJobs` y el import de
+       `../stores/downloads`;
+     - si `wasSaving`, `job.target !== 'device-only'` y la biblioteca está en `cloudflare`:
+       `void cancelCloudUpload(job.id)`.
+  5. `stores/downloads.ts`: en `init`, `void retryPendingCancels()` y un `window` `online` que
+     lo vuelva a llamar (registrado una sola vez).
+  6. `storage/drive/api.ts`: si el PUT de bytes se cancela con la señal del que llama
+     (`opts.signal.aborted`), antes de relanzar el error, sin esperar al que llama
+     (`void`, con `console.error` si falla):
+     - `DELETE` a la URL de la sesión, que la anula;
+     - después `PUT` vacío con `Content-Range: bytes */<size>`;
+     - si responde 200/201 con `id`, `driveApi.remove(id)`.
+
+     Así nunca se borra nada que no sea ese archivo.
+
+  7. Ayuda (`music.ts`, en es, en y eu): una frase en «Cancelar o quitar»: «Si tu biblioteca está
+     en Cloudflare y la app te pide actualizar el servidor, hazlo para que una canción cancelada
+     no se quede guardada».
+  8. Borrar `orphans.ts` y su test; pasar los casos que sigan valiendo a `downloadCancel.test.ts`.
+- Cambio de contrato (corrección posterior): el `uploadId` ya no es siempre `job.id`.
+  `DownloadJob` gana `uploadId?: string`, que `requeuePatch` renueva (`crypto.randomUUID()`) al
+  reintentar; al subir (`save.ts`) y al cancelar (`cancel.ts`) se usa `job.uploadId ?? job.id`.
+  Motivo: el Worker rechaza con 410 durante 30 días un `uploadId` ya cancelado. Donde esta
+  sección y «Decisiones de arquitectura» dicen `job.id`, vale esta regla.
+- TDD: sí.
 - Criterios de aceptación:
-  - [ ] Test: `appendResults` quita duplicados y mantiene el orden.
-  - [ ] Con un servidor viejo (sin `continuation`) no aparece el botón y nada falla.
-  - [ ] En `fakenative`, la falsa `searchOnPhone` devuelve un token en la primera página y ninguno en la segunda (para T12).
-- Verificación: `npx vitest run test/searchPages.test.ts --root apps/web` y `npm run check`
+  - [ ] cancelar un guardado en Cloudflare llama a `cancelUpload(job.id)` y nunca a
+        `deleteTrack` de otra canción del mismo vídeo;
+  - [ ] cancelar en Drive o en el móvil no llama a `cancelUpload` ni recarga la biblioteca;
+  - [ ] sin red, la cancelación queda pendiente y se envía al reintentar;
+  - [ ] con 404 «Unknown endpoint» se marca el servidor como desactualizado y se olvida la
+        pendiente;
+  - [ ] con `deletedIds` no vacío se recarga la biblioteca;
+  - [ ] Drive: al cancelar el PUT se anula la sesión y, si Google responde con un archivo
+        terminado, se borra solo esa id (fetch en mock);
+  - [ ] `downloads/cancel.ts` ya no importa `stores/downloads` (comprobar con Grep);
+  - [ ] el formulario de subida lleva `uploadId`.
+- Verificación:
+  - `npx vitest run test/uploadCancels.test.ts test/downloadCancel.test.ts test/driveUploadAbort.test.ts test/downloadSave.test.ts --root apps/web`;
+  - `npm run check`.
+- Commits:
+  - `fix: al cancelar borra solo la canción de esa descarga, aunque la subida acabe tarde`;
+  - `fix: borra en Drive el archivo de una subida cancelada`;
+  - `refactor: quita el import circular de downloads/cancel.ts`, si se puede separar; si no,
+    va en el primero.
 
-### T11 · Ficha «Compartido desde YouTube» · Grupo D · Estado: HECHA
+### T6 · Windows: `smoke.mjs`, `gradle.mjs` y `.pyc` · Grupo B · Estado: HECHA
 
-- Depende de: T1, T2, T9
-- Archivos (exclusivos): `apps/web/src/stores/shareIn.ts` (nuevo), `apps/web/test/shareInStore.test.ts` (nuevo), `apps/web/src/components/share/ShareInSheet.tsx` (nuevo), `apps/web/src/shareIn.css` (nuevo), `apps/web/src/App.tsx`
-- Leer como contexto: `apps/web/src/share/sharedLink.ts`, `apps/web/src/native/shareTarget.ts`, `apps/web/src/components/downloads/PlaylistPicker.tsx` (props), `apps/web/src/stores/downloads.ts:345-395` (`enqueue`), `apps/web/src/components/Sheet.tsx`, `apps/web/src/views/DownloadView.tsx:277-281` (`useInLibrary`: escribir el mismo selector dentro de la hoja, no importarlo, porque T10 lo mueve en paralelo)
+- Depende de: T1 (comparte `scripts/smoke.mjs`).
+- Archivos (exclusivos): `scripts/smoke.mjs` (solo `stop()`, el final de `main()` y el arranque),
+  `apps/mobile/scripts/gradle.mjs`, `.gitignore`,
+  `apps/web/test/browser/__pycache__/*.pyc` (quitar del repo).
 - Qué hacer:
-  1. `stores/shareIn.ts`: `{ pending: SharedLink | null; receive(text: string): void; clear(): void }` y `startShareIn(): () => void` (llama a `takeSharedText` una vez y se suscribe a `onSharedText`; cada texto → `receive(parseSharedText(text))`; un enlace nuevo sustituye al anterior).
-  2. `App.tsx` (`Shell`): `useEffect(() => startShareIn(), [])` solo si `isNative`; montar `<ShareInSheet />` junto a las otras hojas.
-  3. `ShareInSheet`:
-     - vídeo: `SongThumb` grande (`videoId`), título de `fetchVideoInfo` (mientras, `shareIn.loading`; si `null`, `shareIn.unknownTitle` y debajo `shareIn.infoFailed`), autor; si ya está en la biblioteca, `dl.inLibrary` y sin botón; si no, «Descargar» (`shareIn.download`) → `useDownloads.getState().enqueue([{ videoId, title, author, thumbnail: youtubeThumb(videoId) }])`, `toast(shareIn.added)` y cerrar; y «Cancelar»;
-     - playlist: `<PlaylistPicker result={{ kind: 'playlist', id, title: '', author: '', thumbnail: '', url }} via={null} onClose={clear} />`;
-     - `blocked`: `pick.err.mix` / `pick.err.personal`; `invalid`: `shareIn.notYoutube`; las dos con botón `shareIn.ok`.
-  4. Errores de `enqueue`: `toast(t('dl.linkFailed'), 'error')` y `console.error` del detalle.
-- TDD: sí (`shareIn` store: recibe, sustituye, limpia, arranque en frío con texto pendiente); la hoja, no
+  1. **`smoke.mjs`.** En Windows, `child.kill()` con `shell: true` mata solo `cmd.exe`: workerd
+     sigue vivo, bloquea `persistDir` y `rmSync` lanza EPERM.
+     - Hacer `stop()` asíncrono. En win32:
+       `spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })`;
+       en el resto, `child.kill()`.
+     - Esperar al evento `exit` del hijo, con tope de 5 s.
+     - Luego `rmSync(persistDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })`
+       dentro de `try/catch`. Si falla, avisar con `console.warn` de qué carpeta queda, sin
+       cambiar el código de salida.
+     - El código de salida depende solo de las comprobaciones fallidas.
+     - Instalar `process.on('SIGINT')` para parar también con Ctrl+C.
+  2. **`gradle.mjs`.**
+     - Ruta absoluta con `join(androidDir, 'gradlew.bat' | 'gradlew')`. Si no existe: mensaje
+       claro («Falta …; ejecuta `npx cap sync android`») y salir con 1.
+     - En win32:
+       `spawnSync('cmd.exe', ['/d', '/s', '/c', `"${abs}" ${args}`], { cwd, stdio: 'inherit', windowsVerbatimArguments: true })`;
+       en el resto, `spawnSync(abs, args, { cwd, stdio: 'inherit' })` sin shell.
+     - Si `result.error` existe, mostrarlo.
+  3. **`.pyc`.**
+     - `git rm -r --cached apps/web/test/browser/__pycache__`;
+     - añadir `__pycache__/` y `*.pyc` a `.gitignore`.
+- TDD: no (scripts de herramientas; se comprueban ejecutándolos).
 - Criterios de aceptación:
-  - [ ] Tests del store en verde (con `shareTarget` simulado).
-  - [ ] En `fakenative`, `window.__askeFakeShare('https://youtu.be/…')` abre la ficha con portada y «Descargar», y la descarga aparece en la cola.
-- Verificación: `npx vitest run test/shareInStore.test.ts --root apps/web` y `npm run check`
+  - [ ] en Windows, `npm run test:e2e` termina con código 0 si pasan todas las comprobaciones;
+  - [ ] después no queda ningún `workerd.exe` ni wrangler colgado
+        (`Get-Process workerd -ErrorAction SilentlyContinue` vacío);
+  - [ ] `npm run android:apk` arranca Gradle en Windows sin «gradlew.bat no se reconoce» (con
+        `JAVA_HOME` y `ANDROID_HOME` como en `CLAUDE.md`);
+  - [ ] `git ls-files apps/web/test/browser/__pycache__` no devuelve nada.
+- Verificación: `npm run build -w @aske/web`, `npm run test:e2e` (mirar `$LASTEXITCODE`),
+  `npm run android:apk`.
+- Commits:
+  - `fix: para bien wrangler y workerd al acabar el smoke test en Windows`;
+  - `fix: ejecuta gradlew.bat en Windows desde gradle.mjs`;
+  - `chore: quita los .pyc del repositorio y los ignora`.
 
-### T12 · Tests de navegador de la v0.9.5 · Grupo E · Estado: HECHA
+### T7 · Publicación v0.9.6 y documentación · Grupo C · Estado: HECHA
 
-- Depende de: T1-T11
-- Archivos (exclusivos): `apps/web/test/browser/v9_095.py` (nuevo), `apps/web/test/browser/README.md`
-- Leer como contexto: `apps/web/test/browser/v5_fakenative.py`, `apps/web/test/fake-native/shareTarget.ts`, `apps/web/test/fake-native/downloader.ts`
-- Qué hacer: un test Playwright (build `fakenative`, móvil 390 px con `has_touch`) que compruebe: la carga no muestra texto visible; en la lista de canciones cada fila tiene imagen (`img` o `.gen-art`); un deslizamiento táctil a la derecha en una fila dibuja el círculo y añade a la cola; un deslizamiento a la izquierda en el mini reproductor cambia de canción sin texto «Siguiente»; buscar → «Cargar más» añade resultados y después sale `dl.noMore`; `__askeFakeShare` con un vídeo abre la ficha y «Descargar» lo pone en la cola; con texto no válido sale el aviso. Añadir la fila a la tabla del README. Tras las pruebas, reconstruir el `dist` normal y cerrar wrangler/workerd.
-- TDD: no
+- Depende de: T1 a T6.
+- Archivos (exclusivos):
+  - los 7 `package.json` (raíz, `apps/web`, `apps/api`, `apps/hub`, `apps/mobile`,
+    `packages/shared`, `tools/ingest`) y `package-lock.json`;
+  - lo que tenga la versión fija (buscarlo con Grep `0\.9\.5`: `apps/api/src/version.ts` si no
+    se deriva, Android `versionCode`/`versionName` si no se derivan);
+  - `docs/releases/v0.9.6.md` (nuevo), `docs/ESTADO.md`, `docs/v2/architecture.md`
+    (tabla de fases), `docs/PRIVACY.md` (solo si procede), `CLAUDE.md` (las notas de Windows de
+    `smoke.mjs` y `gradle.mjs`, que ya no aplican).
+- Leer como contexto: `docs/releases/v0.9.5.md` (formato).
+- Qué hacer:
+  1. Subir la versión a 0.9.6 con un script `node` (nunca `sed` ni `npm install`), incluidas las
+     entradas de los workspaces en `package-lock.json`.
+  2. Notas de la versión en lenguaje sencillo:
+     - qué se arregla;
+     - «quien tenga la música en Cloudflare debe actualizar su servidor desde la app»
+       (migración 0008).
+  3. `ESTADO.md`: vaciar «Problemas conocidos» de lo arreglado (dejar la verificación de memoria
+     de la v0.9.3) y apuntar la v0.9.6.
+  4. `PRIVACY.md`: solo si procede. La tabla nueva guarda en el Cloudflare del propio usuario el
+     id de la descarga cancelada, que incluye el id del vídeo, durante 30 días. Si la política
+     detalla qué guarda el Worker, añadir una línea; si no, no tocarla.
+  5. Ejecutar la batería completa:
+     - `npm run check`;
+     - `npm run build -w @aske/web` y `npm run test:e2e`;
+     - las pruebas de navegador del README (v4 a v10, también la build `--mode fakenative`, y
+       después reconstruir el dist normal);
+     - `npm run android:apk`.
+
+     Informar del resultado de cada una.
+- TDD: no.
 - Criterios de aceptación:
-  - [ ] `python apps/web/test/browser/v9_095.py` pasa contra `wrangler dev` con el build `fakenative`.
-- Verificación: el propio test (ver README) y `npm run check`
+  - [ ] `git grep 0.9.5` solo aparece en notas o documentación histórica;
+  - [ ] todo lo de «Verificación» en verde y el APK generado;
+  - [ ] sin push ni tag (lo hace el orquestador).
+- Verificación: la batería del paso 5.
+- Commits:
+  - `chore: sube la versión a 0.9.6`;
+  - `docs: añade las notas de la versión 0.9.6 y actualiza el estado`.
 
-### T13 · Ayuda, documentación, notas, limpieza de textos y versión 0.9.5 · Grupo E · Estado: HECHA
+## Publicación (la hace el orquestador, no los programadores)
 
-- Depende de: T1-T11
-- Archivos (exclusivos): `apps/web/src/help/articles/*.ts`, `apps/web/src/i18n/*.ts` (solo borrar claves sin uso), `docs/ESTADO.md`, `docs/v2/architecture.md`, `docs/PRIVACY.md`, `docs/hub.md`, `docs/android.md`, `docs/releases/v0.9.5.md` (nuevo), los 7 `package.json` (raíz, `apps/web`, `apps/api`, `apps/hub`, `apps/mobile`, `packages/shared`, `tools/ingest`) y `package-lock.json`
-- Leer como contexto: `apps/web/test/help.test.ts`, `docs/releases/v0.9.4.md`, este plan
-- Qué hacer (eu/es/en, lenguaje sencillo):
-  1. Ayuda: `listen.ts` (deslizar: la siguiente o la anterior entra con el dedo; en listas, el círculo = añadir a la cola), `music.ts` o el artículo de descargas (Compartir → Aske Stream desde YouTube / YouTube Music, qué enlaces vale, «Cargar más» y que puede fallar porque YouTube cambia), `privacy.ts` (miniaturas de YouTube). Consejo de pantalla si hace falta.
-  2. Borrar las claves que ya no se usan, comprobándolo con Grep en `src` y en la ayuda: `boot.connecting`, `player.swipe.next`, `player.swipe.prev`, `swipe.queue`, `swipe.jam` (si alguna sigue usándose, dejarla).
-  3. `PRIVACY.md` (en y es): las miniaturas de canciones que no están en tu biblioteca (Jam, listas compartidas, «Enviar», búsqueda, ficha de Compartir) se piden directamente a YouTube (`i.ytimg.com`) desde tu aparato, sin referer: YouTube/Google ve tu IP y qué vídeo se muestra, como al ver una miniatura en su web; el título al compartir se pide al oEmbed público de YouTube; las portadas de tu biblioteca y los dibujos ámbar no salen de tu aparato; las estadísticas de grupos no envían ids de YouTube.
-  4. `hub.md` (`?continuation=` en `/search`), `android.md` (intent `SEND` `text/plain` y para qué sirve), `ESTADO.md`, tabla de fases (v0.9.5 = fase 9.3) y `docs/releases/v0.9.5.md`.
-  5. Versión 0.9.5 en los 7 `package.json` y en las 8 entradas de `package-lock.json` (con `node`, no con `sed`).
-- TDD: no
-- Criterios de aceptación:
-  - [ ] `help.test.ts` e `i18n.test.ts` pasan; `ESTADO.md` al día; versión 0.9.5 en todos los sitios.
-- Verificación: `npm run check` y después `npm run test:e2e` (cerrar wrangler/workerd colgados)
-
-## Paso final del orquestador (tras aprobar la revisión, sin volver a preguntar)
-
-1. `npm run check`, `npm run test:e2e` (en Windows vale si dice que pasan todas las comprobaciones) y `v9_095.py`; reconstruir el `dist` normal y cerrar wrangler/workerd.
-2. `npm run deploy:hub` (búsqueda con continuación; **sin** migración) — antes que la web.
-3. `npm run deploy` (web y API; sin `db:migrate:remote`: no hay migraciones). Los amigos con Cloudflare verán el aviso de actualizar su servidor; hasta entonces no ven «Cargar más» en el ordenador.
-4. Commits en Conventional Commits (uno por cambio lógico) con autor `Andoni Ortiz de Zarate Urruela <Ando144@users.noreply.github.com>` y sin ninguna mención a Claude; `git push`.
-5. Tag `v0.9.5` y `git push` del tag: CI construye y publica los APK.
+1. `npm run db:migrate:remote`: hay migración **0008** en la API.
+2. Hub: no tiene migración, pero sí código nuevo. Va antes que la web: `npm run deploy:hub`.
+3. `npm run deploy`.
+4. `git push`, después el tag `v0.9.6`. CI publica los APK.
 
 ## Riesgos / dudas abiertas
 
-- **Duda 1 — Portadas en las estadísticas de grupos** (el Hub solo tiene título y artista):
-  - **(Recomendada) A. Portada de tu biblioteca si tienes esa canción; si no, dibujo ámbar.** Sin tocar el Hub ni compartir más datos. Inconveniente: las canciones que tú no tienes salen con dibujo.
-  - **B. Subir también el id de YouTube en las estadísticas compartidas** (campo opcional nuevo en `MonthTopTrack`/`RankedTrack`). Se ve la miniatura real, pero cambia el Hub, la política de privacidad (RGPD: más datos por persona) y solo funciona con estadísticas nuevas.
-  - Recomiendo A: cumple «nunca sin imagen» sin ampliar lo que se comparte.
-- **Duda 2 — Elegir playlist en el modo estudio:** hoy es un desplegable del sistema, que no admite imágenes.
-  - **(Recomendada) A. Cambiarlo por una lista con portada y nombre** (tipo botones de opción). Coherente con «nunca sin portada»; ocupa algo más de pantalla.
-  - **B. Dejar el desplegable** como excepción. Cero cambios, pero rompe la regla.
-  - Recomiendo A (está así en T4).
-- **PWA en Android (Chrome):** la pantalla de arranque que dibuja el propio navegador al abrir la PWA instalada muestra el nombre de la app debajo del icono; no se puede quitar sin quitar el nombre del manifiesto. La app Android (APK) y la web sí quedan sin letras.
-- **Salto entre el splash nativo y el web:** tamaños distintos (el de Android 12 lo fija el sistema). Se aproxima; VERIFICAR en el APK.
-- **InnerTube (API no oficial):** el formato de continuación puede cambiar; YouTube Music puede exigir `ctoken` en la URL (VERIFICAR en T8 con una respuesta real si hay red). Si falla, mensaje claro y se conservan los resultados.
-- **oEmbed** no funciona con vídeos privados o con restricción de edad: la ficha dice «Canción de YouTube» y se descarga igual (yt-dlp decidirá).
-- **Rendimiento:** listas largas con `GeneratedArt` son SVG/CSS ligeros; `findTrackByTitle` usa índice cacheado. Las miniaturas de YouTube van con `loading="lazy"`.
-- **Pendientes que siguen:** `stores/library.ts` (557 líneas) sin partir; VERIFICAR memoria con audios de 120-200 MB y subidas de 80-95 MB; descargas atascadas y podcasts de más de 2 h sin conexión (de `ESTADO.md`).
+- Worker viejo (cada amigo actualiza el suyo desde la app): hasta que lo actualice, una canción
+  cancelada mientras se guardaba puede quedarse en su biblioteca. El plan avisa con «actualiza el
+  servidor» y no borra nada, siguiendo la regla «nunca tocar lo ajeno». Si Andoni prefiere
+  mantener el barrido antiguo solo para Workers viejos, habría que decirlo antes de T5 (no
+  recomendado: es justo el que puede borrar lo de otro aparato).
+- Drive: anular la sesión de subida es «lo mejor posible». Si Google ya había terminado y el
+  móvil se queda sin red justo en ese momento, el archivo de audio puede quedar en la carpeta de
+  Drive. No sale en la biblioteca, pero ocupa espacio. Se registra con `console.error`.
+- T4: si fakenative no permite simular «Compartir» en el navegador, el aviso único se cubre con
+  Vitest.
