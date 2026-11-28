@@ -12,8 +12,8 @@ with sync_playwright() as pw:
     p=ctx.new_page(); p.on("pageerror",lambda e: errors.append(str(e)))
     p.goto(BASE+"/"); p.wait_for_selector(".welcome-card"); p.get_by_role("button", name="Saltar").click(); p.wait_for_selector(".setup-option")
     # Cloudflare -> key
-    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.wait_for_selector("#key")
-    p.fill("#key", KEY); p.locator("button[type=submit]").click(); p.wait_for_selector(".page-header")
+    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.locator(".pair-other summary").click(); p.wait_for_selector("#key")
+    p.fill("#key", KEY); p.locator(".pair-other button[type=submit]").click(); p.wait_for_selector(".page-header")
     # gear on every main screen
     for path in ["/","/playlists","/podcasts","/radio","/offline"]:
         p.goto(BASE+path); p.wait_for_selector(".page-header")
@@ -51,7 +51,7 @@ with sync_playwright() as pw:
     # unpair
     p.get_by_role("button", name="Desconectar de Cloudflare").click()
     p.locator(".dialog .btn.danger, .dialog button.danger").last.click(); p.wait_for_selector(".setup-option")
-    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.wait_for_selector("#key")
+    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.locator(".pair-other summary").click(); p.wait_for_selector("#key")
     print("after unpair asks key: OK")
     b.close()
 print("errors:",errors)

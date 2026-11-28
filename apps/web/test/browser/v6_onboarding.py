@@ -23,7 +23,7 @@ with sync_playwright() as pw:
     print("sheet back:", p.locator(".help-sheet h2").inner_text())
     p.locator(".help-sheet button[aria-label='Cerrar']").click()
     # pair screen helps
-    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.wait_for_selector("#key")
+    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.locator(".pair-other summary").click(); p.wait_for_selector("#key")
     p.get_by_role("button", name="¿Dónde encuentro la dirección y la clave?").click(); p.wait_for_selector(".help-sheet"); time.sleep(0.4)
     shot(p,"04-pair-help"); p.locator(".help-sheet button[aria-label='Cerrar']").click()
     shot(p,"05-pair")

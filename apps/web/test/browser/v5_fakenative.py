@@ -94,8 +94,8 @@ with sync_playwright() as pw:
     p.on("response", lambda r: print("   RESP", r.status, r.url[:80]) if "/api/ingest" in r.url else None)
     p.on("console", lambda m: print("   CONSOLE", m.text[:200]) if m.type in ("error","warning") else None)
     p.goto(BASE+"/"); p.wait_for_selector(".welcome-card"); p.get_by_role("button", name="Saltar").click(); p.wait_for_selector(".setup-option")
-    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.wait_for_selector("#key")
-    p.fill("#key",KEY); p.locator("button[type=submit]").click(); p.wait_for_selector(".tabbar")
+    p.locator(".setup-option").nth(2).locator("button.btn").click(); p.locator(".pair-other summary").click(); p.wait_for_selector("#key")
+    p.fill("#key",KEY); p.locator(".pair-other button[type=submit]").click(); p.wait_for_selector(".tabbar")
     p.evaluate("""async () => { const lib = await (await fetch('/api/library')).json();
       for (const t of lib.tracks.filter(t=>t.source==='youtube')) await fetch('/api/tracks/'+t.id,{method:'DELETE'});
       for (const pl of lib.playlists) await fetch('/api/playlists/'+pl.id,{method:'DELETE'});

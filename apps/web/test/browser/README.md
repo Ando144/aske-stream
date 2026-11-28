@@ -13,10 +13,11 @@ npm run db:migrate:local
 | `v4_test.py`, `v6_onboarding.py`  | `npm run build -w @aske/web`                                                                |
 | `v5_fakenative.py`, `v7_drive.py` | `npx vite build --mode fakenative` in `apps/web` (Android app with fake plugins)            |
 | `v8_drive_web.py`                 | `VITE_GOOGLE_CLIENT_ID=test npx vite build` in `apps/web`                                   |
-| `v9_095.py`                       | `npx vite build --mode fakenative` in `apps/web` (no `media/` copy: the test serves it)     |
+| `v9_095.py`, `v10_096.py`         | `npx vite build --mode fakenative` in `apps/web` (no `media/` copy: the test serves it)     |
 
 `v9_095.py` makes its own test song with `ffmpeg` when `media/song.webm` is missing, and answers
-the Hub and YouTube thumbnails itself, so it needs no network. Rebuild the normal `dist` afterwards.
+the Hub and YouTube thumbnails itself, so it needs no network. `v10_096.py` reuses its helpers.
+Rebuild the normal `dist` afterwards.
 
 `fakedrive.py` is an in-memory Google Drive v3 answered through Playwright request
 interception: the test must keep calling Playwright (`page.wait_for_timeout`, not
