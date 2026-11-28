@@ -59,4 +59,7 @@ apps/mobile/android/local.properties
 *.apk
 *.aab
 apps/web/test/browser/shots/
+# Python bytecode from the browser tests
+__pycache__/
+*.pyc
 !apps/web/src/study/sounds/*.ogg
