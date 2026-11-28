@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createCfApi } from '../../src/cloudflare/api';
-import { applyMigrations, pendingMigrations } from '../../src/cloudflare/migrations';
-import { FakeCloudflare, ok } from './fakeCloudflare';
+import {
+  addedColumn,
+  applyMigrations,
+  pendingMigrations,
+  splitSql,
+} from '../../src/cloudflare/migrations';
+import { CfError } from '../../src/cloudflare/types';
+import { fail, FakeCloudflare, ok } from './fakeCloudflare';
 
 const ALL = [
   { name: '0001_a.sql', sql: 'CREATE TABLE a(x)' },
@@ -21,6 +27,50 @@ describe('pendingMigrations', () => {
         ALL,
       ),
     ).toEqual([]);
+  });
+});
+
+describe('splitSql', () => {
+  it('drops comment lines and splits into trimmed statements', () => {
+    const sql = [
+      '-- header; with a semicolon',
+      'CREATE TABLE a (',
+      '  -- indented comment',
+      '  x TEXT',
+      ');',
+      '',
+      '  ALTER TABLE a ADD COLUMN y TEXT;  ',
+    ].join('\r\n');
+    expect(splitSql(sql)).toEqual([
+      'CREATE TABLE a (\n  x TEXT\n)',
+      'ALTER TABLE a ADD COLUMN y TEXT',
+    ]);
+  });
+
+  it('returns nothing for empty or comment-only input', () => {
+    expect(splitSql('-- nothing\n ;\n;')).toEqual([]);
+  });
+});
+
+describe('addedColumn', () => {
+  it('reads the table and column, ignoring case and line breaks', () => {
+    expect(addedColumn('ALTER TABLE tracks ADD COLUMN upload_id TEXT')).toEqual({
+      table: 'tracks',
+      column: 'upload_id',
+    });
+    expect(addedColumn('alter table Folders\n  add column pinned_at INTEGER')).toEqual({
+      table: 'Folders',
+      column: 'pinned_at',
+    });
+  });
+
+  it.each([
+    'CREATE TABLE a (x TEXT)',
+    'ALTER TABLE a RENAME TO b',
+    'ALTER TABLE a DROP COLUMN x',
+    "INSERT INTO meta VALUES ('ALTER TABLE a ADD COLUMN x')",
+  ])('ignores %s', (statement) => {
+    expect(addedColumn(statement)).toBeNull();
   });
 });
 
@@ -62,5 +112,65 @@ describe('applyMigrations', () => {
     );
     expect(await applyMigrations(createCfApi(fake.transport, 't'), 'a1', 'db1', ALL)).toBe(0);
     expect(fake.requests).toHaveLength(2);
+  });
+
+  const HALF_APPLIED = {
+    name: '0008_upload_cancels.sql',
+    sql: [
+      'ALTER TABLE tracks ADD COLUMN upload_id TEXT;',
+      'CREATE INDEX IF NOT EXISTS idx ON tracks(upload_id);',
+    ].join('\n'),
+  };
+
+  function fakeWithColumns(columns: string[]) {
+    return new FakeCloudflare().on(`POST ${query}`, (req) => {
+      const sql = (req.json as { sql: string }).sql;
+      return sql.startsWith('PRAGMA')
+        ? ok([{ results: columns.map((name) => ({ name })) }])
+        : ok([{ results: [] }]);
+    });
+  }
+
+  /** What was sent after creating and reading the migrations table. */
+  const sentAfterSetup = (fake: FakeCloudflare) =>
+    fake.requests.slice(2).map((r) => (r.json as { sql: string }).sql);
+
+  const applyHalfApplied = (fake: FakeCloudflare) =>
+    applyMigrations(createCfApi(fake.transport, 't'), 'a1', 'db1', [HALF_APPLIED]);
+
+  it('skips a column that already exists and records the migration', async () => {
+    const fake = fakeWithColumns(['id', 'Upload_ID']);
+    expect(await applyHalfApplied(fake)).toBe(1);
+    expect(sentAfterSetup(fake)).toEqual([
+      'PRAGMA table_info(tracks)',
+      'CREATE INDEX IF NOT EXISTS idx ON tracks(upload_id)',
+      'INSERT INTO d1_migrations (name) VALUES (?)',
+    ]);
+  });
+
+  it('adds a column that is missing', async () => {
+    const fake = fakeWithColumns(['id']);
+    await applyHalfApplied(fake);
+    expect(sentAfterSetup(fake)).toEqual([
+      'PRAGMA table_info(tracks)',
+      'ALTER TABLE tracks ADD COLUMN upload_id TEXT',
+      'CREATE INDEX IF NOT EXISTS idx ON tracks(upload_id)',
+      'INSERT INTO d1_migrations (name) VALUES (?)',
+    ]);
+  });
+
+  it('names the failing migration, keeps the cause and does not record it', async () => {
+    const fake = new FakeCloudflare().on(`POST ${query}`, (req) =>
+      (req.json as { sql: string }).sql.startsWith('CREATE INDEX')
+        ? fail(429)
+        : ok([{ results: [] }]),
+    );
+    const error = await applyHalfApplied(fake).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain('0008_upload_cancels.sql');
+    expect((error as Error).cause).toBeInstanceOf(CfError);
+    // The setup screen picks its plain-language message from this code.
+    expect(error).toMatchObject({ code: 'rate_limited' });
+    expect(sentAfterSetup(fake).some((sql) => sql.startsWith('INSERT'))).toBe(false);
   });
 });
