@@ -38,6 +38,7 @@ export function ImportButton() {
         className="btn primary small"
         onClick={() => input.current?.click()}
         disabled={busy}
+        aria-label={t('library.import')}
         title={t(
           useSetup.getState().config?.home === 'drive'
             ? 'library.importHintDrive'
@@ -45,7 +46,7 @@ export function ImportButton() {
         )}
       >
         {busy ? <LoaderCircle size={16} className="spin" /> : <Upload size={16} />}
-        {t('library.import')}
+        <span className="hide-narrow">{t('library.import')}</span>
       </button>
       <input
         ref={input}

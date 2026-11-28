@@ -1,5 +1,7 @@
+import { useRef, type KeyboardEvent } from 'react';
 import { Check } from 'lucide-react';
 import { useT } from '../../i18n';
+import { nextRadioIndex } from '../../lib/radioKeys';
 import { useLibrary } from '../../stores/library';
 import type { StudySource } from '../../study/session';
 import { PlaylistArt } from '../PlaylistArt';
@@ -20,24 +22,42 @@ function PlaylistOptions({
   const t = useT();
   const playlists = useLibrary((s) => s.playlists);
   const tracks = useLibrary((s) => s.tracks);
+  const radios = useRef<(HTMLButtonElement | null)[]>([]);
   if (playlists.length === 0) return null;
   const label = t('study.source.playlist');
+  // The group is a single Tab stop: the chosen playlist, or the first one when none is.
+  const tabStop = Math.max(
+    0,
+    playlists.findIndex((pl) => pl.id === selectedId),
+  );
+  const onKeyDown = (event: KeyboardEvent, index: number) => {
+    const next = nextRadioIndex(event.key, index, playlists.length);
+    if (next === null) return;
+    event.preventDefault();
+    radios.current[next]?.focus();
+    onPick(playlists[next]!.id);
+  };
   return (
     <>
       <span className="small muted" aria-hidden>
         {label}
       </span>
       <div className="study-playlists" role="radiogroup" aria-label={label}>
-        {playlists.map((pl) => {
+        {playlists.map((pl, index) => {
           const checked = pl.id === selectedId;
           return (
             <button
               key={pl.id}
+              ref={(button) => {
+                radios.current[index] = button;
+              }}
               type="button"
               role="radio"
               aria-checked={checked}
+              tabIndex={index === tabStop ? 0 : -1}
               className="menu-item study-playlist"
               onClick={() => onPick(pl.id)}
+              onKeyDown={(event) => onKeyDown(event, index)}
             >
               <PlaylistArt playlist={pl} tracks={tracks} size={32} />
               <span className="grow ellipsis">{pl.name}</span>

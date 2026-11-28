@@ -1784,6 +1784,12 @@ h2,
   .page-header .hide-narrow {
     display: none;
   }
+
+  /* Without their text, header buttons become squares so the title keeps its room. */
+  .page-header .btn.small:has(> .hide-narrow) {
+    width: 36px;
+    padding: 0;
+  }
 }
 
 .update-panel .btn {

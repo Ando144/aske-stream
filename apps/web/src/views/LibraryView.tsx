@@ -90,8 +90,9 @@ export function LibraryView() {
         <h1>{t('library.title')}</h1>
         <div className="row">
           {isNative && (
-            <Link href="/study" className="btn small">
-              <Timer size={16} /> {t('nav.study')}
+            <Link href="/study" className="btn small" aria-label={t('nav.study')}>
+              <Timer size={16} aria-hidden />
+              <span className="hide-narrow">{t('nav.study')}</span>
             </Link>
           )}
           {(home === 'device' || home === 'drive') && <ImportButton />}
