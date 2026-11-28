@@ -74,6 +74,9 @@ docs/             architecture.md, android.md, google-drive.md, PRIVACY.md (pol�
 - Una sola paleta de color: ámbar. No añadir temas.
 - Ningún nombre de canción o playlist sin imagen al lado: portada, miniatura de YouTube o dibujo
   ámbar (`components/art/`).
+- La pantalla de arranque vive solo en `apps/web/index.html` (HTML y CSS en línea, sin textos);
+  la controla `lib/bootSplash.ts`. En Android la pantalla nativa es solo fondo oscuro.
+  Se graba y comprueba con `test/browser/v11_097.py`.
 
 ## Reglas acordadas (obligatorias)
 

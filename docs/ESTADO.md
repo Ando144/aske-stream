@@ -1,5 +1,4 @@
 # Estado del proyecto
-
 Actualizado: 2026-11-28
 
 ## Hecho
@@ -8,7 +7,7 @@ Actualizado: 2026-11-28
 - **v0.9.6 (publicada):** cancelar borra solo lo propio, un solo aviso al compartir, flechas en el modo estudio, título de Biblioteca entero a 390 px, límite de foto en el Hub.
 - **v0.9.7 (publicada):** animación del logo al arrancar (web y Android), aprobada por Andoni, y arreglados los cuatro fallos de la v0.9.6. Notas en `docs/releases/v0.9.7.md`.
 
-## Pendiente
+## En curso / siguiente
 
 - **Andoni, probar v0.9.7** (los amigos con Cloudflare deben actualizar su servidor desde la app): la animación en un móvil real (arranque normal y lento, sin icono nativo antes en el APK, sin tirones); cancelar mientras se guarda en Drive sin internet y volver a conectar; cancelar con un servidor de Cloudflare antiguo y actualizarlo después.
 - **Andoni, probar v0.9.6:** cancelar descargas mientras se guardan (Cloudflare y Drive), «Reintentar» después y compartir desde YouTube.
@@ -28,3 +27,4 @@ Actualizado: 2026-11-28
 - Riesgo asumido de la pista `ref`/`since`: con el margen de 10 min puede borrar una canción sin `upload_id` del mismo vídeo creada por otra vía (copia a Cloudflare, `tools/ingest` o una app antigua).
 - En Safari anterior a 16.4 la animación no tiene ecualizador (el logo se queda quieto mientras carga).
 - La PWA instalada en Android muestra antes su propio icono; no se puede quitar desde la web.
+- MEDIO (revisión v0.9.7): sin test de la suscripción a `useServerUpdate` ni de `forgetCancelsFor` en `completeSave`; `dropFromLibrary` (`downloads/cancel.ts`) repite `deleteTrack` (mejor una opción `silent`); `downloadCancel.test.ts` no deshace su `stubGlobal`.
