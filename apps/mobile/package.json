@@ -1,6 +1,6 @@
 {
   "name": "@aske/mobile",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "private": true,
   "type": "module",
   "description": "Android app: the same web app inside a native shell (Capacitor) with background playback and in-app updates.",
