@@ -383,7 +383,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       const queued = fresh.length - skipped;
       if (skipped && playlistId) toast(t('dl.alreadyHad', { count: skipped }));
       if (queued) {
-        toast(t('dl.queued', { count: queued }));
+        if (!opts.quiet) toast(t('dl.queued', { count: queued }));
         // The foreground service must start while the app is still visible.
         await sendToNative();
         void notify();

@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 import { useT, type MessageKey } from '../../i18n';
 import { fetchVideoInfo } from '../../native/shareTarget';
 import type { SharedLink } from '../../share/sharedLink';
+import { sharedNoticeKey } from '../../share/sharedNotice';
 import { useDownloads } from '../../stores/downloads';
 import { useLibrary } from '../../stores/library';
 import { useShareIn } from '../../stores/shareIn';
@@ -60,10 +61,9 @@ function useDownloadShared(link: VideoLink, title: string, author: string) {
     setBusy(true);
     const { videoId } = link;
     try {
-      await useDownloads
-        .getState()
-        .enqueue([{ videoId, title, author, thumbnail: youtubeThumb(videoId) }]);
-      toast(t('shareIn.added'));
+      const item = { videoId, title, author, thumbnail: youtubeThumb(videoId) };
+      const queued = await useDownloads.getState().enqueue([item], { quiet: true });
+      toast(t(sharedNoticeKey(queued, videoId, useDownloads.getState().jobs)));
       // Another link may have arrived meanwhile: that one stays on screen.
       if (useShareIn.getState().pending === link) useShareIn.getState().clear();
     } catch (err) {

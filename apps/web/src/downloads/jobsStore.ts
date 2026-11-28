@@ -30,6 +30,8 @@ export interface DownloadsState {
       /** Name already taken: 'merge' (default) joins that playlist, 'new' creates "Name (n)". */
       playlistMode?: 'merge' | 'new';
       sendId?: string | null;
+      /** The caller shows its own notice: skip the "added to the queue" one. */
+      quiet?: boolean;
     },
   ) => Promise<number>;
   /** Expands a YouTube link (song or playlist) and queues it. */
