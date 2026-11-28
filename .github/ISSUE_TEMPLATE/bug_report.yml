@@ -1,0 +1,66 @@
+name: Bug report
+description: Something does not work as expected
+title: 'Bug: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Do not paste access keys, tokens, pairing links, pairing codes,
+        QR codes or invite links, and check your screenshots for them.
+        To report a vulnerability, use the Security tab instead.
+        You can write in English, Spanish or Basque.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in Settings → About.
+      placeholder: '0.9.7'
+    validations:
+      required: true
+  - type: dropdown
+    id: storage
+    attributes:
+      label: Where is your music stored?
+      options:
+        - This device
+        - Google Drive
+        - Cloudflare
+        - Not set up yet / not related
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android app
+        - Web / PWA
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and system
+      placeholder: Phone model and Android version, or browser and operating system
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Optional. Drag images here after hiding any key, code, link or personal data.

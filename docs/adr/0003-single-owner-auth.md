@@ -1,6 +1,6 @@
 # 0003 — Single-owner device pairing
 
-**Status:** accepted
+**Status:** accepted; extended in v0.6.0 with one-time pairing codes (see the addendum)
 
 ## Context
 

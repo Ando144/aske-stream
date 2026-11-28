@@ -1,6 +1,7 @@
 # 0005 — Offline audio in Cache Storage, played through blob: URLs
 
-**Status:** accepted
+**Status:** accepted; since v0.5.0 Google Drive songs use the same cache
+([ADR 0007](0007-google-drive-home.md))
 
 ## Context
 

@@ -1,6 +1,7 @@
 # 0004 — Ogg Opus, remuxed by default
 
-**Status:** accepted
+**Status:** accepted; since v0.3.0 the phone also stores Opus in WebM as downloaded
+([ADR 0008](0008-youtube-download-on-the-phone.md))
 
 ## Context
 

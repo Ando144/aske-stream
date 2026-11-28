@@ -1,331 +1,449 @@
-# PLAN: v0.9.7, animación del logo al arrancar y arreglo de los cuatro fallos conocidos
+# PLAN: Documentación profesional del proyecto
 
-Fecha: 2026-11-28 · Estado: COMPLETADO
+Fecha: 2026-11-28 · Estado: COMPLETADO · Rama: `docs/documentacion-profesional`
 
 ## Objetivo
 
-1. Recuperar la animación de arranque quitada en `e6edc43` (barras que se trazan, se rellenan y destello), pulida y sin texto. Dura 1,4 s como mínimo. Si la app sigue cargando, las barras se mueven como un ecualizador. Cuando la app está lista, vuelven suavemente a su forma y la pantalla se funde. Igual en web/PWA y Android, sin parpadeos.
-2. Arreglar los 4 problemas conocidos de `docs/ESTADO.md`: archivos que quedan tras cancelar (Worker antiguo y Drive), error falso al cancelar justo al terminar, migración 0008 a medias y la prueba v5 que no verifica la reanudación.
-3. Dejar preparadas las notas de la v0.9.7, la ayuda y los documentos. **Se publica solo cuando Andoni apruebe la animación.**
+Dejar el repositorio con documentación profesional y vistosa para empresas: README en inglés (con
+versiones en español y euskera) centrado primero en el producto y después en la ingeniería; capturas
+y GIFs generados automáticamente con música ficticia; arquitectura con diagramas Mermaid,
+referencia de API (Worker y Hub), ADRs, guías, archivos de comunidad, CHANGELOG, plantillas de
+GitHub, cobertura en CI, Dependabot y una comprobación automática de enlaces, imágenes y comandos.
+Nada se publica (push, merge, `gh repo edit`) sin permiso de Andoni.
 
 ## Decisiones de arquitectura
 
-- **La pantalla de arranque es una sola, la de `index.html`, y queda FUERA de `#root`** (hermana de `#root`). React ya no la vuelve a dibujar: se borran `components/BootSplash.tsx` y `src/boot.css`. Así la animación empieza antes de que cargue el JavaScript y no se reinicia ni salta cuando React toma el control.
-- **Todo el movimiento va en CSS dentro de `index.html`**, incluido el ecualizador, que arranca solo a los 1400 ms gracias a `animation-delay`. Si el JS tarda o no carga, el logo sigue moviéndose. El JS solo decide cuándo parar.
-- **Cada barra son tres piezas:** un cuerpo recto y dos medias lunas (círculos `r=3`). Se mueven con la propiedad registrada `@property --s` (factor de escala). Así los extremos redondos nunca se deforman, cosa que sí pasaría con `scaleY` sobre un `rect rx=3`. Todas las barras están centradas en `y=32`.
-- **El regreso suave usa una transición sobre `--s`.** Se lee el valor actual, se fija en línea, se quita la animación y en el fotograma siguiente se pone `--s: 1`. Da igual en qué punto del ciclo esté: no hay saltos.
-- **`lib/bootSplash.ts` es un controlador pequeño sin React** que gestiona `settle()` y `leave()`, con temporizadores de respaldo para que nunca se quede colgado. Las fases las expone en `data-phase`, para las pruebas.
-- **El contenido de la app se monta después de que las barras se hayan asentado**, y el fundido es de `opacity` sobre un `div`, que va por el compositor. Así el montaje de React no da tirones en la animación SVG.
-- **«Reducir movimiento»: la animación es igual para todos** (lo eligió Andoni). Se quitan los `@media (prefers-reduced-motion)`.
-- **Android: la pantalla de arranque nativa queda solo con el fondo `#14110F`.** El icono del SplashScreen de Android 12+ pasa a ser transparente.
-- **Borrado pendiente en Cloudflare con un Worker antiguo:** la cancelación ya no se olvida. Queda guardada hasta que el servidor esté actualizado. Como el Worker antiguo no guardaba `upload_id`, el nuevo acepta una pista opcional (`ref` = vídeo de YouTube y `since`) y solo borra pistas con `upload_id IS NULL`, de ese vídeo y creadas después de `since`. Si después se guarda o aparece como duplicada esa misma canción, la pista se descarta. **Aprobado por Andoni.**
-- **Borrado pendiente en Drive:** cada archivo subido lleva `appProperties.askeUploadId`. Al cancelar mientras se guarda, se apunta una limpieza persistente que busca por esa propiedad y borra solo esos archivos, y nunca uno que use la biblioteca.
-- **Error falso al cancelar:** `discardSaved` deja de mostrar el aviso «Borrada» y, en Cloudflare, un 404 al borrar cuenta como «ya no estaba».
-- **Migraciones tolerantes:** se ejecuta sentencia a sentencia y se salta `ALTER TABLE … ADD COLUMN` si la columna ya existe (se mira con `PRAGMA table_info`). No se toca `0008_upload_cancels.sql`, que ya está aplicada en producción.
+- **No se mueve ningún documento que la app, Android, Google Cloud o CI enlacen** — la app
+  enlaza `docs/deployment.md` (y su apartado **Updating**), `docs/google-drive.md`; Google Cloud
+  enlaza `docs/PRIVACY.md`; CI usa `docs/releases/vX.Y.Z.md`; `docs/android.md` y `docs/hub.md`
+  los citan `build.gradle`, `AndroidManifest.xml`, `.gitignore` y `CLAUDE.md`. Se mejoran en su
+  sitio y los nuevos se añaden alrededor.
+- **Idioma:** documentos técnicos solo en inglés. `docs/hub.md` (hoy en español) se reescribe en
+  inglés en el mismo archivo. `docs/PRIVACY.md` y `docs/releases/*.md` no se tocan.
+- **Comprobador propio sin dependencias** (`scripts/check-docs.mjs`, Node puro) en lugar de
+  `markdown-link-check`/`lychee` — no añade dependencias al lock y corre igual en Windows y CI.
+  Comprueba enlaces relativos, imágenes, anclas `#...` y que cada `npm run <script>` citado exista.
+  Entra en `npm run check` y en CI. Los enlaces externos solo con `--external` (manual, no en CI).
+- **Cobertura sin tocar `package-lock.json`:** en CI (Linux), tras `npm ci`, se instala
+  `@vitest/coverage-v8` con `npm install --no-save` en la misma versión exacta que `vitest`
+  (hoy 5.1.0, leída con `node -p`). El paso «Unit tests» pasa a ejecutarse con cobertura; el
+  resumen va al _job summary_ de GitHub y el HTML como artefacto. Sin servicios externos.
+- **Dependabot** mensual y agrupado (npm, github-actions, gradle) para no llenar de PRs.
+  Dependabot actualiza el lock en Linux, así que no sufre el problema de Windows.
+- **Imágenes reproducibles con un solo comando** `npm run docs:media`: un Worker local aislado
+  (como `scripts/smoke.mjs`), música inventada generada con ffmpeg (tonos Opus y portadas de
+  degradados), Playwright (Python, como los tests de `apps/web/test/browser`) para capturas y
+  vídeos, y ffmpeg para pasar los vídeos a GIF. Interfaz en inglés. La parte de Android se graba
+  con la build `fakenative`. Al terminar reconstruye el `dist` normal.
+- **Banner e imagen social** salen de una plantilla HTML (`scripts/docs-media/banner.html`)
+  renderizada por el mismo script: así se pueden regenerar y usan el logo real (`favicon.svg`) y
+  la paleta ámbar.
+- **Sin botón «Try it»:** no hay URL pública de la app web en el repo (la del Hub es solo API y
+  `ando144.github.io` es la web personal, excluida). Siempre enlace a
+  `https://github.com/Ando144/aske-stream/releases/latest` para el APK.
+- **Sin emojis en los documentos**; lo vistoso son el banner, capturas, GIFs, insignias, tablas
+  y diagramas Mermaid (GitHub los dibuja solo).
+- **Insignias solo reales:** CI, Android app (workflow), última release, licencia, descargas,
+  Node ≥ 22.12, TypeScript strict. Nada de insignias de cobertura (ver dudas).
 
 ## Contratos (interfaces compartidas)
 
-### Worker (`apps/api`)
+### Rutas de archivos nuevos (fijas: todas las tareas enlazan a estas)
 
-`DELETE /api/ingest/uploads/:uploadId?ref=<videoId>&since=<ms>`. Los dos parámetros son opcionales y van juntos.
-
-- `ref`: `^[A-Za-z0-9_-]{1,64}$`. `since`: entero ≥ 0. Si llega solo uno, o alguno no es válido: 400 `validation_error`.
-- Igual que ahora, más una sentencia en el mismo `batch`:
-  `DELETE FROM tracks WHERE upload_id IS NULL AND source = 'youtube' AND source_ref = ? AND created_at >= ? RETURNING id`.
-- Respuesta: `{ deletedIds: string[] }`, que reúne los dos borrados. También se borran sus objetos de R2.
-
-```ts
-// apps/api/src/lib/uploads.ts
-export interface LegacyHint {
-  ref: string;
-  since: number;
-}
-export function cancelUpload(
-  db: D1Database,
-  bucket: R2Bucket,
-  uploadId: string,
-  legacy?: LegacyHint,
-): Promise<string[]>;
+```
+README.md  README.es.md  README.eu.md  CHANGELOG.md  CONTRIBUTING.md  CODE_OF_CONDUCT.md  SECURITY.md
+.github/ISSUE_TEMPLATE/{bug_report.yml,feature_request.yml,config.yml}
+.github/pull_request_template.md   .github/dependabot.yml
+docs/README.md                 índice de toda la documentación
+docs/development.md            instalación y desarrollo local
+docs/testing.md                estrategia de pruebas y cómo ejecutarlas
+docs/api/worker.md             referencia de la API del Worker (/api/*)
+docs/api/hub.md                referencia de la API del Hub (/hub/v1/* y protocolo Jam)
+docs/adr/0006-…md … 0013-…md   nuevos ADRs (títulos en T5)
+docs/media/screenshots/*.png   docs/media/gifs/*.gif
+docs/media/banner.png (1280x400)   docs/media/social-preview.png (1280x640)
 ```
 
-### Cliente (`apps/web`)
+### Imágenes que produce T2 (nombres exactos; T7 los usa)
 
-```ts
-// api/client.ts
-cancelUpload(uploadId: string, legacy?: { ref: string; since: number }): Promise<{ deletedIds: string[] }>;
+| Archivo                                 | Tamaño de viewport              | Contenido                                          |
+| --------------------------------------- | ------------------------------- | -------------------------------------------------- |
+| `screenshots/mobile-library.png`        | 390x844, deviceScaleFactor 2    | Biblioteca con playlists y canciones               |
+| `screenshots/mobile-now-playing.png`    | igual                           | Reproductor a pantalla completa                    |
+| `screenshots/mobile-playlist.png`       | igual                           | Una playlist abierta                               |
+| `screenshots/mobile-storage-choice.png` | igual                           | Pantalla de elegir dónde guardar la música         |
+| `screenshots/mobile-offline.png`        | igual                           | Ajustes → Música sin conexión                      |
+| `screenshots/mobile-radio.png`          | igual                           | Radio con emisoras ficticias                       |
+| `screenshots/mobile-help.png`           | igual                           | Centro de ayuda                                    |
+| `screenshots/android-download.png`      | igual, build `fakenative`       | Pestaña Descargar con resultados ficticios         |
+| `screenshots/android-study.png`         | igual, build `fakenative`       | Modo estudio                                       |
+| `screenshots/desktop.png`               | 1440x900, deviceScaleFactor 1   | Biblioteca + reproductor en escritorio             |
+| `gifs/start.gif`                        | 390 px de ancho, 15 fps, ≤ 3 MB | Animación de arranque y aparición de la biblioteca |
+| `gifs/player.gif`                       | igual                           | Abrir el reproductor y deslizar a la siguiente     |
+| `banner.png` / `social-preview.png`     | 1280x400 / 1280x640             | Logo, «Aske Stream», lema en inglés, fondo oscuro  |
 
-// downloads/uploadCancels.ts (Cloudflare), localStorage 'aske.uploadCancels.v1'
-interface PendingCancel { id: string; at: number; ref?: string; since?: number }
-export function cancelCloudUpload(uploadId: string, legacy?: { ref: string; since: number }): Promise<void>;
-export function retryPendingCancels(): Promise<void>;          // Cloudflare + Drive
-export function forgetCancelsFor(videoId: string): void;      // quita la pista `ref` de ese vídeo
+Total de `docs/media/` ≤ 8 MB.
 
-// downloads/driveCleanups.ts (Drive, NUEVO), localStorage 'aske.driveCleanups.v1'
-interface PendingDriveCleanup { id: string; at: number }  // id = uploadId
-export function registerDriveCleanup(uploadId: string): void; // guarda y programa un intento a los 2 min
-export function retryDriveCleanups(): Promise<void>;
+### Scripts npm (los añade T1 en el `package.json` raíz)
 
-// storage/drive/api.ts
-export interface UploadOptions { signal?: AbortSignal; timeoutMs?: number; uploadId?: string }
-driveApi.findByUploadId(uploadId: string): Promise<DriveFile[]>;
-// query: appProperties has { key='askeUploadId' and value='<id>' } and trashed=false
+- `"docs:check": "node scripts/check-docs.mjs"` y se añade a `check`:
+  `format:check && typecheck && test && test:scripts && docs:check && build`.
+- `"docs:media": "node scripts/docs-media/run.mjs"` (el archivo lo crea T2).
+- `test:scripts` ejecuta también `scripts/lib/doc-links.test.mjs` y
+  `scripts/lib/coverage-table.mjs` test (listar los archivos explícitamente).
 
-// storage/drive/home.ts
-driveHome.referencedFileIds(): Promise<Set<string>>;  // audioFileId y coverFileId del doc
+### `scripts/lib/doc-links.mjs` (T1)
 
-// lib/bootSplash.ts (NUEVO)
-export const BOOT_INTRO_MS = 1400;
-export const SETTLE_MS = 480;
-export const SETTLE_HOLD_MS = 120;
-export const LEAVE_MS = 360;
-export type SplashPhase = 'intro' | 'eq' | 'settling' | 'leaving' | 'gone';
-export function attachBootSplash(ariaLabel: string): void;  // pone el aria-label traducido
-export function settleBootSplash(): Promise<void>;  // espera a que acabe la intro; si hay ecualizador, asienta
-export function leaveBootSplash(): Promise<void>;   // fundido y retirada del nodo
-export function splashPhaseAt(elapsedMs: number): 'intro' | 'eq'; // pura, con test
+```js
+/** GitHub-style heading slug: lower case, spaces -> '-', drops punctuation except '-' and '_'. */
+export function slugify(heading) {}
+/** Links and images in a Markdown text: [{ kind: 'link'|'image', target, line }]. Covers
+ *  [t](x), ![a](x), <img src="x">, <a href="x">, reference links; ignores fenced code. */
+export function extractLinks(markdown) {}
+/** Headings of a Markdown text as slugs (with GitHub's -1, -2 suffixes for repeats). */
+export function headingSlugs(markdown) {}
+/** `npm run <name>` (optionally `-w <workspace>`) found anywhere, including code blocks. */
+export function extractNpmScripts(markdown) {} // -> [{ name, workspace, line }]
 ```
 
-Si no existe `#boot-splash`, las tres funciones devuelven una promesa ya resuelta (tests y jsdom).
+`check-docs.mjs` recorre todos los `*.md` del repo salvo `node_modules`, `dist*`, `.wrangler`,
+`apps/mobile/android`, `docs/plan/` y `docs/releases/`. Errores: archivo destino que no existe,
+ancla que no existe en el destino, `npm run X` que no está en el `package.json` correspondiente.
+Sale con código 1 y lista `archivo:línea motivo`. `--external` además hace `HEAD` (o `GET`) a los
+`http(s)` y avisa de los que fallan.
 
-### DOM de `index.html` (lo usan T4 y T5)
+### `scripts/docs-media/run.mjs` → `capture.py` (T2, interno)
 
-```html
-<div id="boot-splash" class="boot-splash" role="status" aria-label="Aske Stream" data-phase="intro">
-  <svg class="boot-logo" viewBox="0 0 64 64" aria-hidden="true">…</svg>
-</div>
-<div id="root"></div>
-```
-
-### Especificación visual (valores exactos)
-
-- **Fondo:** `#14110f`. **Barras:** `#f2a93b`. **Logo:** 96×96 px, centrado. Geometría (viewBox 64): x = 13/23/33/43, ancho 6, y/alto = 26/12, 18/28, 12/40, 22/20. Todas centradas en y = 32.
-- **Por barra:**
-  - `<g class="bar b1..b4" style="--half: (h-6)/2">` con:
-    - `rect.body` (x, y+3, 6, h−6), sin rx, con `transform: scaleY(var(--s))`, `transform-box: view-box` y `transform-origin: 0 32px`;
-    - `circle.cap-top` (cx = x+3, cy = y+3, r = 3), con `translateY(calc((1 - var(--s)) * var(--half) * 1px))`;
-    - `circle.cap-bottom` (cy = y+h−3), con `translateY(calc((var(--s) - 1) * var(--half) * 1px))`.
-  - `@property --s { syntax: '<number>'; inherits: true; initial-value: 1 }`.
-- **Capa del trazo:** cuatro `rect` con rx = 3, `fill: none`, `stroke: #f2a93b` y `stroke-width: 1.25`. `stroke-dasharray`/`dashoffset` = perímetro: 30.85 / 62.85 / 86.85 / 46.85.
-- **Destello:** `<g clip-path="url(#boot-clip)">`, con el clip formado por los 4 `rect` rx = 3. Dentro, un `rect` de 24×64 en x = −24 relleno con un `linearGradient` (x2 = 1, y2 = 0.35; paradas 0 % `#fff3dc` con opacidad 0, 50 % `#fff3dc` con opacidad 0.38 y 100 % con opacidad 0). Se mueve con `translateX` de 0 a 88.
-
-**Línea de tiempo** (ms desde que se pinta la página; `i` = 0..3 es el índice de la barra):
-
-| Pieza                      | Inicio     | Duración | Curva                                   | Cambio            |
-| -------------------------- | ---------- | -------- | --------------------------------------- | ----------------- |
-| Logo entero (`svg`)        | 0          | 1200     | `cubic-bezier(0.22,1,0.36,1)`           | scale 0.96 → 1    |
-| Trazo, barra i             | 60 + 90·i  | 620      | `cubic-bezier(0.65,0,0.35,1)`           | dashoffset P → 0  |
-| Relleno, barra i (`g.bar`) | 460 + 90·i | 380      | `cubic-bezier(0.33,1,0.68,1)`           | opacity 0 → 1     |
-| Trazo se apaga, barra i    | 700 + 90·i | 300      | `ease-out`                              | opacity 1 → 0     |
-| Destello                   | 900        | 460      | `cubic-bezier(0.37,0,0.63,1)`           | translateX 0 → 88 |
-| Ecualizador                | delay 1400 | infinito | por tramo `cubic-bezier(0.37,0,0.63,1)` | `--s`, ver abajo  |
-
-Usar `animation-fill-mode: both` en todo.
-
-**Ecualizador:** todas las barras empiezan y acaban en `--s: 1`, la forma del logo, así que entran sin salto. Las duraciones no coinciden entre sí para que parezca natural:
-
-- b1: 1100 ms · 0 % 1 · 35 % 2.6 · 70 % 0.8 · 100 % 1
-- b2: 1300 ms · 0 % 1 · 40 % 0.55 · 75 % 1.3 · 100 % 1
-- b3: 1200 ms · 0 % 1 · 30 % 1.1 · 65 % 0.6 · 100 % 1
-- b4: 1000 ms · 0 % 1 · 45 % 1.75 · 80 % 0.6 · 100 % 1
-
-**Asentar** (`settleBootSplash`):
-
-1. Esperar a que acabe la intro. La fase se mide con `currentTime` de la animación CSS `boot-eq-1`, que incluye el delay; si no existe, se usa `document.timeline.currentTime`.
-2. Si ya está en fase de ecualizador:
-   - leer `--s` de cada `g.bar` y fijarlo en línea;
-   - añadir la clase `settling` (`animation: none; transition: --s 480ms cubic-bezier(0.33,1,0.68,1)`);
-   - forzar el estilo y, en el siguiente `requestAnimationFrame`, poner `--s: 1`;
-   - esperar 480 ms y después 120 ms de pausa.
-3. Si todavía estaba en la intro, añadir al momento la clase `calm` (el ecualizador se cancela y no llega a empezar) y salir 100 ms después de que termine (a los 1500 ms). Ver T5, paso 4.
-
-**Salir** (`leaveBootSplash`):
-
-- El `div` pasa de opacity 1 a 0 en 360 ms con `cubic-bezier(0.4,0,0.2,1)`. A la vez, el `svg` pasa de scale 1 a 1.03.
-- Al terminar (`transitionend`, o un `setTimeout` de respaldo de 360 + 150 ms) se quita el nodo.
-
-`data-phase` va tomando los valores `intro`, `eq`, `settling`, `leaving` y `gone`. El paso a `eq` lo pone un `setTimeout` en `attach`.
+`run.mjs` ejecuta `python scripts/docs-media/capture.py` con las variables `BASE` (URL del Worker
+local), `ACCESS_KEY`, `MODE` (`web` | `native`), `OUT` (ruta absoluta a `docs/media`) y, si
+existe, `CHROME_PATH`. `capture.py` deja los vídeos en una carpeta temporal y `run.mjs` los
+convierte a GIF.
 
 ## Tareas
 
-### T1 · Servidor: borrado heredado y migraciones tolerantes · Grupo A · Estado: HECHA
+### T1 · Comprobador de documentación, cobertura en CI y Dependabot · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/api/src/lib/uploads.ts`, `apps/api/src/routes/ingest.ts`, `apps/api/test/uploads.test.ts`, `apps/web/src/cloudflare/migrations.ts`, `apps/web/test/cloudflare/migrations.test.ts`.
-- Leer como contexto: `apps/api/migrations/0001_init.sql`, `apps/api/migrations/0008_upload_cancels.sql` y la sección «Contratos · Worker».
-- Decisión aprobada por Andoni: pista extra `ref`/`since` (ver «Contratos · Worker»).
+- Archivos (exclusivos): `scripts/lib/doc-links.mjs`, `scripts/lib/doc-links.test.mjs`,
+  `scripts/check-docs.mjs`, `scripts/lib/coverage-table.mjs`,
+  `scripts/lib/coverage-table.test.mjs`, `scripts/coverage-summary.mjs`, `package.json` (raíz),
+  `.github/workflows/ci.yml`, `.github/dependabot.yml`, `.gitignore`, `.prettierignore`.
+- Leer como contexto: `scripts/lib/worker-bundle.test.mjs` (estilo de test con `node --test`),
+  `apps/*/package.json`, `packages/shared/package.json`, `tools/ingest/package.json`.
 - Qué hacer:
-  1. **`cancelUpload`.** Añadir el parámetro opcional `legacy`: la sentencia `DELETE … upload_id IS NULL AND source='youtube' AND source_ref=? AND created_at>=? RETURNING id` va dentro del mismo `db.batch`. Unir los ids de los dos borrados, sin repetidos, y borrar sus objetos de R2.
-  2. **Ruta.** Validar con zod `ref` y `since` (los dos o ninguno; si no, 400 `validation_error`).
-  3. **`applyMigrations`.**
-     - Crear dos funciones puras exportadas:
-       - `splitSql(sql): string[]`, que quita las líneas `--`, parte por `;`, recorta los espacios y descarta las vacías;
-       - `addedColumn(stmt): { table: string; column: string } | null`, que reconoce `ALTER TABLE x ADD COLUMN y …` sin importar mayúsculas.
-     - Ejecutar sentencia a sentencia. Antes de un `ADD COLUMN`, consultar `PRAGMA table_info(<table>)` y saltarlo si la columna ya existe. Al final, registrar el nombre en `d1_migrations`, como ahora.
-     - Si falla una sentencia, lanzar un `Error` con el nombre de la migración en el mensaje y la causa en `cause`.
-- TDD: sí.
+  1. `doc-links.mjs` con las 4 funciones del contrato y `check-docs.mjs` (lee archivos, resuelve
+     rutas relativas al `.md`, decodifica `%20`, ignora `mailto:`, valida anclas solo en `.md`,
+     resuelve `-w @aske/x` al `package.json` de ese workspace). Funciones < 50 líneas.
+  2. `coverage-table.mjs`: `export function coverageTable(summaries)` donde `summaries` es
+     `[{ workspace, total }]` (`total` = objeto `total` de `coverage-summary.json` de Vitest) y
+     devuelve una tabla Markdown (Workspace | Statements | Branches | Functions | Lines, en %
+     con 1 decimal). `coverage-summary.mjs` busca `apps/*/coverage/coverage-summary.json`,
+     `packages/*/…`, `tools/*/…` y escribe la tabla en `process.env.GITHUB_STEP_SUMMARY` si
+     existe, si no por la salida estándar.
+  3. `package.json` raíz: scripts del contrato (`docs:check`, `docs:media`, `check`,
+     `test:scripts`). No cambiar dependencias.
+  4. `ci.yml`: tras `npm ci`, paso «Coverage tool» con
+     `npm install --no-save --no-audit --no-fund @vitest/coverage-v8@$(node -p "require('vitest/package.json').version")`;
+     el paso «Unit tests» pasa a
+     `npm test -- --coverage.enabled --coverage.provider=v8 --coverage.include='src/**' --coverage.reporter=text-summary --coverage.reporter=json-summary --coverage.reporter=html`
+     (comprobar que Vitest 5 acepta esas opciones; ajustar si no); después `node scripts/coverage-summary.mjs`
+     y `actions/upload-artifact@v7` con `*/*/coverage/` (retention 14 días, `if: always()`).
+     Añadir paso «Docs links» con `npm run docs:check` y `npm run test:scripts` si no estaba.
+  5. `dependabot.yml`: ecosistemas `npm` (`/`), `github-actions` (`/`), `gradle`
+     (`/apps/mobile/android`); `schedule.interval: monthly`; un grupo por ecosistema con
+     `update-types: [minor, patch]`; `open-pull-requests-limit: 5`; prefijo de commit
+     `chore` (Conventional Commits).
+  6. `.gitignore` y `.prettierignore`: añadir `coverage/`.
+- TDD: sí (escribir antes `doc-links.test.mjs` y `coverage-table.test.mjs`: slugs con acentos,
+  puntuación y repetidos; enlaces dentro de bloques de código ignorados; `<img src>`; `npm run`
+  con y sin `-w`; tabla con valores y con un workspace sin datos).
 - Criterios de aceptación:
-  - [ ] Con `ref`/`since`, se borra la pista con `upload_id NULL` de ese vídeo creada después de `since`, y NO se borran: una anterior a `since`, otra de otro vídeo ni una con `upload_id` distinto.
-  - [ ] Si llega solo `ref` o solo `since`: 400.
-  - [ ] Sin parámetros, se comporta exactamente igual que antes (los tests existentes siguen en verde).
-  - [ ] Si se aplica 0008 cuando `upload_id` ya existe (migración a medias), no da error y queda registrada. Una base ya migrada no ejecuta nada.
-  - [ ] Hay tests de `splitSql` y `addedColumn`, con comentarios, varias sentencias y mayúsculas y minúsculas.
-- Verificación: `npx vitest run test/uploads.test.ts --root apps/api` y `npx vitest run test/cloudflare/migrations.test.ts --root apps/web`.
+  - [ ] `npm run test:scripts` pasa con los tests nuevos.
+  - [ ] `npm run docs:check` se ejecuta y lista los fallos actuales del repo (es normal que falle
+        por archivos que crean T3–T7; anotar en el informe qué fallos quedan y por qué).
+  - [ ] Probado en local que la cobertura funciona sin tocar el lock:
+        `npm install --no-save @vitest/coverage-v8@5.1.0`, ejecutar el comando de test con
+        cobertura, comprobar `git status` (el `package-lock.json` NO debe cambiar) y volver a
+        dejar todo con `npm ci`.
+  - [ ] `npx prettier --check .github scripts package.json` pasa.
+- Verificación: `npm run test:scripts`, `npm run docs:check`, `npm run format:check`, `git diff --stat package-lock.json` (vacío).
 
-### T2 · Cancelaciones de Cloudflare en la app y error falso · Grupo A · Estado: HECHA
+### T2 · Generador de capturas, GIFs, banner e imagen social · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/downloads/uploadCancels.ts`, `apps/web/src/downloads/cancel.ts`, `apps/web/src/api/client.ts`, `apps/web/src/storage/homes.ts`, `apps/web/src/stores/downloads.ts`, `apps/web/test/uploadCancels.test.ts`, `apps/web/test/downloadCancel.test.ts`.
-- Leer como contexto: `apps/web/src/stores/serverUpdate.ts`, `apps/web/src/downloads/types.ts`, `apps/web/src/stores/libraryTrackActions.ts` y la sección «Contratos · Cliente».
-- Decisión aprobada por Andoni: pista extra con 10 min de margen; se descarta si la canción se vuelve a guardar o sale como duplicada (`forgetCancelsFor`).
+- Archivos (exclusivos): `scripts/docs-media/run.mjs`, `scripts/docs-media/catalog.mjs`,
+  `scripts/docs-media/capture.py`, `scripts/docs-media/banner.html`,
+  `scripts/docs-media/README.md`, todo `docs/media/**` (generado).
+- Leer como contexto: `scripts/smoke.mjs` (arrancar Worker aislado con `--persist-to`, migrar,
+  subir con `POST /api/ingest/tracks` multipart `meta`/`audio`/`cover`, crear playlists con
+  `/api/playlists`), `apps/web/test/browser/README.md`, `v9_095.py` (clase `Network`, `Finger`,
+  respuestas falsas del Hub), `v6_onboarding.py` (saltar la introducción), `v11_097.py`
+  (grabar vídeo del arranque), `apps/web/public/favicon.svg`, `apps/web/src/i18n/en.ts`.
 - Qué hacer:
-  1. **`api.cancelUpload(uploadId, legacy?)`:** añade `?ref=&since=` cuando llega `legacy`.
-  2. **`uploadCancels.ts`:**
-     - Con un Worker antiguo (`isOldWorker`), llamar a `markOutdated()` y **NO olvidar** la cancelación: queda pendiente.
-     - `cancelCloudUpload(uploadId, legacy)` guarda `ref`/`since` y los envía en cada intento.
-     - Añadir `forgetCancelsFor(videoId)`, que quita `ref`/`since` de las pendientes con ese `ref` y mantiene el `id`.
-     - `retryPendingCancels()` también llama a `retryDriveCleanups()` de `./driveCleanups`, que hace T3; importarlo según el contrato.
-  3. **`cancel.ts`:**
-     - Al cancelar mientras se guarda en Cloudflare, pasar `legacy = { ref: job.videoId, since: (job.savingSince ?? Date.now()) - 10 * 60_000 }`.
-     - Si se guarda en Drive (`config.home === 'drive'` y `target !== 'device-only'`), llamar a `registerDriveCleanup(job.uploadId ?? job.id)`.
-  4. **Error falso.** `discardSaved` borra en silencio, sin el aviso «toast.deleted», por ejemplo con una opción `silent` en `deleteTrack` o con un borrado interno. La parte de Cloudflare de `homes.ts`, en `deleteTrack`, trata un `ApiError` 404 como éxito: esa ruta existe en todas las versiones, así que un 404 significa que la pista ya no estaba. No debe aparecer ningún aviso de error.
-  5. **`stores/downloads.ts`:**
-     - Cuando un trabajo termina como `saved` o `duplicate`, llamar a `forgetCancelsFor(job.videoId)`.
-     - En `init`, suscribirse a `useServerUpdate`: cuando `behind` pase de `true` a `false`, llamar a `retryPendingCancels()`, una sola suscripción, como `watchingOnline`.
-- TDD: sí.
+  1. `catalog.mjs`: ~12 canciones y 3 playlists **inventadas** (títulos y artistas ficticios,
+     nada real; un par de episodios de podcast opcional), con `source: 'file'` o el valor que
+     acepte el Worker sin `sourceRef` real de YouTube. Exporta los datos; sin lógica.
+  2. `run.mjs` (Node, sin dependencias nuevas): comprueba que existen `ffmpeg` y `python` con
+     Playwright (mensaje claro si faltan); genera en `os.tmpdir()` audio Opus (tonos suaves de
+     ~3 min a 16 kbps) y portadas JPEG 600x600 con degradados ámbar distintos (filtros `lavfi`
+     de ffmpeg); `npm run build -w @aske/web`; arranca un Worker aislado (puerto libre,
+     `ACCESS_KEY` aleatoria, `--persist-to` temporal), migra, siembra el catálogo por la API,
+     ejecuta `capture.py` con `MODE=web`; para el Worker; `npm run build -w @aske/web -- --mode fakenative`;
+     reinicia el Worker (mismo persist) y ejecuta `MODE=native`; pasa los vídeos a GIF con
+     paleta (`fps=15,scale=390:-1:flags=lanczos,split…palettegen…paletteuse`); **al final, pase
+     lo que pase (`finally`), reconstruye el `dist` normal** y borra temporales. En Windows,
+     matar el árbol de procesos como hace `smoke.mjs`. Nunca `vite build -w` ni modo watch.
+  3. `capture.py`: contexto con `locale='en-US'`, sin red externa (todo lo que no sea `BASE`
+     se responde con datos falsos o se aborta, como `Network` en `v9_095.py`); radio con
+     emisoras ficticias interceptando las peticiones de la app a `/api/radio/*`; en `native`,
+     resultados de YouTube ficticios con miniaturas generadas (nunca imágenes reales). Vincula
+     el navegador con la clave, salta la introducción, cierra los consejos que tapen la pantalla
+     y produce exactamente los archivos de la tabla del contrato. Comprueba antes de cada
+     captura que no hay errores en pantalla.
+  4. `banner.html`: HTML+CSS en línea, fondo `#14110F`, logo de `favicon.svg` en línea, título
+     «Aske Stream» y lema «Your music, wherever you choose to keep it.»; tipografía del sistema;
+     `capture.py` lo renderiza a 1280x400 y 1280x640 (en `MODE=web`).
+  5. `scripts/docs-media/README.md` (inglés): requisitos, comando, qué genera, que todo es
+     ficticio y que reconstruye el dist normal.
+  6. Ejecutarlo de verdad y dejar las imágenes en `docs/media/`. Revisar cada imagen a ojo
+     (abrirlas) y descartar las que tengan textos cortados o errores.
+- TDD: no (script de generación; se verifica ejecutándolo y mirando el resultado).
 - Criterios de aceptación:
-  - [ ] Ante un 404 «Unknown endpoint», la cancelación sigue en localStorage y se marca el servidor como desactualizado. Con el servidor ya actualizado, el reintento la envía con `ref`/`since` y después la borra.
-  - [ ] `forgetCancelsFor` quita la pista de ese vídeo sin borrar la cancelación por `uploadId`.
-  - [ ] Si se cancela a la vez que la subida responde 201 y el servidor ya borró la pista (el DELETE devuelve 404), no aparece ningún aviso de error ni el de «Borrada». La pista desaparece de la biblioteca.
-  - [ ] Al cancelar en Drive mientras se guarda, se llama a `registerDriveCleanup` (con un mock).
-  - [ ] Todos los tests de descargas siguen en verde.
-- Verificación: `npx vitest run test/uploadCancels.test.ts test/downloadCancel.test.ts test/downloadSave.test.ts --root apps/web`.
+  - [ ] `npm run docs:media` termina sin errores en Windows y crea todos los archivos de la tabla.
+  - [ ] Ningún dato personal, ningún nombre de artista real, ninguna miniatura real de YouTube.
+  - [ ] Cada canción o playlist visible tiene imagen al lado (regla del proyecto).
+  - [ ] `docs/media/` ≤ 8 MB y cada GIF ≤ 3 MB.
+  - [ ] Al terminar, `apps/web/dist` es la build normal (no `fakenative`) y no quedan procesos
+        `wrangler`/`workerd` vivos.
+- Verificación: `npm run docs:media`; después `npm run build` y `npm run format:check`.
+  Si Python no tiene Playwright: venv temporal en el scratchpad y `CHROME_PATH` al Chrome instalado.
 
-### T3 · Limpieza pendiente en Drive · Grupo A · Estado: HECHA
+### T3 · Archivos de comunidad, plantillas y CHANGELOG · Grupo A · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/downloads/driveCleanups.ts` (nuevo), `apps/web/src/storage/drive/api.ts`, `apps/web/src/storage/drive/home.ts`, `apps/web/src/downloads/save.ts`, `apps/web/test/driveCleanups.test.ts` (nuevo).
-- Leer como contexto: `apps/web/src/downloads/uploadCancels.ts`, que tiene el mismo patrón de localStorage, y la sección «Contratos · Cliente».
-- Qué hacer:
-  1. **`driveApi.upload`:** si `opts.uploadId` existe, añadir `appProperties: { askeUploadId }` a los metadatos del POST inicial.
-  2. **`driveApi.findByUploadId`:** usar `call` con la consulta del contrato y escapar con `q()`.
-  3. **`driveHome.addTrack`** pasa `upload` tal cual: ya lo hace, solo comprobarlo. En `save.ts` (`saveToDrive`), añadir `uploadId: job.uploadId ?? job.id` a las opciones.
-  4. **`driveHome.referencedFileIds()`.**
-  5. **`driveCleanups.ts`:**
-     - Lista persistente con caducidad de 30 días.
-     - `registerDriveCleanup` guarda la entrada y programa un intento a los 2 min.
-     - Cada intento hace lo siguiente:
-       - si la biblioteca ya no está en Drive, olvida la entrada;
-       - si no hay red, no hace nada;
-       - si hay red, busca los archivos y borra con `driveApi.remove` los que no estén en `referencedFileIds()`.
-     - La entrada se olvida cuando un intento sale bien, han pasado al menos 2 min desde `at` y no queda ningún archivo.
-     - Los errores se registran con `console.error` y no se muestran al usuario: es una limpieza silenciosa.
-- TDD: sí, con mocks de `driveApi`, `driveHome` y `useSetup`.
-- Criterios de aceptación:
-  - [ ] La subida con `uploadId` envía `appProperties.askeUploadId`.
-  - [ ] La limpieza borra solo los archivos de ese `uploadId` y nunca uno que use la biblioteca.
-  - [ ] Sin red o si Drive falla, la entrada se mantiene. Se olvida si han pasado más de 30 días o si la biblioteca ya no está en Drive.
-  - [ ] Antes de 2 min no se olvida aunque no se encuentre nada.
-- Verificación: `npx vitest run test/driveCleanups.test.ts test/downloadSave.test.ts --root apps/web`.
-
-### T4 · Animación de arranque: HTML, CSS y controlador · Grupo A · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/index.html`, `apps/web/src/lib/bootSplash.ts` (nuevo), `apps/web/test/bootSplash.test.ts` (nuevo).
-- Leer como contexto: la sección «Especificación visual» completa, el `index.html` actual y, como referencia de la animación antigua, `git show e6edc43`.
-- Qué hacer:
-  1. **`index.html`:** sustituir el contenido de `#root` por el DOM del contrato. `#boot-splash` va fuera de `#root` y `#root` queda vacío. Todo el CSS va en línea en un `<style>` del `<head>`, para que se vea antes de cualquier JS:
-     - `.boot-splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: #14110f }`;
-     - las keyframes `boot-trace-*`, `boot-fill`, `boot-trace-out`, `boot-glint`, `boot-logo-in` y `boot-eq-1..4`, con los valores EXACTOS de la tabla;
-     - la clase `.settling` y el estado `[data-phase="leaving"]` (transición de opacity 360 ms y scale 1.03 en el svg).
-     - Sin ningún texto visible. No poner `@media (prefers-reduced-motion)`.
-  2. **`lib/bootSplash.ts`:** implementar el contrato.
-     - `splashPhaseAt` es una función pura.
-     - `settle` y `leave` funcionan como se describe en «Asentar» y «Salir», con temporizadores de respaldo.
-     - Cada función de menos de 50 líneas.
-  3. **Tests:** `splashPhaseAt(0|1399|1400|5000)`. Sin `#boot-splash`, las funciones se resuelven al momento.
-- TDD: sí solo para `splashPhaseAt` y la ausencia del nodo. Lo visual se comprueba en T5.
-- Criterios de aceptación:
-  - [ ] Abriendo `dist/index.html` sin JS, se ve la intro y después el ecualizador en bucle.
-  - [ ] Los valores, curvas y tiempos son los de la tabla.
-  - [ ] `npx prettier --check apps/web/index.html` en verde.
-- Verificación: `npx vitest run test/bootSplash.test.ts --root apps/web` y `npm run build -w @aske/web`.
-
-### T5 · Integración en la app, Android sin logo nativo y capturas · Grupo B · Estado: HECHA
-
-- Archivos (exclusivos):
-  - web: `apps/web/src/App.tsx`, `apps/web/src/lib/boot.ts`, `apps/web/test/boot.test.ts`;
-  - borrar `apps/web/src/components/BootSplash.tsx` y `apps/web/src/boot.css`;
-  - pruebas de navegador: `apps/web/test/browser/v9_095.py`, `apps/web/test/browser/v10_096.py` y `apps/web/test/browser/v11_097.py` (nuevo);
-  - Android: `apps/mobile/android/app/src/main/res/values/styles.xml`, `apps/mobile/android/app/src/main/java/io/github/ando144/askestream/MainActivity.java` (solo si hace falta).
-- Leer como contexto: `apps/web/src/lib/bootSplash.ts` (de T4), `apps/web/test/browser/README.md`, `apps/web/src/main.tsx` y `apps/mobile/android/app/src/main/res/drawable/splash.xml`.
-- Qué hacer:
-  1. **`boot.ts`:** quitar `BOOT_MIN_SPLASH_MS`, `SPLASH_EXIT_MS`, `BOOT_PULSE_AFTER_MS`, `splashTimings` y `shouldPulse`. `bootReady` ya no lleva mínimo: el mínimo lo garantiza el controlador. Mantener `BOOT_MAX_WAIT_MS`. Actualizar `boot.test.ts`.
-  2. **`App.tsx`:**
-     - Al montar, llamar a `attachBootSplash(t('boot.loading'))`.
-     - Mientras no esté lista, devolver `null`.
-     - Cuando esté lista: `await settleBootSplash()`, luego `setShowApp(true)`; tras montar `AppScreens` (en un `useEffect` y dos `requestAnimationFrame`), llamar a `leaveBootSplash()`.
-     - Quitar los `matchMedia('(prefers-reduced-motion…)')`.
-     - Comprobar que `main.tsx` monta en `#root`.
-  3. **Android:**
-     - En `AppTheme.NoActionBarLaunch`, poner `windowSplashScreenAnimatedIcon` = `@android:color/transparent`, o un drawable transparente nuevo si Gradle no lo acepta, y quitar el icono del launcher.
-     - Mantener `windowSplashScreenBackground` `#14110F`.
-     - Revisar si `MainActivity` necesita `SplashScreen.installSplashScreen(this)` para que se aplique `postSplashScreenTheme`. Si ya funciona con Capacitor, no tocarla.
-  4. **Corrección de la animación (puede tocar `apps/web/index.html` y `apps/web/src/lib/bootSplash.ts`, de T4, ya HECHA).** Problema: si la app está lista durante la intro, el ecualizador arranca igualmente a los 1400 ms y sigue moviéndose durante el montaje y el fundido. Regla: las barras SIEMPRE tienen su altura original (`--s` = 1) antes del fundido, y en una carga rápida el ecualizador no llega a verse.
-     - **DOM:** separar las animaciones en dos elementos.
-       - `g.bar` (exterior) solo lleva el relleno (`boot-fill`, opacity).
-       - Dentro, un `<g class="eq">` envuelve el cuerpo y los dos extremos, y solo lleva `boot-eq-N` (`--s`, con delay 1400, `fill-mode: both`).
-       - Así se puede quitar el ecualizador sin perder el relleno.
-     - **CSS:** añadir `.boot-splash.calm .eq { animation: none; }`. Durante el delay, `--s` ya vale 1 (keyframe 0 %), así que quitarlo antes de los 1400 ms no produce ningún salto.
-     - **`settleBootSplash()`:**
-       1. **Si la intro no ha terminado** (`currentTime` de `boot-eq-1` < 1400): añadir en ese mismo momento la clase `calm`, esperar a que acabe la intro y añadir 100 ms de pausa. El ecualizador nunca empieza.
-       2. **Si ya ha empezado:** usar el camino de asentar que ya existe, leyendo y fijando `--s` en cada `g.eq` (no en `g.bar`). Al final de la transición, añadir también `calm` para que no vuelva a arrancar.
-     - **`leaveBootSplash()`:** solo empieza el fundido después de que `settleBootSplash()` se haya resuelto. Si alguien lo llama antes, primero espera a `settle`.
-     - **Test (vitest, jsdom):** el contrato no cambia. Añadir un caso con un `#boot-splash` falso donde la fase es intro: `settle` añade `calm` al momento y no cambia `--s`.
-     - **v11 (a) carga normal:** comprobar que `data-phase` nunca pasa por `eq` y que todos los `--s` están a ±0,01 de 1 en cada captura, incluida la del fundido.
-  5. **Pruebas de navegador:**
-     - v9/v10: cambiar `.pulsing` por `[data-phase="eq"]` y seguir comprobando que no hay texto y que al final `.boot-splash` desaparece.
-     - `v11_097.py`, con Playwright, `record_video_dir` y las capturas en la carpeta que ya usa `shot()`:
-       - (a) **carga normal:** capturas a 100, 450, 800, 1100, 1350 y 1600 ms;
-       - (b) **JS lento:** retrasar 3 s los `/assets/*.js` con `page.route`; capturas a 1800 y 2600 ms; comprobar que algún `--s` ≠ 1 (ecualizador activo) y que, cuando `data-phase` pasa a `leaving`, todos los `--s` están a ±0,01 de 1;
-       - (c) **sin saltos:** el `boundingBox` del svg es el mismo antes y después de cargar el JS;
-       - (d) el splash dura ≥ 1400 ms y no contiene texto.
-- TDD: no, salvo actualizar `boot.test.ts`.
-- Criterios de aceptación:
-  - [ ] `npm run check` en verde.
-  - [ ] v9, v10 y v11 pasan; los vídeos y capturas se generan.
-  - [ ] En el APK no aparece ningún logo nativo: fondo oscuro y después el logo dibujándose. Comprobado con `adb shell screenrecord` en Android 12 o superior.
-  - [ ] No hay imports de `BootSplash` ni `boot.css`.
-- Verificación: `npm run check`, `npm run test:e2e`, `python apps/web/test/browser/v11_097.py` (ver README) y `npm run android:apk`.
-
-### T6 · La prueba v5 verifica de verdad la reanudación · Grupo B · Estado: HECHA
-
-- Archivos (exclusivos): `apps/web/test/browser/v5_fakenative.py` y `apps/web/test/fake-native/*` (si hace falta).
-- Leer como contexto: `apps/web/test/browser/README.md` y `apps/web/src/stores/downloads.ts` (solo lectura).
-- Qué hacer:
-  - En el bloque «resume after the app is closed mid-download» (líneas 67-72), sustituir los `print` por `assert`:
-    - antes de recargar, al menos un trabajo `resume*` sigue activo (`queued`/`downloading`/`saving`), porque si no la prueba no demuestra nada; si hace falta, ajustar la espera o la velocidad del fake;
-    - después de recargar, la cantidad de trabajos `resume*` es la misma que da el fake para `PLRESUME0001`;
-    - todos están en `done`, sin duplicados (`videoId` único) y sin errores.
-  - Si destapa un bug en `src/`, NO editar archivos de otras tareas: describirlo con su causa en el informe al orquestador para hacer una tarea de arreglo.
+- Archivos (exclusivos): `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`,
+  `CHANGELOG.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`,
+  `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/ISSUE_TEMPLATE/config.yml`,
+  `.github/pull_request_template.md`.
+- Leer como contexto: `CLAUDE.md` (convenciones, comandos, reglas), `docs/releases/*.md`,
+  `git tag --sort=creatordate` y `git log -1 --format=%as <tag>` para las fechas, `LICENSE`.
+- Qué hacer (todo en inglés):
+  1. `CONTRIBUTING.md`: cómo proponer cambios (issue antes de algo grande), requisitos, `npm ci`
+     (y por qué no `npm install` en Windows), `npm run dev`, `npm run check` y `npm run test:e2e`
+     antes del PR, Conventional Commits, Prettier (100 col, comillas simples), traducciones en
+     es/en/eu obligatorias (test de paridad), textos para gente no técnica, una sola paleta
+     ámbar, imagen junto a cada canción/playlist. Enlaza `docs/development.md` y
+     `docs/testing.md` (los crea T6).
+  2. `CODE_OF_CONDUCT.md`: Contributor Covenant 2.1 (texto oficial). Canal de aviso: el de la
+     opción recomendada en «Dudas» (si el orquestador no indica otra, usar la recomendada). Sin
+     email personal.
+  3. `SECURITY.md`: versiones soportadas (solo la última release), avisar por **GitHub private
+     vulnerability reporting** (`Security → Report a vulnerability`), qué no hacer (issues
+     públicos), plazos orientativos sin prometer SLA, alcance (Worker, Hub, app, APK) y modelo
+     de seguridad en una línea con enlace a `docs/adr/0003-single-owner-auth.md`.
+  4. Plantillas de issue en formulario YAML: bug (versión de la app, dónde se guarda la música
+     — dispositivo / Google Drive / Cloudflare —, plataforma web/Android, pasos, esperado,
+     capturas, aviso de no pegar claves ni enlaces de emparejado); feature; `config.yml` con
+     `blank_issues_enabled: false` y enlace a «Security» para vulnerabilidades. PR template con
+     checklist (`npm run check`, `test:e2e`, traducciones, ayuda, capturas si es visual).
+  5. `CHANGELOG.md` formato _Keep a Changelog_, versiones de la más nueva a la más antigua desde
+     las notas de `docs/releases/`, **traducidas al inglés y resumidas** (3-6 viñetas por
+     versión, en categorías Added/Changed/Fixed), con fecha del tag. Al final, enlace a las
+     notas completas en GitHub Releases y explicación de que `docs/releases/` son las notas que
+     ve el usuario en la app. No inventar: solo lo que dicen las notas.
 - TDD: no.
 - Criterios de aceptación:
-  - [ ] La prueba falla si se rompe la reanudación (comprobado una vez a mano, por ejemplo cambiando temporalmente el assert esperado) y pasa con el código actual.
-- Verificación: build `fakenative` y `python apps/web/test/browser/v5_fakenative.py` según el README. Después, reconstruir el dist normal.
+  - [ ] Ninguna dirección de email; autor como «Andoni Ortiz de Zarate Urruela (@Ando144)».
+  - [ ] Todas las versiones de `docs/releases/` aparecen en el CHANGELOG con su fecha real.
+  - [ ] Los comandos citados existen (`npm run docs:check` solo puede fallar por
+        `docs/development.md` y `docs/testing.md`, que crea T6).
+- Verificación: `npx prettier --check CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md .github`, `npm run docs:check`.
 
-### T7 · Ayuda, notas de versión, documentos y versión 0.9.7 · Grupo C · Estado: HECHA
+### T4 · Referencia de API del Worker y del Hub · Grupo B · Estado: HECHA
 
-- Archivos (exclusivos): `apps/web/src/help/articles/music.ts`, `apps/web/src/i18n/downloads.ts` (si hace falta), `docs/releases/v0.9.7.md` (nuevo), `docs/ESTADO.md`, `docs/v2/architecture.md`, los 7 `package.json` y `package-lock.json`.
-- Qué hacer:
-  1. **Ayuda «Cancelar o quitar», en es, en y eu:** contar en lenguaje sencillo que, si se cancela mientras se guarda y no hay internet, o el servidor está sin actualizar, la app lo apunta y lo borra sola al volver internet o al actualizar el servidor; y que nunca toca otra música.
-  2. **Notas `v0.9.7.md`:** animación nueva; los cuatro arreglos.
-  3. **`ESTADO.md`:** vaciar «Problemas conocidos» de lo resuelto, añadir «Andoni, probar v0.9.7» (arranque normal y lento en el móvil, cancelar sin red en Drive, cancelar con un Worker antiguo y después actualizar) y la decisión de la pista `ref/since`. Tabla de fases en `architecture.md`.
-  4. **Versión:** subir a 0.9.7 con `node` (nunca `sed`) en los 7 `package.json` y en el lock. **Solo cuando el orquestador confirme que Andoni ha aprobado la animación.**
-- TDD: no (los tests de paridad de i18n y de enlaces de la ayuda deben seguir en verde).
+- Archivos (exclusivos): `docs/api/worker.md`, `docs/api/hub.md`, `docs/hub.md`.
+- Leer como contexto: `apps/api/src/index.ts`, `apps/api/src/routes/*.ts`, `apps/api/src/lib/`
+  (auth, errores), `apps/api/migrations/*.sql`, `apps/hub/src/index.ts`, `apps/hub/src/routes/`,
+  `apps/hub/src/groups/*Routes.ts`, `apps/hub/src/groups/routes.ts`, `apps/hub/src/jam/`
+  (`protocol.ts`, `routes.ts`, `room.ts`), `apps/hub/src/lib/rateLimit.ts`,
+  `apps/hub/migrations/*.sql`, `packages/shared/src` (tipos y `LIMITS`), `docs/hub.md` actual.
+- Qué hacer (inglés):
+  1. `docs/api/worker.md`: base URL y autenticación (Bearer `ACCESS_KEY`, cookie de sesión,
+     códigos de emparejado), formato de error común, tabla resumen de endpoints y después una
+     sección por grupo de rutas (auth, library, tracks, playlists, folders, stations, radio,
+     media/streaming con Range, ingest, youtube, health): método, ruta, auth, parámetros y
+     cuerpo (de los esquemas zod), respuestas y códigos (incluido 507 `storage_full`, 304 con
+     ETag). Diagrama Mermaid `erDiagram` de D1 a partir de las migraciones.
+  2. `docs/api/hub.md`: lo mismo para `/hub/v1/*` (playlists compartidas, parcels/Enviar,
+     búsqueda y listas de YouTube, grupos, estadísticas, fotos, Jam), límites de ritmo, CORS,
+     protocolo WebSocket del Jam (mensajes de `protocol.ts`) con un `sequenceDiagram` del salto
+     de canción (invitado → Hub → anfitrión ejecuta), y `erDiagram` del D1 del Hub.
+  3. `docs/hub.md`: reescribir en inglés (mismo contenido, mismas secciones, sin perder datos) y
+     enlazar a `docs/api/hub.md` para el detalle de endpoints.
+  - **Todo sale del código**: si algo no se puede confirmar leyendo el código, no se escribe.
+- TDD: no.
 - Criterios de aceptación:
-  - [ ] `npm run check` en verde.
-  - [ ] Los textos son los mismos en las tres lenguas y no usan jerga.
-- Verificación: `npm run check`.
+  - [ ] Cada ruta registrada en `apps/api/src` y `apps/hub/src` aparece exactamente una vez
+        (comprobarlo con `Grep` de `.get(`/`.post(`/`.put(`/`.patch(`/`.delete(`).
+  - [ ] Los diagramas Mermaid son válidos (sintaxis `erDiagram`/`sequenceDiagram` correcta;
+        probar en https://mermaid.live si hay duda).
+- Verificación: `npm run docs:check`, `npx prettier --check docs/api docs/hub.md`.
+
+### T5 · Arquitectura con diagramas y ADRs · Grupo B · Estado: HECHA
+
+- Archivos (exclusivos): `docs/architecture.md`, `docs/adr/README.md`, `docs/adr/0001-pwa-first.md`
+  … `docs/adr/0005-offline-audio-in-cache-storage.md` (revisión), `docs/adr/0006-*.md` …
+  `docs/adr/0013-*.md` (nuevos).
+- Leer como contexto: `docs/v2/architecture.md` (notas de fases: fuente principal),
+  `docs/android.md`, `docs/google-drive.md`, `docs/offline-cache.md`, `docs/ESTADO.md`
+  (decisiones), `apps/web/src/storage/types.ts`, `apps/web/src/storage/` (homes, copy),
+  `apps/web/src/offline/planner.ts`, `apps/web/src/lib/bootSplash.ts`, ADRs actuales.
+- Qué hacer (inglés):
+  1. `docs/architecture.md`: reescribir conservando lo que sigue siendo cierto. Diagramas
+     Mermaid: contexto del sistema (app web/PWA, app Android con plugins, las tres «homes»,
+     Hub, Radio Browser, YouTube solo desde el móvil), capas de la app web (views/components →
+     stores zustand → storage homes / offline / native), `sequenceDiagram` de emparejado con
+     código, de «descargar de YouTube en el móvil → guardar en la home» con `uploadId` y
+     cancelación segura, y de rotación de la caché sin conexión. Secciones: módulos del
+     monorepo, modelo de datos (enlazar `docs/api/worker.md`), seguridad, offline, Android,
+     arranque (`index.html` + `bootSplash.ts`), límites (10 GB y 95 % → 507, playlists de 1000).
+  2. ADRs 0001–0005: añadir/actualizar `Status` (p. ej. 0001 «Accepted; native Android shipped
+     in vX» con la versión verificada en `docs/releases/`), sin reescribir su historia.
+  3. ADRs nuevos con el mismo formato (Status, Context, Options, Decision, Consequences, y
+     «Introduced in: vX.Y.Z» verificado en `docs/releases/`):
+     0006 storage homes (device / Google Drive / own Cloudflare: one home, many destinations);
+     0007 Google Drive with `drive.file` and a merged `library.json` (newest change wins,
+     tombstones); 0008 YouTube download on the phone with yt-dlp (residential IP, Opus without
+     re-encoding); 0009 Capacitor WebView + own native plugins, playback in the WebView
+     `<audio>`; 0010 Aske Hub as a separate Worker that never stores music, Jam on a Durable
+     Object where the host executes skips; 0011 seeded shuffle order; 0012 upload ids and safe
+     cancellation (never delete someone else's music, pending cancels for old Workers);
+     0013 usage stats opt-in only (GDPR), local Recap. `README.md` de ADRs con la tabla completa.
+- TDD: no.
+- Criterios de aceptación:
+  - [ ] Cada afirmación técnica se puede encontrar en el código o en los documentos citados.
+  - [ ] Diagramas Mermaid válidos; ningún enlace roto.
+- Verificación: `npm run docs:check`, `npx prettier --check docs/architecture.md docs/adr`.
+
+### T6 · Guías, índice de docs y limpieza de notas obsoletas · Grupo B · Estado: HECHA
+
+- Archivos (exclusivos): `docs/README.md`, `docs/development.md`, `docs/testing.md`,
+  `docs/deployment.md`, `apps/web/test/browser/README.md`; borrar
+  `docs/eu-revision-share-jam.md`, `docs/plan/bocetos/` y `.github/modernize/`.
+- Leer como contexto: `CLAUDE.md` (comandos y trucos de Windows), `package.json` raíz y de cada
+  workspace, `scripts/dev.mjs`, `scripts/smoke.mjs`, `scripts/cf-setup.mjs`, `.env.example`,
+  `apps/api/.dev.vars.example`, `.github/workflows/*.yml`, `docs/android.md`,
+  `apps/web/test/browser/*.py` (cabeceras), `scripts/docs-media/README.md` (de T2).
+- Qué hacer (inglés):
+  1. `docs/development.md`: requisitos (Node ≥ 22.12 de `.nvmrc`, ffmpeg opcional, JDK 21 y
+     Android SDK solo para el APK, Python + Playwright para tests de navegador), `npm ci` y por
+     qué nunca `npm install` en Windows, `npm run db:migrate:local`, `npm run dev` (puertos
+     8787/5173, `.dev.vars`), Hub en local, build `fakenative`, APK local, estructura del
+     monorepo, variables de entorno (sin valores reales), proceso de release (7 `package.json`
+     - lock con `node`, notas, tag), y `npm run docs:media`.
+  2. `docs/testing.md`: pirámide de pruebas con un diagrama Mermaid; unitarias por workspace
+     (Vitest, qué se prueba: ejemplos reales de `test/`), paridad de traducciones y enlaces de
+     ayuda, smoke E2E (`npm run test:e2e`), tests de navegador Playwright (enlace al README),
+     comprobador de docs, cobertura en CI, gitleaks, y un `flowchart` del pipeline de CI sacado
+     de `ci.yml` y `android.yml`. No poner números de tests que caduquen.
+  3. `docs/deployment.md`: revisar contra `scripts/cf-setup.mjs` y `package.json`; corregir solo
+     lo que no coincida y añadir una sección «Deploying the Hub (optional)». **Mantener todos los
+     títulos actuales, sobre todo `## Updating`** (la app lo enlaza).
+  4. `apps/web/test/browser/README.md`: corregir los comandos de build a
+     `npm run build -w @aske/web -- --mode fakenative` (CLAUDE.md avisa de que `npx vite build`
+     con `-w` se cuelga) y añadir una línea sobre `scripts/docs-media`.
+  5. `docs/README.md`: índice por público (usuarios: deployment, google-drive, android, privacy;
+     desarrolladores: development, testing, architecture, api, adr, ingest, offline-cache, hub;
+     proyecto: CHANGELOG, CONTRIBUTING, SECURITY, v2/architecture como roadmap, releases).
+  6. Borrar las notas obsoletas listadas (antes `Grep` de su nombre en todo el repo para
+     confirmar que nadie las enlaza; si alguien las enlaza, no borrar y avisar).
+- TDD: no.
+- Criterios de aceptación:
+  - [ ] Cada comando citado existe (`npm run docs:check` sin errores en los archivos de T6).
+  - [ ] `docs/deployment.md` conserva todos sus títulos originales.
+  - [ ] En el informe, lista de archivos borrados.
+- Verificación: `npm run docs:check`, `npx prettier --check docs apps/web/test/browser/README.md`.
+
+### T7 · README en inglés, español y euskera, y verificación final · Grupo C · Estado: HECHA
+
+- Archivos (exclusivos): `README.md`, `README.es.md`, `README.eu.md`; borrar `docs/screenshots/`.
+- Leer como contexto: este plan, `docs/media/` (de T2), `docs/README.md`, `docs/architecture.md`,
+  `docs/adr/README.md`, `docs/testing.md`, `docs/v2/architecture.md` (tabla «Storage guide»),
+  `docs/ingest.md` (nota legal), `apps/web/src/i18n/eu.ts` y `es.ts` (vocabulario de la app),
+  `package.json` raíz.
+- Qué hacer:
+  1. `README.md` (inglés), en este orden: banner (`docs/media/banner.png`); lema; selector de
+     idioma `English · Español · Euskara`; insignias reales (CI, Android app, última release,
+     licencia MIT, descargas, Node ≥ 22.12, TypeScript strict); fila de enlaces (Download the
+     Android app → `releases/latest`, Documentation, Architecture, Contributing). **Sin botón
+     «Try it».** Galería: capturas móviles en fila, los dos GIFs, escritorio. «What it is»
+     (para amigos sin perfil técnico, cada uno elige dónde vive su música) + tabla de las tres
+     opciones de almacenamiento. Features agrupadas (biblioteca y reproductor, sin conexión,
+     radio y podcasts, Android, Hub: playlists compartidas, Jam, grupos, Enviar; modo estudio;
+     ayuda en 3 idiomas). YouTube como una función más del móvil, con una nota legal corta de
+     uso personal y respeto a los derechos de autor y a las condiciones de YouTube. «Get
+     started» (APK, tu propio Cloudflare → `docs/deployment.md`, desarrollo local con `npm ci`
+     → `docs/development.md`). Ingeniería: diagrama Mermaid de visión general, tabla de stack,
+     decisiones clave (enlaces a ADRs), «Engineering challenges solved» (solo cosas
+     documentadas: audio en segundo plano en WebView, rotación offline, fusión de Drive sin
+     servidor, cancelación segura, yt-dlp en el móvil por la IP residencial, Opus sin
+     recodificar, plan gratuito con tope de 10 GB y 507), calidad (tests, CI, cobertura,
+     gitleaks, Dependabot → `docs/testing.md`), estructura del proyecto, documentación
+     (`docs/README.md`), contribuir/seguridad/código de conducta, privacidad
+     (`docs/PRIVACY.md`), autor (nombre y GitHub, **sin web personal ni email**), licencia.
+     Sin emojis.
+  2. `README.es.md` y `README.eu.md`: traducción de la parte de producto completa y versión
+     corta de la de ingeniería con enlaces a los documentos en inglés (avisándolo). Mismas
+     imágenes e insignias. En euskera usar el vocabulario de `i18n/eu.ts`.
+  3. Borrar `docs/screenshots/` tras confirmar con `Grep` que nada más lo enlaza.
+  4. Verificación final de todo el plan: `npm run docs:check` sin errores, `node
+scripts/check-docs.mjs --external` (anotar en el informe los externos que fallen),
+     `npm run check` y `npm run test:e2e` con un dist recién construido.
+  5. En el informe, recordar al orquestador las acciones que solo se hacen tras aprobación de
+     Andoni (sección «Página de GitHub»).
+- TDD: no.
+- Criterios de aceptación:
+  - [ ] Todas las imágenes del README existen y se ven en la vista previa de Markdown.
+  - [ ] Ningún dato inventado: cada función citada existe en la app o en los documentos.
+  - [ ] `npm run check` pasa.
+- Verificación: `npm run docs:check`, `npm run check`, `npm run test:e2e`.
+
+## Página de GitHub (propuesta; se aplica con `gh` SOLO tras aprobación de Andoni, lo hace el orquestador)
+
+- **Descripción:** «Open-source, Spotify-style music app where each listener chooses where the
+  music lives: on the phone, in their Google Drive or on their own free Cloudflare. Web/PWA and
+  Android, offline cache, live radio, podcasts, shared playlists and Jams.»
+- **Topics:** `music-player`, `music-streaming`, `pwa`, `react`, `typescript`, `vite`,
+  `zustand`, `cloudflare-workers`, `cloudflare-d1`, `cloudflare-r2`, `hono`, `durable-objects`,
+  `capacitor`, `android`, `offline-first`, `google-drive`, `self-hosted`, `opus`, `monorepo`.
+- **Homepage:** `https://github.com/Ando144/aske-stream/releases/latest` (no hay web pública).
+- **Comandos:** `gh repo edit Ando144/aske-stream --description "…" --homepage "…" --add-topic …`
+  y activar el aviso privado de vulnerabilidades:
+  `gh api -X PUT repos/Ando144/aske-stream/private-vulnerability-reporting`.
+- **Imagen social:** `docs/media/social-preview.png`, Andoni la sube a mano en
+  Settings → General → Social preview.
 
 ## Riesgos / dudas abiertas
 
-- **RESUELTO (Andoni, 2026-11-28): se usa la pista extra (`ref`/`since`) para el Worker antiguo.** Se busca el mismo vídeo de YouTube, sin `upload_id` y creado después de que empezara a guardarse, con 10 min de margen. La pista se descarta si esa canción se vuelve a guardar o aparece como duplicada. Lo implementan T1 (Worker) y T2 (app). Riesgo residual mínimo: que otro dispositivo suba ese mismo vídeo en esos minutos con un Worker antiguo.
-- **Safari/iPhone:** `@property` necesita Safari 16.4 o superior. En versiones anteriores, el ecualizador no se mueve (el logo se queda quieto), pero la intro y el fundido sí funcionan. No requiere decisión salvo que Andoni quiera dar soporte a iPhones antiguos.
-- **PWA instalada en Android:** Chrome muestra su propia pantalla con el icono del manifiesto antes de cargar la página. No se puede quitar desde la web; solo se garantiza que no haya saltos después.
-- **Rendimiento en móviles lentos:** las animaciones SVG van por el hilo principal. Por eso el contenido de la app se monta después de asentar las barras. Si en el APK se ven tirones, se puede simplificar el destello.
-- **Aprobación:** la publicación (T7, paso 4, y el tag) depende de que Andoni vea los vídeos y capturas de T5 y diga que sí.
+- **Canal para avisos del código de conducta** (no hay email público):
+  1. (Recomendada) Mensaje a @Ando144 por GitHub: abrir un issue mínimo sin detalles pidiendo un
+     canal privado, o la función «Report content» de GitHub si es grave. Ventaja: sin email.
+     Inconveniente: el primer contacto es público.
+  2. Crear un email solo para el proyecto (p. ej. un alias nuevo). Ventaja: privado y estándar.
+     Inconveniente: Andoni tiene que crearlo y vigilarlo.
+  3. Activar GitHub Discussions y usar una categoría de moderación. Ventaja: todo en GitHub.
+     Inconveniente: más mantenimiento y no es privado.
+     Recomiendo la 1 porque cumple la regla de no publicar el email y no añade trabajo.
+- **Insignia de cobertura:**
+  1. (Recomendada) Sin insignia; resumen en cada ejecución de CI y artefacto HTML. Ventaja: sin
+     cuentas externas ni secretos. Inconveniente: no se ve el porcentaje en el README.
+  2. Codecov. Ventaja: insignia y comentarios en los PR. Inconveniente: cuenta externa y token.
+  3. Insignia generada en un gist con una Action. Ventaja: sin servicio externo de pago.
+     Inconveniente: necesita un token personal como secreto.
+     Recomiendo la 1 porque es la más sencilla y segura; se puede pasar a Codecov más adelante.
+- La pantalla «Acerca de» de la app enlaza `https://ando144.github.io` (`apps/web/src/config.ts`).
+  Fuera del alcance de este plan (es código de la app); preguntar a Andoni si quiere quitarlo
+  en otra tarea, ya que no quiere web personal por ahora.
+- El euskera del `README.eu.md` debería revisarlo Andoni.
+- La app enlaza `docs/deployment.md` en la rama `main`: los cambios de ese archivo se verán en la
+  app en cuanto se fusione la rama.
+- Si `docs:check` encuentra enlaces rotos en documentos que no toca ninguna tarea (p. ej.
+  `docs/android.md`, `docs/ingest.md`), T7 los corrige solo si es una ruta mal escrita y lo
+  anota en el informe.

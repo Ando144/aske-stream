@@ -69,9 +69,10 @@ avoids draining the battery when we cannot tell whether it is safe.
 
 ## Storage details
 
-- Audio files: **Cache Storage** (`aske-audio-v1`), whole files keyed by `/media/audio/:id`.
-  Playback uses a `blob:` URL, so seeking works offline without faking `206` responses in the
-  service worker.
+- Audio files: **Cache Storage** (`aske-audio-v1`), whole files keyed by
+  `/offline-audio/<trackId>`, a local key independent of where the file came from or of any token
+  (`apps/web/src/offline/audioCache.ts`). Playback uses a `blob:` URL, so seeking works offline
+  without faking `206` responses in the service worker.
 - Metadata: **IndexedDB** (`offline`, `evicted`, cached library).
 - On start, entries whose file the browser evicted are dropped (self-healing).
 - The app requests **persistent storage** on the first download so the browser does not evict it

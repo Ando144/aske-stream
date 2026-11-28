@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an idea or an improvement
+title: 'Feature: '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Do not paste keys, pairing links or personal data.
+        You can write in English, Spanish or Basque.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the problem or need, as the person using the app.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Your idea
+      description: Optional. How could the app solve it?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where would you use it?
+      options:
+        - Android app
+        - Web / PWA
+        - Both
+        - Server (Worker or Hub)

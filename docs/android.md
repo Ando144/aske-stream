@@ -160,7 +160,7 @@ Versions come from the root `package.json` (`0.2.0` → `versionCode` 200).
 
 1. Bump `"version"` in the root `package.json` (and the workspaces) and add
    `docs/releases/v<version>.md` with the notes users will see.
-2. Commit, then `git tag v<version>` and `git push --follow-tags`.
+2. Commit and `git push`, then `git tag v<version>` and `git push origin v<version>`.
 3. The **Android app** workflow builds the signed APK, checks the tag matches
    the version and publishes the GitHub Release. Every installed app offers
    the update within a day.

@@ -1,6 +1,7 @@
 # 0001 — PWA first, native Android later
 
-**Status:** accepted
+**Status:** accepted; the native Android app shipped in v0.2.0 as a Capacitor shell around the same
+web code ([ADR 0009](0009-capacitor-webview-native-plugins.md))
 
 ## Context
 

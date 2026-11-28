@@ -1,170 +1,269 @@
 <div align="center">
 
-<img src="apps/web/public/icons/icon-192.png" width="88" alt="" />
+<img src="docs/media/banner.png" width="100%" alt="Aske Stream" />
 
-# Aske Stream
+**Your music, wherever you choose to keep it.**
 
-**Your own Spotify-style music cloud.** Bring your own music, stream it from Cloudflare R2,
-organise it in playlists, listen to live radio, and keep a self-refreshing offline selection on your phone.
+English · [Español](README.es.md) · [Euskara](README.eu.md)
 
 [![CI](https://github.com/Ando144/aske-stream/actions/workflows/ci.yml/badge.svg)](https://github.com/Ando144/aske-stream/actions/workflows/ci.yml)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%C2%B7%20D1%20%C2%B7%20R2-f38020)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![Android app](https://github.com/Ando144/aske-stream/actions/workflows/android.yml/badge.svg)](https://github.com/Ando144/aske-stream/actions/workflows/android.yml)
+[![Latest release](https://img.shields.io/github/v/release/Ando144/aske-stream)](https://github.com/Ando144/aske-stream/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/Ando144/aske-stream/total)](https://github.com/Ando144/aske-stream/releases)
+[![Node.js 22.12 or newer](https://img.shields.io/badge/Node.js-%E2%89%A5%2022.12-339933)](docs/development.md)
+[![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.base.json)
 
-_aske_ means “free” in Basque — free as in open source, and free to run on Cloudflare's free tier.
-
-Designed and built by **[Andoni Ortiz de Zarate Urruela](https://github.com/Ando144)**.
+**[Download the Android app](https://github.com/Ando144/aske-stream/releases/latest)** ·
+[Documentation](docs/README.md) ·
+[Architecture](docs/architecture.md) ·
+[Contributing](CONTRIBUTING.md)
 
 </div>
 
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/media/screenshots/mobile-library.png" width="200" alt="Library with the list of songs" /><br /><sub>Your songs</sub></td>
+    <td align="center"><img src="docs/media/screenshots/mobile-now-playing.png" width="200" alt="Full screen player" /><br /><sub>Player and queue</sub></td>
+    <td align="center"><img src="docs/media/screenshots/mobile-playlist.png" width="200" alt="An open playlist" /><br /><sub>Playlists</sub></td>
+    <td align="center"><img src="docs/media/screenshots/mobile-offline.png" width="200" alt="Offline music settings" /><br /><sub>Offline music</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/screenshots/mobile-storage-choice.png" width="200" alt="Choosing where the music is kept" /><br /><sub>You choose the storage</sub></td>
+    <td align="center"><img src="docs/media/screenshots/mobile-radio.png" width="200" alt="Live radio stations" /><br /><sub>Live radio</sub></td>
+    <td align="center"><img src="docs/media/screenshots/android-download.png" width="200" alt="Download tab in the Android app" /><br /><sub>Download (Android)</sub></td>
+    <td align="center"><img src="docs/media/screenshots/android-study.png" width="200" alt="Study mode in the Android app" /><br /><sub>Study mode (Android)</sub></td>
+  </tr>
+</table>
+
 <p align="center">
-  <img src="docs/screenshots/mobile-library.png" width="230" alt="Library" />
-  <img src="docs/screenshots/mobile-now-playing.png" width="230" alt="Now playing" />
-  <img src="docs/screenshots/mobile-offline.png" width="230" alt="Smart offline cache" />
+  <img src="docs/media/gifs/start.gif" width="260" alt="Opening animation followed by the library" />
+  <img src="docs/media/gifs/player.gif" width="260" alt="Opening the player and swiping to the next song" />
 </p>
-<p align="center"><img src="docs/screenshots/desktop.png" width="760" alt="Desktop layout" /></p>
+
+<p align="center">
+  <img src="docs/media/screenshots/desktop.png" width="860" alt="Desktop layout with the library and the player" />
+</p>
+
+<p align="center"><sub>All the music, artists and stations in these pictures are invented.</sub></p>
+
+## What it is
+
+Aske Stream is an open-source music app in the style of Spotify, made for friends with no technical
+background. There is no central music service: each person chooses where their own music is kept,
+and can change that choice later without anything being deleted. It runs in the browser as an
+installable web app and on Android as an APK that updates itself.
+
+_Aske_ means "free" in Basque.
+
+|                      | This device                        | Google Drive                          | Your own Cloudflare                          |
+| -------------------- | ---------------------------------- | ------------------------------------- | -------------------------------------------- |
+| Setup                | None                               | Sign in with Google                   | Guided, about 10 minutes                     |
+| Cost and space       | Free; the free space of the device | 15 GB free, shared with Gmail, Photos | Free plan, 10 GB; Cloudflare asks for a card |
+| Listen on a computer | The music stays where you added it | Yes                                   | Yes                                          |
+| If you lose a phone  | The music kept on it is lost       | Kept                                  | Kept                                         |
+| Without internet     | Everything plays                   | The songs saved for offline listening | The songs saved for offline listening        |
+
+An average song takes about 4 MB, so 10 GB holds around 2,500 songs.
 
 ## Features
 
-- **Streaming** of Opus audio with instant seeking (HTTP Range requests straight from R2).
-- **Library** with search (accent-insensitive), sorting, **likes** (“Liked songs”) and **playlists**: create, rename, delete, add/remove songs, play next, add to queue.
-- **Player**: play/pause, next/previous, seek bar, volume, true Fisher–Yates **shuffle**, repeat all / one, queue view, state restored after reopening the app.
-- **Background playback on Android** with lock-screen and notification controls (Media Session API).
-- **Smart offline cache**: pin songs or whole playlists, and let the app fill a **minutes-based quota** with random songs. Songs you've heard are **rotated** for fresh ones after a configurable time — swapped, never dropped, so you never end up with less music offline.
-- **Live radio**: browse and search tens of thousands of stations from the open [Radio Browser](https://www.radio-browser.info) directory by country and genre, **like** stations to keep them on top, or add your own stream URLs. HLS streams supported.
-- **Android app** (APK, updates itself from inside the app): background playback with notification and lock-screen controls, and **YouTube search & download on the phone** (songs and whole playlists, with yt-dlp updatable in-app). From the computer, **"Send to phone"** queues songs for the phone to download. See [docs/android.md](docs/android.md).
-- **Your choice of storage**: everything on the phone (no setup), your own **Google Drive** (just sign in; the app only sees its own folder), or your own Cloudflare. With Drive or Cloudflare the library is shared with the computer and the phone keeps a rotating offline copy. See [docs/google-drive.md](docs/google-drive.md).
-- **Explained for everyone**: first-run introduction, first-steps checklist, a tip on each screen and a searchable help centre (33 articles) in **Basque, Spanish and English**.
-- **Installable PWA**, works offline.
-- **Ingest CLI**: turn YouTube links/playlists or local files (MP3, FLAC, AAC…) into tagged Opus tracks with cover art and upload them in one command.
-- **Single-owner security model**: no accounts or passwords, but nothing is public — devices are paired once with a secret key.
+### Library and player
 
-## Architecture
+- Search, sorting, liked songs and playlists, with folders, custom covers, pinning and merging.
+- Queue, shuffle that plays everything once before repeating, repeat and a sleep timer.
+- Swipe to go to the next song or to add a song to the queue.
+- On "This device", import the audio files you already have. Copy your music from one storage to
+  another.
 
-```mermaid
-flowchart LR
-  subgraph PC["Your PC"]
-    CLI["Ingest CLI<br/>yt-dlp · ffmpeg"]
-  end
-  subgraph CF["Cloudflare (free tier)"]
-    W["Worker<br/>Hono API · auth · Range streaming"]
-    D1[("D1<br/>tracks · playlists · likes · stations")]
-    R2[("R2<br/>Opus audio · covers")]
-    A["Static assets<br/>PWA build"]
-  end
-  subgraph Phone["Phone / browser"]
-    PWA["React PWA<br/>player · Media Session"]
-    C[("Cache Storage + IndexedDB<br/>offline songs")]
-  end
-  RB["Radio Browser API"]
+### Offline listening
 
-  CLI -- "Bearer key, multipart upload" --> W
-  PWA -- "session cookie" --> W
-  W --> D1
-  W --> R2
-  A --> PWA
-  PWA <--> C
-  W -- "catalog proxy + cache" --> RB
-```
+- With Google Drive or Cloudflare, the app keeps a selection of your music on the device, measured
+  in hours of listening.
+- Songs you have already heard are swapped for new ones. A song is only removed once its
+  replacement has arrived.
+- Songs and playlists you download yourself are never rotated.
 
-| Layer    | Tech                                                | Why                                                                                  |
-| -------- | --------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Client   | React 19, Vite, TypeScript, Zustand, Workbox        | Installable PWA with background audio on Android and offline support                 |
-| API      | Cloudflare Workers + [Hono](https://hono.dev) + Zod | Same origin as the app, global edge, free tier                                       |
-| Metadata | Cloudflare D1 (SQLite)                              | Relational data (playlists, likes) with transactions; ETag-based sync                |
-| Media    | Cloudflare R2                                       | 10 GB free, **no egress fees**, private bucket only reachable through the Worker     |
-| Audio    | Ogg Opus                                            | Best quality per byte; YouTube's own format, so it is stored **without re-encoding** |
-| Ingest   | Node CLI + yt-dlp + ffmpeg                          | Runs on a residential IP — YouTube blocks datacenter IPs                             |
+### Radio and podcasts
 
-More detail in [docs/architecture.md](docs/architecture.md) and the decision records in [docs/adr](docs/adr).
+- Live radio from the open [Radio Browser](https://www.radio-browser.info) directory, filtered by
+  country and genre, plus your own stream addresses.
+- Podcasts grouped by series, resuming where you left off, with playback speed and 15 s back or
+  30 s forward.
 
-## Quick start (local, 2 minutes)
+### On Android
 
-Requirements: Node.js 22+, and ffmpeg if you want to ingest music.
+- Plays with the screen off, with controls in the notification and on the lock screen.
+- Search YouTube and download songs or whole playlists on the phone itself.
+- Share a link from YouTube or YouTube Music straight to Aske Stream.
+- Updates from inside the app.
+
+Downloading from YouTube is meant for personal use. Respect copyright and YouTube's Terms of
+Service, which downloading may breach: you are responsible for what you download.
+
+### With friends
+
+These use the [Aske Hub](docs/hub.md), a small shared server that never stores music.
+
+- **Shared playlists:** send a short link; your friend's app downloads the songs on its own.
+- **Jam:** friends join with a QR code, also from a browser, add songs and skip them. The music
+  plays on the host's phone.
+- **Friend groups:** share playlists and Jams, and compare listening only if you switch it on.
+- **Send to phone:** pick songs on a computer or another phone and receive them with a one-time code.
+
+### Study mode and help
+
+- **Study mode** (Android): pins the app for the minutes you choose, with calm music, background
+  sounds and a chime at the end.
+- **Recap:** your monthly and yearly listening, off until you accept it and stored on your device.
+- First steps guide, a tip on each screen and a searchable help centre, all in **English, Spanish
+  and Basque**.
+
+### Good to know
+
+- There is no iPhone app; the web app works in the browser.
+- The offline selection is renewed while the app is open or playing, not while it is closed.
+
+## Get started
+
+### Install the Android app
+
+Download the APK from the [latest release](https://github.com/Ando144/aske-stream/releases/latest)
+and open it on your phone. Android asks you to allow installing from that source. The file named
+`armv7` is only for old 32-bit phones.
+
+### Use your own Cloudflare
+
+The Android app has a guided setup that does it from the phone. From a computer, follow the
+[deployment guide](docs/deployment.md).
+
+### Develop locally
+
+With Node.js 22.12 or newer:
 
 ```bash
 git clone https://github.com/Ando144/aske-stream.git
 cd aske-stream
-npm install
+npm ci
+npm run db:migrate:local
 npm run dev
 ```
 
-Open <http://localhost:5173/#key=local-dev-access-key-change-me-0123456789>. Everything (API, D1, R2) runs locally through `wrangler dev`; nothing touches your Cloudflare account.
+Everything runs on your computer and no Cloudflare account is needed. See the
+[development guide](docs/development.md).
 
-Add some music to the local instance:
+## Engineering
 
-```bash
-cp .env.example .env      # set ASKE_URL=http://127.0.0.1:8787 and the dev key above
-npm run ingest -- "C:\Users\me\Music\Album"                    # local files
-npm run ingest -- "https://www.youtube.com/watch?v=..."        # needs yt-dlp
+### Overview
+
+```mermaid
+flowchart LR
+  subgraph clients["Clients"]
+    web["Web app / PWA<br/>React"]
+    apk["Android app<br/>Capacitor + native plugins"]
+    cli["Ingest CLI"]
+  end
+  subgraph homes["Library home, one per user"]
+    dev[("This device")]
+    drive[("Google Drive")]
+    cf[("Own Cloudflare<br/>Worker + D1 + R2")]
+  end
+  hub["Aske Hub<br/>Worker + D1 + Durable Object"]
+
+  web --> homes
+  apk --> homes
+  cli --> cf
+  web --> hub
+  apk --> hub
 ```
 
-## Deploy your own instance
+### Stack
 
-```bash
-npx wrangler login
-npm run cf:setup
+| Area       | Technology                                                        |
+| ---------- | ----------------------------------------------------------------- |
+| App        | React 19, Vite 8, TypeScript (strict), zustand, wouter, IndexedDB |
+| Own server | Cloudflare Workers, Hono, zod, D1 (SQLite), R2                    |
+| Shared Hub | A separate Worker with D1 and a Durable Object over WebSocket     |
+| Android    | Capacitor 8, our own Java plugins, youtubedl-android              |
+| Tooling    | npm workspaces, Prettier, Vitest, Playwright, GitHub Actions      |
+
+### Key decisions
+
+| Decision                                                                                  | Why it matters                                  |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [One home, many destinations](docs/adr/0006-storage-homes.md)                             | One source of truth without a sync engine       |
+| [Google Drive with `drive.file`](docs/adr/0007-google-drive-home.md)                      | The app only sees the files it created          |
+| [WebView playback with native plugins](docs/adr/0009-capacitor-webview-native-plugins.md) | One player for web and Android                  |
+| [A Hub that never stores music](docs/adr/0010-aske-hub-and-jam.md)                        | Social features without hosting anyone's files  |
+| [Single-owner pairing](docs/adr/0003-single-owner-auth.md)                                | No accounts or passwords, and nothing is public |
+| [Opt-in statistics](docs/adr/0013-opt-in-listening-stats.md)                              | Listening history only with explicit consent    |
+
+All of them are in the [decision records](docs/adr/README.md).
+
+### Engineering challenges solved
+
+- **Audio in the background inside a WebView:** a native media session and foreground service, with
+  wake locks held only while music plays ([Android notes](docs/android.md)).
+- **Offline rotation that never shrinks your music:** a pure, unit-tested planner swaps heard songs
+  only as replacements arrive ([offline cache](docs/offline-cache.md)).
+- **Syncing through Google Drive without a server:** each device merges one `library.json`, where
+  the newest change wins and deletions are final ([ADR 0007](docs/adr/0007-google-drive-home.md)).
+- **Safe cancellation:** every upload has its own id, so cancelling does not delete a copy added by
+  another device, with one documented exception for old servers
+  ([ADR 0012](docs/adr/0012-upload-ids-safe-cancel.md)).
+- **Downloads where they work:** yt-dlp runs on the phone, on the user's own connection, because
+  YouTube blocks datacenter addresses ([ADR 0008](docs/adr/0008-youtube-download-on-the-phone.md)).
+- **No quality lost:** Opus audio from YouTube is stored without re-encoding
+  ([ADR 0004](docs/adr/0004-opus-remux.md)).
+- **Staying within the free plan:** a 10 GB budget, with uploads refused at 95 % (`507
+storage_full`) ([limits](docs/architecture.md#limits)).
+
+### Quality
+
+- Unit tests in every workspace, including checks that the three languages are complete.
+- An end-to-end smoke test against a real local Worker, and browser tests with Playwright.
+- CI checks formatting, types, tests, documentation links and the build, reports coverage and scans
+  for secrets with gitleaks.
+- [Dependabot](.github/dependabot.yml) proposes dependency updates every month.
+
+Details in the [testing guide](docs/testing.md).
+
+### Project structure
+
+```
+apps/web          Web app and PWA
+apps/api          Each user's own Cloudflare Worker
+apps/hub          Aske Hub (shared playlists, groups, Jam)
+apps/mobile       Android app and native plugins
+packages/shared   Shared types, limits and YouTube parser
+tools/ingest      CLI to upload music to Cloudflare
+scripts           Development, setup, tests and documentation
+docs              Documentation
 ```
 
-`cf:setup` creates the D1 database and R2 bucket in **your** account, applies the migrations, deploys, generates an access key and prints a one-time pairing link. Full walkthrough (Windows-friendly, with troubleshooting): **[docs/deployment.md](docs/deployment.md)**.
+## Documentation
 
-## Project structure
+Start at the [documentation index](docs/README.md): [deployment](docs/deployment.md),
+[architecture](docs/architecture.md), [Worker API](docs/api/worker.md),
+[Hub API](docs/api/hub.md), [ingest CLI](docs/ingest.md) and the [changelog](CHANGELOG.md).
 
-```
-aske-stream/
-├─ apps/
-│  ├─ api/              Cloudflare Worker (Hono): routes, auth, R2 streaming, D1 migrations
-│  ├─ web/              React PWA: views, player engine, offline engine, i18n (eu/es/en)
-│  └─ mobile/           Android app: the same web app in Capacitor + native plugins
-├─ packages/shared/     Types shared by API, web and CLI
-├─ tools/ingest/        CLI: YouTube / files → Opus → upload
-├─ scripts/             dev, cf-setup, smoke (E2E) and icon scripts
-├─ docs/                Architecture, deployment, offline cache, ingest, ADRs
-└─ .github/workflows/   CI (format, typecheck, tests, build, E2E, secret scan), deploy, signed APK releases
-```
+## Contributing and security
 
-## Quality
+Ideas and fixes are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[code of conduct](CODE_OF_CONDUCT.md). To report a vulnerability, follow the
+[security policy](SECURITY.md) instead of opening a public issue.
 
-```bash
-npm run check      # prettier + typecheck + unit tests + production build
-npm run test:e2e   # boots a real Worker with local D1/R2 and exercises the whole API
-```
+## Privacy
 
-- Unit tests: offline rotation planner, shuffle/queue logic, session tokens, Range handling, metadata cleanup, translation completeness.
-- End-to-end: pairing, uploads, duplicate detection, ETag sync, Range seeking, likes, playlists, stations, deletion.
-- CI runs everything on each push plus a [gitleaks](https://github.com/gitleaks/gitleaks) secret scan.
-
-## Configuration & secrets
-
-| Name                                                                 | Where                                             | Purpose                                                                                                  |
-| -------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `ACCESS_KEY`                                                         | Worker secret (`wrangler secret put`)             | The single owner key. Rotate it to log every device out.                                                 |
-| `ASKE_URL`, `ASKE_ACCESS_KEY`                                        | `.env` (git-ignored)                              | Used by the ingest CLI                                                                                   |
-| `database_id`                                                        | `apps/api/wrangler.jsonc`                         | Your D1 id (not a secret)                                                                                |
-| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`                      | GitHub secrets (optional)                         | Only for the manual deploy workflow                                                                      |
-| `ANDROID_KEYSTORE_BASE64`, `ANDROID_*_PASSWORD`, `ANDROID_KEY_ALIAS` | GitHub secrets; `.secrets/` locally (git-ignored) | Signs the Android APK ([docs/android.md](docs/android.md))                                               |
-| `GOOGLE_WEB_CLIENT_ID`                                               | `apps/web/src/config.ts`                          | Google sign-in on the web ([docs/google-drive.md](docs/google-drive.md)); public by design, not a secret |
-
-No credentials ever live in the repository: the bucket has no public access and no S3 keys exist — the Worker reaches R2 through a binding.
-
-## Limitations
-
-- **iOS**: background audio in installed web apps is unreliable on iOS 26 (WebKit bugs). The app targets Android and desktop browsers.
-- **Offline rotation** runs while the app is open or playing (on start, on reconnect, every 30 min, after songs). Browsers do not allow a PWA to download in the background when closed; in the Android app this is planned (see [docs/android.md](docs/android.md)).
-- **YouTube ingestion** relies on yt-dlp, which occasionally breaks until updated (`yt-dlp -U`). See [docs/ingest.md](docs/ingest.md), including the legal note.
-
-## Roadmap
-
-See [docs/v2/architecture.md](docs/v2/architecture.md) for the v2 plan (Android app ✅, YouTube
-downloads in the app ✅, help centre ✅, Google Drive ✅, guided setup, shared playlists and Jams).
+No ads and no tracking. What the app stores and which services it talks to is explained in the
+[privacy policy](docs/PRIVACY.md).
 
 ## Author
 
-**Andoni Ortiz de Zarate Urruela** — Computer Engineering (Management and Information Systems)
-student at the Bilbao School of Engineering (UPV/EHU).
-[GitHub](https://github.com/Ando144) · [Website](https://ando144.github.io)
+Designed and built by **Andoni Ortiz de Zarate Urruela**
+([@Ando144](https://github.com/Ando144)).
 
 ## License
 
-[MIT](LICENSE). Music you add is your responsibility — only upload content you own or are licensed to use.
+[MIT](LICENSE). The music you add is your responsibility: only use content you own or are allowed
+to use.

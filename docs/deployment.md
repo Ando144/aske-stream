@@ -18,7 +18,7 @@ Beyond 10 GB it costs $0.015 per GB-month.
 
 ## 1. Prerequisites
 
-- **Node.js 22+** — <https://nodejs.org> (or `winget install OpenJS.NodeJS.LTS`)
+- **Node.js 22.12 or newer** — <https://nodejs.org> (or `winget install OpenJS.NodeJS.LTS`)
 - **Git** — `winget install Git.Git`
 - A free **Cloudflare account** — <https://dash.cloudflare.com/sign-up>
 - For adding music: **ffmpeg** and **yt-dlp** (+ Deno, which yt-dlp now uses for YouTube's JavaScript challenges)
@@ -34,10 +34,11 @@ Beyond 10 GB it costs $0.015 per GB-month.
 ```powershell
 git clone https://github.com/<you>/aske-stream.git
 cd aske-stream
-npm install
+npm ci
 ```
 
-(Fork the repository first if you want to keep your configuration on GitHub.)
+(Fork the repository first if you want to keep your configuration on GitHub.) Use `npm ci`, not
+`npm install`, which on Windows rewrites `package-lock.json`.
 
 ## 3. Enable R2 once
 
@@ -45,6 +46,10 @@ Cloudflare dashboard → **R2 Object Storage** → _Enable / Purchase R2 Plan_ (
 You do **not** need to create a bucket or API tokens by hand.
 
 ## 4. Log in and run the setup
+
+`apps/api/wrangler.jsonc` in this repository carries the `database_id` of its owner's database. The
+script only creates a database when it finds the placeholder, so before the first run replace that
+value with `00000000-0000-0000-0000-000000000000`.
 
 ```powershell
 npx wrangler login
@@ -57,7 +62,7 @@ The script:
 2. creates the private R2 bucket `aske-stream-media`;
 3. applies the SQL migrations;
 4. builds the PWA and deploys the Worker to `https://aske-stream.<your-subdomain>.workers.dev`;
-5. generates a random `ACCESS_KEY`, stores it as an encrypted Worker secret and writes it with the URL into `.env` (git-ignored).
+5. generates a random `ACCESS_KEY`, stores it as an encrypted Worker secret and writes it with the URL into `.env` (git-ignored). If `.env` already has an `ASKE_ACCESS_KEY`, it is reused and the secret is not uploaded again.
 
 At the end it prints a pairing link like:
 
@@ -106,7 +111,7 @@ this guide (`aske-stream`, `aske-stream-media`), so `npm run db:migrate:remote` 
 
 ```powershell
 git pull
-npm install
+npm ci
 npm run db:migrate:remote
 npm run deploy
 ```
@@ -126,6 +131,40 @@ cd ../..
 npm run deploy
 cd apps/api
 npx wrangler secret put ACCESS_KEY            # paste the output of `npm run gen-key`
+```
+
+## Deploying the Hub (optional)
+
+The [Aske Hub](hub.md) powers shared playlists, groups, Jams and "Send to phone" without
+Cloudflare. It is a separate Worker with its own database and it never stores music. Your instance
+works without deploying it: the app already points to the Hub set in
+[`config.ts`](../apps/web/src/config.ts). Deploy your own only if you want to run that part too.
+
+1. Log in with `npx wrangler login`.
+2. Create the database:
+
+   ```powershell
+   npx wrangler d1 create aske-hub
+   ```
+
+3. Put the `database_id` it prints into `apps/hub/wrangler.jsonc`, replacing the one there.
+4. Create the tables and publish (`deploy:hub` builds the web app first):
+
+   ```powershell
+   npm run hub:migrate:remote
+   npm run deploy:hub
+   ```
+
+5. Set `HUB_URL` in `apps/web/src/config.ts` to the address Cloudflare shows (or set the
+   `VITE_HUB_URL` variable when building), then run `npm run deploy` again. An Android app keeps the
+   address it was built with.
+
+To update your Hub later, apply its migrations **before** deploying it, and deploy it before the web
+app:
+
+```powershell
+npm run hub:migrate:remote
+npm run deploy:hub
 ```
 
 ## Troubleshooting

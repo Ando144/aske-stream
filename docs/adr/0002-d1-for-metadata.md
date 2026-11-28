@@ -1,6 +1,7 @@
 # 0002 — D1 for metadata
 
-**Status:** accepted
+**Status:** accepted; since v0.5.0 it applies to the Cloudflare home, one of three
+([ADR 0006](0006-storage-homes.md))
 
 ## Context
 
