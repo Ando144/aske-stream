@@ -35,14 +35,41 @@ async function requireEditor(c: Context<HubAppEnv>, repoFor: RepoFor, groupId: s
   return { repo, group, member };
 }
 
-/** Checks the declared size first, so an oversized upload is never read into memory. */
+function joinChunks(chunks: Uint8Array[], size: number): Uint8Array {
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
+}
+
+/** Counts while reading, because the declared size can be missing or false. */
+async function readPhotoBytes(body: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return joinChunks(chunks, size);
+    size += value.length;
+    if (size > GROUP_LIMITS.photoMaxBytes) {
+      await reader.cancel();
+      throw photoTooBig();
+    }
+    chunks.push(value);
+  }
+}
+
+/** Checks the declared size first, so an oversized upload is not read at all. */
 async function readPhoto(req: Request): Promise<Uint8Array> {
   if (req.headers.get('Content-Type') !== 'image/jpeg') throw notJpeg();
   if (Number(req.headers.get('Content-Length') ?? 0) > GROUP_LIMITS.photoMaxBytes) {
     throw photoTooBig();
   }
-  const bytes = new Uint8Array(await req.arrayBuffer());
-  if (bytes.length > GROUP_LIMITS.photoMaxBytes) throw photoTooBig();
+  if (!req.body) throw notJpeg();
+  const bytes = await readPhotoBytes(req.body);
   if (!isJpeg(bytes)) throw notJpeg();
   return bytes;
 }

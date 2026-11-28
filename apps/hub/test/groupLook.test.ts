@@ -27,6 +27,24 @@ function jpeg(size = 16, fill = 1): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
+/** A body without a known length, which also tells how much of it was actually read. */
+function chunked(bytes: Uint8Array<ArrayBuffer>, chunkSize: number) {
+  let sent = 0;
+  let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (sent >= bytes.length) return controller.close();
+      const chunk = bytes.slice(sent, sent + chunkSize);
+      sent += chunk.length;
+      controller.enqueue(chunk);
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  return { stream, sent: () => sent, cancelled: () => cancelled };
+}
+
 function stats(minutes: number, month = thisMonth): MonthStats {
   return { month, minutes, plays: 1, topTracks: [], topArtists: [] };
 }
@@ -65,6 +83,11 @@ function setup() {
       headers: { 'Content-Type': 'image/jpeg', ...headers },
       body,
     });
+  const uploadStream = (device: number, id: string, body: ReadableStream<Uint8Array>) => {
+    // Node needs `duplex` to send a stream, and the DOM types do not know about it.
+    const init = { headers: { 'Content-Type': 'image/jpeg' }, body, duplex: 'half' };
+    return send(device, 'PUT', `/${id}/photo`, init);
+  };
   const create = async (device: number, name = 'Friends') =>
     (await (await call(device, 'POST', '', { name, alias: `u${device}` })).json()) as GroupDetail;
   const join = (device: number, code: string) =>
@@ -78,7 +101,7 @@ function setup() {
   };
   const list = async (device: number, query = '') =>
     ((await (await call(device, 'GET', query)).json()) as { groups: GroupSummary[] }).groups;
-  return { repo, db, call, send, upload, create, join, crowd, list };
+  return { repo, db, call, send, upload, uploadStream, create, join, crowd, list };
 }
 
 describe('cardMonth', () => {
@@ -225,6 +248,36 @@ describe('changing the photo', () => {
     const group = await create(1);
     const res = await upload(1, group.id, jpeg(), { 'Content-Length': String(101 * 1024) });
     expect(res.status).toBe(413);
+  });
+
+  it('stops reading a big stream without Content-Length and answers 413', async () => {
+    const { create, uploadStream, repo } = setup();
+    const group = await create(1);
+    const source = chunked(jpeg(10 * GROUP_LIMITS.photoMaxBytes), 16 * 1024);
+    const res = await uploadStream(1, group.id, source.stream);
+    expect(res.status).toBe(413);
+    expect(source.sent()).toBeLessThan(2 * GROUP_LIMITS.photoMaxBytes);
+    expect(source.cancelled()).toBe(true);
+    expect(repo.photos.size).toBe(0);
+  });
+
+  it('stores a valid photo sent in chunks without Content-Length', async () => {
+    const { create, uploadStream, call } = setup();
+    const group = await create(1);
+    const photo = jpeg(GROUP_LIMITS.photoMaxBytes, 7);
+    const res = await uploadStream(1, group.id, chunked(photo, 16 * 1024).stream);
+    expect(res.status).toBe(200);
+    const stored = await call(1, 'GET', `/${group.id}/photo`);
+    expect(new Uint8Array(await stored.arrayBuffer())).toEqual(photo);
+  });
+
+  it('refuses an upload without a body with 400', async () => {
+    const { create, send } = setup();
+    const group = await create(1);
+    const res = await send(1, 'PUT', `/${group.id}/photo`, {
+      headers: { 'Content-Type': 'image/jpeg' },
+    });
+    expect(res.status).toBe(400);
   });
 
   it('refuses a PNG, unsigned data and a wrong content type with 400', async () => {
