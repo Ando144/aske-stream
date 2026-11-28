@@ -24,8 +24,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function fakeDownload(jobId: string, videoId: string) {
   log(`download ${videoId}`);
+  // "resume" songs are slow so a test can reload the app while they are still downloading.
+  const stepMs = videoId.startsWith('resume') ? 600 : 80;
   for (const progress of [10, 45, 80, 100]) {
-    await sleep(80);
+    await sleep(stepMs);
     if (canceled.has(jobId)) throw Object.assign(new Error('Canceled'), { code: 'canceled' });
     listeners.forEach((l) => l({ jobId, progress, eta: 1 }));
   }

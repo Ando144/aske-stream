@@ -11,11 +11,16 @@ def wait_jobs_idle(p, timeout=20):
     t0=time.time()
     while time.time()-t0<timeout:
         st=p.evaluate("() => (JSON.parse(localStorage.getItem('aske:downloads-v1')||'[]')).map(j=>j.status)")
-        if st and not any(s in ('queued','downloading','saving') for s in st):
+        if st and not any(s in PENDING for s in st):
             time.sleep(0.6); return p.evaluate("() => (JSON.parse(localStorage.getItem('aske:downloads-v1')||'[]')).map(j=>j.status)")
         time.sleep(0.3)
     raise Exception("jobs not idle: "+str(st))
 def jobs(p): return p.evaluate("() => JSON.parse(localStorage.getItem('aske:downloads-v1')||'[]')")
+ACTIVE=('queued','downloading','saving')
+PENDING=ACTIVE+('downloaded',)  # 'downloaded' = still waiting to be saved
+RESUME_SONGS=3  # songs the fake downloader lists for PLRESUME0001
+def resume_jobs(p): return [x for x in jobs(p) if x['videoId'].startswith('resume')]
+def summary(js): return [(x['videoId'],x['status'],x.get('error')) for x in js]
 
 with sync_playwright() as pw:
     b=pw.chromium.launch(executable_path=CHROME,headless=True,args=["--autoplay-policy=no-user-gesture-required"])
@@ -66,10 +71,18 @@ with sync_playwright() as pw:
     shot(p,"06-link"); p.locator(".dl-link .btn.primary").click(); wait_jobs_idle(p)
     # resume after the app is closed mid-download
     p.fill(".dl-search input","https://www.youtube.com/playlist?list=PLRESUME0001"); p.wait_for_selector(".dl-link")
-    p.locator(".dl-link .btn.primary").click(); time.sleep(0.9)
-    print("before reload:", [(x['videoId'][-1],x['status']) for x in jobs(p) if x['videoId'].startswith('resume')])
-    p.reload(); p.wait_for_selector(".dl-search"); st=wait_jobs_idle(p, 20)
-    print("after reload:", [(x['videoId'][-1],x['status']) for x in jobs(p) if x['videoId'].startswith('resume')])
+    p.locator(".dl-link .btn.primary").click(); p.wait_for_selector(".dl-sheet .dl-entries")
+    p.locator(".dl-sheet .btn.primary").click()
+    # The reload only proves something if it happens with work still pending.
+    p.wait_for_function("""n => { const r = JSON.parse(localStorage.getItem('aske:downloads-v1')||'[]').filter(j => j.videoId.startsWith('resume'));
+      return r.length === n && r.some(j => j.status === 'downloading') }""", arg=RESUME_SONGS, timeout=10000)
+    before=resume_jobs(p)
+    assert any(x['status'] in ACTIVE for x in before), ("nothing left to resume", summary(before))
+    p.reload(); p.wait_for_selector(".dl-search"); wait_jobs_idle(p, 20)
+    after=resume_jobs(p)
+    assert len(after)==RESUME_SONGS, summary(after)
+    assert len({x['videoId'] for x in after})==len(after), ("duplicated songs", summary(after))
+    assert all(x['status']=='done' and not x.get('error') for x in after), summary(after)
     shot(p,"06b-queue-top")
     # engine update
     p.locator(".dl-engine .btn").click(); time.sleep(0.5); print("engine:", p.locator(".dl-engine").inner_text().split("\n")[0])
