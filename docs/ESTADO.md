@@ -7,11 +7,11 @@ Actualizado: 2026-11-28
 - **Hasta v0.9.5:** biblioteca en dispositivo, Cloudflare o Drive; Android; YouTube y «Compartir → Aske Stream»; ayuda eu/es/en; copia; QR; Hub (playlists compartidas, Jam, grupos, Enviar); estadísticas y Recap; modo estudio; podcasts; aleatorio fijo; gestos; portadas en todas partes.
 - **v0.9.6 (publicada):** cancelar borra solo lo propio, un solo aviso al compartir, flechas en el modo estudio, título de Biblioteca entero a 390 px, límite de foto en el Hub.
 - **v0.9.7 (publicada):** animación del logo al arrancar (web y Android), aprobada por Andoni, y arreglados los cuatro fallos de la v0.9.6. Notas en `docs/releases/v0.9.7.md`.
-- **Documentación (rama `docs/documentacion-profesional`, sin publicar):** README en/es/eu, imágenes (`npm run docs:media`), API, arquitectura, ADR, guías, archivos de comunidad, `docs:check`, cobertura en CI y Dependabot. Revisión aprobada.
+- **Documentación (publicada en `main`):** README en/es/eu, imágenes (`npm run docs:media`), API, arquitectura, ADR, guías, archivos de comunidad, `docs:check`, cobertura en CI y Dependabot. Revisión aprobada.
 
 ## En curso / siguiente
 
-- **Documentación:** Andoni revisa README y euskera; después merge, descripción y etiquetas de GitHub (texto en `docs/plan/PLAN.md`), aviso privado de vulnerabilidades (antes de fusionar) e imagen social a mano. Pendiente aparte: actualizar ando144.github.io.
+- **Documentación:** Andoni revisa en GitHub README, diagramas y euskera, y sube a mano la imagen social (`docs/media/social-preview.png`, Settings → General). Pendiente aparte: actualizar ando144.github.io.
 - **Andoni, probar v0.9.7** (los amigos con Cloudflare deben actualizar su servidor desde la app): la animación en un móvil real (arranque normal y lento, sin icono nativo antes en el APK, sin tirones); cancelar mientras se guarda en Drive sin internet y volver a conectar; cancelar con un servidor de Cloudflare antiguo y actualizarlo después.
 - **Andoni, probar v0.9.6 y v0.9.5:** cancelar descargas mientras se guardan, «Reintentar», compartir desde YouTube y YouTube Music (app cerrada y abierta), «Cargar más», deslizar reproductores y filas.
 - **Andoni, probar v0.9.4 en dos móviles:** salto remoto (también con la pantalla del anfitrión apagada), barra de la Jam, «Nombre y foto» desde quien no creó el grupo, guardar en modo avión, vista previa al unirse, «Seleccionar» en carpetas, Ordenar con teclado y modo estudio. **v0.9.3:** descargas atascadas y podcast de más de 2 h sin conexión; VERIFICAR memoria con audios de 120-200 MB y subidas de 80-95 MB. Corte de música: 30-60 min con pantalla apagada y modo avión 1-2 min (debe volver en ≤ 10 s); si falla, `adb logcat | findstr aske-stall`.
