@@ -6,11 +6,11 @@ Actualizado: 2026-11-28
 
 - **Hasta v0.9.4:** biblioteca en dispositivo, Cloudflare o Drive; Android; YouTube; ayuda eu/es/en; copia; QR; Hub (playlists compartidas, Jam como mando a distancia, grupos con nombre y foto, Enviar); estadísticas y Recap; modo estudio; podcasts; aleatorio fijo; gestos.
 - **v0.9.5 (publicada: `73c6e1a` + docs, tag, hub sin migración, web y 2 APK en Releases):** portadas o dibujo ámbar en todas partes, carrusel en los reproductores y círculo en las listas, arranque solo con el logo, «Compartir → Aske Stream» y «Cargar más».
-- **v0.9.6 (preparada en local, sin publicar):** cancelar borra solo lo propio (Cloudflare y Drive, también si la subida acaba tarde), un solo aviso al compartir, flechas en el modo estudio, título de Biblioteca entero a 390 px, límite de foto en el Hub, `stores/library.ts` partido, `smoke.mjs` y `gradle.mjs` arreglados en Windows.
+- **v0.9.6 (publicada: migración 0008, hub, web, push y tag):** cancelar borra solo lo propio (Cloudflare y Drive, también si la subida acaba tarde), un solo aviso al compartir, flechas en el modo estudio, título de Biblioteca entero a 390 px, límite de foto en el Hub, `stores/library.ts` partido, `smoke.mjs` y `gradle.mjs` arreglados en Windows.
 
 ## En curso / siguiente
 
-- **Publicar v0.9.6:** `db:migrate:remote` (migración 0008), `deploy:hub` (sin migración), `deploy`, `git push` y tag `v0.9.6`. Quien use Cloudflare debe actualizar su servidor desde la app.
+- **Amigos con Cloudflare:** deben actualizar su servidor desde la app.
 - **Andoni, probar v0.9.6:** cancelar descargas mientras se guardan (Cloudflare y Drive) y compartir desde YouTube.
 - **Andoni, probar v0.9.5 (APK encima):** Compartir desde YouTube y YouTube Music (app cerrada y abierta), «Cargar más», deslizar reproductores y filas, y el paso del arranque de Android al de la web.
 - **Andoni, probar v0.9.4 en dos móviles:** salto remoto (también con el anfitrión con la pantalla apagada), barra de la Jam, «Nombre y foto» desde quien no creó el grupo, guardar en modo avión, vista previa al unirse, «Seleccionar» en carpetas, Ordenar con teclado y modo estudio.
