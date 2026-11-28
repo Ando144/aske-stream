@@ -13,12 +13,12 @@
     "icons": "python ../../scripts/make-android-icons.py android/app/src/main/res"
   },
   "dependencies": {
-    "@capacitor/android": "^8.6.2",
+    "@capacitor/android": "^8.6.3",
     "@capacitor/app": "^8.1.2",
-    "@capacitor/core": "^8.6.2",
+    "@capacitor/core": "^8.6.3",
     "@capgo/capacitor-media-session": "^8.1.11"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.6.2"
+    "@capacitor/cli": "^8.6.3"
   }
 }
