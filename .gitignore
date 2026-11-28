@@ -6,6 +6,7 @@ dist/
 dist-android/
 dev-dist/
 *.tsbuildinfo
+coverage/
 
 # Secrets — never commit these
 .env

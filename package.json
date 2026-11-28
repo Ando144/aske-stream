@@ -30,13 +30,15 @@
     "test:e2e": "node scripts/smoke.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run format:check && npm run typecheck && npm run test && npm run test:scripts && npm run build",
+    "check": "npm run format:check && npm run typecheck && npm run test && npm run test:scripts && npm run docs:check && npm run build",
+    "docs:check": "node scripts/check-docs.mjs",
+    "docs:media": "node scripts/docs-media/run.mjs",
     "db:migrate:local": "npm run db:migrate:local -w @aske/api",
     "db:migrate:remote": "npm run db:migrate:remote -w @aske/api",
     "cf:setup": "node scripts/cf-setup.mjs",
     "gen-key": "node scripts/gen-key.mjs",
     "ingest": "npm run start --silent -w @aske/ingest --",
-    "test:scripts": "node --test scripts/lib/worker-bundle.test.mjs"
+    "test:scripts": "node --test scripts/lib/worker-bundle.test.mjs scripts/lib/doc-links.test.mjs scripts/lib/coverage-table.test.mjs"
   },
   "devDependencies": {
     "prettier": "^3.10.1",

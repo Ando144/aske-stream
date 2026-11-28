@@ -31,6 +31,11 @@ jobs:
 
       - run: npm ci
 
+      # Installed only here (--no-save) so package-lock.json stays untouched. It must be the
+      # exact version of vitest.
+      - name: Coverage tool
+        run: npm install --no-save --no-audit --no-fund @vitest/coverage-v8@$(node -p "require('vitest/package.json').version")
+
       - name: Formatting
         run: npm run format:check
 
@@ -38,7 +43,31 @@ jobs:
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm test
+        run: >-
+          npm run test --workspaces --if-present --
+          --coverage.enabled --coverage.provider=v8 --coverage.include='src/**/*.{ts,tsx}'
+          --coverage.reporter=text-summary --coverage.reporter=json-summary
+          --coverage.reporter=html
+
+      - name: Coverage summary
+        run: node scripts/coverage-summary.mjs
+
+      - name: Coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          # The exclusion skips packages that ship a folder with the same name.
+          path: |
+            */*/coverage/
+            !node_modules/**
+          retention-days: 14
+
+      - name: Script tests
+        run: npm run test:scripts
+
+      - name: Docs links
+        run: npm run docs:check
 
       - name: Build PWA
         run: npm run build

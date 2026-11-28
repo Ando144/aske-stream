@@ -1,6 +1,7 @@
 node_modules
 dist
 dev-dist
+coverage/
 .wrangler
 package-lock.json
 apps/web/public
