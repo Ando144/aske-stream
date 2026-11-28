@@ -176,13 +176,14 @@ def check_boot(page, net):
         route.fallback()
     page.wait_for_selector(".boot-splash[role=status]")
     assert_no_text(page)
-    page.wait_for_selector(".boot-splash.pulsing", timeout=3000)
+    page.wait_for_selector('.boot-splash[data-phase="eq"]', timeout=3000)
     page.wait_for_timeout(900)
     assert_no_text(page)
-    shot(page, "02-boot-pulsing")
+    shot(page, "02-boot-equalizer")
     net.release_health()
     page.wait_for_selector(".welcome-card")
-    print("ok boot: only the logo, pulses when slow")
+    expect(page.locator(".boot-splash")).to_have_count(0)
+    print("ok boot: only the logo, equalizer when slow")
 
 
 def set_up_phone_library(page):

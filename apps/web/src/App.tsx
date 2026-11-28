@@ -57,9 +57,9 @@ import { DriveReconnect } from './components/DriveReconnect';
 import { toast, useUi } from './stores/ui';
 import { t } from './i18n';
 import { mayDoBackgroundWork, mayRotateOfflineNow } from './lib/power';
-import { BootSplash } from './components/BootSplash';
 import { ConnectionBanner } from './components/ConnectionBanner';
-import { BOOT_MAX_WAIT_MS, bootReady, splashTimings } from './lib/boot';
+import { BOOT_MAX_WAIT_MS, bootReady } from './lib/boot';
+import { attachBootSplash, leaveBootSplash, settleBootSplash } from './lib/bootSplash';
 import { BOOT_TIMEOUT_MS, isTimeout, withTimeout } from './lib/timeout';
 import {
   canUseNetwork,
@@ -93,8 +93,8 @@ function takePendingJamCode(): string | null {
   return sessionStorage.getItem(PENDING_JAM_KEY);
 }
 
-/** Starts setup and the connection watch; true once the opening screen can go away. */
-function useBootReady(setupLoading: boolean, minMs: number): boolean {
+/** Starts setup and the connection watch; true once the app can be shown. */
+function useBootReady(setupLoading: boolean): boolean {
   const connection = useConnectivity((s) => s.status);
   const [startedAt] = useState(() => Date.now());
   const [, forceRender] = useState(0);
@@ -104,47 +104,50 @@ function useBootReady(setupLoading: boolean, minMs: number): boolean {
     void useSetup.getState().init();
     const stopWatch = startConnectivityWatch();
     void useConnectivity.getState().check();
-    const timers = [minMs, BOOT_MAX_WAIT_MS].map((ms) =>
-      setTimeout(() => forceRender((n) => n + 1), ms),
-    );
+    const timer = setTimeout(() => forceRender((n) => n + 1), BOOT_MAX_WAIT_MS);
     return () => {
       stopWatch();
-      timers.forEach(clearTimeout);
+      clearTimeout(timer);
     };
-  }, [minMs]);
+  }, []);
 
-  return bootReady({ setupLoading, elapsedMs: Date.now() - startedAt, connection }, minMs);
+  return bootReady({ setupLoading, elapsedMs: Date.now() - startedAt, connection });
 }
 
-/** True for exitMs after the app becomes ready, while the opening screen fades out. */
-function useSplashExit(ready: boolean, exitMs: number): boolean {
-  const [exitDone, setExitDone] = useState(false);
+/** Settles the opening logo, then lets the app mount under it and fades it out. */
+function useSplashHandover(ready: boolean): boolean {
+  const [showApp, setShowApp] = useState(false);
+
+  useEffect(() => attachBootSplash(t('boot.loading')), []);
+
   useEffect(() => {
-    if (!ready) {
-      setExitDone(false);
-      return;
-    }
-    const timer = setTimeout(() => setExitDone(true), exitMs);
-    return () => clearTimeout(timer);
-  }, [ready, exitMs]);
-  return ready && !exitDone;
+    if (!ready) return;
+    let cancelled = false;
+    void settleBootSplash().then(() => {
+      if (!cancelled) setShowApp(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!showApp) return;
+    // Two frames: the app is painted before the fade starts, so mounting cannot stutter it.
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => void leaveBootSplash());
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showApp]);
+
+  return showApp;
 }
 
 export function App() {
   const status = useSetup((s) => s.status);
-  const [{ minMs, exitMs }] = useState(() =>
-    splashTimings(window.matchMedia('(prefers-reduced-motion: reduce)').matches),
-  );
-  const ready = useBootReady(status === 'loading', minMs);
-  const leaving = useSplashExit(ready, exitMs);
-
-  if (!ready) return <BootSplash />;
-  return (
-    <>
-      <AppScreens />
-      {leaving && <BootSplash leaving />}
-    </>
-  );
+  const ready = useBootReady(status === 'loading');
+  const showApp = useSplashHandover(ready);
+  return showApp ? <AppScreens /> : null;
 }
 
 function AppScreens() {
