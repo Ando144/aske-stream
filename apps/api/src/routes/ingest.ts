@@ -7,21 +7,7 @@ import { newId } from '../lib/ids';
 import { HttpError } from '../lib/http';
 import { isJpeg, startsWith } from '../lib/image';
 import { storageStats } from '../lib/storage';
-
-const Metadata = z.object({
-  title: z.string().trim().min(1).max(LIMITS.titleMax),
-  artist: z.string().trim().max(LIMITS.titleMax).default(''),
-  album: z.string().trim().max(LIMITS.titleMax).default(''),
-  durationMs: z
-    .number()
-    .int()
-    .positive()
-    .max(24 * 3600 * 1000),
-  bitrateKbps: z.number().int().positive().max(2000).nullable().default(null),
-  source: z.enum(['youtube', 'file']),
-  sourceRef: z.string().trim().min(1).max(200).nullable().default(null),
-  kind: z.enum(['music', 'podcast']).default('music'),
-});
+import { cancelUpload, insertTrack, Metadata, parseUploadId } from '../lib/uploads';
 
 const ExistsQuery = z.object({
   source: z.enum(['youtube', 'file']),
@@ -125,42 +111,32 @@ export const ingestRoutes = new Hono<AppEnv>()
       });
     }
 
-    const now = Date.now();
     try {
       const [inserted] = await db.batch([
-        db
-          .prepare(
-            `INSERT INTO tracks (id, title, artist, album, duration_ms, size_bytes, bitrate_kbps,
-                                 mime, audio_key, cover_key, source, source_ref, kind, liked_at,
-                                 created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?) RETURNING *`,
-          )
-          .bind(
-            id,
-            m.title,
-            m.artist,
-            m.album,
-            m.durationMs,
-            audio.size,
-            m.bitrateKbps,
-            mime,
-            audioKey(id),
-            cover ? coverKey(id) : null,
-            m.source,
-            m.sourceRef,
-            m.kind,
-            now,
-            now,
-          ),
+        insertTrack(db, {
+          ...m,
+          id,
+          sizeBytes: audio.size,
+          mime,
+          hasCover: cover !== null,
+        }),
         bumpVersion(db),
       ]);
-      return c.json(toTrack(inserted!.results[0] as TrackRow), 201);
+      const row = inserted!.results[0] as TrackRow | undefined;
+      if (!row) throw new HttpError(410, 'upload_canceled', 'This upload was canceled');
+      return c.json(toTrack(row), 201);
     } catch (err) {
-      // Never leave orphaned objects behind (e.g. a concurrent duplicate upload).
+      // Never leave orphaned objects behind (e.g. a canceled or concurrent duplicate upload).
       await c.env.BUCKET.delete([audioKey(id), coverKey(id)]);
       if (String(err).includes('UNIQUE')) {
         throw new HttpError(409, 'duplicate', 'This source is already in the library');
       }
       throw err;
     }
+  })
+
+  .delete('/uploads/:uploadId', async (c) => {
+    const uploadId = parseUploadId(c.req.param('uploadId'));
+    const deletedIds = await cancelUpload(c.env.DB, c.env.BUCKET, uploadId);
+    return c.json({ deletedIds });
   });

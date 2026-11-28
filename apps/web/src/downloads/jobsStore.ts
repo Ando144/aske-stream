@@ -78,6 +78,8 @@ export const requeuePatch = (batchId: string): Partial<DownloadJob> => ({
   savingSince: undefined,
   target: undefined,
   batchId,
+  // The Worker keeps rejecting the id of a canceled upload for 30 days.
+  uploadId: crypto.randomUUID(),
 });
 
 export const knownToNative = (p: NativePending | null): Set<string> =>

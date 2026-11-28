@@ -143,6 +143,7 @@ function uploadForm({ job, meta, ...p }: Prepared): FormData {
       source: 'youtube',
       sourceRef: job.videoId,
       kind: 'music',
+      uploadId: job.uploadId ?? job.id,
     }),
   );
   form.append('audio', p.audio);

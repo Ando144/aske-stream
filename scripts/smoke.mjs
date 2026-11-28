@@ -480,6 +480,44 @@ async function main() {
     }
   });
 
+  await step('canceled uploads: delete own track, block late arrival', async () => {
+    const cancel = (id) => api(`/api/ingest/uploads/${id}`, { method: 'DELETE' });
+    const trackIds = async () => (await json(await api('/api/library'))).tracks.map((t) => t.id);
+    const small = fakeOgg(1024);
+    const own = { ...meta(20), uploadId: 'smoke-up-1' };
+
+    const created = await upload(own, small);
+    assert.equal(created.status, 201, await created.clone().text());
+    const { id } = await created.json();
+    const canceled = await cancel('smoke-up-1');
+    assert.equal(canceled.status, 200, await canceled.clone().text());
+    assert.deepEqual(await canceled.json(), { deletedIds: [id] });
+    const remaining = await trackIds();
+    assert.equal(remaining.includes(id), false);
+    assert.ok(remaining.includes(state.t2.id), 'other songs stay');
+    assert.equal((await api(`/media/audio/${id}`)).status, 404);
+    assert.equal((await api(`/media/cover/${id}`)).status, 404);
+
+    const usage = async () => json(await api('/api/library/storage'));
+    const before = await usage();
+    const late = await upload(own, small);
+    assert.equal(late.status, 410, await late.clone().text());
+    assert.equal((await late.json()).error, 'upload_canceled');
+    assert.deepEqual(await trackIds(), remaining);
+    assert.deepEqual(await usage(), before);
+
+    const sameSong = { ...meta(21), sourceRef: state.t2.sourceRef, uploadId: 'smoke-up-2' };
+    assert.equal((await upload(sameSong, small)).status, 409);
+    for (const unknown of ['smoke-up-2', 'smoke-up-never-sent']) {
+      assert.deepEqual(await json(await cancel(unknown)), { deletedIds: [] });
+    }
+    assert.deepEqual(await trackIds(), remaining);
+    assert.equal((await api(`/media/audio/${state.t2.id}`)).status, 200);
+
+    assert.equal((await cancel('bad%20id')).status, 400);
+    assert.equal((await upload({ ...meta(22), uploadId: 'a/b' }, small)).status, 400);
+  });
+
   await step('storage stats and the free-tier budget', async () => {
     const stats = await json(await api('/api/library/storage'));
     assert.equal(stats.limitBytes, 2_000_000);

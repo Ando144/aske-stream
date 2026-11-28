@@ -41,6 +41,7 @@ import {
 } from '../downloads/pipeline';
 import { planSaveFailure } from '../downloads/retry';
 import { saveDeviceOnly, saveDownloaded, type SaveOutcome } from '../downloads/save';
+import { retryPendingCancels } from '../downloads/uploadCancels';
 import type { DownloadJob, JobStatus, NativePending, NativeResult } from '../downloads/types';
 import { t, useI18n } from '../i18n';
 import { formatBytes } from '../lib/format';
@@ -70,6 +71,7 @@ const WATCHDOG_MS = 60_000;
 export const useDownloads = create<DownloadsState>((set, get) => {
   let listening = false;
   let watchingVisibility = false;
+  let watchingOnline = false;
   let wakeTimer: ReturnType<typeof setTimeout> | undefined;
   /** Set when a save failed for lack of internet: no more attempts until `resume()`. */
   let saveBlocked = false;
@@ -329,6 +331,12 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       // Listen first so a `finished` event fired while `pending()` runs is not lost.
       listenToNative();
       clearDoneOnOpen();
+      // Cancellations that never reached the cloud: now, and whenever internet comes back.
+      void retryPendingCancels();
+      if (!watchingOnline && typeof window !== 'undefined') {
+        watchingOnline = true;
+        window.addEventListener('online', () => void retryPendingCancels());
+      }
       const pending = await Downloader.pending().catch(() => null);
       const native = pending ?? { queued: [], current: null, results: [], waitingNetwork: false };
       // Read after the await: `enqueue` may have added songs meanwhile.

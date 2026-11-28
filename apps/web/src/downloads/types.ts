@@ -30,6 +30,8 @@ export interface JobTimings {
 
 export interface DownloadJob {
   id: string;
+  /** Cloudflare id of the next upload, renewed on retry; the first one uses `id`. */
+  uploadId?: string;
   videoId: string;
   title: string;
   author: string;

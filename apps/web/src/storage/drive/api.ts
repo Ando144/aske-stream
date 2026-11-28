@@ -77,6 +77,24 @@ export interface UploadOptions {
   timeoutMs?: number;
 }
 
+/**
+ * Google may have completed an upload the user canceled. Ends the session and, if the file was
+ * already finished, deletes that file only.
+ */
+async function discardUpload(url: string, size: number): Promise<void> {
+  const signal = AbortSignal.timeout(45_000);
+  // Even if ending the session fails, the file may exist: ask for it anyway.
+  await fetch(url, { method: 'DELETE', signal }).catch((err: unknown) => {
+    console.error('Could not end a canceled Drive upload', err);
+  });
+  // An empty PUT with the total size only asks how the upload ended.
+  const headers = { 'Content-Range': `bytes */${size}` };
+  const res = await fetch(url, { method: 'PUT', headers, signal });
+  if (res.status !== 200 && res.status !== 201) return;
+  const { id } = (await res.json()) as Partial<DriveFile>;
+  if (id) await driveApi.remove(id);
+}
+
 /** Second half of a resumable upload: the bytes themselves. */
 async function sendBytes(url: string, blob: Blob, opts: UploadOptions): Promise<DriveFile> {
   const timeout = AbortSignal.timeout(opts.timeoutMs ?? 600_000);
@@ -85,7 +103,13 @@ async function sendBytes(url: string, blob: Blob, opts: UploadOptions): Promise<
   try {
     res = await fetch(url, { method: 'PUT', body: blob, signal });
   } catch (err) {
-    if (opts.signal?.aborted) throw err;
+    if (opts.signal?.aborted) {
+      // Not awaited: the caller must learn about the cancellation right away.
+      void discardUpload(url, blob.size).catch((cause: unknown) => {
+        console.error('Could not remove the file of a canceled Drive upload', cause);
+      });
+      throw err;
+    }
     if (timeout.aborted) throw new DriveError(408, 'upload_timeout', 'The upload timed out');
     throw new DriveError(0, 'network_error', 'The upload was interrupted');
   }

@@ -120,6 +120,19 @@ describe('saving a downloaded file', () => {
     expect(deleteDeviceFile).toHaveBeenCalledWith('audio', 'local1');
   });
 
+  it('sends the job id as the upload id, so that exact upload can be canceled', async () => {
+    await saveDownloaded({ ...job, keepOffline: false } as never, file, 'cloudflare');
+    const [form] = uploadTrack.mock.calls[0] as unknown as [FormData];
+    expect(JSON.parse(form.get('meta') as string)).toMatchObject({ uploadId: 'j' });
+  });
+
+  it('sends the renewed upload id of a retried job', async () => {
+    const retried = { ...job, uploadId: 'renewed', keepOffline: false };
+    await saveDownloaded(retried as never, file, 'cloudflare');
+    const [form] = uploadTrack.mock.calls[0] as unknown as [FormData];
+    expect(JSON.parse(form.get('meta') as string)).toMatchObject({ uploadId: 'renewed' });
+  });
+
   it('does not upload when canceled before the upload starts', async () => {
     const signal = AbortSignal.abort();
     await expect(saveDownloaded(job as never, file, 'cloudflare', signal)).rejects.toThrow();

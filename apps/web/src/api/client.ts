@@ -197,6 +197,11 @@ function createApi(
     /** multipart: meta (JSON), audio (Opus in Ogg/WebM), cover (JPEG, optional). */
     uploadTrack: (form: FormData, signal?: AbortSignal) =>
       json<Track>('/api/ingest/tracks', { method: 'POST', form, signal }),
+    /** Deletes the song of that upload, if stored, and blocks it if it arrives later. */
+    cancelUpload: (uploadId: string) =>
+      json<{ deletedIds: string[] }>(`/api/ingest/uploads/${encodeURIComponent(uploadId)}`, {
+        method: 'DELETE',
+      }),
 
     ingestExists: (source: 'youtube' | 'file', ref: string) =>
       json<{ exists: boolean; id: string | null }>(
