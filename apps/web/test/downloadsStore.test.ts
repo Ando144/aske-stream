@@ -30,11 +30,26 @@ const Downloader = {
 const saveDownloaded = vi.fn();
 const saveDeviceOnly = vi.fn();
 const deleteTrack = vi.fn(async () => undefined);
+/** The library's own delete shows the "deleted" notice. */
+const deleteWithNotice = vi.fn(async () => undefined);
+const persist = vi.fn(async (_state: unknown) => undefined);
+const library = {
+  deleteTrack: deleteWithNotice,
+  tracks: {} as Record<string, unknown>,
+  order: [] as string[],
+  playlists: [] as { id: string; trackIds: string[] }[],
+};
 
 vi.mock('../src/native/downloader', () => ({ Downloader, listPlaylistOnPhone: vi.fn() }));
 vi.mock('../src/native/platform', () => ({ isNative: true }));
 vi.mock('../src/downloads/save', () => ({ saveDownloaded, saveDeviceOnly }));
-vi.mock('../src/stores/library', () => ({ useLibrary: { getState: () => ({ deleteTrack }) } }));
+vi.mock('../src/stores/library', () => ({
+  useLibrary: {
+    getState: () => library,
+    setState: (patch: Partial<typeof library>) => Object.assign(library, patch),
+  },
+}));
+vi.mock('../src/stores/libraryCache', () => ({ persist, extrasStore: { deleteTrack: vi.fn() } }));
 vi.mock('../src/downloads/imports', () => ({
   findInLibrary: () => undefined,
   resolvePlaylist: vi.fn(),
@@ -47,6 +62,7 @@ vi.mock('../src/downloads/imports', () => ({
 }));
 vi.mock('../src/stores/setup', () => ({
   useSetup: { getState: () => ({ config: { home: h.home } }) },
+  getHome: () => ({ deleteTrack }),
 }));
 vi.mock('../src/stores/ui', () => ({ toast: vi.fn() }));
 vi.mock('../src/api/client', () => ({ api: { sendUpdate: vi.fn(async () => undefined) } }));
@@ -60,7 +76,7 @@ vi.mock('../src/lib/storage', () => ({
 const { useDownloads } = await import('../src/stores/downloads');
 
 const ITEMS = ['a', 'b', 'c'].map((videoId) => ({ videoId, title: videoId, author: '' }));
-const saved = { kind: 'saved', track: { id: 'tr' }, timings: {} };
+const saved = { kind: 'saved', track: { id: 'tr', locations: {} }, timings: {} };
 
 function finish(jobId: string, bytes = 10) {
   const result: NativeResult = {
@@ -334,13 +350,26 @@ describe('stuck and long saves', () => {
   });
 
   it('deletes the song when the save ends after being canceled', async () => {
+    Object.assign(library, {
+      tracks: { tr: saved.track },
+      order: ['tr'],
+      playlists: [{ id: 'p', trackIds: ['tr'] }],
+    });
     let end: () => void = () => undefined;
     saveDownloaded.mockImplementation(() => new Promise((resolve) => (end = () => resolve(saved))));
     await startSave();
     await useDownloads.getState().cancel(job(0).id);
+    const { toast } = await import('../src/stores/ui');
+    vi.mocked(toast).mockClear();
     end();
-    await vi.waitFor(() => expect(deleteTrack).toHaveBeenCalledWith('tr'));
+    await vi.waitFor(() => expect(persist).toHaveBeenCalledOnce());
+    expect(deleteTrack).toHaveBeenCalledWith('tr');
+    expect(library.tracks).toEqual({});
+    expect(library.order).toEqual([]);
+    expect(library.playlists[0]!.trackIds).toEqual([]);
     expect(status(0)).toBe('canceled');
+    expect(deleteWithNotice).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
   });
 
   it('keeps audio over 95 MB only on the phone in Cloudflare', async () => {

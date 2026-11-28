@@ -262,6 +262,8 @@ export const driveHome: LibraryHome & {
     upload?: UploadOptions,
   ) => Promise<LocalTrack>;
   findBySource: (source: string, ref: string) => Promise<LocalTrack | undefined>;
+  /** Drive files that some song of the library uses. */
+  referencedFileIds: () => Promise<Set<string>>;
   /** Re-reads Drive now, even if nothing seems to have changed. */
   refresh: () => Promise<void>;
 } = {
@@ -337,6 +339,12 @@ export const driveHome: LibraryHome & {
     const { doc } = await getState();
     const found = Object.values(doc.tracks).find((t) => t.source === source && t.sourceRef === ref);
     return found ? toLocalTrack(found) : undefined;
+  },
+
+  async referencedFileIds() {
+    const { doc } = await getState();
+    const ids = Object.values(doc.tracks).flatMap((t) => [t.audioFileId, t.coverFileId]);
+    return new Set(ids.filter((id): id is string => !!id));
   },
 
   async updateTrack(id, patch: TrackPatch) {

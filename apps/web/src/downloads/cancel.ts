@@ -2,9 +2,13 @@
 import { api } from '../api/client';
 import { t } from '../i18n';
 import { Downloader } from '../native/downloader';
+import { isOnlyOnDevice } from '../storage/localExtras';
 import { useLibrary } from '../stores/library';
-import { useSetup } from '../stores/setup';
+import { extrasStore, persist } from '../stores/libraryCache';
+import { reportError } from '../stores/libraryErrors';
+import { getHome, useSetup } from '../stores/setup';
 import { toast } from '../stores/ui';
+import { registerDriveCleanup } from './driveCleanups';
 import { endedPatch, isActive, sendOutcome, type DownloadsState } from './jobsStore';
 import { stuckSaving } from './pipeline';
 import type { SaveOutcome } from './save';
@@ -17,15 +21,52 @@ interface Store {
   update: (jobId: string, patch: Partial<DownloadJob>) => void;
 }
 
+/** How long before the save started an old Worker may date its song (clocks differ). */
+const LEGACY_MARGIN_MS = 10 * 60_000;
+
 const ack = (jobId: string) => Downloader.ack({ jobId }).catch(() => undefined);
 
-/** True when the save of this job may leave its song in Cloudflare. */
-const uploadsToCloudflare = (job: DownloadJob) =>
-  job.target !== 'device-only' && useSetup.getState().config?.home === 'cloudflare';
+/** Asks the cloud to remove whatever a stopped save may leave there. */
+function undoUpload(job: DownloadJob) {
+  if (job.target === 'device-only') return;
+  const home = useSetup.getState().config?.home;
+  const uploadId = job.uploadId ?? job.id;
+  if (home === 'drive') registerDriveCleanup(uploadId);
+  if (home !== 'cloudflare') return;
+  const since = (job.savingSince ?? Date.now()) - LEGACY_MARGIN_MS;
+  void cancelCloudUpload(uploadId, { ref: job.videoId, since });
+}
 
-/** A save that ended although it had been stopped: its song must not stay in the library. */
+function dropFromLibrary(trackId: string) {
+  const { tracks, order, playlists } = useLibrary.getState();
+  const { [trackId]: _removed, ...rest } = tracks;
+  useLibrary.setState({
+    tracks: rest,
+    order: order.filter((id) => id !== trackId),
+    playlists: playlists.map((p) => ({
+      ...p,
+      trackIds: p.trackIds.filter((id) => id !== trackId),
+    })),
+  });
+}
+
+/**
+ * A save that ended although it had been stopped: its song must not stay in the library. Deleted
+ * without the "deleted" notice, since the user canceled it.
+ */
 export async function discardSaved(outcome: SaveOutcome): Promise<void> {
-  if (outcome.kind === 'saved') await useLibrary.getState().deleteTrack(outcome.track.id);
+  if (outcome.kind !== 'saved') return;
+  const { track } = outcome;
+  const onlyHere = isOnlyOnDevice(track, useSetup.getState().config?.home);
+  try {
+    await (onlyHere ? extrasStore : getHome()).deleteTrack(track.id);
+  } catch (err) {
+    console.error('Could not delete the song of a canceled save', track.id, err);
+    reportError(err, () => useLibrary.getState().load());
+    return;
+  }
+  dropFromLibrary(track.id);
+  await persist(useLibrary.getState());
 }
 
 /** Which jobs are being saved right now, each with the handle that can stop it. */
@@ -84,7 +125,7 @@ export function createJobControls(store: Store) {
     const wasSaving = job.status === 'saving';
     abort(jobId);
     update(jobId, { status: 'canceled', error: undefined, finishedAt: Date.now() });
-    if (wasSaving && uploadsToCloudflare(job)) void cancelCloudUpload(job.uploadId ?? job.id);
+    if (wasSaving) undoUpload(job);
     if (wasSaving) toast(t('dl.toast.canceledSaving'));
     if (wasSaving || job.status === 'downloaded') await ack(jobId);
     if (job.sendId) await reportSend(job.sendId);

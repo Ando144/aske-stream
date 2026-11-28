@@ -7,7 +7,13 @@ import { newId } from '../lib/ids';
 import { HttpError } from '../lib/http';
 import { isJpeg, startsWith } from '../lib/image';
 import { storageStats } from '../lib/storage';
-import { cancelUpload, insertTrack, Metadata, parseUploadId } from '../lib/uploads';
+import {
+  cancelUpload,
+  insertTrack,
+  Metadata,
+  parseLegacyHint,
+  parseUploadId,
+} from '../lib/uploads';
 
 const ExistsQuery = z.object({
   source: z.enum(['youtube', 'file']),
@@ -137,6 +143,7 @@ export const ingestRoutes = new Hono<AppEnv>()
 
   .delete('/uploads/:uploadId', async (c) => {
     const uploadId = parseUploadId(c.req.param('uploadId'));
-    const deletedIds = await cancelUpload(c.env.DB, c.env.BUCKET, uploadId);
+    const legacy = parseLegacyHint(c.req.query());
+    const deletedIds = await cancelUpload(c.env.DB, c.env.BUCKET, uploadId, legacy);
     return c.json({ deletedIds });
   });

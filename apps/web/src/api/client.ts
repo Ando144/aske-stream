@@ -197,11 +197,19 @@ function createApi(
     /** multipart: meta (JSON), audio (Opus in Ogg/WebM), cover (JPEG, optional). */
     uploadTrack: (form: FormData, signal?: AbortSignal) =>
       json<Track>('/api/ingest/tracks', { method: 'POST', form, signal }),
-    /** Deletes the song of that upload, if stored, and blocks it if it arrives later. */
-    cancelUpload: (uploadId: string) =>
-      json<{ deletedIds: string[] }>(`/api/ingest/uploads/${encodeURIComponent(uploadId)}`, {
-        method: 'DELETE',
-      }),
+    /**
+     * Deletes the song of that upload, if stored, and blocks it if it arrives later. `legacy`
+     * also finds the song an old Worker stored without noting its upload id.
+     */
+    cancelUpload: (uploadId: string, legacy?: { ref: string; since: number }) => {
+      const hint = legacy
+        ? `?${new URLSearchParams({ ref: legacy.ref, since: String(legacy.since) })}`
+        : '';
+      return json<{ deletedIds: string[] }>(
+        `/api/ingest/uploads/${encodeURIComponent(uploadId)}${hint}`,
+        { method: 'DELETE' },
+      );
+    },
 
     ingestExists: (source: 'youtube' | 'file', ref: string) =>
       json<{ exists: boolean; id: string | null }>(

@@ -16,8 +16,10 @@ const h = vi.hoisted(() => {
 const cancelUpload = vi.fn(async (_id: string) => ({ deletedIds: [] as string[] }));
 const load = vi.fn(async () => undefined);
 const markOutdated = vi.fn();
+const retryDriveCleanups = vi.fn(async () => undefined);
 
 vi.mock('../src/api/client', () => ({ api: { cancelUpload }, ApiError: h.ApiError }));
+vi.mock('../src/downloads/driveCleanups', () => ({ retryDriveCleanups }));
 vi.mock('../src/stores/library', () => ({ useLibrary: { getState: () => ({ load }) } }));
 vi.mock('../src/stores/serverUpdate', () => ({
   useServerUpdate: { getState: () => ({ markOutdated }) },
@@ -26,7 +28,8 @@ vi.mock('../src/stores/setup', () => ({
   useSetup: { getState: () => ({ config: h.home ? { home: h.home } : null }) },
 }));
 
-const { cancelCloudUpload, retryPendingCancels } = await import('../src/downloads/uploadCancels');
+const { cancelCloudUpload, forgetCancelsFor, retryPendingCancels } =
+  await import('../src/downloads/uploadCancels');
 
 const KEY = 'aske.uploadCancels.v1';
 const DAY = 24 * 3600 * 1000;
@@ -35,6 +38,7 @@ const pending = () =>
   (JSON.parse(stored.get(KEY) ?? '[]') as { id: string; at: number }[]).map((p) => p.id);
 const save = (list: unknown) => stored.set(KEY, JSON.stringify(list));
 const offline = () => new h.ApiError(0, 'network_error', 'No connection');
+const HINT = { ref: 'vid', since: 1000 };
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -105,12 +109,22 @@ describe('canceling a cloud upload', () => {
     expect(cancelUpload).toHaveBeenCalledTimes(2);
   });
 
-  it('marks an old server as outdated and forgets the cancellation', async () => {
+  it('keeps the cancellation while the server is old, and sends it once updated', async () => {
     cancelUpload.mockRejectedValue(new h.ApiError(404, 'not_found', 'Unknown endpoint'));
-    await cancelCloudUpload('j1');
+    await cancelCloudUpload('j1', HINT);
     expect(markOutdated).toHaveBeenCalledOnce();
-    expect(pending()).toEqual([]);
+    expect(pending()).toEqual(['j1']);
     expect(load).not.toHaveBeenCalled();
+    cancelUpload.mockReset().mockResolvedValue({ deletedIds: ['r1'] });
+    await retryPendingCancels();
+    expect(cancelUpload).toHaveBeenCalledExactlyOnceWith('j1', HINT);
+    expect(pending()).toEqual([]);
+    expect(load).toHaveBeenCalledOnce();
+  });
+
+  it('retries the Drive cleanups too', async () => {
+    await retryPendingCancels();
+    expect(retryDriveCleanups).toHaveBeenCalledOnce();
   });
 
   it('drops the cancellation when the library no longer lives in Cloudflare', async () => {
@@ -147,4 +161,40 @@ describe('canceling a cloud upload', () => {
       expect(cancelUpload).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('forgetting the song hint of a video', () => {
+  it('removes it and keeps the cancellation by upload id', async () => {
+    save([
+      { id: 'j1', at: Date.now(), ...HINT },
+      { id: 'j2', at: Date.now(), ref: 'other', since: 5 },
+    ]);
+    forgetCancelsFor('vid');
+    expect(pending()).toEqual(['j1', 'j2']);
+    await retryPendingCancels();
+    expect(cancelUpload.mock.calls).toEqual([['j1'], ['j2', { ref: 'other', since: 5 }]]);
+  });
+
+  it('also applies to the attempts already scheduled', async () => {
+    cancelUpload.mockRejectedValueOnce(offline());
+    const done = cancelCloudUpload('j1', HINT);
+    await vi.advanceTimersByTimeAsync(0);
+    forgetCancelsFor('vid');
+    await vi.advanceTimersByTimeAsync(5_000);
+    await done;
+    expect(cancelUpload.mock.calls).toEqual([['j1', HINT], ['j1']]);
+  });
+});
+
+describe('the cancel request', () => {
+  it.each([
+    [undefined, '/api/ingest/uploads/j1'],
+    [HINT, '/api/ingest/uploads/j1?ref=vid&since=1000'],
+  ])('sends the song hint %o in the address', async (legacy, url) => {
+    const real = await vi.importActual<typeof import('../src/api/client')>('../src/api/client');
+    const fetchMock = vi.fn(async () => Response.json({ deletedIds: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+    await real.api.cancelUpload('j1', legacy);
+    expect(fetchMock).toHaveBeenCalledWith(url, expect.objectContaining({ method: 'DELETE' }));
+  });
 });

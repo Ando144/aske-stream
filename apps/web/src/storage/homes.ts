@@ -56,6 +56,15 @@ async function orOutdatedPin<T>(call: Promise<T>): Promise<T> {
   }
 }
 
+/** Every Worker has this route, so a 404 means the song was already gone. */
+async function deleteOnCloudflare(id: string): Promise<void> {
+  try {
+    await api.deleteTrack(id);
+  } catch (err) {
+    if (!(err instanceof ApiError && err.status === 404)) throw err;
+  }
+}
+
 async function moveOnCloudflare(id: string, folderId: string | null): Promise<Playlist> {
   try {
     return await orOutdated(api.updatePlaylist(id, { folderId }));
@@ -91,7 +100,7 @@ export const cloudflareHome: LibraryHome = {
   setPlaylistCover: (id, jpeg) =>
     orOutdated(jpeg ? api.setPlaylistCover(id, jpeg) : api.removePlaylistCover(id)),
   updateTrack: async (id, patch) => fromRemote(await api.updateTrack(id, patch)),
-  deleteTrack: (id) => api.deleteTrack(id),
+  deleteTrack: deleteOnCloudflare,
   createPlaylist: (name, ids) => api.createPlaylist(name, ids),
   renamePlaylist: (id, name) => api.updatePlaylist(id, { name }),
   deletePlaylist: (id) => api.deletePlaylist(id),

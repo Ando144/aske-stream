@@ -75,6 +75,8 @@ async function call(url: string, init: RequestInit = {}, retried = false): Promi
 export interface UploadOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Marks the file, so a canceled upload can be found and removed later. */
+  uploadId?: string;
 }
 
 /**
@@ -119,7 +121,7 @@ async function sendBytes(url: string, blob: Blob, opts: UploadOptions): Promise<
 
 const q = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
-async function findOne(query: string): Promise<DriveFile | null> {
+async function list(query: string): Promise<DriveFile[]> {
   const params = new URLSearchParams({
     q: `${query} and trashed=false`,
     fields: 'files(id,name,size,version,modifiedTime)',
@@ -128,8 +130,10 @@ async function findOne(query: string): Promise<DriveFile | null> {
   });
   const res = await call(`${API}/files?${params}`);
   const { files } = (await res.json()) as { files: DriveFile[] };
-  return files[0] ?? null;
+  return files;
 }
+
+const findOne = async (query: string): Promise<DriveFile | null> => (await list(query))[0] ?? null;
 
 export const driveApi = {
   /** Only finds folders this app created (that is all "drive.file" can see). */
@@ -149,6 +153,10 @@ export const driveApi = {
 
   findFile(name: string, parentId: string): Promise<DriveFile | null> {
     return findOne(`name='${q(name)}' and '${q(parentId)}' in parents`);
+  },
+
+  findByUploadId(uploadId: string): Promise<DriveFile[]> {
+    return list(`appProperties has { key='askeUploadId' and value='${q(uploadId)}' }`);
   },
 
   async get(fileId: string): Promise<DriveFile> {
@@ -177,7 +185,12 @@ export const driveApi = {
         'X-Upload-Content-Type': meta.mimeType,
         'X-Upload-Content-Length': String(blob.size),
       },
-      body: JSON.stringify({ name: meta.name, mimeType: meta.mimeType, parents: [meta.parentId] }),
+      body: JSON.stringify({
+        name: meta.name,
+        mimeType: meta.mimeType,
+        parents: [meta.parentId],
+        appProperties: opts.uploadId ? { askeUploadId: opts.uploadId } : undefined,
+      }),
     });
     const location = start.headers.get('Location');
     if (!location)

@@ -41,13 +41,14 @@ import {
 } from '../downloads/pipeline';
 import { planSaveFailure } from '../downloads/retry';
 import { saveDeviceOnly, saveDownloaded, type SaveOutcome } from '../downloads/save';
-import { retryPendingCancels } from '../downloads/uploadCancels';
+import { forgetCancelsFor, retryPendingCancels } from '../downloads/uploadCancels';
 import type { DownloadJob, JobStatus, NativePending, NativeResult } from '../downloads/types';
 import { t, useI18n } from '../i18n';
 import { formatBytes } from '../lib/format';
 import { loadValue, savePref } from '../lib/storage';
 import { Downloader, listPlaylistOnPhone } from '../native/downloader';
 import { isNative } from '../native/platform';
+import { useServerUpdate } from './serverUpdate';
 import { useSetup } from './setup';
 import { toast } from './ui';
 
@@ -71,7 +72,7 @@ const WATCHDOG_MS = 60_000;
 export const useDownloads = create<DownloadsState>((set, get) => {
   let listening = false;
   let watchingVisibility = false;
-  let watchingOnline = false;
+  let watchingCancels = false;
   let wakeTimer: ReturnType<typeof setTimeout> | undefined;
   /** Set when a save failed for lack of internet: no more attempts until `resume()`. */
   let saveBlocked = false;
@@ -248,6 +249,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       timings: saved ? { ...job.timings, ...outcome.timings } : job.timings,
       finishedAt: Date.now(),
     });
+    forgetCancelsFor(job.videoId);
     void Downloader.ack({ jobId: job.id }).catch(() => undefined);
     if (saved && job.target === 'device-only') toast(savedLocalText(job));
     scheduleImportSync(job.videoId);
@@ -296,6 +298,17 @@ export const useDownloads = create<DownloadsState>((set, get) => {
     void Downloader.clearDoneNotice().catch(warn('clearDoneNotice'));
   }
 
+  /** Pending cancellations: now, when internet comes back and when the server gets updated. */
+  function retryCancels() {
+    void retryPendingCancels();
+    if (watchingCancels || typeof window === 'undefined') return;
+    watchingCancels = true;
+    window.addEventListener('online', () => void retryPendingCancels());
+    useServerUpdate.subscribe(({ behind }, before) => {
+      if (before.behind && !behind) void retryPendingCancels();
+    });
+  }
+
   function listenToNative() {
     if (listening) return;
     listening = true;
@@ -331,12 +344,7 @@ export const useDownloads = create<DownloadsState>((set, get) => {
       // Listen first so a `finished` event fired while `pending()` runs is not lost.
       listenToNative();
       clearDoneOnOpen();
-      // Cancellations that never reached the cloud: now, and whenever internet comes back.
-      void retryPendingCancels();
-      if (!watchingOnline && typeof window !== 'undefined') {
-        watchingOnline = true;
-        window.addEventListener('online', () => void retryPendingCancels());
-      }
+      retryCancels();
       const pending = await Downloader.pending().catch(() => null);
       const native = pending ?? { queued: [], current: null, results: [], waitingNetwork: false };
       // Read after the await: `enqueue` may have added songs meanwhile.
@@ -368,6 +376,8 @@ export const useDownloads = create<DownloadsState>((set, get) => {
         sendId: opts.sendId ?? null,
         keepOffline: get().keepOffline,
       });
+      // Already in the library: these never reach `completeSave`, which drops the hint.
+      for (const j of fresh) if (j.status === 'skipped') forgetCancelsFor(j.videoId);
       const jobs = mergeJobs(existing, fresh);
       set({ jobs });
       persist(jobs);

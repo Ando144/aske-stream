@@ -194,7 +194,11 @@ async function saveToDrive(p: Prepared): Promise<SaveOutcome> {
       p.audio,
       p.cover,
       undefined,
-      { signal: p.signal, timeoutMs: uploadTimeoutMs(p.audio.size) },
+      {
+        signal: p.signal,
+        timeoutMs: uploadTimeoutMs(p.audio.size),
+        uploadId: job.uploadId ?? job.id,
+      },
     ),
   );
   return finish(p, upload.value, upload.ms, true);

@@ -24,7 +24,7 @@ Puedes cerrar la app mientras descarga: las canciones seguirán bajando y verás
 
 La primera descarga tarda un poco más porque la app prepara el descargador.
 
-**Cancelar o quitar:** la **X** cancela una descarga en cualquier momento, también mientras se está guardando; en ese caso no queda en tu biblioteca. Si tu biblioteca está en Cloudflare y la app te pide actualizar el servidor, hazlo para que una canción cancelada no se quede guardada. Las que han fallado o has cancelado tienen dos botones: **Reintentar** y **Quitar de la lista** (la papelera).
+**Cancelar o quitar:** la **X** cancela una descarga en cualquier momento, también mientras se está guardando; en ese caso no queda en tu biblioteca. Si cancelas mientras se guarda y no hay internet, o tu servidor de Cloudflare está sin actualizar, la app lo apunta y lo borra sola cuando vuelva internet o cuando actualices el servidor (hazlo cuando la app te lo pida). En Google Drive puede tardar unos minutos. Solo borra lo de esa descarga: nunca toca otra música. Las que han fallado o has cancelado tienen dos botones: **Reintentar** y **Quitar de la lista** (la papelera).
 
 **Audios largos:** un audio de una hora o más ocupa mucho y guardarlo en la nube puede tardar varios minutos; depende de tu conexión. Mientras tanto, las canciones normales se siguen guardando. Si la subida va demasiado lenta, la app la para: prueba con wifi y pulsa **Reintentar**. Con Cloudflare, los muy grandes se quedan solo en el móvil: mira [[cloudflare-big|audios de más de 95 MB]].
 
@@ -45,7 +45,7 @@ You can close the app while it downloads: the songs keep coming and progress sho
 
 The first download takes a bit longer because the app gets the downloader ready.
 
-**Cancel or remove:** the **X** cancels a download at any moment, also while it is being saved; in that case it does not stay in your library. If your library is on Cloudflare and the app asks you to update the server, do it so that a canceled song does not stay saved. Failed or cancelled ones have two buttons: **Retry** and **Remove from the list** (the bin).
+**Cancel or remove:** the **X** cancels a download at any moment, also while it is being saved; in that case it does not stay in your library. If you cancel while it is being saved and there is no internet, or your Cloudflare server is not up to date, the app makes a note and deletes it by itself when the internet comes back or when you update the server (do it when the app asks you to). On Google Drive it can take a few minutes. It only deletes what belongs to that download: it never touches other music. Failed or cancelled ones have two buttons: **Retry** and **Remove from the list** (the bin).
 
 **Long audio:** audio lasting an hour or more is large, and saving it to the cloud can take several minutes; it depends on your connection. Meanwhile, normal songs keep being saved. If the upload is too slow, the app stops it: try on Wi-Fi and tap **Retry**. With Cloudflare, very large ones stay only on the phone: see [[cloudflare-big|audio over 95 MB]].
 
@@ -66,7 +66,7 @@ Deskargatzen ari den bitartean aplikazioa itxi dezakezu: abestiak jaisten jarrai
 
 Lehen deskargak pixka bat gehiago irauten du, aplikazioak deskargatzailea prestatzen duelako.
 
-**Utzi edo kendu:** **X** botoiak deskarga bat edozein unetan uzten du, baita gordetzen ari den bitartean ere; orduan ez da zure liburutegian geratzen. Zure liburutegia Cloudflaren badago eta aplikazioak zerbitzaria eguneratzeko eskatzen badizu, egin ezazu, utzitako abesti bat gordeta gera ez dadin. Huts egin dutenek edo utzi dituzunek bi botoi dituzte: **Saiatu berriro** eta **Kendu zerrendatik** (zakarrontzia).
+**Utzi edo kendu:** **X** botoiak deskarga bat edozein unetan uzten du, baita gordetzen ari den bitartean ere; orduan ez da zure liburutegian geratzen. Gordetzen ari den bitartean uzten baduzu eta Internetik ez badago, edo zure Cloudflareko zerbitzaria eguneratu gabe badago, aplikazioak apuntatu egiten du eta bere kabuz ezabatzen du Internet itzultzean edo zerbitzaria eguneratzean (egin ezazu aplikazioak eskatzen dizunean). Google Driven minutu batzuk behar izan ditzake. Deskarga horri dagokiona bakarrik ezabatzen du: ez du inoiz beste musikarik ukitzen. Huts egin dutenek edo utzi dituzunek bi botoi dituzte: **Saiatu berriro** eta **Kendu zerrendatik** (zakarrontzia).
 
 **Audio luzeak:** ordubeteko edo gehiagoko audio batek leku handia hartzen du, eta hodeian gordetzeak hainbat minutu behar ditzake; zure konexioaren araberakoa da. Bitartean, abesti arruntak gordetzen jarraitzen dute. Igoera motelegia bada, aplikazioak gelditu egiten du: saiatu wifiarekin eta sakatu **Saiatu berriro**. Cloudflarerekin, oso handiak mugikorrean bakarrik geratzen dira: ikusi [[cloudflare-big|95 MB baino gehiagoko audioak]].
 
